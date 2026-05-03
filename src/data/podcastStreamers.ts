@@ -41,8 +41,8 @@ export const podcastStreamers: StreamerProfile[] = [
   },
   {
     id: "axon-king",
-    name: "Solvestre Dangon",
-    avatar: "/solvestre-dangon-avatar.png",
+    name: "Silvestre Dangon",
+    avatar: "/silvestre-dangon-avatar.png",
     immersiveSalaName: "Escenario Neural",
     panoramaImage:
       "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=4096&q=85",
