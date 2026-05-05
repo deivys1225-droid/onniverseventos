@@ -4,8 +4,6 @@ import { Billboard, DeviceOrientationControls, OrbitControls } from "@react-thre
 import * as THREE from "three";
 import {
   getRoomMode,
-  MI_MUNDO_ENV_STORAGE_KEY,
-  normalizeStoredEnvironmentId,
   type MiMundoEnvironmentId,
 } from "@/data/miMundoEnvironments";
 import {
@@ -16,6 +14,7 @@ import {
   isMobileCoarseDevice,
 } from "@/lib/webglRendererPrefs";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
+import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -44,6 +43,24 @@ const SECOND_MATCH_VIDEO_URL =
   (import.meta.env.VITE_SECOND_MATCH_VIDEO_URL as string | undefined)?.trim() || "/videos/colombia-argentina-resumen.mp4";
 const WINDOWS11_DESKTOP_URL =
   "https://images.unsplash.com/photo-1633419461186-7d40a38105ec?auto=format&fit=crop&w=1600&q=80";
+const MI_MUNDO_CAMERA_VIEW_STORAGE_KEY = "onniverso.mi_mundo.camera_view";
+const PROFILE_NAME_STORAGE_KEY = "onniverso.profile.name";
+
+function readStoredProfileName(): string | undefined {
+  try {
+    const raw = localStorage.getItem(PROFILE_NAME_STORAGE_KEY)?.trim();
+    return raw || undefined;
+  } catch {
+    return undefined;
+  }
+}
+const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 0, 5.8];
+const DEFAULT_ORBIT_TARGET: [number, number, number] = [0, 0, 0];
+
+type StoredCameraView = {
+  position: [number, number, number];
+  target: [number, number, number];
+};
 
 function createVideoTexture(url: string) {
   if (typeof document === "undefined") return { video: null, texture: null as THREE.VideoTexture | null };
@@ -60,6 +77,30 @@ function createVideoTexture(url: string) {
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
   return { video, texture };
+}
+
+function readStoredCameraView(): StoredCameraView | null {
+  try {
+    const raw = localStorage.getItem(MI_MUNDO_CAMERA_VIEW_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredCameraView>;
+    if (
+      !Array.isArray(parsed.position) ||
+      parsed.position.length !== 3 ||
+      !Array.isArray(parsed.target) ||
+      parsed.target.length !== 3
+    ) {
+      return null;
+    }
+    const nums = [...parsed.position, ...parsed.target];
+    if (!nums.every((value) => Number.isFinite(value))) return null;
+    return {
+      position: parsed.position as [number, number, number],
+      target: parsed.target as [number, number, number],
+    };
+  } catch {
+    return null;
+  }
 }
 
 function MoonScreenCluster({
@@ -547,28 +588,46 @@ function VrStereoPerfSync({ active }: { active: boolean }) {
   return null;
 }
 
-function readStoredEnvironmentId(): MiMundoEnvironmentId | null {
-  try {
-    const raw = localStorage.getItem(MI_MUNDO_ENV_STORAGE_KEY);
-    return normalizeStoredEnvironmentId(raw);
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
 const MiMundoVRSection = () => {
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const vrStereoActive = useVrModeActive();
   const moonRef = useRef<THREE.Mesh>(null);
-  const environmentId = useMemo<MiMundoEnvironmentId>(() => {
-    if (typeof window === "undefined") return "lobby";
-    return readStoredEnvironmentId() ?? "lobby";
-  }, []);
+  const environmentId = useMemo<MiMundoEnvironmentId>(() => "lobby", []);
+  const storedCameraView = useMemo(
+    () => (typeof window === "undefined" ? null : readStoredCameraView()),
+    [],
+  );
+  const storedProfileName = useMemo(
+    () => (typeof window === "undefined" ? undefined : readStoredProfileName()),
+    [],
+  );
 
   const roomMode = useMemo(() => getRoomMode(environmentId), [environmentId]);
 
   const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
+  const cameraPosition = storedCameraView?.position ?? DEFAULT_CAMERA_POSITION;
+  const orbitTarget = storedCameraView?.target ?? DEFAULT_ORBIT_TARGET;
+
+  const onProfileConfirm = (payload: ProfileCardConfirmPayload) => {
+    try {
+      localStorage.setItem(PROFILE_NAME_STORAGE_KEY, payload.name);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const onOrbitEnd = (event: { target?: { object?: THREE.Camera; target?: THREE.Vector3 } }) => {
+    if (typeof window === "undefined") return;
+    const controlsTarget = event.target;
+    if (!controlsTarget?.object || !controlsTarget?.target) return;
+    const camera = controlsTarget.object;
+    const target = controlsTarget.target;
+    const payload: StoredCameraView = {
+      position: [camera.position.x, camera.position.y, camera.position.z],
+      target: [target.x, target.y, target.z],
+    };
+    localStorage.setItem(MI_MUNDO_CAMERA_VIEW_STORAGE_KEY, JSON.stringify(payload));
+  };
 
   const enableGyroscope = async () => {
     if (typeof window === "undefined") return;
@@ -602,7 +661,7 @@ const MiMundoVRSection = () => {
           onCreated={({ gl }) => {
             applyPixelRatioCap(gl);
           }}
-          camera={{ position: [0, 0, 5.8], fov: 62, near: 0.1, far: 2000 }}
+          camera={{ position: cameraPosition, fov: 62, near: 0.1, far: 2000 }}
         >
           <color attach="background" args={roomMode === "equirect_interior" ? ["#0c0812"] : ["#02030a"]} />
           {/* VR espejo 2D: sin luces (solo meshBasic + fondo); evita sombras y shading */}
@@ -651,7 +710,7 @@ const MiMundoVRSection = () => {
           <OrbitControls
             makeDefault
             enabled={!vrStereoActive && !gyroEnabled}
-            target={[0, 0, 0]}
+            target={orbitTarget}
             enablePan={false}
             enableDamping
             dampingFactor={0.06}
@@ -660,12 +719,26 @@ const MiMundoVRSection = () => {
             maxDistance={12}
             minPolarAngle={0.02}
             maxPolarAngle={Math.PI - 0.02}
+            onEnd={onOrbitEnd}
           />
           <DeviceGyroController enabled={!vrStereoActive && gyroEnabled} />
           <VrStereoPerfSync active={vrStereoActive} />
         </Canvas>
         </div>
       </div>
+
+      {!vrStereoActive && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
+          <div className="pointer-events-auto origin-center scale-[0.63] -translate-y-[clamp(3.75rem,22vh,13rem)]">
+            <ProfileCard
+              initialName={storedProfileName ?? "Explorador VR"}
+              initialAvatarSrc="/placeholder.svg"
+              confirmLabel="Confirmar Perfil"
+              onConfirm={onProfileConfirm}
+            />
+          </div>
+        </div>
+      )}
 
     </section>
   );
