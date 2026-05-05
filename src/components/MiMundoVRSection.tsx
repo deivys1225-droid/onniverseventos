@@ -36,7 +36,6 @@ const MI_MUNDO_PANORAMA_STORAGE_KEY = "onniverso.mi_mundo.panorama";
 /** Fondo por defecto + 6 escenas en `public` (1.jpeg … 6.jpeg). */
 const MI_MUNDO_BACKGROUND_SCENES = [
   { id: "default", label: "Estadio", src: "/estadio.jpg" },
-  { id: "coliseo", label: "Coliseo", src: "/coliseo.jpg" },
   { id: "1", label: "Escena 1", src: "/1.jpeg" },
   { id: "2", label: "Escena 2", src: "/2.jpeg" },
   { id: "3", label: "Escena 3", src: "/3.jpeg" },
@@ -424,10 +423,9 @@ function OrbitingMoon({
  */
 const PANORAMA_INTERIOR_RADIUS_STANDARD = 1400;
 
-/** Estadio, Coliseo y escenas 1–4 y 6 (+20 % radio); la escena 5 solo estándar. */
+/** Estadio + escenas 1–4 y 6 (+20 % radio); la escena 5 solo estándar. */
 const EXTRA_DEPTH_PANORAMA_SRC = new Set<string>([
   "/estadio.jpg",
-  "/coliseo.jpg",
   "/1.jpeg",
   "/2.jpeg",
   "/3.jpeg",
@@ -679,7 +677,17 @@ function VrStereoPerfSync({ active }: { active: boolean }) {
   return null;
 }
 
-const MiMundoVRSection = () => {
+export type MiMundoVRSectionProps = {
+  profileDisplayName?: string | null;
+  profileAvatarUrl?: string | null;
+  onProfilePersist?: (payload: ProfileCardConfirmPayload) => void | Promise<void>;
+};
+
+const MiMundoVRSection = ({
+  profileDisplayName,
+  profileAvatarUrl,
+  onProfilePersist,
+}: MiMundoVRSectionProps) => {
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [panoramaUrl, setPanoramaUrl] = useState(readStoredPanoramaUrl);
   const [scenePickerOpen, setScenePickerOpen] = useState(false);
@@ -694,6 +702,10 @@ const MiMundoVRSection = () => {
     () => (typeof window === "undefined" ? undefined : readStoredProfileName()),
     [],
   );
+
+  const cardDisplayName =
+    profileDisplayName?.trim() || storedProfileName || "Explorador VR";
+  const cardAvatarSrc = profileAvatarUrl?.trim() || "/placeholder.svg";
 
   const roomMode = useMemo(() => getRoomMode(environmentId), [environmentId]);
 
@@ -711,11 +723,14 @@ const MiMundoVRSection = () => {
     setScenePickerOpen(false);
   }, []);
 
-  const onProfileConfirm = (payload: ProfileCardConfirmPayload) => {
+  const onProfileConfirm = async (payload: ProfileCardConfirmPayload) => {
     try {
       localStorage.setItem(PROFILE_NAME_STORAGE_KEY, payload.name);
     } catch {
       /* ignore */
+    }
+    if (onProfilePersist) {
+      await onProfilePersist(payload);
     }
   };
 
@@ -838,9 +853,9 @@ const MiMundoVRSection = () => {
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
           <div className="pointer-events-auto origin-center scale-[0.63] -translate-y-[clamp(3.75rem,22vh,13rem)]">
             <ProfileCard
-              initialName={storedProfileName ?? "Explorador VR"}
-              initialAvatarSrc="/placeholder.svg"
-              confirmLabel="Confirmar Perfil"
+              initialName={cardDisplayName}
+              initialAvatarSrc={cardAvatarSrc}
+              confirmLabel="Guardar Cambios"
               onConfirm={onProfileConfirm}
             />
           </div>

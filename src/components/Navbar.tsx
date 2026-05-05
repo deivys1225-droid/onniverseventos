@@ -34,7 +34,10 @@ const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavigate("/")}>
+        <div
+          className="flex items-center gap-2 cursor-pointer"
+          onClick={() => handleNavigate(user ? "/inicio" : "/")}
+        >
           <Headset className="w-6 h-6 text-primary" />
           <span className="font-display font-bold text-lg text-foreground tracking-tight">
             ViveVR

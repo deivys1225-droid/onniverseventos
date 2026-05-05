@@ -39,6 +39,18 @@ const ProfileCard = ({
   const displayAvatar = avatarPreviewUrl ?? initialAvatarSrc ?? "/placeholder.svg";
 
   useEffect(() => {
+    setName(initialName);
+  }, [initialName]);
+
+  useEffect(() => {
+    setAvatarPreviewUrl((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setAvatarFile(null);
+  }, [initialAvatarSrc]);
+
+  useEffect(() => {
     return () => {
       if (avatarPreviewUrl?.startsWith("blob:")) {
         URL.revokeObjectURL(avatarPreviewUrl);
