@@ -32,6 +32,12 @@ export const SALA_MP4_URL_BY_ID: Record<string, string> = {
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757419/Daddy_Yankee_-_Homenaje_Premios_lo_Nuestro_2019_yvgwjk.mp4",
   "bad-bunny":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757420/Bad_Bunny_s_Apple_Music_Super_Bowl_Halftime_Show_jfvgow.mp4",
+  "luisito-comunica-er":
+    "https://res.cloudinary.com/dfsabdxup/video/upload/v1777988737/equirectangular_2_luisito_comunica_xyrcqp.mp4",
+  "vr-360":
+    "https://res.cloudinary.com/dfsabdxup/video/upload/v1777988283/360_1_er_uozjop.mp4",
+  "gopro-gpy":
+    "https://drive.google.com/uc?export=download&id=1qniylJ0rXbgsD5Y7M5qLdZkPMrKko1iE",
   "michael-jackson":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757437/Michael_Jackson_-_Billie_Jean_-_Live_Munich_1997_-_Widescreen_HD_gei36m.mp4",
   "hablando-huevadas":
