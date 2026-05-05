@@ -1,3 +1,5 @@
+import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
+
 export type StreamStatus = "live" | "offline";
 export type StreamType = "platform" | "youtube";
 
@@ -14,6 +16,8 @@ export interface StreamerProfile {
   youtubeVideoId?: string;
   /** Video de muestra en la sala si no hay YouTube en vivo */
   fallbackVideoId?: string;
+  /** MP4 principal (Cloudinary) para pantalla / 360 en la sala inmersiva */
+  salaVideoUrl?: string;
   loungeTitle: string;
   loungeDescription: string;
   ticketGrada: number;
@@ -24,7 +28,7 @@ export interface StreamerProfile {
 export const podcastStreamers: StreamerProfile[] = [
   {
     id: "nova-byte",
-    name: "KarolG",
+    name: "Karol G",
     avatar: "/karolg-avatar.png",
     immersiveSalaName: "Sala Cuántica",
     panoramaImage:
@@ -32,6 +36,7 @@ export const podcastStreamers: StreamerProfile[] = [
     status: "live",
     streamType: "platform",
     fallbackVideoId: "M7lc1UVf-VE",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["nova-byte"],
     loungeTitle: "Quantum Lounge",
     loungeDescription:
       "Debates premium con invitados globales y audio espacial exclusivo.",
@@ -41,7 +46,7 @@ export const podcastStreamers: StreamerProfile[] = [
   },
   {
     id: "axon-king",
-    name: "Silvestre Dangon",
+    name: "Silvestre Dangond",
     avatar: "/silvestre-dangon-avatar.png",
     immersiveSalaName: "Escenario Neural",
     panoramaImage:
@@ -49,6 +54,7 @@ export const podcastStreamers: StreamerProfile[] = [
     status: "live",
     streamType: "youtube",
     youtubeVideoId: "dQw4w9WgXcQ",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["axon-king"],
     loungeTitle: "Neural Stage",
     loungeDescription:
       "Conversaciones tech, gaming competitivo y comunidad en tiempo real.",
@@ -66,6 +72,7 @@ export const podcastStreamers: StreamerProfile[] = [
     status: "live",
     streamType: "platform",
     fallbackVideoId: "ScMzIvxBSi4",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["franco-escamilla"],
     loungeTitle: "Monólogo Premium",
     loungeDescription:
       "Stand-up, humor y comunidad en vivo desde La posada del humor.",
@@ -83,6 +90,7 @@ export const podcastStreamers: StreamerProfile[] = [
     status: "live",
     streamType: "platform",
     fallbackVideoId: "aqz-KE-bpKQ",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["j-balvin"],
     loungeTitle: "Escenario principal",
     loungeDescription:
       "Show en vivo, visuales y comunidad al ritmo del reggaeton.",
@@ -99,6 +107,7 @@ export const podcastStreamers: StreamerProfile[] = [
       "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?auto=format&fit=crop&w=4096&q=85",
     status: "live",
     streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID.shakira,
     loungeTitle: "Estudio en vivo",
     loungeDescription:
       "Show musical, visuales inmersivos y comunidad de fans en directo.",
@@ -115,6 +124,7 @@ export const podcastStreamers: StreamerProfile[] = [
       "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=4096&q=85",
     status: "live",
     streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["santa-fe-klan"],
     loungeTitle: "Escandaloso",
     loungeDescription:
       "Rap mexicano, sesiones en estudio y comunidad en directo.",
@@ -131,6 +141,7 @@ export const podcastStreamers: StreamerProfile[] = [
       "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=4096&q=85",
     status: "live",
     streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["anuel-aa"],
     loungeTitle: "Escenario urbano",
     loungeDescription:
       "Trap y reggaeton en vivo con la comunidad en tiempo real.",
@@ -147,6 +158,7 @@ export const podcastStreamers: StreamerProfile[] = [
       "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=4096&q=85",
     status: "live",
     streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID.alofoke,
     loungeTitle: "Entrevistas en vivo",
     loungeDescription:
       "Charlas, urbano y cultura con invitados desde el estudio.",
@@ -156,16 +168,17 @@ export const podcastStreamers: StreamerProfile[] = [
   },
   {
     id: "westcol",
-    name: "WestCol",
+    name: "Westcol",
     avatar: "/westcol-avatar.png",
     immersiveSalaName: "Colombia",
     panoramaImage:
       "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=4096&q=85",
     status: "live",
     streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID.westcol,
     loungeTitle: "Streaming en vivo",
     loungeDescription:
-      "Contenido urbano, comunidad y eventos con WestCol en directo.",
+      "Contenido urbano, comunidad y eventos con Westcol en directo.",
     ticketGrada: 4.99,
     ticketVip: 13.99,
     featuredGames: ["Live Stream", "Fan Zone", "Meet & Greet"],
@@ -179,6 +192,7 @@ export const podcastStreamers: StreamerProfile[] = [
       "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?auto=format&fit=crop&w=4096&q=85",
     status: "live",
     streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["selena-quintanilla"],
     loungeTitle: "Clásicos en vivo",
     loungeDescription:
       "Música tejana, comunidad y tributo en directo con los fans.",
@@ -195,6 +209,7 @@ export const podcastStreamers: StreamerProfile[] = [
       "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=4096&q=85",
     status: "live",
     streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID.arcangel,
     loungeTitle: "Trap & reggaeton",
     loungeDescription:
       "Urbano, trap y comunidad en directo con La Maravilla.",
@@ -212,6 +227,7 @@ export const podcastStreamers: StreamerProfile[] = [
     status: "live",
     streamType: "platform",
     fallbackVideoId: "ScMzIvxBSi4",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["bad-bunny"],
     loungeTitle: "Un verano sin ti",
     loungeDescription:
       "Trap, reggaeton y comunidad global en vivo con el conejo malo.",
@@ -228,6 +244,7 @@ export const podcastStreamers: StreamerProfile[] = [
       "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=4096&q=85",
     status: "live",
     streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID.beele,
     loungeTitle: "En vivo",
     loungeDescription:
       "Urbano y pop latino con la comunidad en directo.",
@@ -245,6 +262,7 @@ export const podcastStreamers: StreamerProfile[] = [
     status: "live",
     streamType: "platform",
     fallbackVideoId: "ScMzIvxBSi4",
+    salaVideoUrl: SALA_MP4_URL_BY_ID.xavi,
     loungeTitle: "Corridos en vivo",
     loungeDescription:
       "Corridos tumbados y comunidad en tiempo real.",
@@ -262,6 +280,7 @@ export const podcastStreamers: StreamerProfile[] = [
     status: "live",
     streamType: "platform",
     fallbackVideoId: "ScMzIvxBSi4",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["daddy-yankee"],
     loungeTitle: "Big Boss Lounge",
     loungeDescription:
       "Reggaeton clasico, hits urbanos y comunidad en directo al ritmo del Big Boss.",

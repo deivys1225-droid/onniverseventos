@@ -387,7 +387,7 @@ export default function PodcastImmersiveScene({
   bursts,
   onBurstDone,
 }: PodcastImmersiveSceneProps) {
-  const embedUrl = "/videos/beele.mp4";
+  const embedUrl = streamer.salaVideoUrl ?? "/videos/beele.mp4";
   const [videoIn360Background, setVideoIn360Background] = useState(false);
   const mobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
   const vrModeActive = useVrModeActive();

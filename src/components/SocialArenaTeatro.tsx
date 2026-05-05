@@ -296,7 +296,15 @@ function ScreenGlowLight() {
   );
 }
 
-function CurvedScreen({ videoId, title }: { videoId: string; title: string }) {
+function CurvedScreen({
+  videoUrl,
+  videoId,
+  title,
+}: {
+  videoUrl?: string;
+  videoId?: string;
+  title: string;
+}) {
   return (
     <group>
       <mesh position={[0, 4.1, -11.4]} rotation={[0, 0, 0]}>
@@ -341,13 +349,26 @@ function CurvedScreen({ videoId, title }: { videoId: string; title: string }) {
             <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
             LIVE NOW
           </div>
-          <iframe
-            title={title}
-            className="h-full w-full bg-black"
-            src={`https://www.youtube.com/embed/${videoId}?rel=0`}
-            allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture"
-            allowFullScreen
-          />
+          {videoUrl ? (
+            <video
+              title={title}
+              className="h-full w-full bg-black object-cover"
+              src={videoUrl}
+              controls
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+          ) : videoId ? (
+            <iframe
+              title={title}
+              className="h-full w-full bg-black"
+              src={`https://www.youtube.com/embed/${videoId}?rel=0`}
+              allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          ) : null}
         </div>
       </Html>
     </group>
@@ -463,6 +484,7 @@ function SpeechBubbles() {
 }
 
 function ArenaScene({
+  videoUrl,
   videoId,
   roomTitle,
   messages,
@@ -470,7 +492,8 @@ function ArenaScene({
   onChatInput,
   onSend,
 }: {
-  videoId: string;
+  videoUrl?: string;
+  videoId?: string;
   roomTitle: string;
   messages: string[];
   chatInput: string;
@@ -507,7 +530,7 @@ function ArenaScene({
         />
       </mesh>
 
-      <CurvedScreen videoId={videoId} title={roomTitle} />
+      <CurvedScreen videoUrl={videoUrl} videoId={videoId} title={roomTitle} />
 
       <ClickZone zone="platinum" position={[-10, 0.02, 4]} radius={2.8} label="Platinum Palco" color="#22d3ee" />
       <ClickZone zone="bar" position={[9, 0.02, 5]} radius={2.2} color="#f97316" label="Bar / Lounge" />
@@ -528,7 +551,10 @@ function ArenaScene({
 }
 
 interface SocialArenaTeatroProps {
-  videoId: string;
+  /** MP4 directo (p. ej. Cloudinary); si está definido, tiene prioridad sobre YouTube. */
+  videoUrl?: string;
+  /** ID de vídeo YouTube (solo si no hay videoUrl). */
+  videoId?: string;
   roomTitle: string;
   className?: string;
   messages: string[];
@@ -538,6 +564,7 @@ interface SocialArenaTeatroProps {
 }
 
 export default function SocialArenaTeatro({
+  videoUrl,
   videoId,
   roomTitle,
   className,
@@ -563,6 +590,7 @@ export default function SocialArenaTeatro({
         <Suspense fallback={null}>
           <CameraRig>
             <ArenaScene
+              videoUrl={videoUrl}
               videoId={videoId}
               roomTitle={roomTitle}
               messages={messages}

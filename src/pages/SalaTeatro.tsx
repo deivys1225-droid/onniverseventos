@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import SocialArenaTeatro from "@/components/SocialArenaTeatro";
 import { Button } from "@/components/ui/button";
+import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { toast } from "sonner";
 
 interface TeatroRoom {
@@ -11,7 +12,7 @@ interface TeatroRoom {
   title: string;
   subtitle: string;
   country: string;
-  videoId: string;
+  videoUrl: string;
   vipZone: boolean;
 }
 
@@ -21,7 +22,7 @@ const teatroRooms: TeatroRoom[] = [
     title: "Franco Escamilla",
     subtitle: "Stand-Up Sin Censura",
     country: "Mexico",
-    videoId: "M7lc1UVf-VE",
+    videoUrl: SALA_MP4_URL_BY_ID["franco-escamilla"],
     vipZone: false,
   },
   {
@@ -29,7 +30,7 @@ const teatroRooms: TeatroRoom[] = [
     title: "Hablando Huevadas",
     subtitle: "Show en vivo con la comunidad",
     country: "Peru",
-    videoId: "ysz5S6PUM-U",
+    videoUrl: SALA_MP4_URL_BY_ID["hablando-huevadas"],
     vipZone: false,
   },
   {
@@ -37,7 +38,7 @@ const teatroRooms: TeatroRoom[] = [
     title: "Xavi",
     subtitle: "Corridos en vivo con la comunidad",
     country: "USA / México",
-    videoId: "ScMzIvxBSi4",
+    videoUrl: SALA_MP4_URL_BY_ID.xavi,
     vipZone: false,
   },
   {
@@ -45,7 +46,7 @@ const teatroRooms: TeatroRoom[] = [
     title: "Michael Jackson",
     subtitle: "Greatest hits en vivo",
     country: "USA",
-    videoId: "aqz-KE-bpKQ",
+    videoUrl: SALA_MP4_URL_BY_ID["michael-jackson"],
     vipZone: true,
   },
 ];
@@ -120,7 +121,7 @@ const SalaTeatro = () => {
     <div className="relative min-h-screen overflow-hidden bg-black">
       <div className="fixed inset-0 z-0">
         <SocialArenaTeatro
-          videoId={room.videoId}
+          videoUrl={room.videoUrl}
           roomTitle={room.title}
           className="h-dvh min-h-[100svh] w-full"
           messages={messages}
