@@ -36,6 +36,7 @@ const MI_MUNDO_PANORAMA_STORAGE_KEY = "onniverso.mi_mundo.panorama";
 /** Fondo por defecto + 6 escenas en `public` (1.jpeg … 6.jpeg). */
 const MI_MUNDO_BACKGROUND_SCENES = [
   { id: "default", label: "Estadio", src: "/estadio.jpg" },
+  { id: "coliseo", label: "Coliseo", src: "/coliseo.jpg" },
   { id: "1", label: "Escena 1", src: "/1.jpeg" },
   { id: "2", label: "Escena 2", src: "/2.jpeg" },
   { id: "3", label: "Escena 3", src: "/3.jpeg" },
@@ -417,14 +418,16 @@ function OrbitingMoon({
 }
 
 /**
- * Panorama como esfera interior (no `scene.background` fullscreen): radio mayor = menos parallax lateral.
- * Base ~300 × 1.2; ciertos fondos llevan otro ×1.2 adicional (~+20 % de profundidad perceptual vs el resto).
+ * Panorama 360°: una sola esfera gigante en el origen (cara interior, textura equirectangular).
+ * La cámara orbita cerca del origen (~12 u max); cuanto mayor el radio, menor parallax y menos sensación de “en la cara”.
+ * Valores subidos respecto al inicio (~360 u); ajusta aquí si quieres aún más lejanía.
  */
-const PANORAMA_INTERIOR_RADIUS_STANDARD = 300 * 1.2;
+const PANORAMA_INTERIOR_RADIUS_STANDARD = 1400;
 
-/** Estadio + escenas 1–4 y 6; la escena 5 usa solo el radio estándar. */
+/** Estadio, Coliseo y escenas 1–4 y 6 (+20 % radio); la escena 5 solo estándar. */
 const EXTRA_DEPTH_PANORAMA_SRC = new Set<string>([
   "/estadio.jpg",
+  "/coliseo.jpg",
   "/1.jpeg",
   "/2.jpeg",
   "/3.jpeg",
