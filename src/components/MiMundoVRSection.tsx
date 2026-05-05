@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Billboard, DeviceOrientationControls, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -13,8 +13,10 @@ import {
   getAdaptiveSphereSegments,
   isMobileCoarseDevice,
 } from "@/lib/webglRendererPrefs";
+import { Layers } from "lucide-react";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
+import { cn } from "@/lib/utils";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -27,8 +29,31 @@ const EARTH_CLOUDS = `${PLANETS}/earth_clouds_1024.png`;
 const CENTRAL_SPHERE_RADIUS = 0.925;
 
 /** Textura ligera 360° de estadio de futbol (equirectangular, optimizada para mobile). */
-const STADIUM_PANORAMA_URL =
-  "/estadio.jpg";
+const STADIUM_PANORAMA_URL = "/estadio.jpg";
+
+const MI_MUNDO_PANORAMA_STORAGE_KEY = "onniverso.mi_mundo.panorama";
+
+/** Fondo por defecto + 6 escenas en `public` (1.jpeg … 6.jpeg). */
+const MI_MUNDO_BACKGROUND_SCENES = [
+  { id: "default", label: "Estadio", src: "/estadio.jpg" },
+  { id: "1", label: "Escena 1", src: "/1.jpeg" },
+  { id: "2", label: "Escena 2", src: "/2.jpeg" },
+  { id: "3", label: "Escena 3", src: "/3.jpeg" },
+  { id: "4", label: "Escena 4", src: "/4.jpeg" },
+  { id: "5", label: "Escena 5", src: "/5.jpeg" },
+  { id: "6", label: "Escena 6", src: "/6.jpeg" },
+] as const;
+
+function readStoredPanoramaUrl(): string {
+  if (typeof window === "undefined") return STADIUM_PANORAMA_URL;
+  try {
+    const raw = localStorage.getItem(MI_MUNDO_PANORAMA_STORAGE_KEY);
+    if (raw && MI_MUNDO_BACKGROUND_SCENES.some((s) => s.src === raw)) return raw;
+  } catch {
+    /* ignore */
+  }
+  return STADIUM_PANORAMA_URL;
+}
 
 /** Luna: textura ligera + parametros de orbita. */
 const MOON_TEXTURE_URL = `${PLANETS}/moon_1024.jpg`;
@@ -391,21 +416,84 @@ function OrbitingMoon({
   );
 }
 
-function SpaceBackground({ roomTextureUrl, vrStereo }: { roomTextureUrl: string; vrStereo: boolean }) {
-  const texture = useLoader(THREE.TextureLoader, roomTextureUrl);
-  const { scene } = useThree();
+/**
+ * Panorama como esfera interior (no `scene.background` fullscreen): radio mayor = menos parallax lateral.
+ * Base ~300 × 1.2; ciertos fondos llevan otro ×1.2 adicional (~+20 % de profundidad perceptual vs el resto).
+ */
+const PANORAMA_INTERIOR_RADIUS_STANDARD = 300 * 1.2;
+
+/** Estadio + escenas 1–4 y 6; la escena 5 usa solo el radio estándar. */
+const EXTRA_DEPTH_PANORAMA_SRC = new Set<string>([
+  "/estadio.jpg",
+  "/1.jpeg",
+  "/2.jpeg",
+  "/3.jpeg",
+  "/4.jpeg",
+  "/6.jpeg",
+]);
+
+function panoramaInteriorRadius(roomTextureUrl: string): number {
+  return EXTRA_DEPTH_PANORAMA_SRC.has(roomTextureUrl)
+    ? PANORAMA_INTERIOR_RADIUS_STANDARD * 1.2
+    : PANORAMA_INTERIOR_RADIUS_STANDARD;
+}
+
+function SpaceBackground({
+  roomTextureUrl,
+  vrStereo,
+  simpleGpu,
+}: {
+  roomTextureUrl: string;
+  vrStereo: boolean;
+  simpleGpu: boolean;
+}) {
+  const [map, setMap] = useState<THREE.Texture | null>(null);
+  const textureRef = useRef<THREE.Texture | null>(null);
+
+  const sphereRadius = useMemo(() => panoramaInteriorRadius(roomTextureUrl), [roomTextureUrl]);
+  const sphereSegments = vrStereo ? 32 : simpleGpu ? 40 : 48;
 
   useEffect(() => {
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    texture.anisotropy = vrStereo ? 1 : 8;
-    scene.background = texture;
+    let cancelled = false;
+    const loader = new THREE.TextureLoader();
+    loader.load(roomTextureUrl, (texture) => {
+      if (cancelled) {
+        texture.dispose();
+        return;
+      }
+      if (textureRef.current) textureRef.current.dispose();
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      texture.anisotropy = vrStereo ? 1 : 8;
+      textureRef.current = texture;
+      setMap(texture);
+    });
     return () => {
-      if (scene.background === texture) scene.background = null;
+      cancelled = true;
+      setMap(null);
+      if (textureRef.current) {
+        textureRef.current.dispose();
+        textureRef.current = null;
+      }
     };
-  }, [scene, texture, vrStereo]);
+  }, [roomTextureUrl]);
 
-  return null;
+  useEffect(() => {
+    const t = textureRef.current;
+    if (t) {
+      t.anisotropy = vrStereo ? 1 : 8;
+      t.needsUpdate = true;
+    }
+  }, [vrStereo]);
+
+  if (!map) return null;
+
+  return (
+    <mesh key={`panorama-${sphereRadius}-${roomTextureUrl}`} frustumCulled={false} renderOrder={-2000}>
+      <sphereGeometry args={[sphereRadius, sphereSegments, sphereSegments]} />
+      <meshBasicMaterial map={map} side={THREE.BackSide} depthWrite={false} toneMapped={!vrStereo} />
+    </mesh>
+  );
 }
 
 /**
@@ -590,6 +678,8 @@ function VrStereoPerfSync({ active }: { active: boolean }) {
 
 const MiMundoVRSection = () => {
   const [gyroEnabled, setGyroEnabled] = useState(false);
+  const [panoramaUrl, setPanoramaUrl] = useState(readStoredPanoramaUrl);
+  const [scenePickerOpen, setScenePickerOpen] = useState(false);
   const vrStereoActive = useVrModeActive();
   const moonRef = useRef<THREE.Mesh>(null);
   const environmentId = useMemo<MiMundoEnvironmentId>(() => "lobby", []);
@@ -607,6 +697,16 @@ const MiMundoVRSection = () => {
   const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
   const cameraPosition = storedCameraView?.position ?? DEFAULT_CAMERA_POSITION;
   const orbitTarget = storedCameraView?.target ?? DEFAULT_ORBIT_TARGET;
+
+  const selectPanorama = useCallback((src: string) => {
+    setPanoramaUrl(src);
+    try {
+      localStorage.setItem(MI_MUNDO_PANORAMA_STORAGE_KEY, src);
+    } catch {
+      /* ignore */
+    }
+    setScenePickerOpen(false);
+  }, []);
 
   const onProfileConfirm = (payload: ProfileCardConfirmPayload) => {
     try {
@@ -685,7 +785,11 @@ const MiMundoVRSection = () => {
 
           {/* Fondo: solo textura en scene.background (0 geometría de esfera). */}
           <Suspense fallback={null}>
-            <SpaceBackground roomTextureUrl={STADIUM_PANORAMA_URL} vrStereo={vrStereoActive} />
+            <SpaceBackground
+              roomTextureUrl={panoramaUrl}
+              vrStereo={vrStereoActive}
+              simpleGpu={isMobileCoarse || vrStereoActive}
+            />
           </Suspense>
           <Suspense fallback={null}>
             <CentralEarth
@@ -738,6 +842,69 @@ const MiMundoVRSection = () => {
             />
           </div>
         </div>
+      )}
+
+      {!vrStereoActive && (
+        <>
+          {scenePickerOpen && (
+            <button
+              type="button"
+              aria-label="Cerrar selector de escenas"
+              className="fixed inset-0 z-[55] bg-background/35 backdrop-blur-[2px]"
+              onClick={() => setScenePickerOpen(false)}
+            />
+          )}
+          <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2 pb-[env(safe-area-inset-bottom,0px)] pr-[env(safe-area-inset-right,0px)]">
+            {scenePickerOpen && (
+              <div
+                role="dialog"
+                aria-label="Escenas de fondo"
+                className="pointer-events-auto w-[min(92vw,288px)] rounded-2xl border border-primary/30 bg-card/95 p-3 shadow-[0_0_40px_-20px_hsl(var(--primary)/0.9)] backdrop-blur-xl"
+              >
+                <p className="mb-2 text-center font-display text-[11px] font-bold uppercase tracking-wider text-primary">
+                  Escena 360°
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {MI_MUNDO_BACKGROUND_SCENES.map((scene) => {
+                    const active = panoramaUrl === scene.src;
+                    return (
+                      <button
+                        key={scene.id}
+                        type="button"
+                        onClick={() => selectPanorama(scene.src)}
+                        className={cn(
+                          "group relative aspect-video w-full overflow-hidden rounded-xl border transition",
+                          active
+                            ? "border-primary/70 ring-2 ring-primary/80 shadow-[0_0_16px_-4px_hsl(var(--primary)/0.55)]"
+                            : "border-white/15 hover:border-primary/45",
+                        )}
+                      >
+                        <img
+                          src={scene.src}
+                          alt=""
+                          className="h-full w-full object-cover transition group-hover:scale-105 group-hover:duration-300"
+                          loading="lazy"
+                        />
+                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-1 pb-1 pt-4 text-center text-[9px] font-display font-bold uppercase tracking-wide text-white/95">
+                          {scene.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setScenePickerOpen((prev) => !prev)}
+              aria-label={scenePickerOpen ? "Cerrar escenas de fondo" : "Abrir escenas de fondo"}
+              aria-expanded={scenePickerOpen}
+              className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary shadow-[0_0_24px_-8px_hsl(var(--primary)/0.55)] transition hover:bg-primary/20"
+            >
+              <Layers className="h-5 w-5" />
+            </button>
+          </div>
+        </>
       )}
 
     </section>
