@@ -37,7 +37,7 @@ export const SALA_MP4_URL_BY_ID: Record<string, string> = {
   "vr-360":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777988283/360_1_er_uozjop.mp4",
   "gopro-gpy":
-    "https://drive.google.com/uc?export=download&id=1qniylJ0rXbgsD5Y7M5qLdZkPMrKko1iE",
+    "https://res.cloudinary.com/dfsabdxup/video/upload/v1778011486/gopro_1_jyzdtl.mp4",
   "michael-jackson":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757437/Michael_Jackson_-_Billie_Jean_-_Live_Munich_1997_-_Widescreen_HD_gei36m.mp4",
   "hablando-huevadas":
