@@ -6,6 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
 
+const APP_APK_DOWNLOAD_URL =
+  "https://drive.google.com/uc?export=download&id=1bttG_2hiZQuTNkFoJXUv4ds1x1W7PLAM";
+
 const Navbar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -61,8 +64,10 @@ const Navbar = () => {
             </Button>
           </div>
         ) : (
-          <Button variant="hero" size="sm" onClick={() => handleNavigate("/auth")} className="hidden md:inline-flex">
-            Ir a la aplicación
+          <Button variant="hero" size="sm" asChild className="hidden md:inline-flex">
+            <a href={APP_APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
+              Ir a la aplicación
+            </a>
           </Button>
         )}
 
@@ -106,8 +111,15 @@ const Navbar = () => {
                 </Button>
               </div>
             ) : (
-              <Button variant="hero" size="sm" onClick={() => handleNavigate("/auth")} className="mt-4 w-full">
-                Ir a la aplicación
+              <Button variant="hero" size="sm" asChild className="mt-4 w-full">
+                <a
+                  href={APP_APK_DOWNLOAD_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Ir a la aplicación
+                </a>
               </Button>
             )}
           </div>
