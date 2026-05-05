@@ -2,8 +2,6 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Billboard, DeviceOrientationControls, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { Maximize2, Minimize2 } from "lucide-react";
-import { useLocation } from "react-router-dom";
 import {
   getRoomMode,
   MI_MUNDO_ENV_STORAGE_KEY,
@@ -560,9 +558,6 @@ function readStoredEnvironmentId(): MiMundoEnvironmentId | null {
 }
 
 const MiMundoVRSection = () => {
-  const location = useLocation();
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const vrStereoActive = useVrModeActive();
   const moonRef = useRef<THREE.Mesh>(null);
@@ -590,48 +585,8 @@ const MiMundoVRSection = () => {
     setGyroEnabled(true);
   };
 
-  useEffect(() => {
-    const onChange = () => {
-      setIsFullscreen(
-        Boolean(document.fullscreenElement || (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement),
-      );
-    };
-    document.addEventListener("fullscreenchange", onChange);
-    document.addEventListener("webkitfullscreenchange", onChange);
-    onChange();
-    return () => {
-      document.removeEventListener("fullscreenchange", onChange);
-      document.removeEventListener("webkitfullscreenchange", onChange);
-    };
-  }, []);
-
-  const toggleFullscreen = () => {
-    const el = sectionRef.current;
-    if (!el) return;
-    const isFs = Boolean(
-      document.fullscreenElement || (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement,
-    );
-    if (isFs) {
-      if (document.exitFullscreen) {
-        void document.exitFullscreen();
-      } else {
-        (document as Document & { webkitExitFullscreen?: () => Promise<void> }).webkitExitFullscreen?.();
-      }
-    } else {
-      if (el.requestFullscreen) {
-        void el.requestFullscreen().catch(() => undefined);
-      } else {
-        (el as HTMLElement & { webkitRequestFullscreen?: () => void }).webkitRequestFullscreen?.();
-      }
-    }
-  };
-
   return (
-    <section
-      id="mi-mundo-vr"
-      ref={sectionRef}
-      className="relative h-[100dvh] w-full overflow-hidden bg-black"
-    >
+    <section id="mi-mundo-vr" className="relative h-[100dvh] w-full overflow-hidden bg-black">
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0">
         <Canvas
@@ -711,23 +666,6 @@ const MiMundoVRSection = () => {
         </Canvas>
         </div>
       </div>
-
-      {isMobileCoarse && (
-        <button
-          type="button"
-          onClick={toggleFullscreen}
-          className="absolute bottom-4 left-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/60 px-4 py-2.5 text-sm font-display font-semibold text-white/95 shadow-lg backdrop-blur-md transition hover:bg-black/80 hover:border-white/35"
-          aria-pressed={isFullscreen}
-          title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-        >
-          {isFullscreen ? (
-            <Minimize2 className="h-4 w-4 shrink-0" aria-hidden />
-          ) : (
-            <Maximize2 className="h-4 w-4 shrink-0" aria-hidden />
-          )}
-          {isFullscreen ? "Salir" : "Pantalla completa"}
-        </button>
-      )}
 
     </section>
   );

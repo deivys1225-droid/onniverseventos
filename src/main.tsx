@@ -6,7 +6,6 @@ import "./index.css";
 
 function MirrorSbsRoot() {
   const [vrMode, setVrMode] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [hasFrame, setHasFrame] = useState(false);
   const sourceHostRef = useRef<HTMLDivElement | null>(null);
   const masterCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -14,15 +13,6 @@ function MirrorSbsRoot() {
   const rightEyeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const leftEyeRef = useRef<HTMLDivElement | null>(null);
   const rightEyeRef = useRef<HTMLDivElement | null>(null);
-
-  const toggleFullscreen = () => {
-    const root = document.documentElement;
-    if (!document.fullscreenElement) {
-      void root.requestFullscreen().catch(() => undefined);
-      return;
-    }
-    void document.exitFullscreen().catch(() => undefined);
-  };
 
   useEffect(() => {
     const { pushState, replaceState } = window.history;
@@ -41,15 +31,6 @@ function MirrorSbsRoot() {
       window.history.pushState = pushState;
       window.history.replaceState = replaceState;
     };
-  }, []);
-
-  useEffect(() => {
-    const onFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
-    };
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    onFullscreenChange();
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
   useEffect(() => {
@@ -292,14 +273,6 @@ function MirrorSbsRoot() {
 
   return (
     <div id="mirror-body" className={`${vrMode ? "sbs-active" : ""} ${vrMode && hasFrame ? "sbs-ready" : ""}`}>
-      <button
-        type="button"
-        className="fullscreen-button"
-        onClick={toggleFullscreen}
-      >
-        {isFullscreen ? "SALIR FULLSCREEN" : "FULLSCREEN"}
-      </button>
-
       <div className="sbs-panels">
         <div id="mirror-source" ref={sourceHostRef} className="sbs-source">
           <App />
