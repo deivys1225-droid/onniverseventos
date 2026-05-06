@@ -2,8 +2,10 @@ import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Camera, Headset, Loader2, Lock, Mail, User } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { compressProfileImage } from "@/lib/compressProfileImage";
+import { formatSupabaseAuthError } from "@/lib/supabaseErrors";
 import { upsertProfile, uploadAvatar } from "@/lib/profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,8 +79,7 @@ const RegisterPage = () => {
         navigate("/", { replace: true });
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "No se pudo registrar";
-      toast.error(message);
+      toast.error(formatSupabaseAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -104,6 +105,17 @@ const RegisterPage = () => {
           animate={{ opacity: 1, y: 0 }}
           className={`w-full max-w-md ${glassPanel}`}
         >
+          {!isSupabaseConfigured && (
+            <Alert className="mb-6 border-amber-500/45 bg-amber-500/10 text-amber-50">
+              <AlertTitle className="text-sm text-amber-100">Configura Supabase</AlertTitle>
+              <AlertDescription className="text-xs leading-snug text-amber-100/90">
+                Añade <code className="rounded bg-black/35 px-1 font-mono text-[11px]">VITE_SUPABASE_URL</code> y{" "}
+                <code className="rounded bg-black/35 px-1 font-mono text-[11px]">VITE_SUPABASE_PUBLISHABLE_KEY</code>{" "}
+                en <code className="rounded bg-black/35 px-1 font-mono text-[11px]">.env</code> y reinicia{" "}
+                <code className="rounded bg-black/35 px-1 font-mono text-[11px]">npm run dev</code>.
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="mb-8 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/40 bg-primary/10">
               <Headset className="h-8 w-8 text-primary" />
