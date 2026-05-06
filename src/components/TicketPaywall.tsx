@@ -11,6 +11,7 @@ import { useState } from "react";
 import LoginAuthModal from "@/components/LoginAuthModal";
 import PaymentSuccessModal from "@/components/PaymentSuccessModal";
 import { notifyN8nPaymentSuccess } from "@/lib/n8n";
+import { addVaultItem } from "@/lib/vaultItems";
 
 interface TicketPaywallProps {
   price: number;
@@ -64,6 +65,12 @@ const TicketPaywall = ({ price, eventId, requiresAuth }: TicketPaywallProps) => 
       } catch (e) {
         console.error("n8n notification:", e);
       }
+
+      addVaultItem(user.id, {
+        type: "ticket",
+        title: `Ticket - ${eventId}`,
+        priceUsd: price,
+      });
 
       setSuccessOpen(true);
       queryClient.invalidateQueries({ queryKey: ["ticket"] });

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { mapStoreCategoriesWithDynamicPrices } from "@/lib/pricing";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -21,6 +21,7 @@ import PricingSection from "@/components/PricingSection";
 import Footer from "@/components/Footer";
 import StoreProductPayPal from "@/components/StoreProductPayPal";
 import type { SkinRarityLabel } from "@/lib/pricing";
+import { supabase } from "@/integrations/supabase/client";
 
 type CategoryId = "tickets" | "biblioteca" | "cursos" | "salas-pro" | "set-streamer" | "skins";
 
@@ -33,6 +34,14 @@ type Product = {
   /** Añadido en runtime por `mapStoreCategoriesWithDynamicPrices` */
   priceUsd?: number;
   skinRarity?: SkinRarityLabel;
+};
+
+type DynamicStoreProduct = {
+  id: string;
+  item_type: "biblioteca" | "cursos";
+  title: string;
+  cover_image_url: string;
+  sale_price: number;
 };
 
 const storeCategories: {
@@ -181,7 +190,53 @@ const investorStats = [
 
 const TiendaPage = () => {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
-  const catalog = useMemo(() => mapStoreCategoriesWithDynamicPrices(storeCategories), []);
+  const [dynamicProducts, setDynamicProducts] = useState<DynamicStoreProduct[]>([]);
+
+  useEffect(() => {
+    const loadDynamicStore = async () => {
+      const { data } = await supabase
+        .from("store_items")
+        .select("id,item_type,title,cover_image_url,sale_price")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      setDynamicProducts((data ?? []) as DynamicStoreProduct[]);
+    };
+    void loadDynamicStore();
+  }, []);
+
+  const catalog = useMemo(() => {
+    const bibliotecaDynamic: Product[] = dynamicProducts
+      .filter((item) => item.item_type === "biblioteca")
+      .map((item) => ({
+        title: item.title,
+        description: "Libro virtual publicado por la comunidad.",
+        detail: "Disponible para descarga",
+        price: `$${Number(item.sale_price).toFixed(2)} USD`,
+        image: item.cover_image_url,
+        priceUsd: Number(item.sale_price),
+      }));
+    const cursosDynamic: Product[] = dynamicProducts
+      .filter((item) => item.item_type === "cursos")
+      .map((item) => ({
+        title: item.title,
+        description: "Curso virtual publicado por la comunidad.",
+        detail: "Acceso en linea",
+        price: `$${Number(item.sale_price).toFixed(2)} USD`,
+        image: item.cover_image_url,
+        priceUsd: Number(item.sale_price),
+      }));
+
+    const merged = storeCategories.map((category) => {
+      if (category.id === "biblioteca") {
+        return { ...category, products: [...bibliotecaDynamic, ...category.products] };
+      }
+      if (category.id === "cursos") {
+        return { ...category, products: [...cursosDynamic, ...category.products] };
+      }
+      return category;
+    });
+    return mapStoreCategoriesWithDynamicPrices(merged);
+  }, [dynamicProducts]);
   const selectedCategory = useMemo(
     () => catalog.find((item) => item.id === activeCategory) ?? null,
     [activeCategory, catalog],
@@ -286,6 +341,7 @@ const TiendaPage = () => {
                                 productTitle={product.title}
                                 priceUsd={usd}
                                 skinRarity={product.skinRarity}
+                                productImage={product.image}
                               />
                             )}
                           </CardContent>

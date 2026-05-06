@@ -8,6 +8,7 @@ import { notifyN8nPaymentSuccess } from "@/lib/n8n";
 import { Button } from "@/components/ui/button";
 import { LogIn, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { addVaultItem, type VaultItemType } from "@/lib/vaultItems";
 
 type StoreProductPayPalProps = {
   categoryId: string;
@@ -15,6 +16,7 @@ type StoreProductPayPalProps = {
   productTitle: string;
   priceUsd: number;
   skinRarity?: string;
+  productImage?: string;
 };
 
 const StoreProductPayPal = ({
@@ -23,6 +25,7 @@ const StoreProductPayPal = ({
   productTitle,
   priceUsd,
   skinRarity,
+  productImage,
 }: StoreProductPayPalProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -33,6 +36,14 @@ const StoreProductPayPal = ({
 
   const value = priceUsd.toFixed(2);
   const sku = `store:${categoryId}:${encodeURIComponent(productTitle)}`;
+  const vaultType: VaultItemType =
+    categoryId === "biblioteca"
+      ? "biblioteca"
+      : categoryId === "cursos"
+        ? "cursos"
+        : categoryId === "tickets"
+          ? "ticket"
+          : "skin";
 
   const afterCapture = async (orderId: string) => {
     setWorking(true);
@@ -56,6 +67,14 @@ const StoreProductPayPal = ({
       } catch (e) {
         console.error("n8n store notification:", e);
         toast.error("Pago recibido; no pudimos notificar a n8n. Contacta soporte si no recibes el producto.");
+      }
+      if (user?.id) {
+        addVaultItem(user.id, {
+          type: vaultType,
+          title: productTitle,
+          priceUsd,
+          thumbnailUrl: productImage ?? null,
+        });
       }
       setCompleted(true);
       setSuccessOpen(true);

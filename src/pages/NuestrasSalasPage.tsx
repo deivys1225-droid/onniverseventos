@@ -11,6 +11,7 @@ import { SALA_MP4_URL_BY_ID, onniverseDeepLink } from "@/data/salaVideoUrls";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { addVaultItem } from "@/lib/vaultItems";
 
 const SectionHeader = ({
   badge,
@@ -378,6 +379,14 @@ const NuestrasSalasPage = () => {
                                   onApprove={async (_data, actions) => {
                                     if (!actions.order) return;
                                     await actions.order.capture();
+                                    if (user?.id) {
+                                      addVaultItem(user.id, {
+                                        type: "ticket",
+                                        title: `Ticket - ${room.name}`,
+                                        priceUsd: price,
+                                        thumbnailUrl: room.image,
+                                      });
+                                    }
                                     toast.success("Pago confirmado. Entrando a la sala...");
                                     markPaidAndOpen(room.id, room.to);
                                   }}

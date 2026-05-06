@@ -28,6 +28,9 @@ import SearchHub from "@/components/SearchHub";
 import StreamSetupCard, { type StreamSetupPayload } from "@/components/StreamSetupCard";
 import { startActiveStream, stopMyActiveStream } from "@/lib/activeStreams";
 import { setLivePreviewStream } from "@/lib/livePreviewBus";
+import StorePublishCard, { type StorePublishPayload } from "@/components/StorePublishCard";
+import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
+import VaultCard from "@/components/VaultCard";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -113,8 +116,10 @@ function readStoredCameraView(): StoredCameraView | null {
 function MoonScreenCluster({
   visible,
   vrMirrorFlat,
+  onOpenVault,
   onOpenLiveRequest,
   onOpenStreamSetup,
+  onOpenStoreSetup,
   onCollapseScreens,
   cameraPreviewStream,
   isUserLive,
@@ -122,14 +127,15 @@ function MoonScreenCluster({
   visible: boolean;
   /** Mismo canvas 2D: planos que miran a la cámara, sin profundidad de escena. */
   vrMirrorFlat: boolean;
+  onOpenVault?: () => void;
   onOpenLiveRequest?: () => void;
   onOpenStreamSetup?: () => void;
+  onOpenStoreSetup?: (itemType: "biblioteca" | "cursos") => void;
   onCollapseScreens?: () => void;
   cameraPreviewStream?: MediaStream | null;
   isUserLive?: boolean;
 }) {
   const clusterRef = useRef<THREE.Group>(null);
-  const [focusedScreen, setFocusedScreen] = useState<"social" | "video" | "live" | "system" | null>(null);
   const systemTexture = useLoader(THREE.TextureLoader, WINDOWS11_DESKTOP_URL);
   const liveCardTexture = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -138,133 +144,145 @@ function MoonScreenCluster({
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
     const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    bg.addColorStop(0, "#090909");
-    bg.addColorStop(0.55, "#121015");
-    bg.addColorStop(1, "#08080a");
+    bg.addColorStop(0, "rgba(2,6,14,0.72)");
+    bg.addColorStop(0.55, "rgba(5,10,22,0.65)");
+    bg.addColorStop(1, "rgba(2,6,14,0.72)");
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const cyanAura = ctx.createRadialGradient(1030, 180, 25, 1030, 180, 380);
-    cyanAura.addColorStop(0, "rgba(255,204,120,0.28)");
-    cyanAura.addColorStop(1, "rgba(255,204,120,0)");
+
+    const cyanAura = ctx.createRadialGradient(1010, 145, 40, 1010, 145, 360);
+    cyanAura.addColorStop(0, "rgba(75,225,255,0.32)");
+    cyanAura.addColorStop(1, "rgba(75,225,255,0)");
     ctx.fillStyle = cyanAura;
-    ctx.fillRect(660, 0, 640, 560);
-    const goldAura = ctx.createRadialGradient(220, 540, 20, 220, 540, 320);
-    goldAura.addColorStop(0, "rgba(255,195,76,0.26)");
-    goldAura.addColorStop(1, "rgba(255,195,76,0)");
-    ctx.fillStyle = goldAura;
-    ctx.fillRect(0, 330, 540, 390);
+    ctx.fillRect(680, 0, 600, 420);
 
-    ctx.strokeStyle = "rgba(255,205,126,0.68)";
-    ctx.lineWidth = 7;
+    ctx.strokeStyle = "rgba(70,228,255,0.96)";
+    ctx.lineWidth = 5;
+    ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
+    ctx.strokeStyle = "rgba(66,198,255,0.72)";
+    ctx.lineWidth = 2;
     ctx.strokeRect(34, 34, canvas.width - 68, canvas.height - 68);
-    ctx.strokeStyle = "rgba(255,193,94,0.48)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
 
-    ctx.fillStyle = "rgba(255,198,104,0.16)";
-    ctx.fillRect(74, 62, 294, 56);
-    ctx.strokeStyle = "rgba(255,209,132,0.6)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(74, 62, 294, 56);
-    ctx.fillStyle = "#ffe5b0";
-    ctx.font = "700 27px Arial";
-    ctx.fillText("ONNIVERSO VIP", 90, 99);
+    const vipTagX = 66;
+    const vipTagY = 52;
+    const vipTagW = 320;
+    const vipTagH = 58;
+    const vipTagGrad = ctx.createLinearGradient(vipTagX, vipTagY, vipTagX + vipTagW, vipTagY + vipTagH);
+    vipTagGrad.addColorStop(0, "rgba(20,42,66,0.78)");
+    vipTagGrad.addColorStop(1, "rgba(10,26,46,0.78)");
+    ctx.fillStyle = vipTagGrad;
+    ctx.beginPath();
+    ctx.roundRect(vipTagX, vipTagY, vipTagW, vipTagH, 20);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(98,224,255,0.85)";
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255,166,233,0.68)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.roundRect(vipTagX + 5, vipTagY + 5, vipTagW - 10, vipTagH - 10, 16);
+    ctx.stroke();
+    ctx.fillStyle = "#ff9ce4";
+    ctx.font = "800 30px 'Trebuchet MS'";
+    ctx.fillText("ONNIVERSO VIP", 84, 91);
 
-    // Main title
-    ctx.shadowColor = "rgba(104, 235, 255, 0.85)";
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = "#ffd28a";
-    ctx.font = "800 56px Arial";
-    ctx.fillText("REVOLUCION VIP:", 86, 172);
-    ctx.fillStyle = "#fff4de";
-    ctx.font = "800 58px Arial";
-    ctx.fillText("MONETIZA SIN FRONTERAS", 86, 238);
+    ctx.shadowColor = "rgba(91, 228, 255, 0.82)";
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = "#ff86d8";
+    ctx.font = "900 62px 'Trebuchet MS'";
+    ctx.fillText("REVOLUCION VIP", 78, 182);
+    ctx.fillStyle = "#d5f7ff";
+    ctx.font = "900 58px 'Trebuchet MS'";
+    ctx.fillText("MONETIZA SIN FRONTERAS", 78, 246);
     ctx.shadowBlur = 0;
 
-    // Long-form copy with manual wrapping
-    const copy =
-      "Lidera la Nueva Era: Se el primero en llevar a tus artistas a una experiencia inmersiva unica en el Onniverso. Activa tu Estadio Virtual 360° y accede a una infraestructura exclusiva donde puedes vender Tickets VIP globales sin limites de aforo. Convierte cada show en un evento mundial, con la seguridad y el alcance que solo la tecnologia VR de vanguardia puede ofrecer. Tu artista, tu estadio, tus reglas.";
-    const maxWidth = 730;
-    const startX = 86;
-    let y = 286;
-    ctx.fillStyle = "rgba(234,248,255,0.97)";
-    ctx.font = "500 24px Arial";
+    const copy = "Activa tu estadio virtual 360 y vende Tickets VIP globales para tus artistas con infraestructura premium segura.";
     const words = copy.split(" ");
     let line = "";
+    let y = 294;
+    ctx.fillStyle = "rgba(226,246,255,0.96)";
+    ctx.font = "600 26px 'Trebuchet MS'";
     for (const word of words) {
       const test = line ? `${line} ${word}` : word;
-      if (ctx.measureText(test).width > maxWidth) {
-        ctx.fillText(line, startX, y);
+      if (ctx.measureText(test).width > 690) {
+        ctx.fillText(line, 80, y);
         line = word;
         y += 34;
       } else {
         line = test;
       }
     }
-    if (line) ctx.fillText(line, startX, y);
+    if (line) ctx.fillText(line, 80, y);
 
-    // VR visor illustration
-    ctx.fillStyle = "rgba(20, 16, 10, 0.96)";
-    ctx.strokeStyle = "rgba(255, 216, 140, 0.82)";
-    ctx.lineWidth = 6;
+    const photoX = 810;
+    const photoY = 200;
+    const photoW = 392;
+    const photoH = 275;
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.fillRect(photoX, photoY, photoW, photoH);
+    ctx.strokeStyle = "rgba(88,226,255,0.86)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(photoX, photoY, photoW, photoH);
+
+    const visorImg = new Image();
+    visorImg.crossOrigin = "anonymous";
+    visorImg.onload = () => {
+      ctx.drawImage(visorImg, photoX + 8, photoY + 8, photoW - 16, photoH - 16);
+      texture.needsUpdate = true;
+    };
+    visorImg.src =
+      "https://images.unsplash.com/photo-1622979135225-d2ba269cf1ac?auto=format&fit=crop&w=1600&q=90";
+
+    const visorTagX = 810;
+    const visorTagY = 494;
+    const visorTagW = 392;
+    const visorTagH = 56;
+    const visorTagGrad = ctx.createLinearGradient(visorTagX, visorTagY, visorTagX + visorTagW, visorTagY + visorTagH);
+    visorTagGrad.addColorStop(0, "rgba(18,48,74,0.72)");
+    visorTagGrad.addColorStop(1, "rgba(11,29,52,0.72)");
+    ctx.fillStyle = visorTagGrad;
     ctx.beginPath();
-    ctx.roundRect(846, 228, 330, 164, 40);
+    ctx.roundRect(visorTagX, visorTagY, visorTagW, visorTagH, 18);
     ctx.fill();
+    ctx.strokeStyle = "rgba(92,230,255,0.82)";
+    ctx.lineWidth = 2.2;
     ctx.stroke();
-    ctx.fillStyle = "rgba(255, 206, 120, 0.18)";
+    ctx.strokeStyle = "rgba(255,162,232,0.56)";
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(872, 258, 278, 104, 28);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255, 226, 158, 0.92)";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(940, 310, 34, 0, Math.PI * 2);
+    ctx.roundRect(visorTagX + 4, visorTagY + 4, visorTagW - 8, visorTagH - 8, 14);
     ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(1082, 310, 34, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = "rgba(255,220,150,0.42)";
-    ctx.fillRect(1001, 274, 18, 72);
-    ctx.fillStyle = "rgba(255, 210, 120, 0.3)";
-    ctx.fillRect(980, 206, 58, 30);
+    ctx.fillStyle = "#ecfbff";
+    ctx.font = "800 22px 'Trebuchet MS'";
+    ctx.fillText("VISOR VR · PREMIUM", 902, 530);
 
-    // Premium trust tags
-    ctx.fillStyle = "rgba(255,201,118,0.22)";
-    ctx.fillRect(888, 430, 276, 50);
-    ctx.strokeStyle = "rgba(255,219,156,0.72)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(888, 430, 276, 50);
-    ctx.fillStyle = "#ffe8bf";
-    ctx.font = "700 22px Arial";
-    ctx.fillText("AFORO VIP GLOBAL", 940, 462);
-    ctx.fillStyle = "rgba(95,230,255,0.18)";
-    ctx.fillRect(888, 490, 276, 50);
-    ctx.strokeStyle = "rgba(126,241,255,0.7)";
-    ctx.strokeRect(888, 490, 276, 50);
-    ctx.fillStyle = "#d6fbff";
-    ctx.fillText("PAGOS VIP SEGUROS", 940, 522);
-
-    // CTA focal button
     const btnW = 620;
-    const btnH = 92;
-    const btnX = 92;
-    const btnY = 596;
-    const ctaGlow = ctx.createRadialGradient(btnX + btnW / 2, btnY + btnH / 2, 30, btnX + btnW / 2, btnY + btnH / 2, 300);
-    ctaGlow.addColorStop(0, "rgba(255,206,126,0.4)");
-    ctaGlow.addColorStop(1, "rgba(0,245,255,0)");
-    ctx.fillStyle = ctaGlow;
-    ctx.fillRect(btnX - 90, btnY - 60, btnW + 180, btnH + 120);
+    const btnH = 88;
+    const btnX = 80;
+    const btnY = 600;
     const btnGradient = ctx.createLinearGradient(btnX, btnY, btnX + btnW, btnY + btnH);
-    btnGradient.addColorStop(0, "rgba(220,160,70,0.62)");
-    btnGradient.addColorStop(1, "rgba(155,105,35,0.54)");
+    btnGradient.addColorStop(0, "rgba(20,122,156,0.72)");
+    btnGradient.addColorStop(1, "rgba(10,66,103,0.7)");
     ctx.fillStyle = btnGradient;
-    ctx.fillRect(btnX, btnY, btnW, btnH);
-    ctx.strokeStyle = "rgba(255, 230, 178, 0.98)";
-    ctx.lineWidth = 5.5;
-    ctx.strokeRect(btnX, btnY, btnW, btnH);
-    ctx.fillStyle = "#fff8e8";
-    ctx.font = "900 42px Arial";
-    ctx.fillText("INSCRIBIR ARTISTA", btnX + 108, btnY + 60);
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, 26);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(124,237,255,0.98)";
+    ctx.lineWidth = 3.2;
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255,166,233,0.62)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.roundRect(btnX + 5, btnY + 5, btnW - 10, btnH - 10, 21);
+    ctx.stroke();
+    const ctaGlow = ctx.createRadialGradient(btnX + btnW / 2, btnY + btnH / 2, 20, btnX + btnW / 2, btnY + btnH / 2, 240);
+    ctaGlow.addColorStop(0, "rgba(97,230,255,0.34)");
+    ctaGlow.addColorStop(1, "rgba(97,230,255,0)");
+    ctx.fillStyle = ctaGlow;
+    ctx.fillRect(btnX - 50, btnY - 40, btnW + 100, btnH + 80);
+    ctx.fillStyle = "#f2fdff";
+    ctx.font = "900 38px 'Trebuchet MS'";
+    ctx.fillText("INSCRIBIR ARTISTA", btnX + 122, btnY + 57);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearFilter;
@@ -280,57 +298,61 @@ function MoonScreenCluster({
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
     const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    bg.addColorStop(0, "rgba(18,34,55,0.95)");
-    bg.addColorStop(1, "rgba(9,18,30,0.95)");
+    bg.addColorStop(0, "rgba(2,6,14,0.62)");
+    bg.addColorStop(0.5, "rgba(4,10,22,0.55)");
+    bg.addColorStop(1, "rgba(2,6,14,0.62)");
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.strokeStyle = "rgba(168, 232, 255, 0.6)";
-    ctx.lineWidth = 5;
+    ctx.strokeStyle = "rgba(70,228,255,0.96)";
+    ctx.lineWidth = 4;
     ctx.strokeRect(16, 16, canvas.width - 32, canvas.height - 32);
+    ctx.strokeStyle = "rgba(66,198,255,0.72)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
 
-    ctx.fillStyle = "rgba(210, 244, 255, 0.22)";
+    ctx.fillStyle = "rgba(0,0,0,0.22)";
     ctx.fillRect(28, 32, canvas.width - 56, 68);
 
-    ctx.font = "700 44px Arial";
-    ctx.fillStyle = "#dbf4ff";
-    ctx.fillText("SOCIAL GLASS", 44, 78);
+    ctx.font = "900 48px 'Trebuchet MS'";
+    ctx.fillStyle = "#ff86d8";
+    ctx.fillText("BOVEDA ONNIVERSO", 44, 78);
 
     const items = [
       {
-        label: "Facebook",
-        color: "#1877f2",
+        label: "Biblioteca",
+        color: "#4dd8ff",
         x: 70,
         y: 150,
-        iconUrl: "https://cdn.simpleicons.org/facebook/ffffff",
+        iconUrl: "https://cdn.simpleicons.org/bookstack/ffffff",
       },
       {
-        label: "WhatsApp",
-        color: "#25D366",
+        label: "Tickets",
+        color: "#4dd8ff",
         x: 350,
         y: 150,
-        iconUrl: "https://cdn.simpleicons.org/whatsapp/ffffff",
+        iconUrl: "https://cdn.simpleicons.org/ticketmaster/ffffff",
       },
       {
-        label: "Instagram",
-        color: "#E4405F",
+        label: "Cursos",
+        color: "#4dd8ff",
         x: 630,
         y: 150,
-        iconUrl: "https://cdn.simpleicons.org/instagram/ffffff",
+        iconUrl: "https://cdn.simpleicons.org/coursera/ffffff",
       },
       {
-        label: "Spotify",
-        color: "#1ED760",
+        label: "Skins",
+        color: "#4dd8ff",
         x: 210,
         y: 296,
-        iconUrl: "https://cdn.simpleicons.org/spotify/ffffff",
+        iconUrl: "https://cdn.simpleicons.org/shield/ffffff",
       },
       {
-        label: "TikTok",
-        color: "#00f2ea",
+        label: "VIP",
+        color: "#4dd8ff",
         x: 490,
         y: 296,
-        iconUrl: "https://cdn.simpleicons.org/tiktok/ffffff",
+        iconUrl: "https://cdn.simpleicons.org/openbadges/ffffff",
       },
     ];
 
@@ -338,15 +360,15 @@ function MoonScreenCluster({
     texture.colorSpace = THREE.SRGBColorSpace;
 
     const drawItem = (item: (typeof items)[number]) => {
-      ctx.fillStyle = "rgba(240, 250, 255, 0.14)";
+      ctx.fillStyle = "rgba(0,0,0,0.24)";
       ctx.beginPath();
       ctx.roundRect(item.x, item.y, 250, 110, 22);
       ctx.fill();
       ctx.strokeStyle = `${item.color}cc`;
       ctx.lineWidth = 3;
       ctx.stroke();
-      ctx.fillStyle = item.color;
-      ctx.font = "700 28px Arial";
+      ctx.fillStyle = "#ff9ce4";
+      ctx.font = "800 30px 'Trebuchet MS'";
       ctx.fillText(item.label, item.x + 82, item.y + 66);
     };
 
@@ -427,25 +449,104 @@ function MoonScreenCluster({
     canvas.height = 512;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    bg.addColorStop(0, "rgba(13,26,44,0.96)");
-    bg.addColorStop(1, "rgba(9,16,28,0.96)");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "rgba(122,228,255,0.72)";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
-    ctx.fillStyle = "#dff8ff";
-    ctx.font = "700 52px Arial";
-    ctx.fillText("ONNIVERSO", 62, 108);
-    ctx.font = "700 40px Arial";
-    ctx.fillText("PANTALLA DISPONIBLE", 62, 170);
-    ctx.fillStyle = "rgba(200,236,255,0.9)";
-    ctx.font = "500 30px Arial";
-    ctx.fillText("Este espacio se reserva para nuevos contenidos", 62, 248);
-    ctx.fillText("inmersivos y experiencias en vivo.", 62, 292);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
+    const drawBase = () => {
+      const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      bg.addColorStop(0, "rgba(2,6,14,0.62)");
+      bg.addColorStop(0.45, "rgba(4,10,22,0.55)");
+      bg.addColorStop(1, "rgba(2,6,14,0.62)");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const halo = ctx.createRadialGradient(840, 120, 30, 840, 120, 300);
+      halo.addColorStop(0, "rgba(52,210,255,0.28)");
+      halo.addColorStop(1, "rgba(70,212,255,0)");
+      ctx.fillStyle = halo;
+      ctx.fillRect(620, 0, 404, 320);
+
+      ctx.strokeStyle = "rgba(70,228,255,0.96)";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
+      ctx.strokeStyle = "rgba(66,198,255,0.72)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(26, 26, canvas.width - 52, canvas.height - 52);
+
+      ctx.fillStyle = "#ff86d8";
+      ctx.font = "900 56px 'Trebuchet MS'";
+      ctx.fillText("ONNIVERSO STORE", 52, 86);
+
+      const cardW = 446;
+      const cardH = 320;
+      const y = 148;
+      const leftX = 52;
+      const rightX = 526;
+
+      const drawCard = (
+        x: number,
+        title: string,
+        subtitle: string,
+        accent: string,
+      ) => {
+        const cardBg = ctx.createLinearGradient(x, y, x + cardW, y + cardH);
+        cardBg.addColorStop(0, "rgba(4,12,24,0.58)");
+        cardBg.addColorStop(1, "rgba(5,10,20,0.62)");
+        ctx.fillStyle = cardBg;
+        ctx.fillRect(x, y, cardW, cardH);
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x + 4, y + 4, cardW - 8, cardH - 8);
+
+        ctx.fillStyle = "rgba(0,0,0,0.22)";
+        ctx.fillRect(x + 18, y + 20, cardW - 36, 170);
+        ctx.strokeStyle = "rgba(109,223,255,0.62)";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x + 18, y + 20, cardW - 36, 170);
+
+        ctx.fillStyle = "#ff86d8";
+        ctx.font = "900 40px 'Trebuchet MS'";
+        ctx.fillText(title, x + 22, y + 244);
+        ctx.fillStyle = "rgba(255,206,239,0.95)";
+        ctx.font = "700 22px 'Trebuchet MS'";
+        ctx.fillText(subtitle, x + 22, y + 278);
+
+        ctx.fillStyle = "rgba(22,188,255,0.16)";
+        ctx.fillRect(x + 22, y + 290, 230, 16);
+        ctx.strokeStyle = "rgba(91,218,255,0.6)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 22, y + 290, 230, 16);
+      };
+
+      drawCard(leftX, "BIBLIOTECA", "E-books premium + PDF", "rgba(84,224,255,0.92)");
+      drawCard(rightX, "CURSOS VIRTUALES", "Masterclass y programas VR", "rgba(84,224,255,0.92)");
+    };
+
+    drawBase();
+    const imageSpecs = [
+      {
+        x: 70,
+        y: 168,
+        w: 410,
+        h: 130,
+        url: "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?auto=format&fit=crop&w=1200&q=80",
+      },
+      {
+        x: 544,
+        y: 168,
+        w: 410,
+        h: 130,
+        url: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80",
+      },
+    ];
+    imageSpecs.forEach((spec) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        ctx.drawImage(img, spec.x, spec.y, spec.w, spec.h);
+        texture.needsUpdate = true;
+      };
+      img.src = spec.url;
+    });
     texture.needsUpdate = true;
     return texture;
   }, []);
@@ -491,14 +592,15 @@ function MoonScreenCluster({
   };
 
   if (vrMirrorFlat) {
-    const scaleFor = (id: "social" | "video" | "live" | "system") => (focusedScreen === id ? 1.16 : focusedScreen ? 0.9 : 1);
-    const boostFor = (id: "social" | "video" | "live" | "system") => (focusedScreen === id ? 0.6 : 0);
-    const opacityFor = (id: "social" | "video" | "live" | "system") => (focusedScreen && focusedScreen !== id ? 0.45 : 1);
     return (
       <group ref={clusterRef}>
-        <Billboard position={[0, 0.18, 1.35 + boostFor("social")]} follow scale={scaleFor("social")}>
+        <Billboard position={[0, 0.18, 1.35]} follow>
           <mesh
-            renderOrder={focusedScreen === "social" ? 25 : 6}
+            renderOrder={6}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onOpenVault?.();
+            }}
             onDoubleClick={(event) => {
               event.stopPropagation();
               onCollapseScreens?.();
@@ -510,13 +612,18 @@ function MoonScreenCluster({
               toneMapped={false}
               side={THREE.DoubleSide}
               transparent
-              opacity={opacityFor("social")}
+              opacity={1}
             />
           </mesh>
         </Billboard>
-        <Billboard position={[0, 0.18, -1.35 - boostFor("video")]} follow scale={scaleFor("video")}>
+        <Billboard position={[0, 0.18, -1.35]} follow>
           <mesh
-            renderOrder={focusedScreen === "video" ? 25 : 6}
+            renderOrder={6}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              const itemType = (event.uv?.x ?? 0.5) < 0.5 ? "biblioteca" : "cursos";
+              onOpenStoreSetup?.(itemType);
+            }}
             onDoubleClick={(event) => {
               event.stopPropagation();
               onCollapseScreens?.();
@@ -528,13 +635,13 @@ function MoonScreenCluster({
               toneMapped={false}
               side={THREE.DoubleSide}
               transparent
-              opacity={opacityFor("video")}
+              opacity={1}
             />
           </mesh>
         </Billboard>
-        <Billboard position={[-1.35 - boostFor("live"), 0.18, 0]} follow scale={scaleFor("live")}>
+        <Billboard position={[-1.35, 0.18, 0]} follow>
           <mesh
-            renderOrder={focusedScreen === "live" ? 25 : 6}
+            renderOrder={6}
             onPointerDown={(event) => {
               event.stopPropagation();
               onOpenLiveRequest?.();
@@ -550,13 +657,13 @@ function MoonScreenCluster({
               toneMapped={false}
               side={THREE.DoubleSide}
               transparent
-              opacity={opacityFor("live")}
+              opacity={1}
             />
           </mesh>
         </Billboard>
-        <Billboard position={[1.35 + boostFor("system"), 0.18, 0]} follow scale={scaleFor("system")}>
+        <Billboard position={[1.35, 0.18, 0]} follow>
           <mesh
-            renderOrder={focusedScreen === "system" ? 25 : 6}
+            renderOrder={6}
             onPointerDown={(event) => {
               event.stopPropagation();
               onOpenStreamSetup?.();
@@ -572,7 +679,7 @@ function MoonScreenCluster({
               toneMapped={false}
               side={THREE.DoubleSide}
               transparent
-              opacity={opacityFor("system")}
+              opacity={1}
             />
           </mesh>
         </Billboard>
@@ -580,16 +687,15 @@ function MoonScreenCluster({
     );
   }
 
-  const scaleFor = (id: "social" | "video" | "live" | "system") => (focusedScreen === id ? 1.16 : focusedScreen ? 0.9 : 1);
-  const offsetFor = (id: "social" | "video" | "live" | "system") => (focusedScreen === id ? 0.58 : 0);
-  const opacityFor = (id: "social" | "video" | "live" | "system") => (focusedScreen && focusedScreen !== id ? 0.45 : 1);
-
   return (
     <group ref={clusterRef}>
       <mesh
-        position={[0, 0.18, 1.35 + offsetFor("social")]}
-        renderOrder={focusedScreen === "social" ? 25 : 6}
-        scale={scaleFor("social")}
+        position={[0, 0.18, 1.35]}
+        renderOrder={6}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          onOpenVault?.();
+        }}
         onDoubleClick={(event) => {
           event.stopPropagation();
           onCollapseScreens?.();
@@ -601,14 +707,18 @@ function MoonScreenCluster({
           toneMapped={false}
           side={THREE.DoubleSide}
           transparent
-          opacity={opacityFor("social")}
+          opacity={1}
         />
       </mesh>
       <mesh
-        position={[0, 0.18, -1.35 - offsetFor("video")]}
+        position={[0, 0.18, -1.35]}
         rotation={[0, Math.PI, 0]}
-        renderOrder={focusedScreen === "video" ? 25 : 6}
-        scale={scaleFor("video")}
+        renderOrder={6}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          const itemType = (event.uv?.x ?? 0.5) < 0.5 ? "biblioteca" : "cursos";
+          onOpenStoreSetup?.(itemType);
+        }}
         onDoubleClick={(event) => {
           event.stopPropagation();
           onCollapseScreens?.();
@@ -620,14 +730,13 @@ function MoonScreenCluster({
           toneMapped={false}
           side={THREE.DoubleSide}
           transparent
-          opacity={opacityFor("video")}
+          opacity={1}
         />
       </mesh>
       <mesh
-        position={[-1.35 - offsetFor("live"), 0.18, 0]}
+        position={[-1.35, 0.18, 0]}
         rotation={[0, -Math.PI / 2, 0]}
-        renderOrder={focusedScreen === "live" ? 25 : 6}
-        scale={scaleFor("live")}
+        renderOrder={6}
         onPointerDown={(event) => {
           event.stopPropagation();
           onOpenLiveRequest?.();
@@ -643,14 +752,13 @@ function MoonScreenCluster({
           toneMapped={false}
           side={THREE.DoubleSide}
           transparent
-          opacity={opacityFor("live")}
+          opacity={1}
         />
       </mesh>
       <mesh
-        position={[1.35 + offsetFor("system"), 0.18, 0]}
+        position={[1.35, 0.18, 0]}
         rotation={[0, Math.PI / 2, 0]}
-        renderOrder={focusedScreen === "system" ? 25 : 6}
-        scale={scaleFor("system")}
+        renderOrder={6}
         onPointerDown={(event) => {
           event.stopPropagation();
           onOpenStreamSetup?.();
@@ -666,7 +774,7 @@ function MoonScreenCluster({
           toneMapped={false}
           side={THREE.DoubleSide}
           transparent
-          opacity={opacityFor("system")}
+          opacity={1}
         />
       </mesh>
     </group>
@@ -1012,6 +1120,10 @@ const MiMundoVRSection = ({
   const [liveRequestSaving, setLiveRequestSaving] = useState(false);
   const [streamSetupOpen, setStreamSetupOpen] = useState(false);
   const [streamSaving, setStreamSaving] = useState(false);
+  const [storeSetupOpen, setStoreSetupOpen] = useState(false);
+  const [storeSetupType, setStoreSetupType] = useState<"biblioteca" | "cursos">("biblioteca");
+  const [storePublishing, setStorePublishing] = useState(false);
+  const [vaultOpen, setVaultOpen] = useState(false);
   const [isUserLive, setIsUserLive] = useState(false);
   const [cameraPreviewStream, setCameraPreviewStream] = useState<MediaStream | null>(null);
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
@@ -1134,6 +1246,15 @@ const MiMundoVRSection = ({
     if (!moonScreensVisible) setStreamSetupOpen(false);
   }, [moonScreensVisible]);
   useEffect(() => {
+    if (!moonScreensVisible) setVaultOpen(false);
+  }, [moonScreensVisible]);
+  useEffect(() => {
+    if (!moonScreensVisible) {
+      setStoreSetupOpen(false);
+      setStoreSetupType("biblioteca");
+    }
+  }, [moonScreensVisible]);
+  useEffect(() => {
     if (!streamSetupOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -1195,6 +1316,36 @@ const MiMundoVRSection = ({
       toast.error(error instanceof Error ? error.message : "No se pudo iniciar el live.");
     } finally {
       setStreamSaving(false);
+    }
+  };
+
+  const onStorePublish = async (payload: StorePublishPayload) => {
+    if (!user) {
+      toast.error("Debes iniciar sesion para publicar en tienda.");
+      return;
+    }
+    setStorePublishing(true);
+    try {
+      const coverImageUrl = await uploadStoreAsset(user.id, payload.coverFile, "cover");
+      let fileUrl: string | null = null;
+      if (payload.itemType === "biblioteca" && payload.bookFile) {
+        fileUrl = await uploadStoreAsset(user.id, payload.bookFile, "book");
+      }
+      await createStoreItem({
+        userId: user.id,
+        itemType: payload.itemType,
+        title: payload.title,
+        coverImageUrl,
+        salePrice: payload.salePrice,
+        fileUrl,
+        videoUrl: payload.itemType === "cursos" ? payload.videoUrl : null,
+      });
+      toast.success("Publicado en tienda.");
+      setStoreSetupOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo publicar el item.");
+    } finally {
+      setStorePublishing(false);
     }
   };
 
@@ -1290,8 +1441,13 @@ const MiMundoVRSection = ({
             <MoonScreenCluster
               visible={moonScreensVisible}
               vrMirrorFlat={vrStereoActive}
+              onOpenVault={() => setVaultOpen((prev) => !prev)}
               onOpenLiveRequest={() => setLiveRequestOpen((prev) => !prev)}
               onOpenStreamSetup={() => setStreamSetupOpen((prev) => !prev)}
+              onOpenStoreSetup={(itemType) => {
+                setStoreSetupType(itemType);
+                setStoreSetupOpen(true);
+              }}
               onCollapseScreens={() => setMoonScreensVisible(false)}
               cameraPreviewStream={cameraPreviewStream}
               isUserLive={isUserLive}
@@ -1366,6 +1522,38 @@ const MiMundoVRSection = ({
               onClose={() => setStreamSetupOpen(false)}
               onCameraStreamChange={setCameraPreviewStream}
             />
+          </div>
+        </div>
+      )}
+      {!vrStereoActive && moonScreensVisible && storeSetupOpen && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-4">
+          <button
+            type="button"
+            aria-label="Cerrar tienda"
+            className="pointer-events-auto absolute inset-0"
+            onClick={() => setStoreSetupOpen(false)}
+          />
+          <div className="pointer-events-auto origin-center scale-[0.66] -translate-y-[clamp(3.75rem,22vh,13rem)]">
+            <StorePublishCard
+              isSubmitting={storePublishing}
+              onSubmit={onStorePublish}
+              initialItemType={storeSetupType}
+              lockedItemType
+              onClose={() => setStoreSetupOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+      {!vrStereoActive && moonScreensVisible && vaultOpen && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-4">
+          <button
+            type="button"
+            aria-label="Cerrar boveda"
+            className="pointer-events-auto absolute inset-0"
+            onClick={() => setVaultOpen(false)}
+          />
+          <div className="pointer-events-auto origin-center scale-[0.72] -translate-y-[clamp(3.75rem,22vh,13rem)]">
+            <VaultCard userId={user?.id} onClose={() => setVaultOpen(false)} />
           </div>
         </div>
       )}
