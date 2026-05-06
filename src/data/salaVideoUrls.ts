@@ -38,6 +38,8 @@ export const SALA_MP4_URL_BY_ID: Record<string, string> = {
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777988283/360_1_er_uozjop.mp4",
   "gopro-gpy":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1778011486/gopro_1_jyzdtl.mp4",
+  "red-bull-f1-er":
+    "https://res.cloudinary.com/dfsabdxup/video/upload/v1778033653/Red_Bull_ER_1080P_w9h3e4.mp4",
   "michael-jackson":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757437/Michael_Jackson_-_Billie_Jean_-_Live_Munich_1997_-_Widescreen_HD_gei36m.mp4",
   "hablando-huevadas":

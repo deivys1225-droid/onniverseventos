@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Headset, LogOut, Menu, X } from "lucide-react";
+import { Headset, LogIn, LogOut, Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,10 +34,7 @@ const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-        <div
-          className="flex items-center gap-2 cursor-pointer"
-          onClick={() => handleNavigate(user ? "/inicio" : "/")}
-        >
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavigate("/")}>
           <Headset className="w-6 h-6 text-primary" />
           <span className="font-display font-bold text-lg text-foreground tracking-tight">
             ViveVR
@@ -67,11 +64,17 @@ const Navbar = () => {
             </Button>
           </div>
         ) : (
-          <Button variant="hero" size="sm" asChild className="hidden md:inline-flex">
-            <a href={APP_APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
-              Ir a la aplicación
-            </a>
-          </Button>
+          <div className="hidden md:flex items-center gap-2">
+            <Button variant="heroOutline" size="sm" className="gap-1.5" onClick={() => navigate("/entrar")}>
+              <LogIn className="w-3.5 h-3.5" />
+              Entrar
+            </Button>
+            <Button variant="hero" size="sm" asChild>
+              <a href={APP_APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
+                App
+              </a>
+            </Button>
+          </div>
         )}
 
         <button
@@ -114,16 +117,30 @@ const Navbar = () => {
                 </Button>
               </div>
             ) : (
-              <Button variant="hero" size="sm" asChild className="mt-4 w-full">
-                <a
-                  href={APP_APK_DOWNLOAD_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setIsMobileMenuOpen(false)}
+              <div className="mt-4 flex flex-col gap-2">
+                <Button
+                  variant="heroOutline"
+                  size="sm"
+                  className="w-full gap-1.5"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    navigate("/entrar");
+                  }}
                 >
-                  Ir a la aplicación
-                </a>
-              </Button>
+                  <LogIn className="w-3.5 h-3.5" />
+                  Entrar
+                </Button>
+                <Button variant="hero" size="sm" asChild className="w-full">
+                  <a
+                    href={APP_APK_DOWNLOAD_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Descargar app
+                  </a>
+                </Button>
+              </div>
             )}
           </div>
         </>

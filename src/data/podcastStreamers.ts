@@ -342,6 +342,24 @@ export const podcastStreamers: StreamerProfile[] = [
     ticketVip: 12.49,
     featuredGames: ["Action Tour VR", "Fan Zone", "Creator Chat"],
   },
+  {
+    id: "red-bull-f1-er",
+    name: "Red Bull F1 ER",
+    avatar: "/red-bull-f1-er-avatar.png",
+    immersiveSalaName: "F1 ER",
+    panoramaImage:
+      "https://images.unsplash.com/photo-1541447270888-83e8494f9c08?auto=format&fit=crop&w=4096&q=85",
+    status: "live",
+    streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["red-bull-f1-er"],
+    fallbackVideoId: "ScMzIvxBSi4",
+    loungeTitle: "Pole Position Lounge",
+    loungeDescription:
+      "Formula 1 en clave inmersiva: energia, comunidad y velocidad en sala 360.",
+    ticketGrada: 4.99,
+    ticketVip: 14.99,
+    featuredGames: ["Pit Wall VR", "Fan Zone", "Race Day Live"],
+  },
 ];
 
 export function resolvePodcastVideoId(s: StreamerProfile): string {

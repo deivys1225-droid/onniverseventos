@@ -68,7 +68,7 @@ const WorldCupOfferColumn = ({ offer, orderClass }: { offer: (typeof offers)[0];
         onOpenChange={setLoginOpen}
         onGoToAuth={() => {
           setLoginOpen(false);
-          navigate("/auth");
+          navigate("/entrar");
         }}
       />
       <PaymentSuccessModal

@@ -35,8 +35,10 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Portada pública: Mundial VR + navbar (sin login obligatorio) */}
+            <Route path="/" element={<Index />} />
             <Route
-              path="/"
+              path="/entrar"
               element={
                 <GuestRoute>
                   <WelcomeUniversePage />
@@ -62,22 +64,7 @@ const App = () => (
                 </PrivateRoute>
               }
             />
-            <Route
-              path="/descubrir"
-              element={
-                <PrivateRoute>
-                  <Index />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/eventos"
-              element={
-                <PrivateRoute>
-                  <EventosPage />
-                </PrivateRoute>
-              }
-            />
+            <Route path="/eventos" element={<EventosPage />} />
             <Route
               path="/nuestras-salas"
               element={

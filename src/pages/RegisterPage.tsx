@@ -75,7 +75,7 @@ const RegisterPage = () => {
         navigate("/inicio", { replace: true });
       } else {
         toast.success("Revisa tu correo para confirmar la cuenta. Luego podrás iniciar sesión.");
-        navigate("/", { replace: true });
+        navigate("/entrar", { replace: true });
       }
     } catch (err: unknown) {
       toast.error(formatSupabaseAuthError(err));
@@ -192,9 +192,14 @@ const RegisterPage = () => {
             </Button>
           </form>
 
-          <p className="mt-8 text-center text-sm text-muted-foreground">
+          <p className="mt-6 text-center text-sm">
+            <Link to="/" className="text-muted-foreground underline-offset-4 transition hover:text-primary hover:underline">
+              ← Volver a la portada
+            </Link>
+          </p>
+          <p className="mt-4 text-center text-sm text-muted-foreground">
             ¿Ya tienes cuenta?{" "}
-            <Link to="/" className="font-semibold text-primary underline-offset-4 hover:underline">
+            <Link to="/entrar" className="font-semibold text-primary underline-offset-4 hover:underline">
               Iniciar sesión
             </Link>
           </p>

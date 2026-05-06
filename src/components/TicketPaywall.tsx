@@ -28,7 +28,7 @@ const TicketPaywall = ({ price, eventId, requiresAuth }: TicketPaywallProps) => 
 
   const goToAuth = () => {
     setLoginModalOpen(false);
-    navigate("/auth");
+    navigate("/entrar");
   };
 
   const createTicket = async (paypalOrderId: string) => {

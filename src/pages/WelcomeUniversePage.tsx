@@ -148,7 +148,13 @@ const WelcomeUniversePage = () => {
             </Button>
           </form>
 
-          <p className="mt-8 text-center text-sm text-muted-foreground">
+          <p className="mt-6 text-center text-sm">
+            <Link to="/" className="text-muted-foreground underline-offset-4 transition hover:text-primary hover:underline">
+              ← Volver a la portada (Mundial VR)
+            </Link>
+          </p>
+
+          <p className="mt-4 text-center text-sm text-muted-foreground">
             ¿Aún no tienes cuenta?{" "}
             <Link
               to="/registro"

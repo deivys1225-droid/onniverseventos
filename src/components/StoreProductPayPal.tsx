@@ -71,7 +71,7 @@ const StoreProductPayPal = ({
         onOpenChange={setLoginOpen}
         onGoToAuth={() => {
           setLoginOpen(false);
-          navigate("/auth");
+          navigate("/entrar");
         }}
       />
       <PaymentSuccessModal

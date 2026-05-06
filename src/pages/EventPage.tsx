@@ -71,7 +71,7 @@ const EventPage = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <p className="text-muted-foreground text-lg">Evento no encontrado</p>
-        <Button variant="hero" onClick={() => navigate("/inicio")}>Volver al inicio</Button>
+        <Button variant="hero" onClick={() => navigate("/")}>Volver al inicio</Button>
       </div>
     );
   }

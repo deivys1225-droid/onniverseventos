@@ -6,7 +6,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
 
   if (loading) return <AuthLoadingSplash />;
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/entrar" replace />;
 
   return <>{children}</>;
 };
