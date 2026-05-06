@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 
 const APP_APK_DOWNLOAD_URL =
-  "https://drive.google.com/uc?export=download&id=1bttG_2hiZQuTNkFoJXUv4ds1x1W7PLAM";
+  "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
 
 const Navbar = () => {
   const { user } = useAuth();

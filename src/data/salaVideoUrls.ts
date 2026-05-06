@@ -35,11 +35,13 @@ export const SALA_MP4_URL_BY_ID: Record<string, string> = {
   "luisito-comunica-er":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777988737/equirectangular_2_luisito_comunica_xyrcqp.mp4",
   "vr-360":
-    "https://res.cloudinary.com/dfsabdxup/video/upload/v1777988283/360_1_er_uozjop.mp4",
+    "https://res.cloudinary.com/dfsabdxup/video/upload/v1778033836/360_Airline_Pilot_s_View___Miami_-_Bahamas___American_Eagle_E-175_gegade.mp4",
   "gopro-gpy":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1778011486/gopro_1_jyzdtl.mp4",
   "red-bull-f1-er":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1778033653/Red_Bull_ER_1080P_w9h3e4.mp4",
+  "mount-everest":
+    "https://res.cloudinary.com/dfsabdxup/video/upload/v1778033844/360_video_trailer_in_8K_na7mu0.mp4",
   "michael-jackson":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757437/Michael_Jackson_-_Billie_Jean_-_Live_Munich_1997_-_Widescreen_HD_gei36m.mp4",
   "hablando-huevadas":

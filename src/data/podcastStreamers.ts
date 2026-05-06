@@ -360,6 +360,24 @@ export const podcastStreamers: StreamerProfile[] = [
     ticketVip: 14.99,
     featuredGames: ["Pit Wall VR", "Fan Zone", "Race Day Live"],
   },
+  {
+    id: "mount-everest",
+    name: "Mount-Everest",
+    avatar: "/mount-everest-avatar.png",
+    immersiveSalaName: "Everest 360",
+    panoramaImage:
+      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=4096&q=85",
+    status: "live",
+    streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["mount-everest"],
+    fallbackVideoId: "ScMzIvxBSi4",
+    loungeTitle: "Summit Basecamp",
+    loungeDescription:
+      "Ascenso inmersivo entre glaciares y cumbres nevadas con vista 360.",
+    ticketGrada: 4.29,
+    ticketVip: 12.29,
+    featuredGames: ["Summit Tour VR", "Fan Zone", "Alpine Explorer"],
+  },
 ];
 
 export function resolvePodcastVideoId(s: StreamerProfile): string {

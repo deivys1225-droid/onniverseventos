@@ -11,6 +11,8 @@ import { toast } from "sonner";
 
 const glassPanel =
   "rounded-2xl border border-border/50 bg-card/40 p-8 shadow-[0_0_45px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl";
+const APP_APK_DOWNLOAD_URL =
+  "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
 
 const WelcomeUniversePage = () => {
   const [email, setEmail] = useState("");
@@ -163,6 +165,11 @@ const WelcomeUniversePage = () => {
               Regístrate
             </Link>
           </p>
+          <Button variant="hero" size="sm" asChild className="mt-3 w-full">
+            <a href={APP_APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
+              Descargar app
+            </a>
+          </Button>
         </motion.div>
       </main>
     </div>
