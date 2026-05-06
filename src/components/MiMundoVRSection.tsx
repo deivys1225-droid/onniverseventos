@@ -27,6 +27,7 @@ import FriendPicker, { type FriendCandidate } from "@/components/FriendPicker";
 import SearchHub from "@/components/SearchHub";
 import StreamSetupCard, { type StreamSetupPayload } from "@/components/StreamSetupCard";
 import { startActiveStream, stopMyActiveStream } from "@/lib/activeStreams";
+import { setLivePreviewStream } from "@/lib/livePreviewBus";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -115,6 +116,8 @@ function MoonScreenCluster({
   onOpenLiveRequest,
   onOpenStreamSetup,
   onCollapseScreens,
+  cameraPreviewStream,
+  isUserLive,
 }: {
   visible: boolean;
   /** Mismo canvas 2D: planos que miran a la cámara, sin profundidad de escena. */
@@ -122,6 +125,8 @@ function MoonScreenCluster({
   onOpenLiveRequest?: () => void;
   onOpenStreamSetup?: () => void;
   onCollapseScreens?: () => void;
+  cameraPreviewStream?: MediaStream | null;
+  isUserLive?: boolean;
 }) {
   const clusterRef = useRef<THREE.Group>(null);
   const [focusedScreen, setFocusedScreen] = useState<"social" | "video" | "live" | "system" | null>(null);
@@ -365,6 +370,57 @@ function MoonScreenCluster({
     return texture;
   }, []);
 
+  const offlineTexture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024;
+    canvas.height = 576;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.fillStyle = "rgba(0,0,0,0.72)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "rgba(160,160,160,0.35)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+    ctx.fillStyle = "rgba(245,245,245,0.9)";
+    ctx.font = "700 82px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("OFF LINE", canvas.width / 2, canvas.height / 2);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
+
+  const [cameraTexture, setCameraTexture] = useState<THREE.VideoTexture | null>(null);
+  useEffect(() => {
+    if (!cameraPreviewStream) {
+      setCameraTexture((prev) => {
+        prev?.dispose();
+        return null;
+      });
+      return;
+    }
+    const video = document.createElement("video");
+    video.srcObject = cameraPreviewStream;
+    video.muted = true;
+    video.playsInline = true;
+    video.autoplay = true;
+    void video.play().catch(() => undefined);
+    const texture = new THREE.VideoTexture(video);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    setCameraTexture((prev) => {
+      prev?.dispose();
+      return texture;
+    });
+    return () => {
+      texture.dispose();
+      video.pause();
+    };
+  }, [cameraPreviewStream]);
+
   const infoTexture = useMemo(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 1024;
@@ -413,8 +469,10 @@ function MoonScreenCluster({
       systemTexture?.dispose();
       liveCardTexture?.dispose();
       infoTexture?.dispose();
+      offlineTexture?.dispose();
+      cameraTexture?.dispose();
     };
-  }, [infoTexture, liveCardTexture, socialTexture, systemTexture]);
+  }, [cameraTexture, infoTexture, liveCardTexture, offlineTexture, socialTexture, systemTexture]);
 
   useFrame((_, delta) => {
     if (!clusterRef.current) return;
@@ -441,10 +499,6 @@ function MoonScreenCluster({
         <Billboard position={[0, 0.18, 1.35 + boostFor("social")]} follow scale={scaleFor("social")}>
           <mesh
             renderOrder={focusedScreen === "social" ? 25 : 6}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-              setFocusedScreen("social");
-            }}
             onDoubleClick={(event) => {
               event.stopPropagation();
               onCollapseScreens?.();
@@ -463,10 +517,6 @@ function MoonScreenCluster({
         <Billboard position={[0, 0.18, -1.35 - boostFor("video")]} follow scale={scaleFor("video")}>
           <mesh
             renderOrder={focusedScreen === "video" ? 25 : 6}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-              setFocusedScreen("video");
-            }}
             onDoubleClick={(event) => {
               event.stopPropagation();
               onCollapseScreens?.();
@@ -487,7 +537,6 @@ function MoonScreenCluster({
             renderOrder={focusedScreen === "live" ? 25 : 6}
             onPointerDown={(event) => {
               event.stopPropagation();
-              setFocusedScreen("live");
               onOpenLiveRequest?.();
             }}
             onDoubleClick={(event) => {
@@ -510,7 +559,6 @@ function MoonScreenCluster({
             renderOrder={focusedScreen === "system" ? 25 : 6}
             onPointerDown={(event) => {
               event.stopPropagation();
-              setFocusedScreen("system");
               onOpenStreamSetup?.();
             }}
             onDoubleClick={(event) => {
@@ -520,7 +568,7 @@ function MoonScreenCluster({
           >
             <planeGeometry args={[3, 1.8]} />
             <meshBasicMaterial
-              map={systemTexture ?? undefined}
+              map={cameraTexture ?? (isUserLive ? systemTexture : offlineTexture) ?? undefined}
               toneMapped={false}
               side={THREE.DoubleSide}
               transparent
@@ -542,10 +590,6 @@ function MoonScreenCluster({
         position={[0, 0.18, 1.35 + offsetFor("social")]}
         renderOrder={focusedScreen === "social" ? 25 : 6}
         scale={scaleFor("social")}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          setFocusedScreen("social");
-        }}
         onDoubleClick={(event) => {
           event.stopPropagation();
           onCollapseScreens?.();
@@ -565,10 +609,6 @@ function MoonScreenCluster({
         rotation={[0, Math.PI, 0]}
         renderOrder={focusedScreen === "video" ? 25 : 6}
         scale={scaleFor("video")}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          setFocusedScreen("video");
-        }}
         onDoubleClick={(event) => {
           event.stopPropagation();
           onCollapseScreens?.();
@@ -590,7 +630,6 @@ function MoonScreenCluster({
         scale={scaleFor("live")}
         onPointerDown={(event) => {
           event.stopPropagation();
-          setFocusedScreen("live");
           onOpenLiveRequest?.();
         }}
         onDoubleClick={(event) => {
@@ -614,7 +653,6 @@ function MoonScreenCluster({
         scale={scaleFor("system")}
         onPointerDown={(event) => {
           event.stopPropagation();
-          setFocusedScreen("system");
           onOpenStreamSetup?.();
         }}
         onDoubleClick={(event) => {
@@ -624,7 +662,7 @@ function MoonScreenCluster({
       >
         <planeGeometry args={[3, 1.8]} />
         <meshBasicMaterial
-          map={systemTexture ?? undefined}
+          map={cameraTexture ?? (isUserLive ? systemTexture : offlineTexture) ?? undefined}
           toneMapped={false}
           side={THREE.DoubleSide}
           transparent
@@ -975,6 +1013,7 @@ const MiMundoVRSection = ({
   const [streamSetupOpen, setStreamSetupOpen] = useState(false);
   const [streamSaving, setStreamSaving] = useState(false);
   const [isUserLive, setIsUserLive] = useState(false);
+  const [cameraPreviewStream, setCameraPreviewStream] = useState<MediaStream | null>(null);
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const [activeChat, setActiveChat] = useState<{ friendshipId: string; friendName: string } | null>(null);
   const [friendCandidates, setFriendCandidates] = useState<FriendCandidate[]>([]);
@@ -1129,6 +1168,9 @@ const MiMundoVRSection = ({
     };
     void loadLive();
   }, [user]);
+  useEffect(() => {
+    setLivePreviewStream(cameraPreviewStream);
+  }, [cameraPreviewStream]);
 
   const onStreamSubmit = async (payload: StreamSetupPayload) => {
     if (!user) {
@@ -1142,10 +1184,13 @@ const MiMundoVRSection = ({
         streamUrl: payload.streamUrl,
         title: payload.title,
         category: payload.category,
+        privacyMode: payload.privacy,
+        ticketPrice: payload.ticketPrice,
       });
       setIsUserLive(true);
       toast.success("Transmision activa en Onniverso.");
       setStreamSetupOpen(false);
+      setMoonScreensVisible(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo iniciar el live.");
     } finally {
@@ -1248,6 +1293,8 @@ const MiMundoVRSection = ({
               onOpenLiveRequest={() => setLiveRequestOpen((prev) => !prev)}
               onOpenStreamSetup={() => setStreamSetupOpen((prev) => !prev)}
               onCollapseScreens={() => setMoonScreensVisible(false)}
+              cameraPreviewStream={cameraPreviewStream}
+              isUserLive={isUserLive}
             />
           </Suspense>
 
@@ -1317,6 +1364,7 @@ const MiMundoVRSection = ({
               onStopLive={onStopStream}
               isLive={isUserLive}
               onClose={() => setStreamSetupOpen(false)}
+              onCameraStreamChange={setCameraPreviewStream}
             />
           </div>
         </div>

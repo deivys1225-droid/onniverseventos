@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Radio, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PayPalButtons } from "@paypal/react-paypal-js";
 
 export type StreamSetupPayload = {
   title: string;
@@ -10,6 +11,7 @@ export type StreamSetupPayload = {
   privacy: "publico" | "privado_ticket";
   sourceMode: "pro" | "celular";
   cameraActive: boolean;
+  ticketPrice: number | null;
 };
 
 type StreamSetupCardProps = {
@@ -18,6 +20,7 @@ type StreamSetupCardProps = {
   onStopLive?: () => Promise<void> | void;
   isLive?: boolean;
   onClose?: () => void;
+  onCameraStreamChange?: (stream: MediaStream | null) => void;
 };
 
 const StreamSetupCard = ({
@@ -26,11 +29,13 @@ const StreamSetupCard = ({
   onStopLive,
   isLive = false,
   onClose,
+  onCameraStreamChange,
 }: StreamSetupCardProps) => {
   const [title, setTitle] = useState("");
   const [streamUrl, setStreamUrl] = useState("");
   const [category, setCategory] = useState<"Musica" | "Educacion" | "Deporte" | "Social">("Musica");
   const [privacy, setPrivacy] = useState<"publico" | "privado_ticket">("publico");
+  const [ticketPrice, setTicketPrice] = useState("");
   const [sourceMode, setSourceMode] = useState<"pro" | "celular">("pro");
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -48,21 +53,28 @@ const StreamSetupCard = ({
   }, [streamUrl]);
 
   const cameraActive = Boolean(cameraStream);
+  const parsedTicket = Number(ticketPrice);
+  const validTicket = Number.isFinite(parsedTicket) && parsedTicket > 0;
   const canSubmit =
     title.trim().length >= 3 &&
     (sourceMode === "pro" ? urlValid : cameraActive) &&
+    (privacy === "privado_ticket" ? validTicket : true) &&
     !isSubmitting;
 
   useEffect(() => {
     if (!videoRef.current) return;
     videoRef.current.srcObject = cameraStream;
-  }, [cameraStream]);
+    onCameraStreamChange?.(cameraStream);
+  }, [cameraStream, onCameraStreamChange]);
 
   useEffect(() => {
     return () => {
-      cameraStream?.getTracks().forEach((track) => track.stop());
+      if (!isLive) {
+        onCameraStreamChange?.(null);
+        cameraStream?.getTracks().forEach((track) => track.stop());
+      }
     };
-  }, [cameraStream]);
+  }, [cameraStream, isLive, onCameraStreamChange]);
 
   const enableCamera = async () => {
     setCameraError(null);
@@ -209,6 +221,54 @@ const StreamSetupCard = ({
           </button>
         </div>
 
+        {privacy === "privado_ticket" && (
+          <div className="space-y-2 rounded-xl border border-amber-300/35 bg-amber-300/10 p-2.5">
+            <Input
+              type="number"
+              min={1}
+              step="0.01"
+              value={ticketPrice}
+              onChange={(e) => {
+                setTicketPrice(e.target.value);
+              }}
+              onBlur={() => {
+                const value = Number(ticketPrice);
+                if (Number.isFinite(value) && value > 0) {
+                  setTicketPrice(value.toFixed(2));
+                }
+              }}
+              placeholder="Ejemplo: 9.00 USD"
+              className="border-amber-300/45 bg-black/25"
+              disabled={isSubmitting}
+            />
+            {validTicket ? (
+              <div className="rounded-lg border border-[#ffc439]/50 bg-[#ffc439]/10 p-2">
+                <PayPalButtons
+                  style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 42 }}
+                  forceReRender={[ticketPrice]}
+                  createOrder={(_data, actions) =>
+                    actions.order.create({
+                      intent: "CAPTURE",
+                      purchase_units: [
+                        {
+                          amount: { currency_code: "USD", value: parsedTicket.toFixed(2) },
+                          description: `Ticket VIP Live - ${title || "Onniverso"}`,
+                        },
+                      ],
+                    })
+                  }
+                  onApprove={async (_data, actions) => {
+                    if (!actions.order) return;
+                    await actions.order.capture();
+                  }}
+                />
+              </div>
+            ) : (
+              <p className="text-[11px] text-amber-200">Ingresa un valor valido con centavos (ejemplo: 5.00).</p>
+            )}
+          </div>
+        )}
+
         <Button
           type="button"
           disabled={!canSubmit}
@@ -222,6 +282,7 @@ const StreamSetupCard = ({
               privacy,
               sourceMode,
               cameraActive,
+              ticketPrice: privacy === "privado_ticket" ? parsedTicket : null,
             })
           }
         >

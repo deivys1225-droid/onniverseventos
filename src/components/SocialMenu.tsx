@@ -25,6 +25,7 @@ type SocialMenuProps = {
 const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
   const [friendships, setFriendships] = useState<FriendshipRow[]>([]);
   const [profilesById, setProfilesById] = useState<Record<string, { name: string; liveStatus: string }>>({});
+  const [allProfiles, setAllProfiles] = useState<Array<{ id: string; name: string; liveStatus: string }>>([]);
   const [busyRequestId, setBusyRequestId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,8 +50,35 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
         map[p.id] = { name: p.full_name?.trim() || "Usuario", liveStatus: p.live_status?.trim() || "Offline" };
       });
       setProfilesById(map);
+
+      const { data: all } = await supabase.from("profiles").select("id,full_name,live_status").order("updated_at", { ascending: false });
+      const normalized = ((all ?? []) as ProfileRow[]).map((p) => ({
+        id: p.id,
+        name: p.full_name?.trim() || "Usuario",
+        liveStatus: p.live_status?.trim() || "Offline",
+      }));
+      setAllProfiles(normalized);
     };
     void load();
+
+    const friendshipChannel = supabase
+      .channel("public:friendships")
+      .on("postgres_changes", { event: "*", schema: "public", table: "friendships" }, () => {
+        void load();
+      })
+      .subscribe();
+
+    const profileChannel = supabase
+      .channel("public:profiles")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
+        void load();
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(friendshipChannel);
+      void supabase.removeChannel(profileChannel);
+    };
   }, [open, userId]);
 
   const connected = useMemo<ConnectedFriend[]>(
@@ -80,6 +108,12 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
     [friendships, profilesById, userId],
   );
 
+  const liveNow = useMemo(
+    () => allProfiles.filter((p) => p.liveStatus === "En Vivo").sort((a, b) => (a.id === userId ? -1 : b.id === userId ? 1 : 0)),
+    [allProfiles, userId],
+  );
+
+
   const respond = async (friendshipId: string, status: "accepted" | "declined") => {
     setBusyRequestId(friendshipId);
     await supabase.rpc("respond_friendship_request", { p_friendship_id: friendshipId, p_status: status });
@@ -98,8 +132,23 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
         </Button>
       </div>
 
+      <div className="mb-3 rounded-xl border border-rose-300/45 bg-black/25 p-2.5">
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-rose-200">En Vivo</p>
+        <div className="space-y-1.5">
+          {liveNow.length === 0 && <p className="text-xs text-muted-foreground">Nadie en vivo por ahora.</p>}
+          {liveNow.map((live) => (
+            <div key={live.id} className="flex items-center justify-between rounded-lg bg-white/5 px-2 py-1.5">
+              <span className="truncate pr-2 text-sm text-foreground">
+                {live.name}
+                <span className="ml-1 text-[10px] font-semibold text-rose-300">EN VIVO</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="mb-3 rounded-xl border border-white/10 bg-black/20 p-2.5">
-        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-cyan-200">Amigos conectados</p>
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-cyan-200">Amigos</p>
         <div className="space-y-1.5">
           {connected.length === 0 && <p className="text-xs text-muted-foreground">Aun no tienes amigos aceptados.</p>}
           {connected.map((friend) => (
@@ -116,11 +165,8 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="rounded-xl border border-white/10 bg-black/20 p-2.5">
-        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-200">Solicitudes pendientes</p>
-        <div className="space-y-1.5">
+        <div className="mt-2 space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-200">Solicitudes pendientes</p>
           {pending.length === 0 && <p className="text-xs text-muted-foreground">No tienes solicitudes pendientes.</p>}
           {pending.map((req) => (
             <div key={req.friendshipId} className="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5">
@@ -150,6 +196,7 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
           ))}
         </div>
       </div>
+
     </div>
   );
 };
