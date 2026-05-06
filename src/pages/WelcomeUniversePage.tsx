@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Headset, Loader2, Lock, Mail } from "lucide-react";
-import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 import { formatSupabaseAuthError } from "@/lib/supabaseErrors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,20 +77,6 @@ const WelcomeUniversePage = () => {
           transition={{ duration: 0.55 }}
           className={`w-full max-w-md ${glassPanel}`}
         >
-          {!isSupabaseConfigured && (
-            <Alert className="mb-6 border-amber-500/45 bg-amber-500/10 text-amber-50">
-              <AlertTitle className="text-sm text-amber-100">Configura Supabase</AlertTitle>
-              <AlertDescription className="text-xs leading-snug text-amber-100/90">
-                Sin variables de entorno la app no puede conectar a tu proyecto. Añade en la raíz un archivo{" "}
-                <code className="rounded bg-black/35 px-1 py-0.5 font-mono text-[11px]">.env</code> con{" "}
-                <code className="rounded bg-black/35 px-1 py-0.5 font-mono text-[11px]">VITE_SUPABASE_URL</code> y{" "}
-                <code className="rounded bg-black/35 px-1 py-0.5 font-mono text-[11px]">
-                  VITE_SUPABASE_PUBLISHABLE_KEY
-                </code>{" "}
-                (copia desde Supabase → Settings → API). En Vercel: mismo nombre de variables y nuevo deploy.
-              </AlertDescription>
-            </Alert>
-          )}
           <div className="mb-8 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/40 bg-primary/10 shadow-[0_0_30px_-8px_hsl(var(--primary)/0.55)]">
               <Headset className="h-8 w-8 text-primary" />
