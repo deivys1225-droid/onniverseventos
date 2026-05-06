@@ -53,23 +53,143 @@ export type Database = {
         }
         Relationships: []
       }
+      active_streams: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_live: boolean
+          stream_url: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_live?: boolean
+          stream_url: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_live?: boolean
+          stream_url?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          created_at: string
+          friendship_id: string
+          id: string
+          message: string
+          sender_id: string
+        }
+        Insert: {
+          created_at?: string
+          friendship_id: string
+          id?: string
+          message: string
+          sender_id: string
+        }
+        Update: {
+          created_at?: string
+          friendship_id?: string
+          id?: string
+          message?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
+      friendships: {
+        Row: {
+          created_at: string
+          id: string
+          receiver_id: string
+          sender_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          receiver_id: string
+          sender_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          receiver_id?: string
+          sender_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      live_requests: {
+        Row: {
+          artist_name: string
+          created_at: string
+          event_image_url: string
+          id: string
+          requester_email: string
+          stadium_display_name: string
+          status: string
+          ticket_price: number
+          user_id: string
+        }
+        Insert: {
+          artist_name: string
+          created_at?: string
+          event_image_url: string
+          id?: string
+          requester_email: string
+          stadium_display_name: string
+          status?: string
+          ticket_price: number
+          user_id: string
+        }
+        Update: {
+          artist_name?: string
+          created_at?: string
+          event_image_url?: string
+          id?: string
+          requester_email?: string
+          stadium_display_name?: string
+          status?: string
+          ticket_price?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           id: string
           full_name: string | null
           avatar_url: string | null
+          live_status: string
           updated_at: string | null
         }
         Insert: {
           id: string
           full_name?: string | null
           avatar_url?: string | null
+          live_status?: string
           updated_at?: string | null
         }
         Update: {
           id?: string
           full_name?: string | null
           avatar_url?: string | null
+          live_status?: string
           updated_at?: string | null
         }
         Relationships: []
@@ -114,7 +234,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      respond_friendship_request: {
+        Args: { p_friendship_id: string; p_status: string }
+        Returns: {
+          created_at: string
+          id: string
+          receiver_id: string
+          sender_id: string
+          status: string
+        }
+      }
+      send_friendship_request: {
+        Args: { p_receiver_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          receiver_id: string
+          sender_id: string
+          status: string
+        }
+      }
+      stop_my_active_streams: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

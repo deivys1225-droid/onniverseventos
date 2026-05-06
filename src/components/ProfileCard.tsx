@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Camera, PencilLine } from "lucide-react";
+import { Camera, PencilLine, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +15,14 @@ export interface ProfileCardProps {
   initialName?: string;
   /** URL inicial (ej. desde `public`). Si cambia el archivo, prevalece la vista previa local. */
   initialAvatarSrc?: string | null;
-  confirmLabel?: "Guardar Cambios" | "Confirmar Perfil";
+  isSaving?: boolean;
+  saveLabel?: string;
+  liveLabel?: string;
   /** Al confirmar devuelve nombre, archivo opcional y URL de objeto para previsualización. Revoca previews antiguos en el padre si aplica. */
   onConfirm?: (payload: ProfileCardConfirmPayload) => void;
+  onLiveAction?: () => void | Promise<void>;
+  onAddFriend?: () => void | Promise<void>;
+  showAddFriend?: boolean;
   className?: string;
 }
 
@@ -25,8 +30,13 @@ export interface ProfileCardProps {
 const ProfileCard = ({
   initialName = "Explorador VR",
   initialAvatarSrc = "/placeholder.svg",
-  confirmLabel = "Confirmar Perfil",
+  isSaving = false,
+  saveLabel = "Guardar cambios",
+  liveLabel = "LIVE",
   onConfirm,
+  onLiveAction,
+  onAddFriend,
+  showAddFriend = false,
   className,
 }: ProfileCardProps) => {
   const inputId = useId();
@@ -37,6 +47,8 @@ const ProfileCard = ({
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
 
   const displayAvatar = avatarPreviewUrl ?? initialAvatarSrc ?? "/placeholder.svg";
+  const hasUnsavedChanges =
+    avatarFile !== null || name.trim() !== (initialName.trim() || "Explorador VR");
 
   useEffect(() => {
     setName(initialName);
@@ -73,9 +85,15 @@ const ProfileCard = ({
     e.target.value = "";
   }, []);
 
-  const handleConfirm = useCallback(() => {
-    onConfirm?.({ name: name.trim() || initialName, avatarFile, avatarPreviewUrl });
-  }, [avatarFile, avatarPreviewUrl, initialName, name, onConfirm]);
+  const handleConfirm = useCallback(async () => {
+    if (isSaving) return;
+    if (hasUnsavedChanges) {
+      await onConfirm?.({ name: name.trim() || initialName, avatarFile, avatarPreviewUrl });
+      setAvatarFile(null);
+      return;
+    }
+    await onLiveAction?.();
+  }, [avatarFile, avatarPreviewUrl, hasUnsavedChanges, initialName, isSaving, name, onConfirm, onLiveAction]);
 
   return (
     <motion.div
@@ -89,6 +107,18 @@ const ProfileCard = ({
       )}
       style={{ pointerEvents: "auto" }}
     >
+      {showAddFriend && (
+        <Button
+          type="button"
+          size="icon"
+          variant="secondary"
+          className="absolute right-3 top-3 z-20 h-7 w-7 rounded-full border border-cyan-300/40 bg-black/35 text-cyan-200 shadow-[0_0_14px_-4px_rgba(34,211,238,0.85)]"
+          onClick={() => void onAddFriend?.()}
+          aria-label="Enviar solicitud de amistad"
+        >
+          <UserPlus className="h-3.5 w-3.5" />
+        </Button>
+      )}
       <input
         ref={fileRef}
         id={inputId}
@@ -113,6 +143,7 @@ const ProfileCard = ({
           className="absolute -bottom-0.5 -right-0.5 z-10 h-9 w-9 rounded-full border border-primary/35 bg-background/80 text-primary shadow-[0_0_18px_-4px_hsl(var(--primary)/0.55)] backdrop-blur-md hover:bg-primary/15"
           onClick={onPickFile}
           aria-label="Cambiar foto de perfil"
+          disabled={isSaving}
         >
           <Camera className="h-4 w-4" />
         </Button>
@@ -125,6 +156,7 @@ const ProfileCard = ({
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={() => setEditingName(false)}
+            disabled={isSaving}
             onKeyDown={(e) => {
               if (e.key === "Enter") setEditingName(false);
             }}
@@ -133,6 +165,7 @@ const ProfileCard = ({
         ) : (
           <button
             type="button"
+            disabled={isSaving}
             onClick={() => setEditingName(true)}
             className="group inline-flex max-w-full items-center justify-center gap-2 rounded-lg px-2 py-1 font-display text-lg font-semibold text-foreground transition hover:bg-white/5"
           >
@@ -145,10 +178,16 @@ const ProfileCard = ({
       <Button
         type="button"
         onClick={handleConfirm}
-        className="w-full rounded-xl border border-primary/40 bg-primary/10 font-display text-xs font-bold uppercase tracking-wide text-primary shadow-[0_0_20px_-6px_hsl(var(--primary)/0.55)] transition hover:bg-primary/20 hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]"
+        disabled={isSaving}
+        className={cn(
+          "w-full rounded-xl font-display text-xs font-bold uppercase tracking-[0.14em] transition",
+          hasUnsavedChanges
+            ? "border border-primary/40 bg-primary/10 text-primary shadow-[0_0_20px_-6px_hsl(var(--primary)/0.55)] hover:bg-primary/20 hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]"
+            : "border border-cyan-300/70 bg-cyan-500/20 text-cyan-100 shadow-[0_0_26px_-7px_rgba(0,224,255,0.92)] hover:bg-cyan-500/28 hover:shadow-[0_0_34px_-6px_rgba(20,235,255,1)]",
+        )}
         variant="outline"
       >
-        {confirmLabel}
+        {isSaving ? "Guardando..." : hasUnsavedChanges ? saveLabel : liveLabel}
       </Button>
     </motion.div>
   );

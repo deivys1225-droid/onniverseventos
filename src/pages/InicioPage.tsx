@@ -7,6 +7,25 @@ import { compressProfileImage } from "@/lib/compressProfileImage";
 import { upsertProfile, uploadAvatar } from "@/lib/profile";
 import { toast } from "sonner";
 
+function getProfileSaveErrorMessage(error: unknown): string {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    return "Sin internet. Revisamos tu conexion y vuelve a intentar.";
+  }
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    if (
+      msg.includes("failed to fetch") ||
+      msg.includes("network") ||
+      msg.includes("fetch") ||
+      msg.includes("timeout")
+    ) {
+      return "No pudimos conectar con el servidor. Tu foto sigue local; intenta guardar de nuevo en unos segundos.";
+    }
+    return error.message;
+  }
+  return "No se pudo guardar el perfil. Intenta de nuevo.";
+}
+
 const InicioPage = () => {
   const { user } = useAuth();
   const { profile, refresh } = useProfile(user?.id);
@@ -20,20 +39,23 @@ const InicioPage = () => {
   const handleProfilePersist = async (payload: ProfileCardConfirmPayload) => {
     if (!user) return;
     try {
-      let avatarUrl = profile?.avatar_url ?? null;
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        throw new Error("offline");
+      }
+      let avatarUrlToPersist: string | null | undefined = undefined;
       if (payload.avatarFile) {
         const file = await compressProfileImage(payload.avatarFile);
-        avatarUrl = await uploadAvatar(user.id, file);
+        avatarUrlToPersist = await uploadAvatar(user.id, file);
       }
       await upsertProfile({
         userId: user.id,
         fullName: payload.name.trim() || displayName,
-        avatarUrl,
+        avatarUrl: avatarUrlToPersist,
       });
       await refresh();
       toast.success("Perfil guardado");
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "No se pudo guardar el perfil");
+      toast.error(getProfileSaveErrorMessage(e));
     }
   };
 

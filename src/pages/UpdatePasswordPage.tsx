@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { stopMyActiveStream } from "@/lib/activeStreams";
 
 const glassPanel =
   "rounded-2xl border border-border/50 bg-card/40 p-8 shadow-[0_0_45px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl";
@@ -61,6 +62,11 @@ const UpdatePasswordPage = () => {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       toast.success("Contraseña actualizada. Ya puedes entrar.");
+      try {
+        await stopMyActiveStream();
+      } catch {
+        /* ignore stream stop errors here */
+      }
       await supabase.auth.signOut();
       navigate("/", { replace: true });
     } catch (err: unknown) {

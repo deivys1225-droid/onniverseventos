@@ -13,10 +13,20 @@ import {
   getAdaptiveSphereSegments,
   isMobileCoarseDevice,
 } from "@/lib/webglRendererPrefs";
-import { Layers } from "lucide-react";
+import { MessageCircleMore, UsersRound } from "lucide-react";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
-import { cn } from "@/lib/utils";
+import LiveRequestCard, { type LiveRequestPayload } from "@/components/LiveRequestCard";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import { createLiveRequest, uploadLiveEventImage } from "@/lib/liveRequests";
+import SocialMenu from "@/components/SocialMenu";
+import ChatWindow from "@/components/ChatWindow";
+import { supabase } from "@/integrations/supabase/client";
+import FriendPicker, { type FriendCandidate } from "@/components/FriendPicker";
+import SearchHub from "@/components/SearchHub";
+import StreamSetupCard, { type StreamSetupPayload } from "@/components/StreamSetupCard";
+import { startActiveStream, stopMyActiveStream } from "@/lib/activeStreams";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -28,32 +38,8 @@ const EARTH_CLOUDS = `${PLANETS}/earth_clouds_1024.png`;
 /** Tierra y luna al 50% del tamano anterior. */
 const CENTRAL_SPHERE_RADIUS = 0.925;
 
-/** Textura ligera 360° de estadio de futbol (equirectangular, optimizada para mobile). */
-const STADIUM_PANORAMA_URL = "/estadio.jpg";
-
-const MI_MUNDO_PANORAMA_STORAGE_KEY = "onniverso.mi_mundo.panorama";
-
-/** Fondo por defecto + 6 escenas en `public` (1.jpeg … 6.jpeg). */
-const MI_MUNDO_BACKGROUND_SCENES = [
-  { id: "default", label: "Estadio", src: "/estadio.jpg" },
-  { id: "1", label: "Escena 1", src: "/1.jpeg" },
-  { id: "2", label: "Escena 2", src: "/2.jpeg" },
-  { id: "3", label: "Escena 3", src: "/3.jpeg" },
-  { id: "4", label: "Escena 4", src: "/4.jpeg" },
-  { id: "5", label: "Escena 5", src: "/5.jpeg" },
-  { id: "6", label: "Escena 6", src: "/6.jpeg" },
-] as const;
-
-function readStoredPanoramaUrl(): string {
-  if (typeof window === "undefined") return STADIUM_PANORAMA_URL;
-  try {
-    const raw = localStorage.getItem(MI_MUNDO_PANORAMA_STORAGE_KEY);
-    if (raw && MI_MUNDO_BACKGROUND_SCENES.some((s) => s.src === raw)) return raw;
-  } catch {
-    /* ignore */
-  }
-  return STADIUM_PANORAMA_URL;
-}
+const GALAXY_PANORAMA_URL =
+  "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=7680&q=90";
 
 /** Luna: textura ligera + parametros de orbita. */
 const MOON_TEXTURE_URL = `${PLANETS}/moon_1024.jpg`;
@@ -61,11 +47,6 @@ const MOON_RADIUS = CENTRAL_SPHERE_RADIUS * 0.27;
 const MOON_ORBIT_RADIUS = CENTRAL_SPHERE_RADIUS * 1.95;
 const MOON_ORBIT_SPEED = 0.22;
 const EARTH_ROTATION_SPEED = 0.08;
-const FREE_MATCH_VIDEO_URL =
-  (import.meta.env.VITE_FREE_MATCH_VIDEO_URL as string | undefined)?.trim() ||
-  "/videos/beele.mp4";
-const SECOND_MATCH_VIDEO_URL =
-  (import.meta.env.VITE_SECOND_MATCH_VIDEO_URL as string | undefined)?.trim() || "/videos/colombia-argentina-resumen.mp4";
 const WINDOWS11_DESKTOP_URL =
   "https://images.unsplash.com/photo-1633419461186-7d40a38105ec?auto=format&fit=crop&w=1600&q=80";
 const MI_MUNDO_CAMERA_VIEW_STORAGE_KEY = "onniverso.mi_mundo.camera_view";
@@ -130,17 +111,162 @@ function readStoredCameraView(): StoredCameraView | null {
 
 function MoonScreenCluster({
   visible,
-  screenRefs,
   vrMirrorFlat,
+  onOpenLiveRequest,
+  onOpenStreamSetup,
+  onCollapseScreens,
 }: {
   visible: boolean;
   /** Mismo canvas 2D: planos que miran a la cámara, sin profundidad de escena. */
   vrMirrorFlat: boolean;
+  onOpenLiveRequest?: () => void;
+  onOpenStreamSetup?: () => void;
+  onCollapseScreens?: () => void;
 }) {
   const clusterRef = useRef<THREE.Group>(null);
-  const [mainVideo] = useState(() => createVideoTexture(FREE_MATCH_VIDEO_URL));
-  const [secondVideo] = useState(() => createVideoTexture(SECOND_MATCH_VIDEO_URL));
+  const [focusedScreen, setFocusedScreen] = useState<"social" | "video" | "live" | "system" | null>(null);
   const systemTexture = useLoader(THREE.TextureLoader, WINDOWS11_DESKTOP_URL);
+  const liveCardTexture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1280;
+    canvas.height = 720;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    bg.addColorStop(0, "#090909");
+    bg.addColorStop(0.55, "#121015");
+    bg.addColorStop(1, "#08080a");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const cyanAura = ctx.createRadialGradient(1030, 180, 25, 1030, 180, 380);
+    cyanAura.addColorStop(0, "rgba(255,204,120,0.28)");
+    cyanAura.addColorStop(1, "rgba(255,204,120,0)");
+    ctx.fillStyle = cyanAura;
+    ctx.fillRect(660, 0, 640, 560);
+    const goldAura = ctx.createRadialGradient(220, 540, 20, 220, 540, 320);
+    goldAura.addColorStop(0, "rgba(255,195,76,0.26)");
+    goldAura.addColorStop(1, "rgba(255,195,76,0)");
+    ctx.fillStyle = goldAura;
+    ctx.fillRect(0, 330, 540, 390);
+
+    ctx.strokeStyle = "rgba(255,205,126,0.68)";
+    ctx.lineWidth = 7;
+    ctx.strokeRect(34, 34, canvas.width - 68, canvas.height - 68);
+    ctx.strokeStyle = "rgba(255,193,94,0.48)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
+
+    ctx.fillStyle = "rgba(255,198,104,0.16)";
+    ctx.fillRect(74, 62, 294, 56);
+    ctx.strokeStyle = "rgba(255,209,132,0.6)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(74, 62, 294, 56);
+    ctx.fillStyle = "#ffe5b0";
+    ctx.font = "700 27px Arial";
+    ctx.fillText("ONNIVERSO VIP", 90, 99);
+
+    // Main title
+    ctx.shadowColor = "rgba(104, 235, 255, 0.85)";
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = "#ffd28a";
+    ctx.font = "800 56px Arial";
+    ctx.fillText("REVOLUCION VIP:", 86, 172);
+    ctx.fillStyle = "#fff4de";
+    ctx.font = "800 58px Arial";
+    ctx.fillText("MONETIZA SIN FRONTERAS", 86, 238);
+    ctx.shadowBlur = 0;
+
+    // Long-form copy with manual wrapping
+    const copy =
+      "Lidera la Nueva Era: Se el primero en llevar a tus artistas a una experiencia inmersiva unica en el Onniverso. Activa tu Estadio Virtual 360° y accede a una infraestructura exclusiva donde puedes vender Tickets VIP globales sin limites de aforo. Convierte cada show en un evento mundial, con la seguridad y el alcance que solo la tecnologia VR de vanguardia puede ofrecer. Tu artista, tu estadio, tus reglas.";
+    const maxWidth = 730;
+    const startX = 86;
+    let y = 286;
+    ctx.fillStyle = "rgba(234,248,255,0.97)";
+    ctx.font = "500 24px Arial";
+    const words = copy.split(" ");
+    let line = "";
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      if (ctx.measureText(test).width > maxWidth) {
+        ctx.fillText(line, startX, y);
+        line = word;
+        y += 34;
+      } else {
+        line = test;
+      }
+    }
+    if (line) ctx.fillText(line, startX, y);
+
+    // VR visor illustration
+    ctx.fillStyle = "rgba(20, 16, 10, 0.96)";
+    ctx.strokeStyle = "rgba(255, 216, 140, 0.82)";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.roundRect(846, 228, 330, 164, 40);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 206, 120, 0.18)";
+    ctx.beginPath();
+    ctx.roundRect(872, 258, 278, 104, 28);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 226, 158, 0.92)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(940, 310, 34, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(1082, 310, 34, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255,220,150,0.42)";
+    ctx.fillRect(1001, 274, 18, 72);
+    ctx.fillStyle = "rgba(255, 210, 120, 0.3)";
+    ctx.fillRect(980, 206, 58, 30);
+
+    // Premium trust tags
+    ctx.fillStyle = "rgba(255,201,118,0.22)";
+    ctx.fillRect(888, 430, 276, 50);
+    ctx.strokeStyle = "rgba(255,219,156,0.72)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(888, 430, 276, 50);
+    ctx.fillStyle = "#ffe8bf";
+    ctx.font = "700 22px Arial";
+    ctx.fillText("AFORO VIP GLOBAL", 940, 462);
+    ctx.fillStyle = "rgba(95,230,255,0.18)";
+    ctx.fillRect(888, 490, 276, 50);
+    ctx.strokeStyle = "rgba(126,241,255,0.7)";
+    ctx.strokeRect(888, 490, 276, 50);
+    ctx.fillStyle = "#d6fbff";
+    ctx.fillText("PAGOS VIP SEGUROS", 940, 522);
+
+    // CTA focal button
+    const btnW = 620;
+    const btnH = 92;
+    const btnX = 92;
+    const btnY = 596;
+    const ctaGlow = ctx.createRadialGradient(btnX + btnW / 2, btnY + btnH / 2, 30, btnX + btnW / 2, btnY + btnH / 2, 300);
+    ctaGlow.addColorStop(0, "rgba(255,206,126,0.4)");
+    ctaGlow.addColorStop(1, "rgba(0,245,255,0)");
+    ctx.fillStyle = ctaGlow;
+    ctx.fillRect(btnX - 90, btnY - 60, btnW + 180, btnH + 120);
+    const btnGradient = ctx.createLinearGradient(btnX, btnY, btnX + btnW, btnY + btnH);
+    btnGradient.addColorStop(0, "rgba(220,160,70,0.62)");
+    btnGradient.addColorStop(1, "rgba(155,105,35,0.54)");
+    ctx.fillStyle = btnGradient;
+    ctx.fillRect(btnX, btnY, btnW, btnH);
+    ctx.strokeStyle = "rgba(255, 230, 178, 0.98)";
+    ctx.lineWidth = 5.5;
+    ctx.strokeRect(btnX, btnY, btnW, btnH);
+    ctx.fillStyle = "#fff8e8";
+    ctx.font = "900 42px Arial";
+    ctx.fillText("INSCRIBIR ARTISTA", btnX + 108, btnY + 60);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
 
   const socialTexture = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -239,43 +365,56 @@ function MoonScreenCluster({
     return texture;
   }, []);
 
+  const infoTexture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    bg.addColorStop(0, "rgba(13,26,44,0.96)");
+    bg.addColorStop(1, "rgba(9,16,28,0.96)");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "rgba(122,228,255,0.72)";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
+    ctx.fillStyle = "#dff8ff";
+    ctx.font = "700 52px Arial";
+    ctx.fillText("ONNIVERSO", 62, 108);
+    ctx.font = "700 40px Arial";
+    ctx.fillText("PANTALLA DISPONIBLE", 62, 170);
+    ctx.fillStyle = "rgba(200,236,255,0.9)";
+    ctx.font = "500 30px Arial";
+    ctx.fillText("Este espacio se reserva para nuevos contenidos", 62, 248);
+    ctx.fillText("inmersivos y experiencias en vivo.", 62, 292);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
+
   useEffect(() => {
     systemTexture.colorSpace = THREE.SRGBColorSpace;
     systemTexture.anisotropy = 8;
-  }, [systemTexture]);
-
-  useEffect(() => {
-    const tryPlay = (video: HTMLVideoElement | null) => {
-      if (!video) return;
-      void video.play().catch(() => undefined);
-    };
-    if (visible) {
-      tryPlay(mainVideo.video);
-      tryPlay(secondVideo.video);
-      const resume = () => {
-        tryPlay(mainVideo.video);
-        tryPlay(secondVideo.video);
-      };
-      window.addEventListener("pointerdown", resume, { once: true });
-      window.addEventListener("touchstart", resume, { once: true });
-      return () => {
-        window.removeEventListener("pointerdown", resume);
-        window.removeEventListener("touchstart", resume);
-      };
+    if (liveCardTexture) {
+      liveCardTexture.anisotropy = 8;
+      liveCardTexture.needsUpdate = true;
     }
-    mainVideo.video?.pause();
-    secondVideo.video?.pause();
-    return undefined;
-  }, [mainVideo.video, secondVideo.video, visible]);
+    if (infoTexture) {
+      infoTexture.anisotropy = 8;
+      infoTexture.needsUpdate = true;
+    }
+  }, [infoTexture, liveCardTexture, systemTexture]);
 
   useEffect(() => {
     return () => {
-      mainVideo.texture?.dispose();
-      secondVideo.texture?.dispose();
       socialTexture?.dispose();
       systemTexture?.dispose();
+      liveCardTexture?.dispose();
+      infoTexture?.dispose();
     };
-  }, [mainVideo.texture, secondVideo.texture, socialTexture, systemTexture]);
+  }, [infoTexture, liveCardTexture, socialTexture, systemTexture]);
 
   useFrame((_, delta) => {
     if (!clusterRef.current) return;
@@ -294,88 +433,203 @@ function MoonScreenCluster({
   };
 
   if (vrMirrorFlat) {
+    const scaleFor = (id: "social" | "video" | "live" | "system") => (focusedScreen === id ? 1.16 : focusedScreen ? 0.9 : 1);
+    const boostFor = (id: "social" | "video" | "live" | "system") => (focusedScreen === id ? 0.6 : 0);
+    const opacityFor = (id: "social" | "video" | "live" | "system") => (focusedScreen && focusedScreen !== id ? 0.45 : 1);
     return (
       <group ref={clusterRef}>
-        <Billboard position={[0, 0.18, 1.35]} follow>
-          <mesh renderOrder={6}>
-            <planeGeometry args={[2.9, 1.72]} />
-            <meshBasicMaterial map={socialTexture ?? undefined} toneMapped={false} side={THREE.DoubleSide} />
-          </mesh>
-        </Billboard>
-        <Billboard position={[0, 0.18, -1.35]} follow>
+        <Billboard position={[0, 0.18, 1.35 + boostFor("social")]} follow scale={scaleFor("social")}>
           <mesh
-            renderOrder={6}
+            renderOrder={focusedScreen === "social" ? 25 : 6}
             onPointerDown={(event) => {
               event.stopPropagation();
-              enableAudioFor(secondVideo.video);
+              setFocusedScreen("social");
+            }}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              onCollapseScreens?.();
             }}
           >
             <planeGeometry args={[2.9, 1.72]} />
-            <meshBasicMaterial map={secondVideo.texture ?? undefined} toneMapped={false} side={THREE.DoubleSide} />
+            <meshBasicMaterial
+              map={socialTexture ?? undefined}
+              toneMapped={false}
+              side={THREE.DoubleSide}
+              transparent
+              opacity={opacityFor("social")}
+            />
           </mesh>
         </Billboard>
-        <Billboard position={[-1.35, 0.18, 0]} follow>
+        <Billboard position={[0, 0.18, -1.35 - boostFor("video")]} follow scale={scaleFor("video")}>
           <mesh
-            renderOrder={6}
+            renderOrder={focusedScreen === "video" ? 25 : 6}
             onPointerDown={(event) => {
               event.stopPropagation();
-              enableAudioFor(mainVideo.video);
+              setFocusedScreen("video");
+            }}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              onCollapseScreens?.();
             }}
           >
             <planeGeometry args={[2.9, 1.72]} />
-            <meshBasicMaterial map={mainVideo.texture ?? undefined} toneMapped={false} side={THREE.DoubleSide} />
+            <meshBasicMaterial
+              map={infoTexture ?? undefined}
+              toneMapped={false}
+              side={THREE.DoubleSide}
+              transparent
+              opacity={opacityFor("video")}
+            />
           </mesh>
         </Billboard>
-        <Billboard position={[1.35, 0.18, 0]} follow>
-          <mesh renderOrder={6}>
+        <Billboard position={[-1.35 - boostFor("live"), 0.18, 0]} follow scale={scaleFor("live")}>
+          <mesh
+            renderOrder={focusedScreen === "live" ? 25 : 6}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              setFocusedScreen("live");
+              onOpenLiveRequest?.();
+            }}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              onCollapseScreens?.();
+            }}
+          >
+            <planeGeometry args={[2.9, 1.72]} />
+            <meshBasicMaterial
+              map={liveCardTexture ?? undefined}
+              toneMapped={false}
+              side={THREE.DoubleSide}
+              transparent
+              opacity={opacityFor("live")}
+            />
+          </mesh>
+        </Billboard>
+        <Billboard position={[1.35 + boostFor("system"), 0.18, 0]} follow scale={scaleFor("system")}>
+          <mesh
+            renderOrder={focusedScreen === "system" ? 25 : 6}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              setFocusedScreen("system");
+              onOpenStreamSetup?.();
+            }}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              onCollapseScreens?.();
+            }}
+          >
             <planeGeometry args={[3, 1.8]} />
-            <meshBasicMaterial map={systemTexture ?? undefined} toneMapped={false} side={THREE.DoubleSide} />
+            <meshBasicMaterial
+              map={systemTexture ?? undefined}
+              toneMapped={false}
+              side={THREE.DoubleSide}
+              transparent
+              opacity={opacityFor("system")}
+            />
           </mesh>
         </Billboard>
       </group>
     );
   }
 
+  const scaleFor = (id: "social" | "video" | "live" | "system") => (focusedScreen === id ? 1.16 : focusedScreen ? 0.9 : 1);
+  const offsetFor = (id: "social" | "video" | "live" | "system") => (focusedScreen === id ? 0.58 : 0);
+  const opacityFor = (id: "social" | "video" | "live" | "system") => (focusedScreen && focusedScreen !== id ? 0.45 : 1);
+
   return (
     <group ref={clusterRef}>
       <mesh
-        position={[0, 0.18, 1.35]}
-        renderOrder={6}
+        position={[0, 0.18, 1.35 + offsetFor("social")]}
+        renderOrder={focusedScreen === "social" ? 25 : 6}
+        scale={scaleFor("social")}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          setFocusedScreen("social");
+        }}
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          onCollapseScreens?.();
+        }}
       >
         <planeGeometry args={[2.9, 1.72]} />
-        <meshBasicMaterial map={socialTexture ?? undefined} toneMapped={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial
+          map={socialTexture ?? undefined}
+          toneMapped={false}
+          side={THREE.DoubleSide}
+          transparent
+          opacity={opacityFor("social")}
+        />
       </mesh>
       <mesh
-        position={[0, 0.18, -1.35]}
+        position={[0, 0.18, -1.35 - offsetFor("video")]}
         rotation={[0, Math.PI, 0]}
-        renderOrder={6}
+        renderOrder={focusedScreen === "video" ? 25 : 6}
+        scale={scaleFor("video")}
         onPointerDown={(event) => {
           event.stopPropagation();
-          enableAudioFor(secondVideo.video);
+          setFocusedScreen("video");
+        }}
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          onCollapseScreens?.();
         }}
       >
         <planeGeometry args={[2.9, 1.72]} />
-        <meshBasicMaterial map={secondVideo.texture ?? undefined} toneMapped={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial
+          map={infoTexture ?? undefined}
+          toneMapped={false}
+          side={THREE.DoubleSide}
+          transparent
+          opacity={opacityFor("video")}
+        />
       </mesh>
       <mesh
-        position={[-1.35, 0.18, 0]}
+        position={[-1.35 - offsetFor("live"), 0.18, 0]}
         rotation={[0, -Math.PI / 2, 0]}
-        renderOrder={6}
+        renderOrder={focusedScreen === "live" ? 25 : 6}
+        scale={scaleFor("live")}
         onPointerDown={(event) => {
           event.stopPropagation();
-          enableAudioFor(mainVideo.video);
+          setFocusedScreen("live");
+          onOpenLiveRequest?.();
+        }}
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          onCollapseScreens?.();
         }}
       >
         <planeGeometry args={[2.9, 1.72]} />
-        <meshBasicMaterial map={mainVideo.texture ?? undefined} toneMapped={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial
+          map={liveCardTexture ?? undefined}
+          toneMapped={false}
+          side={THREE.DoubleSide}
+          transparent
+          opacity={opacityFor("live")}
+        />
       </mesh>
       <mesh
-        position={[1.35, 0.18, 0]}
+        position={[1.35 + offsetFor("system"), 0.18, 0]}
         rotation={[0, Math.PI / 2, 0]}
-        renderOrder={6}
+        renderOrder={focusedScreen === "system" ? 25 : 6}
+        scale={scaleFor("system")}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          setFocusedScreen("system");
+          onOpenStreamSetup?.();
+        }}
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          onCollapseScreens?.();
+        }}
       >
         <planeGeometry args={[3, 1.8]} />
-        <meshBasicMaterial map={systemTexture ?? undefined} toneMapped={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial
+          map={systemTexture ?? undefined}
+          toneMapped={false}
+          side={THREE.DoubleSide}
+          transparent
+          opacity={opacityFor("system")}
+        />
       </mesh>
     </group>
   );
@@ -385,10 +639,12 @@ function OrbitingMoon({
   moonRef,
   simpleGpu,
   vrStereo,
+  onSelect,
 }: {
   moonRef: React.RefObject<THREE.Mesh>;
   simpleGpu: boolean;
   vrStereo: boolean;
+  onSelect?: () => void;
 }) {
   const pivotRef = useRef<THREE.Group>(null);
   const moonTexture = useLoader(THREE.TextureLoader, MOON_TEXTURE_URL);
@@ -408,7 +664,15 @@ function OrbitingMoon({
 
   return (
     <group ref={pivotRef} rotation={[0.18, 0, 0]}>
-      <mesh ref={moonRef} position={[MOON_ORBIT_RADIUS, -1.24, 0]} key={`moon-${moonSeg}`}>
+      <mesh
+        ref={moonRef}
+        position={[MOON_ORBIT_RADIUS, -1.24, 0]}
+        key={`moon-${moonSeg}`}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          onSelect?.();
+        }}
+      >
         <sphereGeometry args={[MOON_RADIUS, moonSeg, moonSeg]} />
         <meshBasicMaterial map={moonTexture} toneMapped transparent opacity={1} />
       </mesh>
@@ -531,9 +795,11 @@ function specularToRoughnessTexture(specular: THREE.Texture): THREE.CanvasTextur
 function CentralEarth({
   simpleGpu,
   vrStereo,
+  onSelect,
 }: {
   simpleGpu: boolean;
   vrStereo: boolean;
+  onSelect?: () => void;
 }) {
   const earthRef = useRef<THREE.Group>(null);
   const [dayMap, normalMap, specularMap, cloudsMap] = useLoader(THREE.TextureLoader, [
@@ -577,7 +843,13 @@ function CentralEarth({
   if (simpleGpu) {
     return (
       <group ref={earthRef} key={`earth-s-${seg}`}>
-        <mesh renderOrder={0}>
+        <mesh
+          renderOrder={0}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            onSelect?.();
+          }}
+        >
           <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
           <meshBasicMaterial map={dayMap} toneMapped />
         </mesh>
@@ -602,7 +874,13 @@ function CentralEarth({
 
   return (
     <group ref={earthRef} key={`earth-hd-${seg}`}>
-      <mesh renderOrder={0}>
+      <mesh
+        renderOrder={0}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          onSelect?.();
+        }}
+      >
         <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
         <meshStandardMaterial
           map={dayMap}
@@ -688,9 +966,20 @@ const MiMundoVRSection = ({
   profileAvatarUrl,
   onProfilePersist,
 }: MiMundoVRSectionProps) => {
+  const { user } = useAuth();
   const [gyroEnabled, setGyroEnabled] = useState(false);
-  const [panoramaUrl, setPanoramaUrl] = useState(readStoredPanoramaUrl);
-  const [scenePickerOpen, setScenePickerOpen] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [moonScreensVisible, setMoonScreensVisible] = useState(false);
+  const [liveRequestOpen, setLiveRequestOpen] = useState(false);
+  const [liveRequestSaving, setLiveRequestSaving] = useState(false);
+  const [streamSetupOpen, setStreamSetupOpen] = useState(false);
+  const [streamSaving, setStreamSaving] = useState(false);
+  const [isUserLive, setIsUserLive] = useState(false);
+  const [socialMenuOpen, setSocialMenuOpen] = useState(false);
+  const [activeChat, setActiveChat] = useState<{ friendshipId: string; friendName: string } | null>(null);
+  const [friendCandidates, setFriendCandidates] = useState<FriendCandidate[]>([]);
+  const [friendPickerOpen, setFriendPickerOpen] = useState(false);
+  const panoramaUrl = GALAXY_PANORAMA_URL;
   const vrStereoActive = useVrModeActive();
   const moonRef = useRef<THREE.Mesh>(null);
   const environmentId = useMemo<MiMundoEnvironmentId>(() => "lobby", []);
@@ -713,26 +1002,108 @@ const MiMundoVRSection = ({
   const cameraPosition = storedCameraView?.position ?? DEFAULT_CAMERA_POSITION;
   const orbitTarget = storedCameraView?.target ?? DEFAULT_ORBIT_TARGET;
 
-  const selectPanorama = useCallback((src: string) => {
-    setPanoramaUrl(src);
-    try {
-      localStorage.setItem(MI_MUNDO_PANORAMA_STORAGE_KEY, src);
-    } catch {
-      /* ignore */
-    }
-    setScenePickerOpen(false);
-  }, []);
-
   const onProfileConfirm = async (payload: ProfileCardConfirmPayload) => {
     try {
       localStorage.setItem(PROFILE_NAME_STORAGE_KEY, payload.name);
     } catch {
       /* ignore */
     }
-    if (onProfilePersist) {
+    if (!onProfilePersist) return;
+    setProfileSaving(true);
+    try {
       await onProfilePersist(payload);
+    } finally {
+      setProfileSaving(false);
     }
   };
+
+  const onLiveRequestSubmit = async (payload: LiveRequestPayload) => {
+    if (!user) {
+      toast.error("Debes iniciar sesion para enviar solicitud LIVE.");
+      return;
+    }
+    setLiveRequestSaving(true);
+    try {
+      const eventImageUrl = await uploadLiveEventImage(user.id, payload.eventImageFile);
+      await createLiveRequest({
+        userId: user.id,
+        requesterEmail: payload.email,
+        artistName: payload.artistName,
+        ticketPrice: payload.ticketPrice,
+        stadiumDisplayName: payload.stadiumName,
+        eventImageUrl,
+      });
+      toast.success("Solicitud LIVE enviada.");
+      setLiveRequestOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo enviar la solicitud LIVE.");
+    } finally {
+      setLiveRequestSaving(false);
+    }
+  };
+
+  const onAddFriendFromProfile = async () => {
+    setFriendPickerOpen(true);
+  };
+
+  const sendFriendRequest = async (candidate: FriendCandidate) => {
+    if (!user) {
+      toast.error("Debes iniciar sesion para enviar solicitudes de amistad.");
+      return;
+    }
+    if (candidate.id === user.id) {
+      toast.error("No puedes enviarte una solicitud a ti mismo.");
+      return;
+    }
+    const { error } = await supabase.rpc("send_friendship_request", { p_receiver_id: candidate.id });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(`Solicitud enviada a ${candidate.name}.`);
+    setFriendPickerOpen(false);
+  };
+
+  useEffect(() => {
+    if (!user) {
+      setFriendCandidates([]);
+      return;
+    }
+    const loadFriendCandidates = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id,full_name,avatar_url")
+        .neq("id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(10);
+      const rows = (data ?? []) as { id: string; full_name: string | null; avatar_url: string | null }[];
+      setFriendCandidates(
+        rows.map((row) => ({
+          id: row.id,
+          name: row.full_name?.trim() || "Usuario",
+          avatarUrl: row.avatar_url,
+        })),
+      );
+    };
+    void loadFriendCandidates();
+  }, [user]);
+
+  useEffect(() => {
+    if (!moonScreensVisible) setLiveRequestOpen(false);
+  }, [moonScreensVisible]);
+  useEffect(() => {
+    if (!moonScreensVisible) setStreamSetupOpen(false);
+  }, [moonScreensVisible]);
+  useEffect(() => {
+    if (!streamSetupOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setStreamSetupOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [streamSetupOpen]);
 
   const onOrbitEnd = (event: { target?: { object?: THREE.Camera; target?: THREE.Vector3 } }) => {
     if (typeof window === "undefined") return;
@@ -745,6 +1116,52 @@ const MiMundoVRSection = ({
       target: [target.x, target.y, target.z],
     };
     localStorage.setItem(MI_MUNDO_CAMERA_VIEW_STORAGE_KEY, JSON.stringify(payload));
+  };
+
+  useEffect(() => {
+    if (!user) {
+      setIsUserLive(false);
+      return;
+    }
+    const loadLive = async () => {
+      const { data } = await supabase.from("active_streams").select("is_live").eq("user_id", user.id).maybeSingle();
+      setIsUserLive(Boolean((data as { is_live?: boolean } | null)?.is_live));
+    };
+    void loadLive();
+  }, [user]);
+
+  const onStreamSubmit = async (payload: StreamSetupPayload) => {
+    if (!user) {
+      toast.error("Debes iniciar sesion para transmitir.");
+      return;
+    }
+    setStreamSaving(true);
+    try {
+      await startActiveStream({
+        userId: user.id,
+        streamUrl: payload.streamUrl,
+        title: payload.title,
+        category: payload.category,
+      });
+      setIsUserLive(true);
+      toast.success("Transmision activa en Onniverso.");
+      setStreamSetupOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo iniciar el live.");
+    } finally {
+      setStreamSaving(false);
+    }
+  };
+
+  const onStopStream = async () => {
+    try {
+      await stopMyActiveStream();
+      setIsUserLive(false);
+      toast.success("Transmision detenida.");
+      setStreamSetupOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo detener el live.");
+    }
   };
 
   const enableGyroscope = async () => {
@@ -813,6 +1230,7 @@ const MiMundoVRSection = ({
             <CentralEarth
               simpleGpu={isMobileCoarse || vrStereoActive}
               vrStereo={vrStereoActive}
+              onSelect={() => setMoonScreensVisible((prev) => !prev)}
             />
           </Suspense>
           <Suspense fallback={null}>
@@ -820,12 +1238,16 @@ const MiMundoVRSection = ({
               moonRef={moonRef}
               simpleGpu={isMobileCoarse || vrStereoActive}
               vrStereo={vrStereoActive}
+              onSelect={() => setMoonScreensVisible((prev) => !prev)}
             />
           </Suspense>
           <Suspense fallback={null}>
             <MoonScreenCluster
-              visible={false}
+              visible={moonScreensVisible}
               vrMirrorFlat={vrStereoActive}
+              onOpenLiveRequest={() => setLiveRequestOpen((prev) => !prev)}
+              onOpenStreamSetup={() => setStreamSetupOpen((prev) => !prev)}
+              onCollapseScreens={() => setMoonScreensVisible(false)}
             />
           </Suspense>
 
@@ -848,15 +1270,53 @@ const MiMundoVRSection = ({
         </Canvas>
         </div>
       </div>
+      {!vrStereoActive && moonScreensVisible && <SearchHub currentUserId={user?.id} />}
 
-      {!vrStereoActive && (
+      {!vrStereoActive && !moonScreensVisible && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
           <div className="pointer-events-auto origin-center scale-[0.63] -translate-y-[clamp(3.75rem,22vh,13rem)]">
             <ProfileCard
               initialName={cardDisplayName}
               initialAvatarSrc={cardAvatarSrc}
-              confirmLabel="Guardar Cambios"
+              isSaving={profileSaving}
               onConfirm={onProfileConfirm}
+              showAddFriend={Boolean(user && friendCandidates.length > 0)}
+              onAddFriend={onAddFriendFromProfile}
+            />
+          </div>
+        </div>
+      )}
+      {user && (
+        <FriendPicker
+          open={friendPickerOpen}
+          candidates={friendCandidates}
+          onClose={() => setFriendPickerOpen(false)}
+          onSelect={(candidate) => void sendFriendRequest(candidate)}
+        />
+      )}
+
+      {!vrStereoActive && moonScreensVisible && liveRequestOpen && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-4">
+          <div className="pointer-events-auto origin-center scale-[0.66] -translate-y-[clamp(3.75rem,22vh,13rem)]">
+            <LiveRequestCard onSubmit={onLiveRequestSubmit} isSubmitting={liveRequestSaving} />
+          </div>
+        </div>
+      )}
+      {!vrStereoActive && moonScreensVisible && streamSetupOpen && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-end justify-end px-4 pb-16">
+          <button
+            type="button"
+            aria-label="Cerrar transmitir"
+            className="pointer-events-auto absolute inset-0"
+            onClick={() => setStreamSetupOpen(false)}
+          />
+          <div className="pointer-events-auto">
+            <StreamSetupCard
+              isSubmitting={streamSaving}
+              onSubmit={onStreamSubmit}
+              onStopLive={onStopStream}
+              isLive={isUserLive}
+              onClose={() => setStreamSetupOpen(false)}
             />
           </div>
         </div>
@@ -864,64 +1324,42 @@ const MiMundoVRSection = ({
 
       {!vrStereoActive && (
         <>
-          {scenePickerOpen && (
-            <button
-              type="button"
-              aria-label="Cerrar selector de escenas"
-              className="fixed inset-0 z-[55] bg-background/35 backdrop-blur-[2px]"
-              onClick={() => setScenePickerOpen(false)}
-            />
-          )}
           <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2 pb-[env(safe-area-inset-bottom,0px)] pr-[env(safe-area-inset-right,0px)]">
-            {scenePickerOpen && (
-              <div
-                role="dialog"
-                aria-label="Escenas de fondo"
-                className="pointer-events-auto w-[min(92vw,288px)] rounded-2xl border border-primary/30 bg-card/95 p-3 shadow-[0_0_40px_-20px_hsl(var(--primary)/0.9)] backdrop-blur-xl"
-              >
-                <p className="mb-2 text-center font-display text-[11px] font-bold uppercase tracking-wider text-primary">
-                  Escena 360°
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {MI_MUNDO_BACKGROUND_SCENES.map((scene) => {
-                    const active = panoramaUrl === scene.src;
-                    return (
-                      <button
-                        key={scene.id}
-                        type="button"
-                        onClick={() => selectPanorama(scene.src)}
-                        className={cn(
-                          "group relative aspect-video w-full overflow-hidden rounded-xl border transition",
-                          active
-                            ? "border-primary/70 ring-2 ring-primary/80 shadow-[0_0_16px_-4px_hsl(var(--primary)/0.55)]"
-                            : "border-white/15 hover:border-primary/45",
-                        )}
-                      >
-                        <img
-                          src={scene.src}
-                          alt=""
-                          className="h-full w-full object-cover transition group-hover:scale-105 group-hover:duration-300"
-                          loading="lazy"
-                        />
-                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-1 pb-1 pt-4 text-center text-[9px] font-display font-bold uppercase tracking-wide text-white/95">
-                          {scene.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
             <button
               type="button"
-              onClick={() => setScenePickerOpen((prev) => !prev)}
-              aria-label={scenePickerOpen ? "Cerrar escenas de fondo" : "Abrir escenas de fondo"}
-              aria-expanded={scenePickerOpen}
-              className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary shadow-[0_0_24px_-8px_hsl(var(--primary)/0.55)] transition hover:bg-primary/20"
+              onClick={() => setSocialMenuOpen((prev) => !prev)}
+              aria-label={socialMenuOpen ? "Cerrar social" : "Abrir social"}
+              aria-expanded={socialMenuOpen}
+              className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-500/10 text-cyan-200 shadow-[0_0_24px_-8px_rgba(34,211,238,0.75)] transition hover:bg-cyan-500/20"
             >
-              <Layers className="h-5 w-5" />
+              <UsersRound className="h-5 w-5" />
             </button>
           </div>
+          {user && (
+            <SocialMenu
+              userId={user.id}
+              open={socialMenuOpen}
+              onClose={() => setSocialMenuOpen(false)}
+              onOpenChat={(friend) => {
+                setActiveChat({ friendshipId: friend.friendshipId, friendName: friend.name });
+                setSocialMenuOpen(false);
+              }}
+            />
+          )}
+          {user && activeChat && (
+            <ChatWindow
+              friendshipId={activeChat.friendshipId}
+              currentUserId={user.id}
+              friendName={activeChat.friendName}
+              onClose={() => setActiveChat(null)}
+            />
+          )}
+          {!user && socialMenuOpen && (
+            <div className="pointer-events-auto fixed bottom-20 right-4 z-[70] rounded-xl border border-cyan-300/35 bg-card/90 px-3 py-2 text-xs text-cyan-100 backdrop-blur-xl">
+              <MessageCircleMore className="mr-1 inline h-3.5 w-3.5" />
+              Inicia sesion para usar Social.
+            </div>
+          )}
         </>
       )}
 

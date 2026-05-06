@@ -18,15 +18,24 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
 export async function upsertProfile(params: {
   userId: string;
   fullName: string;
-  avatarUrl: string | null;
+  avatarUrl?: string | null;
 }) {
+  const payload: {
+    id: string;
+    full_name: string;
+    updated_at: string;
+    avatar_url?: string | null;
+  } = {
+    id: params.userId,
+    full_name: params.fullName,
+    updated_at: new Date().toISOString(),
+  };
+  if (params.avatarUrl !== undefined) {
+    payload.avatar_url = params.avatarUrl;
+  }
+
   const { error } = await supabase.from("profiles").upsert(
-    {
-      id: params.userId,
-      full_name: params.fullName,
-      avatar_url: params.avatarUrl,
-      updated_at: new Date().toISOString(),
-    },
+    payload,
     { onConflict: "id" },
   );
   if (error) throw error;
