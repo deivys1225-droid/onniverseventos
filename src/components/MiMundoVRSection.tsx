@@ -27,6 +27,8 @@ import FriendPicker, { type FriendCandidate } from "@/components/FriendPicker";
 import SearchHub from "@/components/SearchHub";
 import StreamSetupCard, { type StreamSetupPayload } from "@/components/StreamSetupCard";
 import { startActiveStream, stopMyActiveStream } from "@/lib/activeStreams";
+import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
+import { startLivepeerWhipPublisher, type WhipPublisherHandle } from "@/lib/livepeerWhip";
 import { setLivePreviewStream } from "@/lib/livePreviewBus";
 import StorePublishCard, { type StorePublishPayload } from "@/components/StorePublishCard";
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
@@ -1126,6 +1128,7 @@ const MiMundoVRSection = ({
   const [vaultOpen, setVaultOpen] = useState(false);
   const [isUserLive, setIsUserLive] = useState(false);
   const [cameraPreviewStream, setCameraPreviewStream] = useState<MediaStream | null>(null);
+  const whipPublisherRef = useRef<WhipPublisherHandle | null>(null);
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const [activeChat, setActiveChat] = useState<{ friendshipId: string; friendName: string } | null>(null);
   const [friendCandidates, setFriendCandidates] = useState<FriendCandidate[]>([]);
@@ -1300,14 +1303,51 @@ const MiMundoVRSection = ({
     }
     setStreamSaving(true);
     try {
-      await startActiveStream({
-        userId: user.id,
-        streamUrl: payload.streamUrl,
-        title: payload.title,
-        category: payload.category,
-        privacyMode: payload.privacy,
-        ticketPrice: payload.ticketPrice,
-      });
+      if (payload.sourceMode === "celular") {
+        const sourceStream = cameraPreviewStream;
+        if (!sourceStream) {
+          toast.error("Activa la camara antes de iniciar el Live.");
+          return;
+        }
+        whipPublisherRef.current?.stop();
+        whipPublisherRef.current = null;
+        const lp = await createLivepeerStreamViaEdge(payload.title);
+        try {
+          whipPublisherRef.current = await startLivepeerWhipPublisher({
+            mediaStream: sourceStream,
+            streamKey: lp.streamKey,
+            whipUrl: lp.whipUrl,
+          });
+          await startActiveStream({
+            userId: user.id,
+            streamUrl: lp.ingestRtmp,
+            title: payload.title,
+            category: payload.category,
+            privacyMode: payload.privacy,
+            ticketPrice: payload.ticketPrice,
+            playbackUrl: lp.playbackUrl,
+            playbackId: lp.playbackId,
+          });
+        } catch (inner) {
+          whipPublisherRef.current?.stop();
+          whipPublisherRef.current = null;
+          throw inner;
+        }
+      } else {
+        const streamUrl = payload.streamUrl.trim();
+        const playbackGuess =
+          /^https?:\/\//i.test(streamUrl) && /\.m3u8(\?|$)/i.test(streamUrl) ? streamUrl : null;
+        await startActiveStream({
+          userId: user.id,
+          streamUrl,
+          title: payload.title,
+          category: payload.category,
+          privacyMode: payload.privacy,
+          ticketPrice: payload.ticketPrice,
+          playbackUrl: playbackGuess,
+          playbackId: null,
+        });
+      }
       setIsUserLive(true);
       toast.success("Transmision activa en Onniverso.");
       setStreamSetupOpen(false);
@@ -1351,6 +1391,8 @@ const MiMundoVRSection = ({
 
   const onStopStream = async () => {
     try {
+      whipPublisherRef.current?.stop();
+      whipPublisherRef.current = null;
       await stopMyActiveStream();
       setIsUserLive(false);
       toast.success("Transmision detenida.");

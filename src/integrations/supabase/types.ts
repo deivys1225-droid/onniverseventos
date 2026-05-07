@@ -59,6 +59,8 @@ export type Database = {
           created_at: string
           id: string
           is_live: boolean
+          playback_id: string | null
+          playback_url: string | null
           privacy_mode: string
           stream_url: string
           ticket_price: number | null
@@ -71,6 +73,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_live?: boolean
+          playback_id?: string | null
+          playback_url?: string | null
           privacy_mode?: string
           stream_url: string
           ticket_price?: number | null
@@ -83,6 +87,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_live?: boolean
+          playback_id?: string | null
+          playback_url?: string | null
           privacy_mode?: string
           stream_url?: string
           ticket_price?: number | null

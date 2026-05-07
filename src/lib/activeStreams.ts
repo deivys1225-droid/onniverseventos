@@ -10,6 +10,9 @@ export async function startActiveStream(input: {
   category: string;
   privacyMode?: "publico" | "privado_ticket";
   ticketPrice?: number | null;
+  /** HLS para espectadores (Livepeer). Opcional en modo solo RTMP/OBS. */
+  playbackUrl?: string | null;
+  playbackId?: string | null;
 }) {
   const { error } = await supabase.from("active_streams").upsert(
     {
@@ -20,6 +23,8 @@ export async function startActiveStream(input: {
       is_live: true,
       privacy_mode: input.privacyMode ?? "publico",
       ticket_price: input.privacyMode === "privado_ticket" ? input.ticketPrice ?? null : null,
+      playback_url: input.playbackUrl ?? null,
+      playback_id: input.playbackId ?? null,
     },
     { onConflict: "user_id" },
   );

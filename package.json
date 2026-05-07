@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+    "deploy:livepeer-fn": "supabase functions deploy livepeer-create-stream",
     "test": "vitest run",
     "test:watch": "vitest"
   },

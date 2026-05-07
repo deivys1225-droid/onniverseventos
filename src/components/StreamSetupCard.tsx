@@ -36,10 +36,11 @@ const StreamSetupCard = ({
   const [category, setCategory] = useState<"Musica" | "Educacion" | "Deporte" | "Social">("Musica");
   const [privacy, setPrivacy] = useState<"publico" | "privado_ticket">("publico");
   const [ticketPrice, setTicketPrice] = useState("");
-  const [sourceMode, setSourceMode] = useState<"pro" | "celular">("pro");
+  const [sourceMode, setSourceMode] = useState<"pro" | "celular">("celular");
+  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const urlValid = useMemo(() => {
     const raw = streamUrl.trim();
@@ -62,10 +63,15 @@ const StreamSetupCard = ({
     !isSubmitting;
 
   useEffect(() => {
-    if (!videoRef.current) return;
-    videoRef.current.srcObject = cameraStream;
     onCameraStreamChange?.(cameraStream);
   }, [cameraStream, onCameraStreamChange]);
+
+  useEffect(() => {
+    const el = previewVideoRef.current;
+    if (!el) return;
+    el.srcObject = cameraStream;
+    if (cameraStream) void el.play().catch(() => undefined);
+  }, [cameraStream]);
 
   useEffect(() => {
     return () => {
@@ -76,21 +82,29 @@ const StreamSetupCard = ({
     };
   }, [cameraStream, isLive, onCameraStreamChange]);
 
-  const enableCamera = async () => {
+  const enableCamera = async (facing: "user" | "environment" = cameraFacing) => {
     setCameraError(null);
     if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCameraError("Este dispositivo o navegador no soporta camara web (getUserMedia). Usa HTTPS o un navegador actualizado.");
+      setCameraError("Este dispositivo no soporta camara web. Abre el sitio en HTTPS (Vercel) y usa Chrome o Safari.");
       return;
     }
     try {
+      cameraStream?.getTracks().forEach((track) => track.stop());
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
+        video: { facingMode: facing },
         audio: true,
       });
+      setCameraFacing(facing);
       setCameraStream(stream);
     } catch (error) {
       setCameraError(error instanceof Error ? error.message : "No se pudo activar camara/microfono.");
     }
+  };
+
+  const flipCamera = async () => {
+    const next = cameraFacing === "user" ? "environment" : "user";
+    if (cameraStream) await enableCamera(next);
+    else setCameraFacing(next);
   };
 
   const disableCamera = () => {
@@ -172,20 +186,28 @@ const StreamSetupCard = ({
           </div>
         ) : (
           <div className="space-y-2 rounded-xl border border-cyan-300/30 bg-black/25 p-2.5">
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              Live desde el navegador del celular (WebRTC → Livepeer). La API key va solo en Supabase, no en esta web.
+            </p>
             {!cameraActive ? (
               <Button type="button" variant="outline" className="w-full" onClick={() => void enableCamera()} disabled={isSubmitting}>
                 Activar camara y microfono
               </Button>
             ) : (
-              <Button type="button" variant="outline" className="w-full" onClick={disableCamera} disabled={isSubmitting}>
-                Desactivar camara
-              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={disableCamera} disabled={isSubmitting}>
+                  Desactivar camara
+                </Button>
+                <Button type="button" variant="outline" className="flex-1 shrink-0 px-2 text-xs" onClick={() => void flipCamera()} disabled={isSubmitting}>
+                  Cambiar camara
+                </Button>
+              </div>
             )}
-            <div className="hidden overflow-hidden rounded-lg border border-cyan-300/35 bg-black/40">
-              <video ref={videoRef} autoPlay playsInline muted className="h-40 w-full object-cover" />
+            <div className="overflow-hidden rounded-lg border border-cyan-300/35 bg-black/40">
+              <video ref={previewVideoRef} autoPlay playsInline muted className="aspect-video w-full object-cover" />
             </div>
-            <p className={`text-[11px] ${cameraActive ? "text-emerald-300" : "text-amber-300"}`}>
-              {cameraActive ? "Preview activo de camara." : cameraError || "Activa la camara para previsualizar."}
+            <p className={`text-[11px] ${cameraActive ? "text-emerald-300" : cameraError ? "text-rose-300" : "text-amber-300"}`}>
+              {cameraActive ? "Listo para emitir." : cameraError || "Activa la camara (permite permisos del navegador)."}
             </p>
           </div>
         )}
@@ -295,11 +317,6 @@ const StreamSetupCard = ({
           </Button>
         )}
       </div>
-      {sourceMode === "celular" && cameraActive && (
-        <div className="pointer-events-none absolute -right-3 top-12 z-20 w-36 overflow-hidden rounded-lg border border-rose-300/70 bg-black/70 shadow-[0_0_24px_-6px_rgba(255,90,130,0.95)]">
-          <video ref={videoRef} autoPlay playsInline muted className="h-24 w-full object-cover" />
-        </div>
-      )}
     </div>
   );
 };

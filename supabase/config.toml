@@ -1,1 +1,2 @@
-project_id = "cgumxsxosihwsupqbwrr"
+# Debe coincidir con el subdominio de VITE_SUPABASE_URL (ref antes de .supabase.co)
+project_id = "rwyhakcsvdbsavignogh"
