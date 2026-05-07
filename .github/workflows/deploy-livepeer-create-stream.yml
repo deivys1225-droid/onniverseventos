@@ -1,0 +1,30 @@
+# Despliega la Edge Function livepeer-create-stream sin instalar CLI en tu PC.
+# 1) Supabase Dashboard → Account → Access Tokens → crea un token.
+# 2) GitHub del repo → Settings → Secrets and variables → Actions → New repository secret
+#    Nombre: SUPABASE_ACCESS_TOKEN   Valor: (pega el token)
+# 3) Pestaña Actions → "Deploy livepeer-create-stream" → Run workflow
+
+name: Deploy livepeer-create-stream
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/livepeer-create-stream/**"
+      - ".github/workflows/deploy-livepeer-create-stream.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy Edge Function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy livepeer-create-stream --project-ref rwyhakcsvdbsavignogh
