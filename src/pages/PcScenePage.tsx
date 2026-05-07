@@ -139,7 +139,7 @@ const PcScenePage = () => {
       toast.error("Activa la camara antes de transmitir.");
       return;
     }
-    if (!activeStreamKey || !activeWhipUrl || !activeIngestRtmp || !activePlaybackId || !activePlaybackUrl) {
+    if (!activeStreamKey || !activeIngestRtmp || !activePlaybackId || !activePlaybackUrl) {
       toast.error("Primero genera la llave con LIVE.");
       return;
     }
@@ -153,13 +153,29 @@ const PcScenePage = () => {
         user.email?.split("@")[0] ||
         "Live PC";
 
-      const publisher = await startLivepeerWhipPublisher({
-        mediaStream: cameraStream,
-        streamKey: activeStreamKey,
-        whipUrl: activeWhipUrl,
-      });
+      setLiveMessage("Conectando WebRTC con Livepeer...");
+      let publisher: WhipPublisherHandle;
+      try {
+        publisher = await startLivepeerWhipPublisher({
+          mediaStream: cameraStream,
+          streamKey: activeStreamKey,
+          whipUrl: activeWhipUrl,
+        });
+      } catch (firstWhipError) {
+        // Fallback: algunos entornos fallan con whipUrl directo; reintentar con endpoint por streamKey.
+        publisher = await startLivepeerWhipPublisher({
+          mediaStream: cameraStream,
+          streamKey: activeStreamKey,
+          whipUrl: null,
+        }).catch((secondWhipError) => {
+          const firstMsg = firstWhipError instanceof Error ? firstWhipError.message : "WHIP error";
+          const secondMsg = secondWhipError instanceof Error ? secondWhipError.message : "WHIP fallback error";
+          throw new Error(`WHIP fallo: ${firstMsg} | fallback: ${secondMsg}`);
+        });
+      }
       whipHandleRef.current = publisher;
 
+      setLiveMessage("Sincronizando Marketplace...");
       await startActiveStream({
         userId: user.id,
         streamUrl: activeIngestRtmp,
