@@ -3,6 +3,15 @@ import { clearAndStopLivePreviewStream } from "@/lib/livePreviewBus";
 
 const LIVE_ACTIVE_KEY = "onniverso.live.active";
 
+function isProfilesPlaybackIdSchemaError(error: { message?: string; details?: string | null }): boolean {
+  const details = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+  return (
+    (details.includes("could not find") && details.includes("schema cache") && details.includes("playback_id")) ||
+    (details.includes("column") && details.includes("playback_id") && details.includes("does not exist")) ||
+    details.includes("'playback_id'")
+  );
+}
+
 export async function startActiveStream(input: {
   userId: string;
   streamUrl: string;
@@ -30,15 +39,23 @@ export async function startActiveStream(input: {
   );
   if (error) throw error;
 
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({
-      live_status: "En Vivo",
-      updated_at: new Date().toISOString(),
-      playback_id: input.playbackId ?? null,
-    } as never)
-    .eq("id", input.userId);
-  if (profileError) throw profileError;
+  const baseProfileUpdate = {
+    live_status: "En Vivo",
+    updated_at: new Date().toISOString(),
+  };
+  const withPlayback = {
+    ...baseProfileUpdate,
+    playback_id: input.playbackId ?? null,
+  };
+
+  const first = await supabase.from("profiles").update(withPlayback as never).eq("id", input.userId);
+  if (first.error) {
+    if (!isProfilesPlaybackIdSchemaError(first.error)) {
+      throw first.error;
+    }
+    const second = await supabase.from("profiles").update(baseProfileUpdate).eq("id", input.userId);
+    if (second.error) throw second.error;
+  }
   localStorage.setItem(LIVE_ACTIVE_KEY, "1");
 }
 
