@@ -29,7 +29,6 @@ import StorePublishCard, { type StorePublishPayload } from "@/components/StorePu
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
 import VaultCard from "@/components/VaultCard";
 import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
-import { updateProfileLiveState } from "@/lib/profile";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -1288,7 +1287,6 @@ const MiMundoVRSection = ({
     setProfileSaving(true);
     try {
       const live = await createLivepeerStreamViaEdge(`${cardDisplayName} en vivo`);
-      await updateProfileLiveState({ userId: user.id, isLive: true, streamKey: live.streamKey });
       setIsUserLive(true);
       const dynamicUrl = live.transmitUrl?.trim() || `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}`;
       window.setTimeout(() => {
