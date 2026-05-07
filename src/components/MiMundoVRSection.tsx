@@ -35,6 +35,7 @@ import VaultCard from "@/components/VaultCard";
 import { startNativeLiveStreaming } from "@/lib/liveStreamingNative";
 import { updateProfileLiveState } from "@/lib/profile";
 import { getErrorMessage } from "@/lib/errors";
+import { onniverseDeepLink } from "@/data/salaVideoUrls";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -1289,16 +1290,21 @@ const MiMundoVRSection = ({
       setIsUserLive(true);
 
       const transmitUrl = `https://vivevr.vercel.app/transmitir?key=${encodeURIComponent(lp.streamKey)}`;
+      const nativeOpenUrl = onniverseDeepLink(transmitUrl);
       if (Capacitor.isNativePlatform()) {
         try {
           // En Android nativo abrimos directo la Activity para evitar desvíos de routing.
           await startNativeLiveStreaming(lp.streamKey);
         } catch {
           // Fallback: deep link/app link por si el plugin aún no está sincronizado.
-          await CapacitorApp.openUrl({ url: transmitUrl });
+          await CapacitorApp.openUrl({ url: nativeOpenUrl });
         }
       } else {
-        window.location.href = transmitUrl;
+        // Mismo patrón que las tarjetas que ya abren la app nativa.
+        window.location.href = nativeOpenUrl;
+        window.setTimeout(() => {
+          window.location.href = transmitUrl;
+        }, 1200);
       }
 
       toast.success("Stream creado. Abriendo transmisión en la app...");
