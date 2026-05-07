@@ -24,6 +24,7 @@ import NotFound from "./pages/NotFound.tsx";
 import WelcomeUniversePage from "./pages/WelcomeUniversePage.tsx";
 import RegisterPage from "./pages/RegisterPage.tsx";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
+import LivePlaybackPage from "./pages/LivePlaybackPage.tsx";
 import FloatingLivePreview from "@/components/FloatingLivePreview";
 
 const queryClient = new QueryClient();
@@ -88,6 +89,14 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <EventPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/live/:playbackId"
+              element={
+                <PrivateRoute>
+                  <LivePlaybackPage />
                 </PrivateRoute>
               }
             />

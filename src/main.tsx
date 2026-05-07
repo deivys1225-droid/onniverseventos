@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { App as CapacitorApp } from "@capacitor/app";
 import html2canvas from "html2canvas";
 import App from "./App.tsx";
 import "./index.css";
@@ -30,6 +31,51 @@ function MirrorSbsRoot() {
     return () => {
       window.history.pushState = pushState;
       window.history.replaceState = replaceState;
+    };
+  }, []);
+
+  useEffect(() => {
+    const normalizeDeepLinkPath = (incomingUrl: string): string | null => {
+      try {
+        const u = new URL(incomingUrl);
+        // App Links HTTPS: https://vivevr.vercel.app/live/{playbackId}
+        if (u.protocol === "https:" && u.hostname === "vivevr.vercel.app" && u.pathname.startsWith("/live/")) {
+          return `${u.pathname}${u.search}${u.hash}`;
+        }
+        // Legacy custom scheme: onniverso://open?url=<hls_url>
+        if (u.protocol === "onniverso:" && u.hostname === "open") {
+          const hls = u.searchParams.get("url");
+          if (!hls) return null;
+          const hlsUrl = new URL(hls);
+          const parts = hlsUrl.pathname.split("/").filter(Boolean);
+          const idx = parts.findIndex((p) => p === "hls");
+          if (idx >= 0 && parts[idx + 1]) {
+            return `/live/${encodeURIComponent(parts[idx + 1])}`;
+          }
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    };
+
+    const applyPath = (path: string | null) => {
+      if (!path) return;
+      if (window.location.pathname + window.location.search + window.location.hash === path) return;
+      window.history.pushState({}, "", path);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    };
+
+    void CapacitorApp.getLaunchUrl().then(({ url }) => {
+      applyPath(normalizeDeepLinkPath(url ?? ""));
+    });
+
+    const sub = CapacitorApp.addListener("appUrlOpen", ({ url }) => {
+      applyPath(normalizeDeepLinkPath(url));
+    });
+
+    return () => {
+      void sub.then((s) => s.remove());
     };
   }, []);
 

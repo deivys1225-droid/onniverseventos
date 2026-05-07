@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.vivevr.app",
+      "sha256_cert_fingerprints": [
+        "91:4E:94:99:F8:71:7F:BB:5A:E6:20:C0:DF:FE:FE:69:78:16:27:B7:F2:FF:6C:9F:E2:B3:6B:EB:D4:77:69:66"
+      ]
+    }
+  }
+]

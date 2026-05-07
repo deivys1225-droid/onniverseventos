@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
-import { SALA_MP4_URL_BY_ID, onniverseDeepLink } from "@/data/salaVideoUrls";
+import { SALA_MP4_URL_BY_ID, livePlaybackAppLink, onniverseDeepLink } from "@/data/salaVideoUrls";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -55,7 +55,7 @@ const NuestrasSalasPage = () => {
   const [activeStreamsByUser, setActiveStreamsByUser] = useState<
     Record<
       string,
-      { isLive: boolean; privacyMode: "publico" | "privado_ticket"; ticketPrice: number | null; playbackUrl: string | null }
+      { isLive: boolean; privacyMode: "publico" | "privado_ticket"; ticketPrice: number | null; playbackUrl: string | null; playbackId: string | null }
     >
   >({});
   const [paidCommunityRooms, setPaidCommunityRooms] = useState<Record<string, boolean>>({});
@@ -82,11 +82,11 @@ const NuestrasSalasPage = () => {
 
       const { data: streams } = await supabase
         .from("active_streams")
-        .select("user_id,is_live,privacy_mode,ticket_price,playback_url")
+        .select("user_id,is_live,privacy_mode,ticket_price,playback_url,playback_id")
         .eq("is_live", true);
       const map: Record<
         string,
-        { isLive: boolean; privacyMode: "publico" | "privado_ticket"; ticketPrice: number | null; playbackUrl: string | null }
+        { isLive: boolean; privacyMode: "publico" | "privado_ticket"; ticketPrice: number | null; playbackUrl: string | null; playbackId: string | null }
       > = {};
       ((streams ?? []) as Array<{
         user_id: string;
@@ -94,12 +94,14 @@ const NuestrasSalasPage = () => {
         privacy_mode: string;
         ticket_price: number | null;
         playback_url: string | null;
+        playback_id: string | null;
       }>).forEach((stream) => {
         map[stream.user_id] = {
           isLive: stream.is_live,
           privacyMode: stream.privacy_mode === "privado_ticket" ? "privado_ticket" : "publico",
           ticketPrice: stream.ticket_price,
           playbackUrl: stream.playback_url,
+          playbackId: stream.playback_id,
         };
       });
       setActiveStreamsByUser(map);
@@ -404,13 +406,14 @@ const NuestrasSalasPage = () => {
                           );
                         }
                         if (isPublicLive || paid) {
-                          const playbackUrl = stream?.playbackUrl?.trim() || null;
+                          const playbackId = stream?.playbackId?.trim() || null;
+                          const appLiveHref = playbackId ? livePlaybackAppLink(playbackId) : null;
                           return (
-                            playbackUrl ? (
-                              <a href={playbackUrl} target="_blank" rel="noreferrer">
+                            appLiveHref ? (
+                              <a href={appLiveHref}>
                                 <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-primary transition group-hover:bg-primary/20 group-hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]">
                                   <Mic2 className="h-4 w-4" />
-                                  Ver live
+                                  Ver live en app
                                 </span>
                               </a>
                             ) : (

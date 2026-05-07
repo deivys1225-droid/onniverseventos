@@ -7,30 +7,29 @@ interface LivepeerPlayerProps {
   title: string;
 }
 
-const HLS_URL = "https://livepeercdn.studio/hls/1028qqkc96xaol1t2/index.m3u8";
-
 const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsUrl = `https://livepeercdn.studio/hls/${encodeURIComponent(playbackId)}/index.m3u8`;
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !playbackId) return;
 
     if (Hls.isSupported()) {
       const hls = new Hls();
-      hls.loadSource(HLS_URL);
+      hls.loadSource(hlsUrl);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {});
       });
       return () => hls.destroy();
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = HLS_URL;
+      video.src = hlsUrl;
       video.addEventListener("loadedmetadata", () => {
         video.play().catch(() => {});
       });
     }
-  }, []);
+  }, [hlsUrl, playbackId]);
 
   return (
     <motion.div

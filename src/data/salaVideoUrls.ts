@@ -1,6 +1,6 @@
 /**
  * MP4 de Cloudinary por id de sala (perfil podcast o ruta teatro).
- * Único origen para Nuestras Salas (onniverso://), sala 360 y teatro cuando aplica.
+ * Único origen para Nuestras Salas y deep links de reproducción.
  */
 export const SALA_MP4_URL_BY_ID: Record<string, string> = {
   "nova-byte":
@@ -49,5 +49,11 @@ export const SALA_MP4_URL_BY_ID: Record<string, string> = {
 };
 
 export function onniverseDeepLink(mp4Url: string): string {
-  return `onniverso://open?url=${mp4Url}`;
+  return `onniverso://open?url=${encodeURIComponent(mp4Url)}`;
+}
+
+const APP_LINK_BASE = "https://vivevr.vercel.app";
+
+export function livePlaybackAppLink(playbackId: string): string {
+  return `${APP_LINK_BASE}/live/${encodeURIComponent(playbackId)}`;
 }
