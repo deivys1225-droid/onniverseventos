@@ -152,6 +152,30 @@ Deno.serve(async (req) => {
     });
   }
 
+  const { error: activeStreamError } = await admin
+    .from("active_streams")
+    .upsert(
+      {
+        user_id: userId,
+        stream_url: ingestRtmp,
+        title: streamName,
+        category: "Social",
+        is_live: true,
+        privacy_mode: "publico",
+        ticket_price: null,
+        playback_url: playbackUrl,
+        playback_id: playbackId,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+  if (activeStreamError) {
+    return new Response(JSON.stringify({ error: "Failed to upsert active stream.", details: activeStreamError.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   return new Response(
     JSON.stringify({
       streamId: id,

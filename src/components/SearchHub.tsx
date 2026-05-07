@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ type ProfileResult = {
   id: string;
   full_name: string | null;
   avatar_url: string | null;
+  is_live?: boolean | null;
 };
 
 type SalaContentItem = {
@@ -53,20 +54,18 @@ const SearchHub = ({ currentUserId }: SearchHubProps) => {
     setQuery(value);
     if (mode !== "usuarios") return;
     const clean = value.trim();
-    if (clean.length < 2) {
-      setUsers([]);
-      return;
-    }
     setLoadingUsers(true);
-    const { data, error } = await supabase
+    const baseQuery = supabase
       .from("profiles")
-      .select("id,full_name,avatar_url")
-      .ilike("full_name", `%${clean}%`)
-      .limit(8);
+      .select("id,full_name,avatar_url,is_live")
+      .order("updated_at", { ascending: false })
+      .limit(20);
+    const queryBuilder = clean.length >= 2 ? baseQuery.ilike("full_name", `%${clean}%`) : baseQuery;
+    const { data, error } = await queryBuilder;
     setLoadingUsers(false);
     if (error) return;
     const rows = (data ?? []) as ProfileResult[];
-    setUsers(currentUserId ? rows.filter((u) => u.id !== currentUserId) : rows);
+    setUsers(rows.filter((u) => !currentUserId || u.id !== currentUserId));
   };
 
   const sendRequest = async (receiverId: string, name: string) => {
@@ -81,6 +80,12 @@ const SearchHub = ({ currentUserId }: SearchHubProps) => {
     }
     toast.success(`Solicitud enviada a ${name}.`);
   };
+
+  useEffect(() => {
+    if (!open || mode !== "usuarios") return;
+    void searchUsers(query);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, mode]);
 
   if (!open) {
     return (
@@ -128,16 +133,24 @@ const SearchHub = ({ currentUserId }: SearchHubProps) => {
           className="pl-9 border-cyan-300/30 bg-black/25"
         />
       </div>
+      {mode === "usuarios" && query.trim().length < 2 && (
+        <div className="mb-2 text-[11px] text-cyan-100/80">
+          Mostrando perfiles recientes. Escribe 2 letras para filtrar.
+        </div>
+      )}
 
       {mode === "usuarios" ? (
         <div className="grid max-h-44 grid-cols-1 gap-2 overflow-y-auto md:grid-cols-2">
           {loadingUsers && <p className="text-xs text-muted-foreground">Buscando usuarios...</p>}
-          {!loadingUsers && users.length === 0 && <p className="text-xs text-muted-foreground">Escribe al menos 2 letras.</p>}
+          {!loadingUsers && users.length === 0 && <p className="text-xs text-muted-foreground">No se encontraron perfiles.</p>}
           {users.map((u) => (
             <div key={u.id} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2">
               <img src={u.avatar_url?.trim() || "/placeholder.svg"} alt="" className="h-9 w-9 rounded-full object-cover" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">{u.full_name?.trim() || "Usuario"}</p>
+                <p className={`text-[11px] ${u.is_live ? "text-emerald-300" : "text-muted-foreground"}`}>
+                  {u.is_live ? "En Vivo" : "Offline"}
+                </p>
               </div>
               <Button type="button" size="icon" variant="outline" className="h-8 w-8" onClick={() => void sendRequest(u.id, u.full_name?.trim() || "Usuario")}>
                 <UserPlus className="h-4 w-4" />

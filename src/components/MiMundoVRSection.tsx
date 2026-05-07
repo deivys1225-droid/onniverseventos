@@ -29,6 +29,7 @@ import StorePublishCard, { type StorePublishPayload } from "@/components/StorePu
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
 import VaultCard from "@/components/VaultCard";
 import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
+import { updateProfileLiveState } from "@/lib/profile";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -1228,6 +1229,26 @@ const MiMundoVRSection = ({
       setIsUserLive(Boolean((data as { is_live?: boolean } | null)?.is_live));
     };
     void loadLive();
+
+    const channel = supabase
+      .channel(`public:active_streams:user:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "active_streams", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const next = payload.new as { is_live?: boolean } | null;
+          if (next && typeof next.is_live === "boolean") {
+            setIsUserLive(next.is_live);
+            return;
+          }
+          void loadLive();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [user]);
   const onStorePublish = async (payload: StorePublishPayload) => {
     if (!user) {
@@ -1267,6 +1288,8 @@ const MiMundoVRSection = ({
     setProfileSaving(true);
     try {
       const live = await createLivepeerStreamViaEdge(`${cardDisplayName} en vivo`);
+      await updateProfileLiveState({ userId: user.id, isLive: true, streamKey: live.streamKey });
+      setIsUserLive(true);
       const dynamicUrl = live.transmitUrl?.trim() || `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}`;
       window.setTimeout(() => {
         window.location.href = dynamicUrl;

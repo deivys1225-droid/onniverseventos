@@ -50,7 +50,7 @@ const SectionHeader = ({
 const NuestrasSalasPage = () => {
   const { user } = useAuth();
   const [communityProfiles, setCommunityProfiles] = useState<
-    Array<{ id: string; name: string; avatarUrl: string | null; liveStatus: string }>
+    Array<{ id: string; name: string; avatarUrl: string | null; liveStatus: string; isLive: boolean }>
   >([]);
   const [activeStreamsByUser, setActiveStreamsByUser] = useState<
     Record<
@@ -62,14 +62,43 @@ const NuestrasSalasPage = () => {
 
   useEffect(() => {
     const loadProfiles = async () => {
-      const { data } = await supabase.from("profiles").select("id,full_name,avatar_url,live_status").order("updated_at", {
-        ascending: false,
-      });
-      const normalized = ((data ?? []) as Array<{
+      let profileRows:
+        | Array<{ id: string; full_name: string | null; avatar_url: string | null; live_status?: string | null; is_live?: boolean | null }>
+        | null = null;
+      const withLive = await supabase
+        .from("profiles")
+        .select("id,full_name,avatar_url,live_status,is_live")
+        .order("updated_at", { ascending: false });
+      if (withLive.error) {
+        const fallback = await supabase
+          .from("profiles")
+          .select("id,full_name,avatar_url,live_status")
+          .order("updated_at", { ascending: false });
+        if (fallback.error) {
+          profileRows = [];
+        } else {
+          profileRows = (fallback.data ?? []) as Array<{
+            id: string;
+            full_name: string | null;
+            avatar_url: string | null;
+            live_status?: string | null;
+          }>;
+        }
+      } else {
+        profileRows = (withLive.data ?? []) as Array<{
+          id: string;
+          full_name: string | null;
+          avatar_url: string | null;
+          live_status?: string | null;
+          is_live?: boolean | null;
+        }>;
+      }
+      const normalized = ((profileRows ?? []) as Array<{
         id: string;
         full_name: string | null;
         avatar_url: string | null;
         live_status?: string | null;
+        is_live?: boolean | null;
       }>)
         .filter((p) => p.id !== user?.id)
         .map((p) => ({
@@ -77,6 +106,7 @@ const NuestrasSalasPage = () => {
           name: p.full_name?.trim() || "Explorador VR",
           avatarUrl: p.avatar_url,
           liveStatus: p.live_status?.trim() || "Offline",
+          isLive: Boolean(p.is_live),
         }));
       setCommunityProfiles(normalized);
 
@@ -110,8 +140,11 @@ const NuestrasSalasPage = () => {
     void loadProfiles();
 
     const channel = supabase
-      .channel("public:profiles")
+      .channel("public:nuestras-salas")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
+        void loadProfiles();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "active_streams" }, () => {
         void loadProfiles();
       })
       .subscribe();
@@ -161,9 +194,15 @@ const NuestrasSalasPage = () => {
         profileUserId: profile.id,
         name: profile.name,
         image: profile.avatarUrl?.trim() || "/placeholder.svg",
+        liveStatus: profile.liveStatus,
         subtitle: "Comunidad Onniverso",
         description: "Nuevo creador registrado en la plataforma.",
-        status: activeStreamsByUser[profile.id]?.isLive ? "En Vivo" : "Offline",
+        status:
+          activeStreamsByUser[profile.id]?.isLive ||
+          profile.isLive ||
+          profile.liveStatus.trim().toLowerCase() === "en vivo"
+            ? "En Vivo"
+            : "Offline",
         to: "/inicio",
         type: "community" as const,
       })),
@@ -361,8 +400,11 @@ const NuestrasSalasPage = () => {
                       <p className="mb-4 text-sm text-muted-foreground">{room.description}</p>
                       {(() => {
                         const stream = activeStreamsByUser[room.profileUserId];
+                        const profileLooksLive = room.liveStatus.trim().toLowerCase() === "en vivo";
                         const requiresTicket = Boolean(stream?.isLive && stream.privacyMode === "privado_ticket");
-                        const isPublicLive = Boolean(stream?.isLive && stream.privacyMode === "publico");
+                        const isPublicLive = Boolean(
+                          (stream?.isLive && stream.privacyMode === "publico") || (!stream?.isLive && profileLooksLive),
+                        );
                         const paid = paidCommunityRooms[room.id] === true;
                         if (requiresTicket && !paid) {
                           const ticketValue = Number(stream?.ticketPrice ?? 0);
@@ -423,12 +465,10 @@ const NuestrasSalasPage = () => {
                                 </span>
                               </a>
                             ) : (
-                              <Link to={room.to}>
-                                <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-primary transition group-hover:bg-primary/20 group-hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]">
-                                  <Mic2 className="h-4 w-4" />
-                                  Entrar a sala
-                                </span>
-                              </Link>
+                              <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-500/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-emerald-200">
+                                <Mic2 className="h-4 w-4" />
+                                En vivo (sin playback aun)
+                              </span>
                             )
                           );
                         }
