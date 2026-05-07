@@ -8,6 +8,7 @@ const corsHeaders: Record<string, string> = {
 
 type CreateStreamBody = {
   name?: string;
+  title?: string;
 };
 
 Deno.serve(async (req) => {
@@ -39,7 +40,9 @@ Deno.serve(async (req) => {
 
   const streamName = typeof body.name === "string" && body.name.trim().length > 0
     ? body.name.trim().slice(0, 120)
-    : "vivevr-live";
+    : typeof body.title === "string" && body.title.trim().length > 0
+      ? body.title.trim().slice(0, 120)
+      : "vivevr-live";
 
   const livepeerResponse = await fetch("https://livepeer.studio/api/stream", {
     method: "POST",
@@ -58,8 +61,63 @@ Deno.serve(async (req) => {
     });
   }
 
-  return new Response(rawText, {
-    status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  let data: Record<string, unknown>;
+  try {
+    const root = JSON.parse(rawText) as Record<string, unknown>;
+    const nested = root.data;
+    if (!root.streamKey && !root.stream_key && typeof nested === "object" && nested !== null) {
+      data = nested as Record<string, unknown>;
+    } else {
+      data = root;
+    }
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid Livepeer response." }), {
+      status: 502,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const streamKey =
+    typeof data.streamKey === "string" && data.streamKey
+      ? data.streamKey
+      : typeof data.stream_key === "string" && data.stream_key
+        ? data.stream_key
+        : null;
+
+  const playbackId =
+    typeof data.playbackId === "string" && data.playbackId
+      ? data.playbackId
+      : typeof data.playback_id === "string" && data.playback_id
+        ? data.playback_id
+        : typeof data.playbackId === "number"
+          ? String(data.playbackId)
+          : null;
+
+  const id = typeof data.id === "string" && data.id ? data.id : null;
+
+  if (!streamKey || !playbackId) {
+    return new Response(JSON.stringify({ error: "Livepeer response missing streamKey or playbackId.", raw: data }), {
+      status: 502,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const playbackUrl = `https://livepeercdn.studio/hls/${playbackId}/index.m3u8`;
+  const ingestRtmp = `rtmp://rtmp.livepeer.com/live/${streamKey}`;
+  const whipUrl = `https://playback.livepeer.studio/webrtc/${streamKey}`;
+
+  return new Response(
+    JSON.stringify({
+      streamId: id,
+      streamKey,
+      playbackId,
+      playbackUrl,
+      ingestRtmp,
+      whipUrl,
+    }),
+    {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
 });
