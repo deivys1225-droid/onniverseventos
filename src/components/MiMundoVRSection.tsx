@@ -28,7 +28,7 @@ import SearchHub from "@/components/SearchHub";
 import StorePublishCard, { type StorePublishPayload } from "@/components/StorePublishCard";
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
 import VaultCard from "@/components/VaultCard";
-import { onniverseDeepLink } from "@/data/salaVideoUrls";
+import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -53,9 +53,6 @@ const WINDOWS11_DESKTOP_URL =
   "https://images.unsplash.com/photo-1633419461186-7d40a38105ec?auto=format&fit=crop&w=1600&q=80";
 const MI_MUNDO_CAMERA_VIEW_STORAGE_KEY = "onniverso.mi_mundo.camera_view";
 const PROFILE_NAME_STORAGE_KEY = "onniverso.profile.name";
-const LIVE_BUTTON_MP4_URL =
-  "https://res.cloudinary.com/dfsabdxup/video/upload/v1778033836/360_Airline_Pilot_s_View___Miami_-_Bahamas___American_Eagle_E-175_gegade.mp4";
-
 function readStoredProfileName(): string | undefined {
   try {
     const raw = localStorage.getItem(PROFILE_NAME_STORAGE_KEY)?.trim();
@@ -1262,11 +1259,23 @@ const MiMundoVRSection = ({
     }
   };
 
-  const onProfileLiveAction = () => {
-    const launchApp = () => {
-      window.location.href = "onniverso://transmitir";
-    };
-    launchApp();
+  const onProfileLiveAction = async () => {
+    if (!user) {
+      toast.error("Debes iniciar sesion para transmitir.");
+      return;
+    }
+    setProfileSaving(true);
+    try {
+      const live = await createLivepeerStreamViaEdge(`${cardDisplayName} en vivo`);
+      const dynamicUrl = live.transmitUrl?.trim() || `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}`;
+      window.setTimeout(() => {
+        window.location.href = dynamicUrl;
+      }, 1000);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo generar la llave LIVE.");
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   const enableGyroscope = async () => {
@@ -1390,7 +1399,6 @@ const MiMundoVRSection = ({
               initialAvatarSrc={cardAvatarSrc}
               isSaving={profileSaving}
               onConfirm={onProfileConfirm}
-              liveHref={onniverseDeepLink(LIVE_BUTTON_MP4_URL)}
               onLiveAction={onProfileLiveAction}
               showAddFriend={Boolean(user && friendCandidates.length > 0)}
               onAddFriend={onAddFriendFromProfile}

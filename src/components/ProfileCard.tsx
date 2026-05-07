@@ -191,7 +191,7 @@ const ProfileCard = ({
           )}
           variant="outline"
         >
-          {isSaving ? "Guardando..." : hasUnsavedChanges ? saveLabel : liveLabel}
+          {isSaving ? (hasUnsavedChanges ? "Guardando..." : "Cargando...") : hasUnsavedChanges ? saveLabel : liveLabel}
         </Button>
       ) : (
         <a
