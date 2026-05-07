@@ -132,15 +132,18 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
         </Button>
       </div>
 
-      <div className="mb-3 rounded-xl border border-rose-300/45 bg-black/25 p-2.5">
-        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-rose-200">En Vivo</p>
+      <div className="mb-3 rounded-xl border border-amber-300/55 bg-amber-300/10 p-2.5 shadow-[0_0_28px_-12px_rgba(250,204,21,0.95)]">
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-200">En Vivo</p>
         <div className="space-y-1.5">
           {liveNow.length === 0 && <p className="text-xs text-muted-foreground">Nadie en vivo por ahora.</p>}
           {liveNow.map((live) => (
-            <div key={live.id} className="flex items-center justify-between rounded-lg bg-white/5 px-2 py-1.5">
+            <div
+              key={live.id}
+              className="flex items-center justify-between rounded-lg border border-amber-300/60 bg-amber-300/10 px-2 py-1.5 shadow-[0_0_22px_-10px_rgba(250,204,21,1)]"
+            >
               <span className="truncate pr-2 text-sm text-foreground">
                 {live.name}
-                <span className="ml-1 text-[10px] font-semibold text-rose-300">EN VIVO</span>
+                <span className="ml-1 text-[10px] font-semibold text-amber-300">EN VIVO</span>
               </span>
             </div>
           ))}
@@ -156,7 +159,7 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
               <span className="truncate pr-2 text-sm text-foreground">
                 {friend.name}
                 {profilesById[friend.userId]?.liveStatus === "En Vivo" ? (
-                  <span className="ml-1 text-[10px] font-semibold text-emerald-300">EN VIVO</span>
+                  <span className="ml-1 text-[10px] font-semibold text-amber-300">EN VIVO</span>
                 ) : null}
               </span>
               <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => onOpenChat(friend)}>

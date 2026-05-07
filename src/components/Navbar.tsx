@@ -35,6 +35,7 @@ const Navbar = () => {
     { label: "INICIO", action: () => handleNavigate("/inicio") },
     { label: "SALAS", action: () => handleNavigate("/nuestras-salas") },
     { label: "TIENDA", action: () => handleNavigate("/tienda") },
+    { label: "PC", action: () => handleNavigate("/pc") },
   ];
 
   return (

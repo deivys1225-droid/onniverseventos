@@ -26,6 +26,7 @@ import RegisterPage from "./pages/RegisterPage.tsx";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
 import LivePlaybackPage from "./pages/LivePlaybackPage.tsx";
 import TransmitirPage from "./pages/TransmitirPage.tsx";
+import PcScenePage from "./pages/PcScenePage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +68,14 @@ const App = () => (
               }
             />
             <Route path="/eventos" element={<EventosPage />} />
+            <Route
+              path="/pc"
+              element={
+                <PrivateRoute>
+                  <PcScenePage />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/nuestras-salas"
               element={

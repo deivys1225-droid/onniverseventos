@@ -29,6 +29,7 @@ import StorePublishCard, { type StorePublishPayload } from "@/components/StorePu
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
 import VaultCard from "@/components/VaultCard";
 import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
+import { detectDeviceKind } from "@/lib/deviceDetection";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -768,7 +769,7 @@ function OrbitingMoon({
     <group ref={pivotRef} rotation={[0.18, 0, 0]}>
       <mesh
         ref={moonRef}
-        position={[MOON_ORBIT_RADIUS, -1.24, 0]}
+        position={[MOON_ORBIT_RADIUS, -0.45, 0]}
         key={`moon-${moonSeg}`}
         onPointerDown={(event) => {
           event.stopPropagation();
@@ -1204,7 +1205,6 @@ const MiMundoVRSection = ({
       setStoreSetupType("biblioteca");
     }
   }, [moonScreensVisible]);
-
   const onOrbitEnd = (event: { target?: { object?: THREE.Camera; target?: THREE.Vector3 } }) => {
     if (typeof window === "undefined") return;
     const controlsTarget = event.target;
@@ -1287,11 +1287,16 @@ const MiMundoVRSection = ({
     setProfileSaving(true);
     try {
       const live = await createLivepeerStreamViaEdge(`${cardDisplayName} en vivo`);
-      setIsUserLive(true);
-      const dynamicUrl = live.transmitUrl?.trim() || `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}`;
-      window.setTimeout(() => {
-        window.location.href = dynamicUrl;
-      }, 1000);
+      const deviceKind = detectDeviceKind();
+      if (deviceKind === "mobile") {
+        setIsUserLive(true);
+        const dynamicUrl = live.transmitUrl?.trim() || `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}`;
+        window.setTimeout(() => {
+          window.location.href = dynamicUrl;
+        }, 1000);
+      } else {
+        toast.info("La emision desde PC esta desactivada por ahora.");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo generar la llave LIVE.");
     } finally {
@@ -1313,7 +1318,6 @@ const MiMundoVRSection = ({
 
     setGyroEnabled(true);
   };
-
   return (
     <section id="mi-mundo-vr" className="relative h-[100dvh] w-full overflow-hidden bg-black">
       <div className="absolute inset-0 z-0">
@@ -1414,7 +1418,7 @@ const MiMundoVRSection = ({
 
       {!vrStereoActive && !moonScreensVisible && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
-          <div className="pointer-events-auto origin-center scale-[0.63] -translate-y-[clamp(3.75rem,22vh,13rem)]">
+          <div className="pointer-events-auto origin-center scale-[0.63] -translate-y-[clamp(7rem,34vh,20rem)]">
             <ProfileCard
               initialName={cardDisplayName}
               initialAvatarSrc={cardAvatarSrc}
@@ -1516,7 +1520,6 @@ const MiMundoVRSection = ({
           )}
         </>
       )}
-
     </section>
   );
 };

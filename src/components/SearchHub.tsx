@@ -53,19 +53,15 @@ const SearchHub = ({ currentUserId }: SearchHubProps) => {
   const searchUsers = async (value: string) => {
     setQuery(value);
     if (mode !== "usuarios") return;
-    const clean = value.trim();
     setLoadingUsers(true);
-    const baseQuery = supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("id,full_name,avatar_url,is_live")
-      .order("updated_at", { ascending: false })
-      .limit(20);
-    const queryBuilder = clean.length >= 2 ? baseQuery.ilike("full_name", `%${clean}%`) : baseQuery;
-    const { data, error } = await queryBuilder;
+      .order("updated_at", { ascending: false });
     setLoadingUsers(false);
     if (error) return;
     const rows = (data ?? []) as ProfileResult[];
-    setUsers(rows.filter((u) => !currentUserId || u.id !== currentUserId));
+    setUsers(rows);
   };
 
   const sendRequest = async (receiverId: string, name: string) => {
@@ -133,23 +129,26 @@ const SearchHub = ({ currentUserId }: SearchHubProps) => {
           className="pl-9 border-cyan-300/30 bg-black/25"
         />
       </div>
-      {mode === "usuarios" && query.trim().length < 2 && (
-        <div className="mb-2 text-[11px] text-cyan-100/80">
-          Mostrando perfiles recientes. Escribe 2 letras para filtrar.
-        </div>
-      )}
+      {mode === "usuarios" && <div className="mb-2 text-[11px] text-cyan-100/80">Mostrando todos los perfiles.</div>}
 
       {mode === "usuarios" ? (
         <div className="grid max-h-44 grid-cols-1 gap-2 overflow-y-auto md:grid-cols-2">
           {loadingUsers && <p className="text-xs text-muted-foreground">Buscando usuarios...</p>}
           {!loadingUsers && users.length === 0 && <p className="text-xs text-muted-foreground">No se encontraron perfiles.</p>}
           {users.map((u) => (
-            <div key={u.id} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2">
+            <div
+              key={u.id}
+              className={`flex items-center gap-2 rounded-xl border p-2 ${
+                u.is_live
+                  ? "border-amber-300/80 bg-amber-300/10 shadow-[0_0_24px_-8px_rgba(250,204,21,0.95)]"
+                  : "border-white/10 bg-white/5"
+              }`}
+            >
               <img src={u.avatar_url?.trim() || "/placeholder.svg"} alt="" className="h-9 w-9 rounded-full object-cover" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">{u.full_name?.trim() || "Usuario"}</p>
-                <p className={`text-[11px] ${u.is_live ? "text-emerald-300" : "text-muted-foreground"}`}>
-                  {u.is_live ? "En Vivo" : "Offline"}
+                <p className={`text-[11px] ${u.is_live ? "text-amber-300" : "text-cyan-200"}`}>
+                  {u.is_live ? "En Vivo" : "Entrar"}
                 </p>
               </div>
               <Button type="button" size="icon" variant="outline" className="h-8 w-8" onClick={() => void sendRequest(u.id, u.full_name?.trim() || "Usuario")}>
