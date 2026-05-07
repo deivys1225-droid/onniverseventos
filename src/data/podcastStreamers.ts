@@ -27,6 +27,22 @@ export interface StreamerProfile {
 
 export const podcastStreamers: StreamerProfile[] = [
   {
+    id: "prueba-livepeer",
+    name: "PRUEBA",
+    avatar: "/placeholder.svg",
+    immersiveSalaName: "Comunidad",
+    panoramaImage:
+      "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=4096&q=85",
+    status: "live",
+    streamType: "platform",
+    salaVideoUrl: "https://livepeercdn.studio/hls/ee47aozdn2c6kg5j/index.m3u8",
+    loungeTitle: "Live de prueba",
+    loungeDescription: "Transmision de prueba usando el mismo flujo de sala.",
+    ticketGrada: 0,
+    ticketVip: 0,
+    featuredGames: ["Live Test"],
+  },
+  {
     id: "nova-byte",
     name: "Karol G",
     avatar: "/karolg-avatar.png",
