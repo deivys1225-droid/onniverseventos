@@ -1349,7 +1349,15 @@ const MiMundoVRSection = ({
         });
       }
       setIsUserLive(true);
-      toast.success("Transmision activa en Onniverso.");
+      if (payload.sourceMode === "celular") {
+        toast.success("Transmisión activa en Onniverso.", {
+          description:
+            "El otro móvil puede ver negro 10-30 s al inicio: tu cámara llega por WebRTC y Livepeer traduce a HLS. Que el espectador espere o pulse otra vez «Ver live».",
+          duration: 12_000,
+        });
+      } else {
+        toast.success("Transmision activa en Onniverso.");
+      }
       setStreamSetupOpen(false);
       setMoonScreensVisible(false);
     } catch (error) {
