@@ -4,9 +4,23 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
 import { startLivepeerWhipPublisher, type WhipPublisherHandle } from "@/lib/livepeerWhip";
-import { startActiveStream } from "@/lib/activeStreams";
+import { startActiveStream, stopMyActiveStream } from "@/lib/activeStreams";
 import { updateProfileLiveState } from "@/lib/profile";
 import { supabase } from "@/integrations/supabase/client";
+
+function getUnknownErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (typeof error === "object" && error !== null) {
+    const maybe = error as { message?: unknown; error?: unknown; details?: unknown };
+    const msg =
+      (typeof maybe.message === "string" && maybe.message.trim()) ||
+      (typeof maybe.error === "string" && maybe.error.trim()) ||
+      "";
+    const details = typeof maybe.details === "string" && maybe.details.trim() ? ` (${maybe.details.trim()})` : "";
+    if (msg) return `${msg}${details}`;
+  }
+  return fallback;
+}
 
 const PcScenePage = () => {
   const { user } = useAuth();
@@ -176,20 +190,28 @@ const PcScenePage = () => {
       whipHandleRef.current = publisher;
 
       setLiveMessage("Sincronizando Marketplace...");
-      await startActiveStream({
-        userId: user.id,
-        streamUrl: activeIngestRtmp,
-        title: `${streamTitle} en vivo`,
-        category: "Social",
-        privacyMode: "publico",
-        playbackUrl: activePlaybackUrl,
-        playbackId: activePlaybackId,
-      });
-      await updateProfileLiveState({
-        userId: user.id,
-        isLive: true,
-        streamKey: activeStreamKey,
-      });
+      try {
+        await startActiveStream({
+          userId: user.id,
+          streamUrl: activeIngestRtmp,
+          title: `${streamTitle} en vivo`,
+          category: "Social",
+          privacyMode: "publico",
+          playbackUrl: activePlaybackUrl,
+          playbackId: activePlaybackId,
+        });
+      } catch (syncError) {
+        throw new Error(`Sync active_streams falló: ${getUnknownErrorMessage(syncError, "Error de sincronización")}`);
+      }
+      try {
+        await updateProfileLiveState({
+          userId: user.id,
+          isLive: true,
+          streamKey: activeStreamKey,
+        });
+      } catch (profileError) {
+        throw new Error(`Sync profiles falló: ${getUnknownErrorMessage(profileError, "Error de perfil")}`);
+      }
 
       setLiveStatus("live");
       setLiveMessage("En vivo");
@@ -198,8 +220,46 @@ const PcScenePage = () => {
       whipHandleRef.current?.stop();
       whipHandleRef.current = null;
       setLiveStatus("ready");
-      setLiveMessage(error instanceof Error ? error.message : "No se pudo iniciar transmision.");
-      toast.error(error instanceof Error ? error.message : "No se pudo iniciar transmision.");
+      const message = getUnknownErrorMessage(error, "No se pudo iniciar transmisión.");
+      setLiveMessage(message);
+      toast.error(message);
+      console.error("[PC LIVE] start broadcast error:", error);
+    }
+  };
+
+  const handleStopBroadcast = async () => {
+    if (!user) {
+      toast.error("Debes iniciar sesion para terminar la transmision.");
+      return;
+    }
+    if (liveStatus !== "live") return;
+
+    setLiveStatus("starting");
+    setLiveMessage("Terminando transmision...");
+    try {
+      whipHandleRef.current?.stop();
+      whipHandleRef.current = null;
+
+      await stopMyActiveStream();
+      await updateProfileLiveState({
+        userId: user.id,
+        isLive: false,
+        streamKey: null,
+      });
+
+      setLiveStatus("idle");
+      setActiveStreamKey(null);
+      setActiveWhipUrl(null);
+      setActiveIngestRtmp(null);
+      setActivePlaybackId(null);
+      setActivePlaybackUrl(null);
+      setLiveMessage("Transmision finalizada.");
+      toast.success("Transmision finalizada.");
+    } catch (error) {
+      const message = getUnknownErrorMessage(error, "No se pudo terminar la transmisión.");
+      setLiveStatus("live");
+      setLiveMessage(message);
+      toast.error(message);
     }
   };
 
@@ -265,11 +325,11 @@ const PcScenePage = () => {
               </button>
               <button
                 type="button"
-                disabled={liveStatus !== "ready"}
-                onClick={() => void handleStartBroadcast()}
+                disabled={!(liveStatus === "ready" || liveStatus === "live")}
+                onClick={() => void (liveStatus === "live" ? handleStopBroadcast() : handleStartBroadcast())}
                 className="rounded-full border border-rose-300/70 bg-rose-500/25 px-4 py-2 font-display text-[11px] font-bold uppercase tracking-[0.18em] text-rose-100 shadow-[0_0_28px_-8px_rgba(244,63,94,0.9)] transition hover:bg-rose-500/35 hover:shadow-[0_0_36px_-7px_rgba(244,63,94,1)] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {liveStatus === "starting" ? "Iniciando..." : "Transmitir"}
+                {liveStatus === "starting" ? "Procesando..." : liveStatus === "live" ? "Terminar" : "Transmitir"}
               </button>
             </div>
             {liveStatus === "live" && activeStreamKey && (

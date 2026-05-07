@@ -87,7 +87,10 @@ export async function updateProfileLiveState(params: {
   if (!error) return;
 
   const details = `${error.message} ${error.details ?? ""}`.toLowerCase();
-  const unknownColumn = details.includes("column") && details.includes("does not exist");
+  const unknownColumn =
+    (details.includes("column") && details.includes("does not exist")) ||
+    (details.includes("could not find") && details.includes("schema cache")) ||
+    details.includes("'is_live'");
   if (!unknownColumn) throw error;
 
   const { error: fallbackError } = await supabase
