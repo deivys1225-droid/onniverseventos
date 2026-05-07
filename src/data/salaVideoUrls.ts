@@ -3,6 +3,7 @@
  * Único origen para Nuestras Salas y deep links de reproducción.
  */
 export const SALA_MP4_URL_BY_ID: Record<string, string> = {
+  "prueba-livepeer": "https://livepeercdn.studio/hls/ee47aozdn2c6kg5j/index.m3u8",
   "nova-byte":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777737430/karol_eund2g.mp4",
   "axon-king":
