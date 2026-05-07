@@ -152,6 +152,17 @@ const NuestrasSalasPage = () => {
       to: "/teatro/michael-jackson",
       type: "teatro" as const,
     },
+    {
+      id: "prueba-livepeer",
+      name: "PRUEBA",
+      image: "/placeholder.svg",
+      subtitle: "Comunidad",
+      description: "Transmision de prueba en vivo.",
+      status: "En Vivo",
+      href: "https://livepeercdn.studio/hls/ee47aozdn2c6kg5j/index.m3u8",
+      to: "/inicio",
+      type: "podcast" as const,
+    },
   ];
 
   const communityRooms = useMemo(
@@ -206,8 +217,9 @@ const NuestrasSalasPage = () => {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {creatorRooms.map((room, index) => {
                 const salaMp4 = SALA_MP4_URL_BY_ID[room.id];
-                const onniverseAppHref =
-                  salaMp4 !== undefined ? onniverseDeepLink(salaMp4) : null;
+                const directHref = "href" in room ? room.href : null;
+                const onniverseAppHref = salaMp4 !== undefined ? onniverseDeepLink(salaMp4) : null;
+                const roomHref = directHref ?? onniverseAppHref;
 
                 return (
                   <motion.div
@@ -217,9 +229,9 @@ const NuestrasSalasPage = () => {
                     viewport={{ once: true, margin: "-60px" }}
                     transition={{ delay: index * 0.06 }}
                   >
-                    {onniverseAppHref != null ? (
+                    {roomHref != null ? (
                       <a
-                        href={onniverseAppHref}
+                        href={roomHref}
                         className="group block rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-primary/50 hover:shadow-[0_0_45px_-10px_hsl(var(--primary)/0.5)]"
                       >
                         <div className="relative mb-4 overflow-hidden rounded-xl border border-primary/20">
