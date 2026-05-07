@@ -6,15 +6,61 @@ import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
 import { startLivepeerWhipPublisher, type WhipPublisherHandle } from "@/lib/livepeerWhip";
 import { startActiveStream } from "@/lib/activeStreams";
 import { updateProfileLiveState } from "@/lib/profile";
+import { supabase } from "@/integrations/supabase/client";
 
 const PcScenePage = () => {
   const { user } = useAuth();
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [liveStatus, setLiveStatus] = useState<"idle" | "starting" | "live">("idle");
+  const [liveStatus, setLiveStatus] = useState<"idle" | "creating_key" | "ready" | "starting" | "live">("idle");
   const [activeStreamKey, setActiveStreamKey] = useState<string | null>(null);
+  const [activeWhipUrl, setActiveWhipUrl] = useState<string | null>(null);
+  const [activeIngestRtmp, setActiveIngestRtmp] = useState<string | null>(null);
+  const [activePlaybackId, setActivePlaybackId] = useState<string | null>(null);
+  const [activePlaybackUrl, setActivePlaybackUrl] = useState<string | null>(null);
   const [liveMessage, setLiveMessage] = useState<string>("");
   const whipHandleRef = useRef<WhipPublisherHandle | null>(null);
+
+  const createStreamWithFallback = async (title: string) => {
+    try {
+      return await createLivepeerStreamViaEdge(title);
+    } catch (primaryError) {
+      const { data, error } = await supabase.functions.invoke("livepeer-create-stream", {
+        body: { title },
+      });
+      if (error) {
+        const primaryMsg = primaryError instanceof Error ? primaryError.message : "Error desconocido (create stream).";
+        const fallbackMsg = error.message || "Error desconocido (invoke).";
+        throw new Error(`${primaryMsg} | Fallback invoke: ${fallbackMsg}`);
+      }
+      const parsed = data as
+        | {
+            streamKey?: string;
+            playbackId?: string;
+            playbackUrl?: string;
+            ingestRtmp?: string;
+            whipUrl?: string;
+          }
+        | null;
+      if (
+        !parsed ||
+        !parsed.streamKey ||
+        !parsed.playbackId ||
+        !parsed.playbackUrl ||
+        !parsed.ingestRtmp ||
+        !parsed.whipUrl
+      ) {
+        throw new Error("Respuesta incompleta de livepeer-create-stream en fallback.");
+      }
+      return {
+        streamKey: parsed.streamKey,
+        playbackId: parsed.playbackId,
+        playbackUrl: parsed.playbackUrl,
+        ingestRtmp: parsed.ingestRtmp,
+        whipUrl: parsed.whipUrl,
+      };
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -52,59 +98,92 @@ const PcScenePage = () => {
     };
   }, []);
 
-  const handleStartLive = async () => {
+  const handlePrepareLiveKey = async () => {
     if (!user) {
       toast.error("Debes iniciar sesion para transmitir.");
       return;
     }
-    if (!cameraStream) {
-      toast.error("Activa la camara antes de iniciar LIVE.");
-      return;
-    }
     if (liveStatus !== "idle") return;
 
-    setLiveStatus("starting");
+    setLiveStatus("creating_key");
     setLiveMessage("Conectando API KEY de Livepeer...");
     try {
       const streamTitle =
         (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
         user.email?.split("@")[0] ||
         "Live PC";
-      const live = await createLivepeerStreamViaEdge(`${streamTitle} en vivo PC`);
-      setLiveMessage("API KEY lista. Iniciando transmision...");
-
-      const publisher = await startLivepeerWhipPublisher({
-        mediaStream: cameraStream,
-        streamKey: live.streamKey,
-        whipUrl: live.whipUrl,
-      });
-      whipHandleRef.current = publisher;
-
-      await startActiveStream({
-        userId: user.id,
-        streamUrl: live.ingestRtmp,
-        title: `${streamTitle} en vivo`,
-        category: "Social",
-        privacyMode: "publico",
-        playbackUrl: live.playbackUrl,
-        playbackId: live.playbackId,
-      });
-      await updateProfileLiveState({
-        userId: user.id,
-        isLive: true,
-        streamKey: live.streamKey,
-      });
-
+      const live = await createStreamWithFallback(`${streamTitle} en vivo PC`);
       setActiveStreamKey(live.streamKey);
-      setLiveStatus("live");
-      setLiveMessage("En vivo");
-      toast.success("LIVE activo. Marketplace actualizado.");
+      setActiveWhipUrl(live.whipUrl);
+      setActiveIngestRtmp(live.ingestRtmp);
+      setActivePlaybackId(live.playbackId);
+      setActivePlaybackUrl(live.playbackUrl);
+      setLiveStatus("ready");
+      setLiveMessage("Llave lista. Pulsa TRANSMITIR.");
+      toast.success("API KEY lista.");
     } catch (error) {
       whipHandleRef.current?.stop();
       whipHandleRef.current = null;
       setLiveStatus("idle");
       setLiveMessage(error instanceof Error ? error.message : "No se pudo iniciar LIVE desde PC.");
       toast.error(error instanceof Error ? error.message : "No se pudo iniciar LIVE desde PC.");
+    }
+  };
+
+  const handleStartBroadcast = async () => {
+    if (!user) {
+      toast.error("Debes iniciar sesion para transmitir.");
+      return;
+    }
+    if (!cameraStream) {
+      toast.error("Activa la camara antes de transmitir.");
+      return;
+    }
+    if (!activeStreamKey || !activeWhipUrl || !activeIngestRtmp || !activePlaybackId || !activePlaybackUrl) {
+      toast.error("Primero genera la llave con LIVE.");
+      return;
+    }
+    if (!(liveStatus === "ready" || liveStatus === "idle")) return;
+
+    setLiveStatus("starting");
+    setLiveMessage("Iniciando transmision...");
+    try {
+      const streamTitle =
+        (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
+        user.email?.split("@")[0] ||
+        "Live PC";
+
+      const publisher = await startLivepeerWhipPublisher({
+        mediaStream: cameraStream,
+        streamKey: activeStreamKey,
+        whipUrl: activeWhipUrl,
+      });
+      whipHandleRef.current = publisher;
+
+      await startActiveStream({
+        userId: user.id,
+        streamUrl: activeIngestRtmp,
+        title: `${streamTitle} en vivo`,
+        category: "Social",
+        privacyMode: "publico",
+        playbackUrl: activePlaybackUrl,
+        playbackId: activePlaybackId,
+      });
+      await updateProfileLiveState({
+        userId: user.id,
+        isLive: true,
+        streamKey: activeStreamKey,
+      });
+
+      setLiveStatus("live");
+      setLiveMessage("En vivo");
+      toast.success("TRANSMISION activa. Marketplace actualizado.");
+    } catch (error) {
+      whipHandleRef.current?.stop();
+      whipHandleRef.current = null;
+      setLiveStatus("ready");
+      setLiveMessage(error instanceof Error ? error.message : "No se pudo iniciar transmision.");
+      toast.error(error instanceof Error ? error.message : "No se pudo iniciar transmision.");
     }
   };
 
@@ -163,16 +242,18 @@ const PcScenePage = () => {
               <button
                 type="button"
                 disabled={liveStatus !== "idle"}
-                onClick={() => void handleStartLive()}
+                onClick={() => void handlePrepareLiveKey()}
                 className="rounded-full border border-rose-300/70 bg-rose-500/25 px-4 py-2 font-display text-[11px] font-bold uppercase tracking-[0.18em] text-rose-100 shadow-[0_0_28px_-8px_rgba(244,63,94,0.9)] transition hover:bg-rose-500/35 hover:shadow-[0_0_36px_-7px_rgba(244,63,94,1)] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {liveStatus === "starting" ? "Iniciando..." : liveStatus === "live" ? "Live ON" : "Live"}
+                {liveStatus === "creating_key" ? "Creando..." : liveStatus === "ready" ? "Key OK" : liveStatus === "live" ? "Live ON" : "Live"}
               </button>
               <button
                 type="button"
-                className="rounded-full border border-rose-300/70 bg-rose-500/25 px-4 py-2 font-display text-[11px] font-bold uppercase tracking-[0.18em] text-rose-100 shadow-[0_0_28px_-8px_rgba(244,63,94,0.9)] transition hover:bg-rose-500/35 hover:shadow-[0_0_36px_-7px_rgba(244,63,94,1)]"
+                disabled={liveStatus !== "ready"}
+                onClick={() => void handleStartBroadcast()}
+                className="rounded-full border border-rose-300/70 bg-rose-500/25 px-4 py-2 font-display text-[11px] font-bold uppercase tracking-[0.18em] text-rose-100 shadow-[0_0_28px_-8px_rgba(244,63,94,0.9)] transition hover:bg-rose-500/35 hover:shadow-[0_0_36px_-7px_rgba(244,63,94,1)] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                OBS
+                {liveStatus === "starting" ? "Iniciando..." : "Transmitir"}
               </button>
             </div>
             {liveStatus === "live" && activeStreamKey && (
