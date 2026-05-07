@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { addVaultItem } from "@/lib/vaultItems";
 import LivepeerPlayer from "@/components/LivepeerPlayer";
+import { detectDeviceKind } from "@/lib/deviceDetection";
 
 const SectionHeader = ({
   badge,
@@ -62,6 +63,7 @@ const NuestrasSalasPage = () => {
   const [paidCommunityRooms, setPaidCommunityRooms] = useState<Record<string, boolean>>({});
   const [viewerPlaybackId, setViewerPlaybackId] = useState<string | null>(null);
   const [viewerTitle, setViewerTitle] = useState<string>("");
+  const isMobileDevice = useMemo(() => detectDeviceKind() === "mobile", []);
 
   useEffect(() => {
     const loadProfiles = async () => {
@@ -221,6 +223,15 @@ const NuestrasSalasPage = () => {
     const fromUrl = stream?.playbackUrl?.trim() ?? "";
     const match = fromUrl.match(/\/hls\/([^/]+)\//i);
     return match?.[1] ?? null;
+  };
+  const openLiveByDevice = (playbackId: string, title: string, hlsUrl?: string | null) => {
+    if (isMobileDevice) {
+      const urlPart = hlsUrl ? `&url=${encodeURIComponent(hlsUrl)}` : "";
+      window.location.href = `onniverso://ver?id=${encodeURIComponent(playbackId)}${urlPart}`;
+      return;
+    }
+    setViewerPlaybackId(playbackId);
+    setViewerTitle(title);
   };
 
   return (
@@ -404,8 +415,7 @@ const NuestrasSalasPage = () => {
                             ? {
                                 type: "button",
                                 onClick: () => {
-                                  setViewerPlaybackId(playbackId);
-                                  setViewerTitle(room.name);
+                                  openLiveByDevice(playbackId, room.name, hlsUrl);
                                 },
                               }
                             : {})}
@@ -490,8 +500,7 @@ const NuestrasSalasPage = () => {
                                   type="button"
                                   onClick={() => {
                                     if (!playbackId) return;
-                                    setViewerPlaybackId(playbackId);
-                                    setViewerTitle(room.name);
+                                    openLiveByDevice(playbackId, room.name, hlsUrl);
                                   }}
                                 >
                                   <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-primary transition group-hover:bg-primary/20 group-hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]">
@@ -523,7 +532,7 @@ const NuestrasSalasPage = () => {
           </section>
         </div>
       </main>
-      {viewerPlaybackId && (
+      {!isMobileDevice && viewerPlaybackId && (
         <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
           <button
             type="button"
