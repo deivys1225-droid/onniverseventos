@@ -1,4 +1,4 @@
-import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
+import { livepeerPublicHlsUrl, normalizePlaybackIdForLivepeer } from "@/lib/livepeerPlayback";
 
 /**
  * MP4 de Cloudinary por id de sala (perfil podcast o ruta teatro).

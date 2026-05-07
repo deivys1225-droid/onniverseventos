@@ -85,11 +85,19 @@ Deno.serve(async (req) => {
   let data: Record<string, unknown>;
   try {
     const root = JSON.parse(rawText) as Record<string, unknown>;
-    const nested = root.data;
-    if (!root.streamKey && !root.stream_key && typeof nested === "object" && nested !== null) {
-      data = nested as Record<string, unknown>;
+    const streamWrapped =
+      typeof root.stream === "object" && root.stream !== null
+        ? (root.stream as Record<string, unknown>)
+        : null;
+    if (streamWrapped && (streamWrapped.streamKey || streamWrapped.stream_key)) {
+      data = streamWrapped;
     } else {
-      data = root;
+      const nested = root.data;
+      if (!root.streamKey && !root.stream_key && typeof nested === "object" && nested !== null) {
+        data = nested as Record<string, unknown>;
+      } else {
+        data = root;
+      }
     }
   } catch {
     return new Response(JSON.stringify({ error: "Invalid Livepeer response." }), {
