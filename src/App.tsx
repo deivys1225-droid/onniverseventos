@@ -92,14 +92,8 @@ const App = () => (
                 </PrivateRoute>
               }
             />
-            <Route
-              path="/live/:playbackId"
-              element={
-                <PrivateRoute>
-                  <LivePlaybackPage />
-                </PrivateRoute>
-              }
-            />
+            {/* Público: la app Onniverso abre esta URL en WebView sin sesión Supabase */}
+            <Route path="/live/:playbackId" element={<LivePlaybackPage />} />
             <Route
               path="/tienda"
               element={

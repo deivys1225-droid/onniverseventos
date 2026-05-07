@@ -9,7 +9,7 @@ const LivePlaybackPage = () => {
   const id = useMemo(() => (playbackId ?? "").trim(), [playbackId]);
 
   if (!id) {
-    return <Navigate to="/nuestras-salas" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return (
