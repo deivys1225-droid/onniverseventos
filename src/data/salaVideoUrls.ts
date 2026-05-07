@@ -57,6 +57,11 @@ export function onniverseDeepLink(mp4Url: string): string {
 
 const APP_LINK_BASE = "https://vivevr.vercel.app";
 
+/**
+ * Abre la página /live/:playbackId en web y en la app Android (ver AndroidManifest intent-filter pathPrefix /live/).
+ * Debe coincidir con el host declarado en App Links.
+ */
 export function livePlaybackAppLink(playbackId: string): string {
-  return `${APP_LINK_BASE}/live/${encodeURIComponent(playbackId)}`;
+  const id = normalizePlaybackIdForLivepeer(playbackId);
+  return `${APP_LINK_BASE}/live/${encodeURIComponent(id || playbackId.trim())}`;
 }

@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import Hls from "hls.js";
 import {
   extractPlaybackIdFromHlsUrl,
+  isLikelyLivepeerPlaybackId,
   livepeerHlsAlternateCdnUrl,
   livepeerHlsUrlCandidates,
   resolveLivepeerPlayerMedia,
@@ -19,7 +20,7 @@ interface LivepeerPlayerProps {
 export const livepeerWatchUrl = (playbackId: string) =>
   `https://lvpr.tv/?v=${encodeURIComponent(playbackId)}`;
 
-type Strategy = "native_hls" | "hlsjs" | "iframe";
+type Strategy = "native_hls" | "hlsjs" | "lvpr_iframe" | "external_only";
 
 const LIVE_STALL_MS = 18_000;
 
@@ -69,6 +70,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
   const primaryHlsUrl = hlsCandidates[0] ?? "";
   const isProgressive = resolved?.kind === "progressive";
   const lvprId = resolved?.kind === "hls" ? resolved.lvprPlaybackId : null;
+  const canEmbedLvpr = Boolean(lvprId && isLikelyLivepeerPlaybackId(lvprId));
   const openExternal =
     lvprId != null && lvprId !== ""
       ? livepeerWatchUrl(lvprId)
@@ -82,9 +84,9 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
     } else if (Hls.isSupported()) {
       setStrategy("hlsjs");
     } else {
-      setStrategy("iframe");
+      setStrategy(canEmbedLvpr ? "lvpr_iframe" : "external_only");
     }
-  }, [playbackId, resolved?.kind]);
+  }, [playbackId, resolved?.kind, canEmbedLvpr]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,7 +101,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
       return undefined;
     }
 
-    if (strategy === "iframe") {
+    if (strategy === "lvpr_iframe" || strategy === "external_only") {
       return undefined;
     }
 
@@ -122,7 +124,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
       }
       if (!cancelled) {
         if (Hls.isSupported()) setStrategy("hlsjs");
-        else setStrategy("iframe");
+        else setStrategy(canEmbedLvpr ? "lvpr_iframe" : "external_only");
       }
     };
 
@@ -161,7 +163,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
 
     if (strategy === "hlsjs") {
       if (!Hls.isSupported()) {
-        if (!cancelled) setStrategy("iframe");
+        if (!cancelled) setStrategy(canEmbedLvpr ? "lvpr_iframe" : "external_only");
         return undefined;
       }
 
@@ -198,7 +200,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
           } catch {
             /* ignore */
           }
-          if (!cancelled) setStrategy("iframe");
+          if (!cancelled) setStrategy(canEmbedLvpr ? "lvpr_iframe" : "external_only");
         }, LIVE_STALL_MS);
       };
 
@@ -217,12 +219,12 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
             hls.startLoad();
           } catch {
             hls.destroy();
-            if (!cancelled) setStrategy("iframe");
+            if (!cancelled) setStrategy(canEmbedLvpr ? "lvpr_iframe" : "external_only");
           }
           return;
         }
         hls.destroy();
-        if (!cancelled) setStrategy("iframe");
+        if (!cancelled) setStrategy(canEmbedLvpr ? "lvpr_iframe" : "external_only");
       });
       video.addEventListener(
         "playing",
@@ -241,7 +243,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
     }
 
     return undefined;
-  }, [playbackId, primaryHlsUrl, strategy, resolved, hlsCandidates]);
+  }, [playbackId, primaryHlsUrl, strategy, resolved, hlsCandidates, canEmbedLvpr]);
 
   useEffect(() => {
     if (!isProgressive || !resolved) return undefined;
@@ -281,7 +283,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
         <div className="aspect-video w-full bg-black">
           {resolved.kind === "progressive" ? (
             <video ref={videoRef} controls playsInline className="h-full w-full" title={title} />
-          ) : strategy === "iframe" && lvprId ? (
+          ) : strategy === "lvpr_iframe" && lvprId ? (
             <iframe
               title={title}
               src={embedSrc}
@@ -290,7 +292,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
             />
-          ) : strategy === "iframe" && !lvprId && primaryHlsUrl ? (
+          ) : strategy === "external_only" && primaryHlsUrl ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted-foreground">
               <p>No se pudo iniciar HLS en este navegador.</p>
               <a
@@ -314,8 +316,8 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
           {resolved.kind === "progressive" && "Reproduciendo video (MP4 / progresivo)…"}
           {resolved.kind === "hls" && strategy === "native_hls" && "Reproduciendo HLS (Safari / nativo)…"}
           {resolved.kind === "hls" && strategy === "hlsjs" && "Reproduciendo HLS (motor web)…"}
-          {resolved.kind === "hls" && strategy === "iframe" && lvprId && "Reproductor Livepeer incrustado…"}
-          {resolved.kind === "hls" && strategy === "iframe" && !lvprId && "HLS: usa el enlace externo…"}
+          {resolved.kind === "hls" && strategy === "lvpr_iframe" && lvprId && "Reproductor Livepeer incrustado…"}
+          {resolved.kind === "hls" && strategy === "external_only" && "HLS: abre el enlace externo o espera a que empiece la señal…"}
         </span>
         {openExternal ? (
           <a

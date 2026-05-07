@@ -1,5 +1,5 @@
 import { supabase, supabasePublicUrl, supabasePublishableKey } from "@/integrations/supabase/client";
-import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
+import { livepeerPublicHlsUrl, normalizePlaybackIdForLivepeer } from "@/lib/livepeerPlayback";
 
 export type LivepeerCreateStreamResponse = {
   streamId?: string | null;
@@ -96,12 +96,17 @@ export async function createLivepeerStreamViaEdge(title: string): Promise<Livepe
     throw new Error("Respuesta incompleta de Livepeer.");
   }
 
+  const normalizedId = normalizePlaybackIdForLivepeer(playbackId);
+  if (!normalizedId) {
+    throw new Error("Playback ID inválido en la respuesta de Livepeer.");
+  }
+
   const streamId = parsed.streamId;
   return {
     streamId: typeof streamId === "string" ? streamId : typeof streamId === "number" ? String(streamId) : null,
     streamKey,
-    playbackId,
-    playbackUrl: livepeerPublicHlsUrl(playbackId),
+    playbackId: normalizedId,
+    playbackUrl: livepeerPublicHlsUrl(normalizedId),
     ingestRtmp,
     whipUrl,
     transmitUrl: typeof transmitUrl === "string" ? transmitUrl : undefined,

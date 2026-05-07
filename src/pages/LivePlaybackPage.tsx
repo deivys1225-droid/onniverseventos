@@ -3,18 +3,11 @@ import { Navigate, useParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import LivepeerPlayer from "@/components/LivepeerPlayer";
+import { normalizePlaybackIdForLivepeer } from "@/lib/livepeerPlayback";
 
 const LivePlaybackPage = () => {
   const { playbackId } = useParams<{ playbackId: string }>();
-  const id = useMemo(() => {
-    const raw = (playbackId ?? "").trim();
-    if (!raw) return "";
-    try {
-      return decodeURIComponent(raw);
-    } catch {
-      return raw;
-    }
-  }, [playbackId]);
+  const id = useMemo(() => normalizePlaybackIdForLivepeer(playbackId ?? ""), [playbackId]);
 
   if (!id) {
     return <Navigate to="/" replace />;

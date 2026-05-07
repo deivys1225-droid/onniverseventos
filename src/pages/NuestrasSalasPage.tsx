@@ -7,8 +7,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
-import { SALA_MP4_URL_BY_ID, onniverseDeepLink } from "@/data/salaVideoUrls";
-import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
+import { SALA_MP4_URL_BY_ID, livePlaybackAppLink, onniverseDeepLink } from "@/data/salaVideoUrls";
+import { extractPlaybackIdFromHlsUrl, livepeerPublicHlsUrl, normalizePlaybackIdForLivepeer } from "@/lib/livepeerPlayback";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -52,10 +52,19 @@ const SectionHeader = ({
 
 function resolveStreamPlaybackId(stream?: { playbackUrl: string | null; playbackId: string | null }): string | null {
   const direct = stream?.playbackId?.trim();
-  if (direct) return direct;
+  if (direct) {
+    const n = normalizePlaybackIdForLivepeer(direct);
+    return n || null;
+  }
   const fromUrl = stream?.playbackUrl?.trim() ?? "";
-  const match = fromUrl.match(/\/hls\/([^/]+)\//i);
-  return match?.[1] ?? null;
+  const extracted = extractPlaybackIdFromHlsUrl(fromUrl);
+  if (extracted) return extracted;
+  const match = fromUrl.match(/\/hls\/([^/?#]+)/i);
+  if (match?.[1]) {
+    const n = normalizePlaybackIdForLivepeer(match[1]);
+    return n || null;
+  }
+  return null;
 }
 
 const NuestrasSalasPage = () => {
@@ -233,6 +242,17 @@ const NuestrasSalasPage = () => {
     const source = sourcePlaybackId?.trim() || hlsUrl?.trim() || "";
     if (!source) return;
     if (isMobileDevice) {
+      /** App Android: App Link https://vivevr.vercel.app/live/{id} abre MainActivity + ruta /live (Capacitor). */
+      const pid =
+        sourcePlaybackId?.trim() ||
+        (hlsUrl ? extractPlaybackIdFromHlsUrl(hlsUrl) : null) ||
+        (!source.includes("://") && !source.toLowerCase().includes(".m3u8") ? source : null) ||
+        extractPlaybackIdFromHlsUrl(source);
+      const cleanPid = pid?.trim();
+      if (cleanPid && !cleanPid.includes("://") && !cleanPid.toLowerCase().endsWith(".m3u8")) {
+        window.location.href = livePlaybackAppLink(cleanPid);
+        return;
+      }
       const urlToOpen =
         hlsUrl?.trim() || (source.includes("://") ? source : livepeerPublicHlsUrl(source));
       window.location.href = onniverseDeepLink(urlToOpen);
@@ -407,7 +427,12 @@ const NuestrasSalasPage = () => {
                       const isLiveNow = Boolean(hasWatchable || (stream?.isLive && requiresTicket));
                       const isPublicLive = Boolean(stream?.isLive && stream.privacyMode === "publico" && hasWatchable);
                       const paid = paidCommunityRooms[room.id] === true;
-                      const appLiveHref = hlsUrl ? onniverseDeepLink(hlsUrl) : null;
+                      const appLiveHref =
+                        playbackId != null && playbackId !== ""
+                          ? livePlaybackAppLink(playbackId)
+                          : hlsUrl != null && hlsUrl !== ""
+                            ? onniverseDeepLink(hlsUrl)
+                            : null;
                       const liveCard = isPublicLive && Boolean(hlsUrl);
                       const CardTag = liveCard ? "button" : "div";
 
