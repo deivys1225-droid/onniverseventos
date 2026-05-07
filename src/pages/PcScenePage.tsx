@@ -34,6 +34,7 @@ const PcScenePage = () => {
   const [activePlaybackUrl, setActivePlaybackUrl] = useState<string | null>(null);
   const [liveMessage, setLiveMessage] = useState<string>("");
   const whipHandleRef = useRef<WhipPublisherHandle | null>(null);
+  const localCameraStreamRef = useRef<MediaStream | null>(null);
 
   const createStreamWithFallback = async (title: string) => {
     try {
@@ -76,41 +77,34 @@ const PcScenePage = () => {
     }
   };
 
-  useEffect(() => {
-    let active = true;
-    let localStream: MediaStream | null = null;
-    const startCamera = async () => {
-      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-        setCameraError("Tu navegador no soporta camara.");
-        return;
-      }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30, max: 30 },
-          },
-          audio: false,
-        });
-        localStream = stream;
-        if (!active) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        setCameraStream(stream);
-      } catch (error) {
-        setCameraError(error instanceof Error ? error.message : "No se pudo abrir la camara.");
-      }
-    };
-    void startCamera();
-    return () => {
-      active = false;
-      localStream?.getTracks().forEach((track) => track.stop());
+  const ensureCameraReady = async () => {
+    if (cameraStream) return cameraStream;
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Tu navegador no soporta camara.");
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30, max: 30 },
+      },
+      audio: false,
+    });
+    localCameraStreamRef.current = stream;
+    setCameraStream(stream);
+    setCameraError(null);
+    return stream;
+  };
+
+  useEffect(
+    () => () => {
+      localCameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+      localCameraStreamRef.current = null;
       whipHandleRef.current?.stop();
       whipHandleRef.current = null;
-    };
-  }, []);
+    },
+    [],
+  );
 
   const handlePrepareLiveKey = async () => {
     if (!user) {
@@ -122,6 +116,7 @@ const PcScenePage = () => {
     setLiveStatus("creating_key");
     setLiveMessage("Conectando API KEY de Livepeer...");
     try {
+      await ensureCameraReady();
       const streamTitle =
         (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
         user.email?.split("@")[0] ||
@@ -150,7 +145,7 @@ const PcScenePage = () => {
       return;
     }
     if (!cameraStream) {
-      toast.error("Activa la camara antes de transmitir.");
+      toast.error("Primero pulsa LIVE para activar la camara y generar la llave.");
       return;
     }
     if (!activeStreamKey || !activeIngestRtmp || !activePlaybackId || !activePlaybackUrl) {
@@ -297,7 +292,7 @@ const PcScenePage = () => {
                 />
               ) : (
                 <div className="flex aspect-video items-center justify-center px-6 text-center text-sm text-cyan-100/90">
-                  {cameraError || "Activando camara..."}
+                  {cameraError || "Camara inactiva. Pulsa LIVE para activarla."}
                 </div>
               )}
             </div>
