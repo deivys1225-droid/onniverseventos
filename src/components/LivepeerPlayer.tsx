@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Hls from "hls.js";
+import { resolveLivepeerPlayerMedia } from "@/lib/livepeerPlayback";
 
 interface LivepeerPlayerProps {
+  /** Id de playback Livepeer, URL .m3u8, o URL de vídeo (p. ej. MP4). */
   playbackId: string;
   title: string;
 }
@@ -10,9 +12,6 @@ interface LivepeerPlayerProps {
 /** Player web oficial Livepeer (a veces el WebView lo bloquea o deja iframe en negro). */
 export const livepeerWatchUrl = (playbackId: string) =>
   `https://lvpr.tv/?v=${encodeURIComponent(playbackId)}`;
-
-const livepeerMuxSource = (playbackId: string) =>
-  `https://livepeercdn.studio/hls/${encodeURIComponent(playbackId)}/index.m3u8`;
 
 type Strategy = "native_hls" | "hlsjs" | "iframe";
 
@@ -22,11 +21,19 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const stallTimerRef = useRef<number | null>(null);
   const [strategy, setStrategy] = useState<Strategy>("native_hls");
+  const resolved = resolveLivepeerPlayerMedia(playbackId);
 
-  const hlsUrl = livepeerMuxSource(playbackId);
-  const openExternal = livepeerWatchUrl(playbackId);
+  const isProgressive = resolved?.kind === "progressive";
+  const hlsUrl = resolved?.kind === "hls" ? resolved.url : "";
+  const lvprId = resolved?.kind === "hls" ? resolved.lvprPlaybackId : null;
+  const openExternal = lvprId ? livepeerWatchUrl(lvprId) : hlsUrl || "";
 
-  /** 1) HLS nativo en <video> (mejor en WebView Android). 2) hls.js 3) iframe */
+  useEffect(() => {
+    if (resolved?.kind === "hls") {
+      setStrategy("native_hls");
+    }
+  }, [playbackId, resolved?.kind]);
+
   useEffect(() => {
     let cancelled = false;
     const clearStallTimer = () => {
@@ -36,7 +43,9 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
       }
     };
 
-    if (!playbackId) return undefined;
+    if (!resolved || resolved.kind === "progressive") {
+      return undefined;
+    }
 
     if (strategy === "iframe") {
       return undefined;
@@ -148,9 +157,36 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
     }
 
     return undefined;
-  }, [playbackId, hlsUrl, strategy]);
+  }, [playbackId, hlsUrl, strategy, resolved]);
 
-  const embedSrc = `${openExternal}&lowLatency=true`;
+  useEffect(() => {
+    if (!isProgressive || !resolved) return undefined;
+    const video = videoRef.current;
+    if (!video) return undefined;
+    let cancelled = false;
+    video.playsInline = true;
+    video.src = resolved.url;
+    void video.play().catch(() => {});
+    return () => {
+      cancelled = true;
+      try {
+        video.removeAttribute("src");
+        video.load();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [isProgressive, resolved]);
+
+  if (!resolved) {
+    return (
+      <p className="rounded-xl border border-border/50 bg-card/50 p-4 text-sm text-muted-foreground">
+        No hay fuente de reproduccion.
+      </p>
+    );
+  }
+
+  const embedSrc = lvprId ? `${livepeerWatchUrl(lvprId)}&lowLatency=true` : "";
 
   return (
     <motion.div
@@ -161,7 +197,9 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
     >
       <div className="relative overflow-hidden rounded-2xl border border-primary/20 shadow-[0_0_60px_-15px_hsl(var(--primary)/0.3)]">
         <div className="aspect-video w-full bg-black">
-          {strategy === "iframe" ? (
+          {resolved.kind === "progressive" ? (
+            <video ref={videoRef} controls playsInline className="h-full w-full" title={title} />
+          ) : strategy === "iframe" && lvprId ? (
             <iframe
               title={title}
               src={embedSrc}
@@ -170,6 +208,18 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
             />
+          ) : strategy === "iframe" && !lvprId && hlsUrl ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted-foreground">
+              <p>No se pudo iniciar HLS en este navegador.</p>
+              <a
+                href={hlsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-primary underline underline-offset-4"
+              >
+                Abrir manifest HLS (.m3u8)
+              </a>
+            </div>
           ) : (
             <video ref={videoRef} controls playsInline className="h-full w-full" title={title} />
           )}
@@ -179,18 +229,22 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
         <span className="inline-flex items-center gap-2">
           <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
-          {strategy === "native_hls" && "Reproduciendo HLS (nativo)…"}
-          {strategy === "hlsjs" && "Reproduciendo HLS (motor web)…"}
-          {strategy === "iframe" && "Reproductor Livepeer incrustado…"}
+          {resolved.kind === "progressive" && "Reproduciendo video (MP4 / progresivo)…"}
+          {resolved.kind === "hls" && strategy === "native_hls" && "Reproduciendo HLS (nativo)…"}
+          {resolved.kind === "hls" && strategy === "hlsjs" && "Reproduciendo HLS (motor web)…"}
+          {resolved.kind === "hls" && strategy === "iframe" && lvprId && "Reproductor Livepeer incrustado…"}
+          {resolved.kind === "hls" && strategy === "iframe" && !lvprId && "HLS: usa el enlace externo…"}
         </span>
-        <a
-          href={openExternal}
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium text-primary underline underline-offset-4 hover:text-primary/90"
-        >
-          Si se ve negro: abrir en Chrome / navegador
-        </a>
+        {openExternal ? (
+          <a
+            href={openExternal}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-primary underline underline-offset-4 hover:text-primary/90"
+          >
+            Si se ve negro: abrir en Chrome / navegador
+          </a>
+        ) : null}
       </div>
       <p className="text-xs text-muted-foreground">
         El HLS suele aparecer varios segundos después de pulsar «Iniciar live» en el celular que transmite.

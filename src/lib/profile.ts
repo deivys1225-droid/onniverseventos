@@ -66,6 +66,7 @@ export async function updateProfileLiveState(params: {
   userId: string;
   isLive: boolean;
   streamKey?: string | null;
+  playbackId?: string | null;
 }) {
   const liveStatus = params.isLive ? "En Vivo" : "Offline";
   const basePayload = {
@@ -73,10 +74,15 @@ export async function updateProfileLiveState(params: {
     updated_at: new Date().toISOString(),
   };
 
+  const playbackPayload = params.isLive
+    ? { playback_id: params.playbackId ?? null }
+    : { playback_id: null };
+
   const extendedPayload = {
     ...basePayload,
     is_live: params.isLive,
     stream_key: params.streamKey ?? null,
+    ...playbackPayload,
   };
 
   const { error } = await supabase
@@ -90,12 +96,20 @@ export async function updateProfileLiveState(params: {
   const unknownColumn =
     (details.includes("column") && details.includes("does not exist")) ||
     (details.includes("could not find") && details.includes("schema cache")) ||
-    details.includes("'is_live'");
+    details.includes("'is_live'") ||
+    details.includes("'playback_id'");
   if (!unknownColumn) throw error;
 
-  const { error: fallbackError } = await supabase
+  const { error: noPlaybackCol } = await supabase
     .from("profiles")
-    .update(basePayload)
+    .update({
+      ...basePayload,
+      is_live: params.isLive,
+      stream_key: params.streamKey ?? null,
+    } as never)
     .eq("id", params.userId);
+  if (!noPlaybackCol) return;
+
+  const { error: fallbackError } = await supabase.from("profiles").update(basePayload).eq("id", params.userId);
   if (fallbackError) throw fallbackError;
 }

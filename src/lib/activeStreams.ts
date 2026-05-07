@@ -32,7 +32,11 @@ export async function startActiveStream(input: {
 
   const { error: profileError } = await supabase
     .from("profiles")
-    .update({ live_status: "En Vivo", updated_at: new Date().toISOString() })
+    .update({
+      live_status: "En Vivo",
+      updated_at: new Date().toISOString(),
+      playback_id: input.playbackId ?? null,
+    } as never)
     .eq("id", input.userId);
   if (profileError) throw profileError;
   localStorage.setItem(LIVE_ACTIVE_KEY, "1");

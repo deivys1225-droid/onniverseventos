@@ -190,6 +190,7 @@ export type Database = {
           stream_key: string | null
           is_live: boolean
           live_status: string
+          playback_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -199,6 +200,7 @@ export type Database = {
           stream_key?: string | null
           is_live?: boolean
           live_status?: string
+          playback_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -208,6 +210,7 @@ export type Database = {
           stream_key?: string | null
           is_live?: boolean
           live_status?: string
+          playback_id?: string | null
           updated_at?: string | null
         }
         Relationships: []

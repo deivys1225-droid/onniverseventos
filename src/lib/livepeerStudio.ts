@@ -1,4 +1,5 @@
 import { supabase, supabasePublicUrl, supabasePublishableKey } from "@/integrations/supabase/client";
+import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
 
 export type LivepeerCreateStreamResponse = {
   streamId?: string | null;
@@ -82,7 +83,6 @@ export async function createLivepeerStreamViaEdge(title: string): Promise<Livepe
 
   const streamKey = parsed.streamKey;
   const playbackId = parsed.playbackId;
-  const playbackUrl = parsed.playbackUrl;
   const ingestRtmp = parsed.ingestRtmp;
   const whipUrl = parsed.whipUrl;
   const transmitUrl = parsed.transmitUrl;
@@ -90,7 +90,6 @@ export async function createLivepeerStreamViaEdge(title: string): Promise<Livepe
   if (
     typeof streamKey !== "string" ||
     typeof playbackId !== "string" ||
-    typeof playbackUrl !== "string" ||
     typeof ingestRtmp !== "string" ||
     typeof whipUrl !== "string"
   ) {
@@ -102,7 +101,7 @@ export async function createLivepeerStreamViaEdge(title: string): Promise<Livepe
     streamId: typeof streamId === "string" ? streamId : typeof streamId === "number" ? String(streamId) : null,
     streamKey,
     playbackId,
-    playbackUrl,
+    playbackUrl: livepeerPublicHlsUrl(playbackId),
     ingestRtmp,
     whipUrl,
     transmitUrl: typeof transmitUrl === "string" ? transmitUrl : undefined,

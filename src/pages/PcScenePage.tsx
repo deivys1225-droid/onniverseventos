@@ -6,6 +6,7 @@ import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
 import { startLivepeerWhipPublisher, type WhipPublisherHandle } from "@/lib/livepeerWhip";
 import { startActiveStream, stopMyActiveStream } from "@/lib/activeStreams";
 import { updateProfileLiveState } from "@/lib/profile";
+import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
 import { supabase } from "@/integrations/supabase/client";
 
 function getUnknownErrorMessage(error: unknown, fallback: string): string {
@@ -57,20 +58,13 @@ const PcScenePage = () => {
             whipUrl?: string;
           }
         | null;
-      if (
-        !parsed ||
-        !parsed.streamKey ||
-        !parsed.playbackId ||
-        !parsed.playbackUrl ||
-        !parsed.ingestRtmp ||
-        !parsed.whipUrl
-      ) {
+      if (!parsed || !parsed.streamKey || !parsed.playbackId || !parsed.ingestRtmp || !parsed.whipUrl) {
         throw new Error("Respuesta incompleta de livepeer-create-stream en fallback.");
       }
       return {
         streamKey: parsed.streamKey,
         playbackId: parsed.playbackId,
-        playbackUrl: parsed.playbackUrl,
+        playbackUrl: livepeerPublicHlsUrl(parsed.playbackId),
         ingestRtmp: parsed.ingestRtmp,
         whipUrl: parsed.whipUrl,
       };
@@ -241,6 +235,7 @@ const PcScenePage = () => {
         userId: user.id,
         isLive: false,
         streamKey: null,
+        playbackId: null,
       });
 
       setLiveStatus("idle");

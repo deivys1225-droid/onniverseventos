@@ -1,4 +1,5 @@
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
+import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
 
 export type StreamStatus = "live" | "offline";
 export type StreamType = "platform" | "youtube";
@@ -35,7 +36,7 @@ export const podcastStreamers: StreamerProfile[] = [
       "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=4096&q=85",
     status: "live",
     streamType: "platform",
-    salaVideoUrl: "https://livepeercdn.studio/hls/ee47aozdn2c6kg5j/index.m3u8",
+    salaVideoUrl: livepeerPublicHlsUrl("ee47aozdn2c6kg5j"),
     loungeTitle: "Live de prueba",
     loungeDescription: "Transmision de prueba usando el mismo flujo de sala.",
     ticketGrada: 0,

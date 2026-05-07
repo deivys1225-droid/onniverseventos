@@ -29,6 +29,7 @@ import StorePublishCard, { type StorePublishPayload } from "@/components/StorePu
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
 import VaultCard from "@/components/VaultCard";
 import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
+import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
 import { detectDeviceKind } from "@/lib/deviceDetection";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
@@ -1290,7 +1291,10 @@ const MiMundoVRSection = ({
       const deviceKind = detectDeviceKind();
       if (deviceKind === "mobile") {
         setIsUserLive(true);
-        const dynamicUrl = live.transmitUrl?.trim() || `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}`;
+        const hls = livepeerPublicHlsUrl(live.playbackId);
+        const dynamicUrl =
+          live.transmitUrl?.trim() ||
+          `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}&playbackId=${encodeURIComponent(live.playbackId)}&hls=${encodeURIComponent(hls)}`;
         window.setTimeout(() => {
           window.location.href = dynamicUrl;
         }, 1000);

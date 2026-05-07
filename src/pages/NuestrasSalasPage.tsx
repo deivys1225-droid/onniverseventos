@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { SALA_MP4_URL_BY_ID, onniverseDeepLink } from "@/data/salaVideoUrls";
+import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -230,7 +231,7 @@ const NuestrasSalasPage = () => {
       if (hlsUrl) {
         window.location.href = onniverseDeepLink(hlsUrl);
       } else {
-        const fallbackWatchUrl = `https://livepeercdn.studio/hls/${encodeURIComponent(playbackId)}/index.m3u8`;
+        const fallbackWatchUrl = livepeerPublicHlsUrl(playbackId);
         window.location.href = onniverseDeepLink(fallbackWatchUrl);
       }
       return;
@@ -405,11 +406,7 @@ const NuestrasSalasPage = () => {
                       const paid = paidCommunityRooms[room.id] === true;
                       const playbackId = resolvePlaybackId(stream);
                       const storedHls = stream?.playbackUrl?.trim() || null;
-                      const hlsUrl =
-                        storedHls ??
-                        (playbackId
-                          ? `https://livepeercdn.studio/hls/${encodeURIComponent(playbackId)}/index.m3u8`
-                          : null);
+                      const hlsUrl = storedHls ?? (playbackId ? livepeerPublicHlsUrl(playbackId) : null);
                       const appLiveHref = hlsUrl ? onniverseDeepLink(hlsUrl) : null;
                       const liveCard = isPublicLive && Boolean(playbackId);
                       const CardTag = liveCard ? "button" : "div";

@@ -123,14 +123,17 @@ Deno.serve(async (req) => {
     });
   }
 
-  const playbackUrl = `https://livepeercdn.studio/hls/${playbackId}/index.m3u8`;
+  const playbackUrl = `https://livepeercdn.com/hls/${playbackId}/index.m3u8`;
   const ingestRtmp = `rtmp://rtmp.livepeer.com/live/${streamKey}`;
   const whipUrl = `https://playback.livepeer.studio/webrtc/${streamKey}`;
-  const transmitUrl = `onniverso://transmitir?key=${encodeURIComponent(streamKey)}`;
+  const transmitUrl = `onniverso://transmitir?key=${encodeURIComponent(
+    streamKey,
+  )}&playbackId=${encodeURIComponent(playbackId)}&hls=${encodeURIComponent(playbackUrl)}`;
 
   if (admin && userId) {
     const profileUpdatePayload = {
       stream_key: streamKey,
+      playback_id: playbackId,
       is_live: true,
       live_status: "En Vivo",
       updated_at: new Date().toISOString(),

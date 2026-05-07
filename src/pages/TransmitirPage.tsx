@@ -24,7 +24,7 @@ const TransmitirPage = () => {
       void stopMyActiveStream()
         .then(async () => {
           if (user) {
-            await updateProfileLiveState({ userId: user.id, isLive: false, streamKey: null });
+            await updateProfileLiveState({ userId: user.id, isLive: false, streamKey: null, playbackId: null });
           }
           toast.success("Live finalizado.");
           navigate("/inicio", { replace: true });
