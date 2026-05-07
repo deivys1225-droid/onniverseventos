@@ -114,14 +114,14 @@ const PcScenePage = () => {
     if (liveStatus !== "idle") return;
 
     setLiveStatus("creating_key");
-    setLiveMessage("Conectando API KEY de Livepeer...");
+    setLiveMessage("Camara + API: activando en paralelo...");
     try {
-      await ensureCameraReady();
       const streamTitle =
         (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
         user.email?.split("@")[0] ||
         "Live PC";
-      const live = await createStreamWithFallback(`${streamTitle} en vivo PC`);
+      const titleForLive = `${streamTitle} en vivo PC`;
+      const [, live] = await Promise.all([ensureCameraReady(), createStreamWithFallback(titleForLive)]);
       setActiveStreamKey(live.streamKey);
       setActiveWhipUrl(live.whipUrl);
       setActiveIngestRtmp(live.ingestRtmp);
@@ -144,7 +144,8 @@ const PcScenePage = () => {
       toast.error("Debes iniciar sesion para transmitir.");
       return;
     }
-    if (!cameraStream) {
+    const mediaForWhip = cameraStream ?? localCameraStreamRef.current;
+    if (!mediaForWhip) {
       toast.error("Primero pulsa LIVE para activar la camara y generar la llave.");
       return;
     }
@@ -166,14 +167,14 @@ const PcScenePage = () => {
       let publisher: WhipPublisherHandle;
       try {
         publisher = await startLivepeerWhipPublisher({
-          mediaStream: cameraStream,
+          mediaStream: mediaForWhip,
           streamKey: activeStreamKey,
           whipUrl: activeWhipUrl,
         });
       } catch (firstWhipError) {
         // Fallback: algunos entornos fallan con whipUrl directo; reintentar con endpoint por streamKey.
         publisher = await startLivepeerWhipPublisher({
-          mediaStream: cameraStream,
+          mediaStream: mediaForWhip,
           streamKey: activeStreamKey,
           whipUrl: null,
         }).catch((secondWhipError) => {
