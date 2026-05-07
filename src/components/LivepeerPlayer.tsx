@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { Capacitor } from "@capacitor/core";
 import Hls from "hls.js";
 
 interface LivepeerPlayerProps {
@@ -11,9 +12,16 @@ interface LivepeerPlayerProps {
 const livepeerEmbedSrc = (playbackId: string) =>
   `https://lvpr.tv/?v=${encodeURIComponent(playbackId)}&lowLatency=true`;
 
+/** Capacitor o WebView Android típico (`; wv)`): Hls.js suele ir mal, mejor iframe lvpr. */
+function preferLivepeerEmbedInitially(): boolean {
+  if (Capacitor.isNativePlatform()) return true;
+  if (typeof navigator === "undefined") return false;
+  return /; wv\)/i.test(navigator.userAgent);
+}
+
 const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [useIframeFallback, setUseIframeFallback] = useState(false);
+  const [useIframeFallback, setUseIframeFallback] = useState(() => preferLivepeerEmbedInitially());
   const hlsUrl = `https://livepeercdn.studio/hls/${encodeURIComponent(playbackId)}/index.m3u8`;
 
   useEffect(() => {

@@ -6,7 +6,15 @@ import LivepeerPlayer from "@/components/LivepeerPlayer";
 
 const LivePlaybackPage = () => {
   const { playbackId } = useParams<{ playbackId: string }>();
-  const id = useMemo(() => (playbackId ?? "").trim(), [playbackId]);
+  const id = useMemo(() => {
+    const raw = (playbackId ?? "").trim();
+    if (!raw) return "";
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }, [playbackId]);
 
   if (!id) {
     return <Navigate to="/" replace />;

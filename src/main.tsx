@@ -42,15 +42,26 @@ function MirrorSbsRoot() {
         if (u.protocol === "https:" && u.hostname === "vivevr.vercel.app" && u.pathname.startsWith("/live/")) {
           return `${u.pathname}${u.search}${u.hash}`;
         }
-        // Legacy custom scheme: onniverso://open?url=<hls_url>
+        // onniverso://open?url=<destino>: puede ser página /live de ViveVR o HLS legacy
         if (u.protocol === "onniverso:" && u.hostname === "open") {
-          const hls = u.searchParams.get("url");
-          if (!hls) return null;
-          const hlsUrl = new URL(hls);
-          const parts = hlsUrl.pathname.split("/").filter(Boolean);
-          const idx = parts.findIndex((p) => p === "hls");
-          if (idx >= 0 && parts[idx + 1]) {
-            return `/live/${encodeURIComponent(parts[idx + 1])}`;
+          const inner = u.searchParams.get("url");
+          if (!inner) return null;
+          try {
+            const innerUrl = new URL(inner);
+            if (
+              innerUrl.protocol === "https:" &&
+              innerUrl.hostname === "vivevr.vercel.app" &&
+              innerUrl.pathname.startsWith("/live/")
+            ) {
+              return `${innerUrl.pathname}${innerUrl.search}${innerUrl.hash}`;
+            }
+            const parts = innerUrl.pathname.split("/").filter(Boolean);
+            const idx = parts.findIndex((p) => p === "hls");
+            if (idx >= 0 && parts[idx + 1]) {
+              return `/live/${encodeURIComponent(parts[idx + 1])}`;
+            }
+          } catch {
+            return null;
           }
         }
       } catch {
