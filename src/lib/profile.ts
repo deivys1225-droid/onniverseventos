@@ -1,6 +1,27 @@
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 const AVATAR_BUCKET = "avatars";
+
+/**
+ * Si el usuario ya existe en auth pero no tiene fila en `profiles` (p. ej. registro con confirmación
+ * por correo: no hubo sesión en el momento del signUp), crea la fila en el primer login.
+ */
+export async function ensureProfileRowForUser(user: User): Promise<void> {
+  const { data: existing, error: selErr } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
+  if (selErr) throw selErr;
+  if (existing) return;
+
+  const meta = user.user_metadata ?? {};
+  const fromMeta =
+    (typeof meta.full_name === "string" && meta.full_name.trim()) ||
+    (typeof meta.display_name === "string" && meta.display_name.trim()) ||
+    "";
+  const fromEmail = user.email?.split("@")[0]?.trim() ?? "";
+  const fullName = fromMeta || fromEmail || "Usuario";
+
+  await upsertProfile({ userId: user.id, fullName });
+}
 
 export async function uploadAvatar(userId: string, file: File): Promise<string> {
   const path = `${userId}/avatar.jpg`;
