@@ -309,12 +309,12 @@ const PcScenePage = () => {
                 {liveMessage}
               </div>
             )}
-            <div className="absolute -right-[3.5rem] top-[32%] flex -translate-y-1/2 flex-col gap-2">
+            <div className="absolute -right-[6.9rem] top-[32%] flex -translate-y-1/2 flex-col gap-2">
               <button
                 type="button"
                 disabled={liveStatus !== "idle"}
                 onClick={() => void handlePrepareLiveKey()}
-                className="rounded-full border border-rose-300/70 bg-rose-500/25 px-4 py-2 font-display text-[11px] font-bold uppercase tracking-[0.18em] text-rose-100 shadow-[0_0_28px_-8px_rgba(244,63,94,0.9)] transition hover:bg-rose-500/35 hover:shadow-[0_0_36px_-7px_rgba(244,63,94,1)] disabled:cursor-not-allowed disabled:opacity-70"
+                className="rounded-full border border-rose-300/80 bg-rose-500/30 px-4 py-2 font-display text-[11px] font-extrabold uppercase tracking-[0.2em] text-red-200 [text-shadow:0_0_14px_rgba(255,0,38,1)] shadow-[0_0_34px_-6px_rgba(255,0,64,1)] transition hover:bg-rose-500/45 hover:shadow-[0_0_42px_-5px_rgba(255,0,64,1)] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {liveStatus === "creating_key" ? "Creando..." : liveStatus === "ready" ? "Key OK" : liveStatus === "live" ? "Live ON" : "Live"}
               </button>
@@ -322,7 +322,7 @@ const PcScenePage = () => {
                 type="button"
                 disabled={!(liveStatus === "ready" || liveStatus === "live")}
                 onClick={() => void (liveStatus === "live" ? handleStopBroadcast() : handleStartBroadcast())}
-                className="rounded-full border border-rose-300/70 bg-rose-500/25 px-4 py-2 font-display text-[11px] font-bold uppercase tracking-[0.18em] text-rose-100 shadow-[0_0_28px_-8px_rgba(244,63,94,0.9)] transition hover:bg-rose-500/35 hover:shadow-[0_0_36px_-7px_rgba(244,63,94,1)] disabled:cursor-not-allowed disabled:opacity-70"
+                className="rounded-full border border-rose-300/80 bg-rose-500/30 px-4 py-2 font-display text-[11px] font-extrabold uppercase tracking-[0.2em] text-red-200 [text-shadow:0_0_14px_rgba(255,0,38,1)] shadow-[0_0_34px_-6px_rgba(255,0,64,1)] transition hover:bg-rose-500/45 hover:shadow-[0_0_42px_-5px_rgba(255,0,64,1)] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {liveStatus === "starting" ? "Procesando..." : liveStatus === "live" ? "Terminar" : "Transmitir"}
               </button>

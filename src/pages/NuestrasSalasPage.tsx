@@ -226,8 +226,13 @@ const NuestrasSalasPage = () => {
   };
   const openLiveByDevice = (playbackId: string, title: string, hlsUrl?: string | null) => {
     if (isMobileDevice) {
-      const urlPart = hlsUrl ? `&url=${encodeURIComponent(hlsUrl)}` : "";
-      window.location.href = `onniverso://ver?id=${encodeURIComponent(playbackId)}${urlPart}`;
+      // Mantener la misma logica de perfiles premium: onniverso://open?url=...
+      if (hlsUrl) {
+        window.location.href = onniverseDeepLink(hlsUrl);
+      } else {
+        const fallbackWatchUrl = `https://livepeercdn.studio/hls/${encodeURIComponent(playbackId)}/index.m3u8`;
+        window.location.href = onniverseDeepLink(fallbackWatchUrl);
+      }
       return;
     }
     setViewerPlaybackId(playbackId);
