@@ -1,8 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Billboard, DeviceOrientationControls, OrbitControls } from "@react-three/drei";
-import { App as CapacitorApp } from "@capacitor/app";
-import { Capacitor } from "@capacitor/core";
 import * as THREE from "three";
 import {
   getRoomMode,
@@ -27,15 +25,9 @@ import ChatWindow from "@/components/ChatWindow";
 import { supabase } from "@/integrations/supabase/client";
 import FriendPicker, { type FriendCandidate } from "@/components/FriendPicker";
 import SearchHub from "@/components/SearchHub";
-import { startActiveStream } from "@/lib/activeStreams";
-import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
 import StorePublishCard, { type StorePublishPayload } from "@/components/StorePublishCard";
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
 import VaultCard from "@/components/VaultCard";
-import { startNativeLiveStreaming } from "@/lib/liveStreamingNative";
-import { updateProfileLiveState } from "@/lib/profile";
-import { getErrorMessage } from "@/lib/errors";
-import { onniverseDeepLink } from "@/data/salaVideoUrls";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -1267,52 +1259,11 @@ const MiMundoVRSection = ({
     }
   };
 
-  const onProfileLiveAction = async () => {
-    if (!user) {
-      toast.error("Debes iniciar sesion para transmitir.");
-      return;
-    }
-    setProfileSaving(true);
-    try {
-      const title = `${cardDisplayName} en vivo`;
-      const lp = await createLivepeerStreamViaEdge(title);
-      await startActiveStream({
-        userId: user.id,
-        streamUrl: lp.ingestRtmp,
-        title,
-        category: "Social",
-        privacyMode: "publico",
-        ticketPrice: null,
-        playbackUrl: lp.playbackUrl,
-        playbackId: lp.playbackId,
-      });
-      await updateProfileLiveState({ userId: user.id, isLive: true, streamKey: lp.streamKey });
-      setIsUserLive(true);
-
-      const transmitUrl = `https://vivevr.vercel.app/transmitir?key=${encodeURIComponent(lp.streamKey)}`;
-      const nativeOpenUrl = onniverseDeepLink(transmitUrl);
-      if (Capacitor.isNativePlatform()) {
-        try {
-          // En Android nativo abrimos directo la Activity para evitar desvíos de routing.
-          await startNativeLiveStreaming(lp.streamKey);
-        } catch {
-          // Fallback: deep link/app link por si el plugin aún no está sincronizado.
-          await CapacitorApp.openUrl({ url: nativeOpenUrl });
-        }
-      } else {
-        // Mismo patrón que las tarjetas que ya abren la app nativa.
-        window.location.href = nativeOpenUrl;
-        window.setTimeout(() => {
-          window.location.href = transmitUrl;
-        }, 1200);
-      }
-
-      toast.success("Stream creado. Abriendo transmisión en la app...");
-    } catch (error) {
-      toast.error(getErrorMessage(error, "No se pudo iniciar el flujo LIVE."));
-    } finally {
-      setProfileSaving(false);
-    }
+  const onProfileLiveAction = () => {
+    const launchApp = () => {
+      window.location.href = "onniverso://transmitir";
+    };
+    launchApp();
   };
 
   const enableGyroscope = async () => {
