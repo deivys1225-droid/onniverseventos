@@ -18,6 +18,7 @@ export interface ProfileCardProps {
   isSaving?: boolean;
   saveLabel?: string;
   liveLabel?: string;
+  liveHref?: string;
   /** Al confirmar devuelve nombre, archivo opcional y URL de objeto para previsualización. Revoca previews antiguos en el padre si aplica. */
   onConfirm?: (payload: ProfileCardConfirmPayload) => void;
   onLiveAction?: () => void | Promise<void>;
@@ -33,6 +34,7 @@ const ProfileCard = ({
   isSaving = false,
   saveLabel = "Guardar cambios",
   liveLabel = "LIVE",
+  liveHref,
   onConfirm,
   onLiveAction,
   onAddFriend,
@@ -92,8 +94,9 @@ const ProfileCard = ({
       setAvatarFile(null);
       return;
     }
+    if (liveHref) return;
     await onLiveAction?.();
-  }, [avatarFile, avatarPreviewUrl, hasUnsavedChanges, initialName, isSaving, name, onConfirm, onLiveAction]);
+  }, [avatarFile, avatarPreviewUrl, hasUnsavedChanges, initialName, isSaving, liveHref, name, onConfirm, onLiveAction]);
 
   return (
     <motion.div
@@ -175,20 +178,29 @@ const ProfileCard = ({
         )}
       </div>
 
-      <Button
-        type="button"
-        onClick={handleConfirm}
-        disabled={isSaving}
-        className={cn(
-          "w-full rounded-xl font-display text-xs font-bold uppercase tracking-[0.14em] transition",
-          hasUnsavedChanges
-            ? "border border-primary/40 bg-primary/10 text-primary shadow-[0_0_20px_-6px_hsl(var(--primary)/0.55)] hover:bg-primary/20 hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]"
-            : "border border-cyan-300/70 bg-cyan-500/20 text-cyan-100 shadow-[0_0_26px_-7px_rgba(0,224,255,0.92)] hover:bg-cyan-500/28 hover:shadow-[0_0_34px_-6px_rgba(20,235,255,1)]",
-        )}
-        variant="outline"
-      >
-        {isSaving ? "Guardando..." : hasUnsavedChanges ? saveLabel : liveLabel}
-      </Button>
+      {hasUnsavedChanges || !liveHref ? (
+        <Button
+          type="button"
+          onClick={handleConfirm}
+          disabled={isSaving}
+          className={cn(
+            "w-full rounded-xl font-display text-xs font-bold uppercase tracking-[0.14em] transition",
+            hasUnsavedChanges
+              ? "border border-primary/40 bg-primary/10 text-primary shadow-[0_0_20px_-6px_hsl(var(--primary)/0.55)] hover:bg-primary/20 hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]"
+              : "border border-cyan-300/70 bg-cyan-500/20 text-cyan-100 shadow-[0_0_26px_-7px_rgba(0,224,255,0.92)] hover:bg-cyan-500/28 hover:shadow-[0_0_34px_-6px_rgba(20,235,255,1)]",
+          )}
+          variant="outline"
+        >
+          {isSaving ? "Guardando..." : hasUnsavedChanges ? saveLabel : liveLabel}
+        </Button>
+      ) : (
+        <a
+          href={liveHref}
+          className="inline-flex w-full items-center justify-center rounded-xl border border-cyan-300/70 bg-cyan-500/20 px-4 py-2 text-center font-display text-xs font-bold uppercase tracking-[0.14em] text-cyan-100 shadow-[0_0_26px_-7px_rgba(0,224,255,0.92)] transition hover:bg-cyan-500/28 hover:shadow-[0_0_34px_-6px_rgba(20,235,255,1)]"
+        >
+          {liveLabel}
+        </a>
+      )}
     </motion.div>
   );
 };

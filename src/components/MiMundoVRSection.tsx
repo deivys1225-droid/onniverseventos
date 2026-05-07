@@ -1387,6 +1387,7 @@ const MiMundoVRSection = ({
               initialAvatarSrc={cardAvatarSrc}
               isSaving={profileSaving}
               onConfirm={onProfileConfirm}
+              liveHref="onniverso://transmitir"
               onLiveAction={onProfileLiveAction}
               showAddFriend={Boolean(user && friendCandidates.length > 0)}
               onAddFriend={onAddFriendFromProfile}
