@@ -187,6 +187,8 @@ export type Database = {
           id: string
           full_name: string | null
           avatar_url: string | null
+          stream_key: string | null
+          is_live: boolean
           live_status: string
           updated_at: string | null
         }
@@ -194,6 +196,8 @@ export type Database = {
           id: string
           full_name?: string | null
           avatar_url?: string | null
+          stream_key?: string | null
+          is_live?: boolean
           live_status?: string
           updated_at?: string | null
         }
@@ -201,6 +205,8 @@ export type Database = {
           id?: string
           full_name?: string | null
           avatar_url?: string | null
+          stream_key?: string | null
+          is_live?: boolean
           live_status?: string
           updated_at?: string | null
         }

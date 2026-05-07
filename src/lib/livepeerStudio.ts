@@ -7,6 +7,7 @@ export type LivepeerCreateStreamResponse = {
   playbackUrl: string;
   ingestRtmp: string;
   whipUrl: string;
+  transmitUrl?: string;
 };
 
 function livepeerEdgeUrl(): string {
@@ -84,6 +85,7 @@ export async function createLivepeerStreamViaEdge(title: string): Promise<Livepe
   const playbackUrl = parsed.playbackUrl;
   const ingestRtmp = parsed.ingestRtmp;
   const whipUrl = parsed.whipUrl;
+  const transmitUrl = parsed.transmitUrl;
 
   if (
     typeof streamKey !== "string" ||
@@ -103,5 +105,6 @@ export async function createLivepeerStreamViaEdge(title: string): Promise<Livepe
     playbackUrl,
     ingestRtmp,
     whipUrl,
+    transmitUrl: typeof transmitUrl === "string" ? transmitUrl : undefined,
   };
 }

@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -24,9 +25,36 @@ Deno.serve(async (req) => {
   }
 
   const livepeerApiKey = Deno.env.get("LIVEPEER_API_KEY")?.trim();
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
   if (!livepeerApiKey) {
     return new Response(JSON.stringify({ error: "LIVEPEER_API_KEY is not configured." }), {
       status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  if (!supabaseUrl || !serviceRoleKey) {
+    return new Response(JSON.stringify({ error: "Supabase service credentials are not configured." }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const authHeader = req.headers.get("Authorization") ?? req.headers.get("authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!token) {
+    return new Response(JSON.stringify({ error: "Missing bearer token." }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+  const { data: userData, error: userError } = await admin.auth.getUser(token);
+  const userId = userData.user?.id ?? null;
+  if (userError || !userId) {
+    return new Response(JSON.stringify({ error: "Unauthorized user token.", details: userError?.message ?? null }), {
+      status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
@@ -105,6 +133,24 @@ Deno.serve(async (req) => {
   const playbackUrl = `https://livepeercdn.studio/hls/${playbackId}/index.m3u8`;
   const ingestRtmp = `rtmp://rtmp.livepeer.com/live/${streamKey}`;
   const whipUrl = `https://playback.livepeer.studio/webrtc/${streamKey}`;
+  const transmitUrl = `onniverso://transmitir?key=${encodeURIComponent(streamKey)}`;
+
+  const profileUpdatePayload = {
+    stream_key: streamKey,
+    is_live: true,
+    live_status: "En Vivo",
+    updated_at: new Date().toISOString(),
+  };
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update(profileUpdatePayload as never)
+    .eq("id", userId);
+  if (profileError) {
+    return new Response(JSON.stringify({ error: "Failed to update user profile live state.", details: profileError.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   return new Response(
     JSON.stringify({
@@ -114,6 +160,7 @@ Deno.serve(async (req) => {
       playbackUrl,
       ingestRtmp,
       whipUrl,
+      transmitUrl,
     }),
     {
       status: 200,
