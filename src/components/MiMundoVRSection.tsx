@@ -1,6 +1,8 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Billboard, DeviceOrientationControls, OrbitControls } from "@react-three/drei";
+import { App as CapacitorApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 import * as THREE from "three";
 import {
   getRoomMode,
@@ -33,6 +35,8 @@ import { setLivePreviewStream } from "@/lib/livePreviewBus";
 import StorePublishCard, { type StorePublishPayload } from "@/components/StorePublishCard";
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
 import VaultCard from "@/components/VaultCard";
+import { startNativeLiveStreaming } from "@/lib/liveStreamingNative";
+import { updateProfileLiveState } from "@/lib/profile";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -1407,11 +1411,55 @@ const MiMundoVRSection = ({
       whipPublisherRef.current?.stop();
       whipPublisherRef.current = null;
       await stopMyActiveStream();
+      if (user) {
+        await updateProfileLiveState({ userId: user.id, isLive: false, streamKey: null });
+      }
       setIsUserLive(false);
       toast.success("Transmision detenida.");
       setStreamSetupOpen(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo detener el live.");
+    }
+  };
+
+  const onProfileLiveAction = async () => {
+    if (!user) {
+      toast.error("Debes iniciar sesion para transmitir.");
+      return;
+    }
+    setProfileSaving(true);
+    try {
+      const title = `${cardDisplayName} en vivo`;
+      const lp = await createLivepeerStreamViaEdge(title);
+      await startActiveStream({
+        userId: user.id,
+        streamUrl: lp.ingestRtmp,
+        title,
+        category: "Social",
+        privacyMode: "publico",
+        ticketPrice: null,
+        playbackUrl: lp.playbackUrl,
+        playbackId: lp.playbackId,
+      });
+      await updateProfileLiveState({ userId: user.id, isLive: true, streamKey: lp.streamKey });
+      setIsUserLive(true);
+
+      const transmitUrl = `https://vivevr.vercel.app/transmitir?key=${encodeURIComponent(lp.streamKey)}`;
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await CapacitorApp.openUrl({ url: transmitUrl });
+        } catch {
+          await startNativeLiveStreaming(lp.streamKey);
+        }
+      } else {
+        window.location.href = transmitUrl;
+      }
+
+      toast.success("Stream creado. Abriendo transmisión en la app...");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo iniciar el flujo LIVE.");
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -1538,6 +1586,7 @@ const MiMundoVRSection = ({
               initialAvatarSrc={cardAvatarSrc}
               isSaving={profileSaving}
               onConfirm={onProfileConfirm}
+              onLiveAction={onProfileLiveAction}
               showAddFriend={Boolean(user && friendCandidates.length > 0)}
               onAddFriend={onAddFriendFromProfile}
             />

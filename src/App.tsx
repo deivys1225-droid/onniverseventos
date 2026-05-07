@@ -25,6 +25,7 @@ import WelcomeUniversePage from "./pages/WelcomeUniversePage.tsx";
 import RegisterPage from "./pages/RegisterPage.tsx";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
 import LivePlaybackPage from "./pages/LivePlaybackPage.tsx";
+import TransmitirPage from "./pages/TransmitirPage.tsx";
 import FloatingLivePreview from "@/components/FloatingLivePreview";
 
 const queryClient = new QueryClient();
@@ -94,6 +95,14 @@ const App = () => (
             />
             {/* Público: la app Onniverso abre esta URL en WebView sin sesión Supabase */}
             <Route path="/live/:playbackId" element={<LivePlaybackPage />} />
+            <Route
+              path="/transmitir"
+              element={
+                <PrivateRoute>
+                  <TransmitirPage />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/tienda"
               element={

@@ -42,6 +42,10 @@ function MirrorSbsRoot() {
         if (u.protocol === "https:" && u.hostname === "vivevr.vercel.app" && u.pathname.startsWith("/live/")) {
           return `${u.pathname}${u.search}${u.hash}`;
         }
+        // App Links HTTPS: https://vivevr.vercel.app/transmitir?key=...
+        if (u.protocol === "https:" && u.hostname === "vivevr.vercel.app" && u.pathname === "/transmitir") {
+          return `${u.pathname}${u.search}${u.hash}`;
+        }
         // onniverso://open?url=<destino>: puede ser página /live de ViveVR o HLS legacy
         if (u.protocol === "onniverso:" && u.hostname === "open") {
           const inner = u.searchParams.get("url");

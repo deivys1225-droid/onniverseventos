@@ -61,3 +61,38 @@ export async function upsertProfile(params: {
   );
   if (error) throw error;
 }
+
+export async function updateProfileLiveState(params: {
+  userId: string;
+  isLive: boolean;
+  streamKey?: string | null;
+}) {
+  const liveStatus = params.isLive ? "En Vivo" : "Offline";
+  const basePayload = {
+    live_status: liveStatus,
+    updated_at: new Date().toISOString(),
+  };
+
+  const extendedPayload = {
+    ...basePayload,
+    is_live: params.isLive,
+    stream_key: params.streamKey ?? null,
+  };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update(extendedPayload as never)
+    .eq("id", params.userId);
+
+  if (!error) return;
+
+  const details = `${error.message} ${error.details ?? ""}`.toLowerCase();
+  const unknownColumn = details.includes("column") && details.includes("does not exist");
+  if (!unknownColumn) throw error;
+
+  const { error: fallbackError } = await supabase
+    .from("profiles")
+    .update(basePayload)
+    .eq("id", params.userId);
+  if (fallbackError) throw fallbackError;
+}

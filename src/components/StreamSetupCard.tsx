@@ -36,7 +36,7 @@ const StreamSetupCard = ({
   const [category, setCategory] = useState<"Musica" | "Educacion" | "Deporte" | "Social">("Musica");
   const [privacy, setPrivacy] = useState<"publico" | "privado_ticket">("publico");
   const [ticketPrice, setTicketPrice] = useState("");
-  const [sourceMode, setSourceMode] = useState<"pro" | "celular">("celular");
+  const [sourceMode, setSourceMode] = useState<"pro" | "celular">("pro");
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -144,25 +144,7 @@ const StreamSetupCard = ({
 
       <div className="space-y-2.5">
         <div className="flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-400/10 p-2">
-          <button
-            type="button"
-            className={`rounded-md px-3 py-1 text-xs ${sourceMode === "pro" ? "bg-cyan-500/35 text-cyan-50" : "text-cyan-200"}`}
-            onClick={() => {
-              setSourceMode("pro");
-              disableCamera();
-            }}
-          >
-            Modo Pro
-          </button>
-          <button
-            type="button"
-            className={`rounded-md px-3 py-1 text-xs ${
-              sourceMode === "celular" ? "bg-cyan-500/35 text-cyan-50" : "text-cyan-200"
-            }`}
-            onClick={() => setSourceMode("celular")}
-          >
-            Live desde Camara
-          </button>
+          <span className="rounded-md bg-cyan-500/35 px-3 py-1 text-xs text-cyan-50">Modo Pro</span>
         </div>
         <Input
           value={title}
