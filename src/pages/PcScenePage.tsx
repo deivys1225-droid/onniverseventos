@@ -13,6 +13,7 @@ const PcScenePage = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [liveStatus, setLiveStatus] = useState<"idle" | "starting" | "live">("idle");
   const [activeStreamKey, setActiveStreamKey] = useState<string | null>(null);
+  const [liveMessage, setLiveMessage] = useState<string>("");
   const whipHandleRef = useRef<WhipPublisherHandle | null>(null);
 
   useEffect(() => {
@@ -63,12 +64,14 @@ const PcScenePage = () => {
     if (liveStatus !== "idle") return;
 
     setLiveStatus("starting");
+    setLiveMessage("Conectando API KEY de Livepeer...");
     try {
       const streamTitle =
         (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
         user.email?.split("@")[0] ||
         "Live PC";
       const live = await createLivepeerStreamViaEdge(`${streamTitle} en vivo PC`);
+      setLiveMessage("API KEY lista. Iniciando transmision...");
 
       const publisher = await startLivepeerWhipPublisher({
         mediaStream: cameraStream,
@@ -94,11 +97,13 @@ const PcScenePage = () => {
 
       setActiveStreamKey(live.streamKey);
       setLiveStatus("live");
+      setLiveMessage("En vivo");
       toast.success("LIVE activo. Marketplace actualizado.");
     } catch (error) {
       whipHandleRef.current?.stop();
       whipHandleRef.current = null;
       setLiveStatus("idle");
+      setLiveMessage(error instanceof Error ? error.message : "No se pudo iniciar LIVE desde PC.");
       toast.error(error instanceof Error ? error.message : "No se pudo iniciar LIVE desde PC.");
     }
   };
@@ -117,7 +122,13 @@ const PcScenePage = () => {
         />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
           <div className="pointer-events-auto relative w-full max-w-[16rem] rounded-3xl border border-white/25 bg-white/10 p-2 shadow-[0_0_60px_-18px_rgba(56,189,248,0.8)] backdrop-blur-xl">
-            <div className="overflow-hidden rounded-2xl border border-cyan-300/30 bg-black/55">
+            <div
+              className={`overflow-hidden rounded-2xl border bg-black/55 ${
+                liveStatus === "live"
+                  ? "border-amber-300/80 shadow-[0_0_34px_-6px_rgba(250,204,21,1)]"
+                  : "border-cyan-300/30"
+              }`}
+            >
               {cameraStream ? (
                 <video
                   autoPlay
@@ -135,6 +146,19 @@ const PcScenePage = () => {
                 </div>
               )}
             </div>
+            {liveMessage && (
+              <div
+                className={`mt-2 rounded-xl px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-[0.14em] ${
+                  liveStatus === "live"
+                    ? "border border-amber-300/60 bg-amber-300/15 text-amber-100"
+                    : liveStatus === "starting"
+                    ? "border border-cyan-300/50 bg-cyan-500/12 text-cyan-100"
+                    : "border border-rose-300/50 bg-rose-500/12 text-rose-100"
+                }`}
+              >
+                {liveMessage}
+              </div>
+            )}
             <div className="absolute -right-[3.5rem] top-[32%] flex -translate-y-1/2 flex-col gap-2">
               <button
                 type="button"
