@@ -4,7 +4,9 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
+// base relativo: obligatorio para que assets carguen en WebView (file://) con Capacitor.
 export default defineConfig(({ mode }) => ({
+  base: "./",
   server: {
     host: "::",
     port: 5173,

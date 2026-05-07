@@ -4,13 +4,16 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 
+import androidx.core.splashscreen.SplashScreen;
+
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
   @Override
   protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
+    SplashScreen.installSplashScreen(this);
     registerPlugin(LiveStreamingPlugin.class);
+    super.onCreate(savedInstanceState);
     routeTransmitDeepLink(getIntent());
   }
 
@@ -23,6 +26,10 @@ public class MainActivity extends BridgeActivity {
 
   private void routeTransmitDeepLink(Intent intent) {
     if (intent == null) return;
+    // Icono del launcher: siempre web primero; no saltar a pantalla nativa aunque el OEM adjunte datos raros.
+    if (Intent.ACTION_MAIN.equals(intent.getAction()) && intent.hasCategory(Intent.CATEGORY_LAUNCHER)) {
+      return;
+    }
     Uri data = intent.getData();
     if (data == null) return;
 
@@ -31,6 +38,9 @@ public class MainActivity extends BridgeActivity {
       && "vivevr.vercel.app".equalsIgnoreCase(data.getHost())
       && data.getPath() != null
       && data.getPath().startsWith("/transmitir")) {
+      key = data.getQueryParameter("key");
+    } else if ("onniverso".equalsIgnoreCase(data.getScheme())
+      && "transmitir".equalsIgnoreCase(data.getHost())) {
       key = data.getQueryParameter("key");
     } else if ("onniverso".equalsIgnoreCase(data.getScheme())
       && "open".equalsIgnoreCase(data.getHost())) {

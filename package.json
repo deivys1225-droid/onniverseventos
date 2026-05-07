@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "export": "vite build",
     "build:dev": "vite build --mode development",
+    "sync:android": "npm run build && npx cap sync android",
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy:livepeer-fn": "npx --yes supabase@latest functions deploy livepeer-create-stream --project-ref rwyhakcsvdbsavignogh",
