@@ -36,6 +36,13 @@
                     android:host="vivevr.vercel.app"
                     android:pathPrefix="/live/" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".LiveStreamingActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.NoActionBar"
+            android:label="@string/title_activity_live_streaming">
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -45,14 +52,7 @@
                     android:host="vivevr.vercel.app"
                     android:pathPrefix="/transmitir" />
             </intent-filter>
-
         </activity>
-        <activity
-            android:name=".LiveStreamingActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme.NoActionBar"
-            android:label="@string/title_activity_live_streaming" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

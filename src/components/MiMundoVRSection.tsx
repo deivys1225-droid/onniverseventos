@@ -1291,9 +1291,11 @@ const MiMundoVRSection = ({
       const transmitUrl = `https://vivevr.vercel.app/transmitir?key=${encodeURIComponent(lp.streamKey)}`;
       if (Capacitor.isNativePlatform()) {
         try {
-          await CapacitorApp.openUrl({ url: transmitUrl });
-        } catch {
+          // En Android nativo abrimos directo la Activity para evitar desvíos de routing.
           await startNativeLiveStreaming(lp.streamKey);
+        } catch {
+          // Fallback: deep link/app link por si el plugin aún no está sincronizado.
+          await CapacitorApp.openUrl({ url: transmitUrl });
         }
       } else {
         window.location.href = transmitUrl;

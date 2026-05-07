@@ -26,7 +26,6 @@ import RegisterPage from "./pages/RegisterPage.tsx";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
 import LivePlaybackPage from "./pages/LivePlaybackPage.tsx";
 import TransmitirPage from "./pages/TransmitirPage.tsx";
-import FloatingLivePreview from "@/components/FloatingLivePreview";
 
 const queryClient = new QueryClient();
 
@@ -36,7 +35,6 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <FloatingLivePreview />
         <BrowserRouter>
           <Routes>
             {/* Portada pública: Mundial VR + navbar (sin login obligatorio) */}

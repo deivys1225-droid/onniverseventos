@@ -27,6 +27,7 @@ public class LiveStreamingActivity extends AppCompatActivity implements ConnectC
   private static final String STOPPED_REDIRECT_URL = "https://vivevr.vercel.app/transmitir?stopped=1";
 
   private SurfaceView surfaceView;
+  private FloatingActionButton startButton;
   private RtmpCamera2 rtmpCamera2;
   private boolean canStartPreview = false;
   private String pendingStreamKey;
@@ -37,13 +38,15 @@ public class LiveStreamingActivity extends AppCompatActivity implements ConnectC
     setContentView(R.layout.activity_live_streaming);
 
     surfaceView = findViewById(R.id.svPreview);
+    startButton = findViewById(R.id.btnStartStreaming);
     FloatingActionButton closeButton = findViewById(R.id.btnCloseStreaming);
     closeButton.setOnClickListener(v -> finish());
+    startButton.setOnClickListener(v -> startFromPendingKey());
 
     surfaceView.getHolder().addCallback(this);
     rtmpCamera2 = new RtmpCamera2(surfaceView, this);
 
-    pendingStreamKey = getIntent().getStringExtra(EXTRA_STREAM_KEY);
+    pendingStreamKey = readStreamKeyFromIntent(getIntent());
     if (!hasRequiredPermissions()) {
       requestRequiredPermissions();
     } else {
@@ -89,11 +92,26 @@ public class LiveStreamingActivity extends AppCompatActivity implements ConnectC
     if (!rtmpCamera2.isOnPreview()) {
       rtmpCamera2.startPreview();
     }
-    if (pendingStreamKey != null && !pendingStreamKey.trim().isEmpty() && !rtmpCamera2.isStreaming()) {
-      String key = pendingStreamKey;
-      pendingStreamKey = null;
-      startStream(key);
+  }
+
+  private void startFromPendingKey() {
+    if (pendingStreamKey == null || pendingStreamKey.trim().isEmpty()) {
+      Toast.makeText(this, "No se recibio stream key en el link", Toast.LENGTH_LONG).show();
+      return;
     }
+    startStream(pendingStreamKey);
+  }
+
+  private String readStreamKeyFromIntent(Intent intent) {
+    String byExtra = intent.getStringExtra(EXTRA_STREAM_KEY);
+    if (byExtra != null && !byExtra.trim().isEmpty()) return byExtra.trim();
+
+    Uri data = intent.getData();
+    if (data != null) {
+      String key = data.getQueryParameter("key");
+      if (key != null && !key.trim().isEmpty()) return key.trim();
+    }
+    return null;
   }
 
   private void stopStreamAndPreview() {
@@ -167,12 +185,12 @@ public class LiveStreamingActivity extends AppCompatActivity implements ConnectC
 
   @Override
   public void onConnectionStartedRtmp(@NonNull String rtmpUrl) {
-    runOnUiThread(() -> Toast.makeText(this, "Conectando a Livepeer...", Toast.LENGTH_SHORT).show());
+    // No-op
   }
 
   @Override
   public void onConnectionSuccessRtmp() {
-    runOnUiThread(() -> Toast.makeText(this, "Transmision en vivo", Toast.LENGTH_SHORT).show());
+    // No-op
   }
 
   @Override
@@ -188,7 +206,7 @@ public class LiveStreamingActivity extends AppCompatActivity implements ConnectC
 
   @Override
   public void onDisconnectRtmp() {
-    runOnUiThread(() -> Toast.makeText(this, "Transmision detenida", Toast.LENGTH_SHORT).show());
+    // No-op
   }
 
   @Override
@@ -198,6 +216,6 @@ public class LiveStreamingActivity extends AppCompatActivity implements ConnectC
 
   @Override
   public void onAuthSuccessRtmp() {
-    runOnUiThread(() -> Toast.makeText(this, "Autenticacion RTMP correcta", Toast.LENGTH_SHORT).show());
+    // No-op
   }
 }

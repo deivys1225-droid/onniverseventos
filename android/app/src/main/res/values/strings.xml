@@ -4,6 +4,7 @@
     <string name="title_activity_main">ViveVR</string>
     <string name="title_activity_live_streaming">Live Streaming</string>
     <string name="live_streaming_close">Cerrar transmision</string>
+    <string name="live_streaming_start">Iniciar stream</string>
     <string name="package_name">com.vivevr.app</string>
     <string name="custom_url_scheme">com.vivevr.app</string>
 </resources>
