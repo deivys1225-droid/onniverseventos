@@ -30,6 +30,8 @@ import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
 import VaultCard from "@/components/VaultCard";
 import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
 import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
+import { startActiveStream } from "@/lib/activeStreams";
+import { updateProfileLiveState } from "@/lib/profile";
 import { detectDeviceKind } from "@/lib/deviceDetection";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
@@ -1288,6 +1290,21 @@ const MiMundoVRSection = ({
     setProfileSaving(true);
     try {
       const live = await createLivepeerStreamViaEdge(`${cardDisplayName} en vivo`);
+      await startActiveStream({
+        userId: user.id,
+        streamUrl: live.ingestRtmp,
+        title: `${cardDisplayName} en vivo`,
+        category: "Social",
+        privacyMode: "publico",
+        playbackUrl: live.playbackUrl,
+        playbackId: live.playbackId,
+      });
+      await updateProfileLiveState({
+        userId: user.id,
+        isLive: true,
+        streamKey: live.streamKey,
+        playbackId: live.playbackId,
+      });
       const deviceKind = detectDeviceKind();
       if (deviceKind === "mobile") {
         setIsUserLive(true);

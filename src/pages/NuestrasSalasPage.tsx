@@ -50,6 +50,14 @@ const SectionHeader = ({
   </motion.div>
 );
 
+function resolveStreamPlaybackId(stream?: { playbackUrl: string | null; playbackId: string | null }): string | null {
+  const direct = stream?.playbackId?.trim();
+  if (direct) return direct;
+  const fromUrl = stream?.playbackUrl?.trim() ?? "";
+  const match = fromUrl.match(/\/hls\/([^/]+)\//i);
+  return match?.[1] ?? null;
+}
+
 const NuestrasSalasPage = () => {
   const { user } = useAuth();
   const [communityProfiles, setCommunityProfiles] = useState<
@@ -194,23 +202,26 @@ const NuestrasSalasPage = () => {
 
   const communityRooms = useMemo(
     () =>
-      communityProfiles.map((profile) => ({
-        id: `community-${profile.id}`,
-        profileUserId: profile.id,
-        name: profile.name,
-        image: profile.avatarUrl?.trim() || "/placeholder.svg",
-        liveStatus: profile.liveStatus,
-        subtitle: "Comunidad Onniverso",
-        description: "Nuevo creador registrado en la plataforma.",
-        status:
-          activeStreamsByUser[profile.id]?.isLive ||
-          profile.isLive ||
-          profile.liveStatus.trim().toLowerCase() === "en vivo"
-            ? "En Vivo"
-            : "",
-        to: "/inicio",
-        type: "community" as const,
-      })),
+      communityProfiles.map((profile) => {
+        const stream = activeStreamsByUser[profile.id];
+        const playbackIdFromStream = resolveStreamPlaybackId(stream);
+        const hlsForCard =
+          stream?.playbackUrl?.trim() ||
+          (playbackIdFromStream ? livepeerPublicHlsUrl(playbackIdFromStream) : null);
+        const reallyLive = Boolean(stream?.isLive && hlsForCard);
+        return {
+          id: `community-${profile.id}`,
+          profileUserId: profile.id,
+          name: profile.name,
+          image: profile.avatarUrl?.trim() || "/placeholder.svg",
+          liveStatus: profile.liveStatus,
+          subtitle: "Comunidad Onniverso",
+          description: "Nuevo creador registrado en la plataforma.",
+          status: reallyLive ? "En Vivo" : "",
+          to: "/inicio",
+          type: "community" as const,
+        };
+      }),
     [activeStreamsByUser, communityProfiles],
   );
 
@@ -218,25 +229,16 @@ const NuestrasSalasPage = () => {
     setPaidCommunityRooms((prev) => ({ ...prev, [roomId]: true }));
     window.location.href = roomTo;
   };
-  const resolvePlaybackId = (stream?: { playbackUrl: string | null; playbackId: string | null }) => {
-    const direct = stream?.playbackId?.trim();
-    if (direct) return direct;
-    const fromUrl = stream?.playbackUrl?.trim() ?? "";
-    const match = fromUrl.match(/\/hls\/([^/]+)\//i);
-    return match?.[1] ?? null;
-  };
-  const openLiveByDevice = (playbackId: string, title: string, hlsUrl?: string | null) => {
+  const openLiveByDevice = (sourcePlaybackId: string | null, title: string, hlsUrl?: string | null) => {
+    const source = sourcePlaybackId?.trim() || hlsUrl?.trim() || "";
+    if (!source) return;
     if (isMobileDevice) {
-      // Mantener la misma logica de perfiles premium: onniverso://open?url=...
-      if (hlsUrl) {
-        window.location.href = onniverseDeepLink(hlsUrl);
-      } else {
-        const fallbackWatchUrl = livepeerPublicHlsUrl(playbackId);
-        window.location.href = onniverseDeepLink(fallbackWatchUrl);
-      }
+      const urlToOpen =
+        hlsUrl?.trim() || (source.includes("://") ? source : livepeerPublicHlsUrl(source));
+      window.location.href = onniverseDeepLink(urlToOpen);
       return;
     }
-    setViewerPlaybackId(playbackId);
+    setViewerPlaybackId(source);
     setViewerTitle(title);
   };
 
@@ -397,18 +399,16 @@ const NuestrasSalasPage = () => {
                   >
                     {(() => {
                       const stream = activeStreamsByUser[room.profileUserId];
-                      const profileLooksLive = room.liveStatus.trim().toLowerCase() === "en vivo";
-                      const requiresTicket = Boolean(stream?.isLive && stream.privacyMode === "privado_ticket");
-                      const isLiveNow = Boolean(stream?.isLive || profileLooksLive);
-                      const isPublicLive = Boolean(
-                        (stream?.isLive && stream.privacyMode === "publico") || (!stream?.isLive && profileLooksLive),
-                      );
-                      const paid = paidCommunityRooms[room.id] === true;
-                      const playbackId = resolvePlaybackId(stream);
+                      const playbackId = resolveStreamPlaybackId(stream);
                       const storedHls = stream?.playbackUrl?.trim() || null;
                       const hlsUrl = storedHls ?? (playbackId ? livepeerPublicHlsUrl(playbackId) : null);
+                      const hasWatchable = Boolean(stream?.isLive && hlsUrl);
+                      const requiresTicket = Boolean(stream?.isLive && stream.privacyMode === "privado_ticket");
+                      const isLiveNow = Boolean(hasWatchable || (stream?.isLive && requiresTicket));
+                      const isPublicLive = Boolean(stream?.isLive && stream.privacyMode === "publico" && hasWatchable);
+                      const paid = paidCommunityRooms[room.id] === true;
                       const appLiveHref = hlsUrl ? onniverseDeepLink(hlsUrl) : null;
-                      const liveCard = isPublicLive && Boolean(playbackId);
+                      const liveCard = isPublicLive && Boolean(hlsUrl);
                       const CardTag = liveCard ? "button" : "div";
 
                       return (
@@ -501,7 +501,6 @@ const NuestrasSalasPage = () => {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (!playbackId) return;
                                     openLiveByDevice(playbackId, room.name, hlsUrl);
                                   }}
                                 >

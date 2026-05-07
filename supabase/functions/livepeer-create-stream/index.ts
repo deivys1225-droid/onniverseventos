@@ -134,8 +134,6 @@ Deno.serve(async (req) => {
     const profileUpdatePayload = {
       stream_key: streamKey,
       playback_id: playbackId,
-      is_live: true,
-      live_status: "En Vivo",
       updated_at: new Date().toISOString(),
     };
     const { error: profileError } = await admin
