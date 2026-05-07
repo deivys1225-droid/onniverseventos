@@ -1,7 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Hls from "hls.js";
-import { resolveLivepeerPlayerMedia } from "@/lib/livepeerPlayback";
+import {
+  extractPlaybackIdFromHlsUrl,
+  livepeerHlsAlternateCdnUrl,
+  livepeerHlsUrlCandidates,
+  resolveLivepeerPlayerMedia,
+  type ResolvedPlayerMedia,
+} from "@/lib/livepeerPlayback";
 
 interface LivepeerPlayerProps {
   /** Id de playback Livepeer, URL .m3u8, o URL de vídeo (p. ej. MP4). */
@@ -15,22 +21,68 @@ export const livepeerWatchUrl = (playbackId: string) =>
 
 type Strategy = "native_hls" | "hlsjs" | "iframe";
 
-const LIVE_STALL_MS = 12_000;
+const LIVE_STALL_MS = 18_000;
+
+function buildHlsCandidates(resolved: Extract<ResolvedPlayerMedia, { kind: "hls" }>): string[] {
+  const seen = new Set<string>();
+  const add = (u: string) => {
+    const t = u.trim();
+    if (t) seen.add(t);
+  };
+  add(resolved.url);
+  const alt = livepeerHlsAlternateCdnUrl(resolved.url);
+  if (alt) add(alt);
+  if (resolved.lvprPlaybackId) {
+    for (const u of livepeerHlsUrlCandidates(resolved.lvprPlaybackId)) {
+      add(u);
+    }
+  } else {
+    const extracted = extractPlaybackIdFromHlsUrl(resolved.url);
+    if (extracted) {
+      for (const u of livepeerHlsUrlCandidates(extracted)) {
+        add(u);
+      }
+    }
+  }
+  return Array.from(seen);
+}
+
+function browserSupportsNativeHls(): boolean {
+  if (typeof document === "undefined") return false;
+  const v = document.createElement("video");
+  return (
+    v.canPlayType("application/vnd.apple.mpegurl") !== "" ||
+    v.canPlayType("application/x-mpegURL") !== ""
+  );
+}
 
 const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const stallTimerRef = useRef<number | null>(null);
-  const [strategy, setStrategy] = useState<Strategy>("native_hls");
-  const resolved = resolveLivepeerPlayerMedia(playbackId);
-
+  const hlsCandidateIndexRef = useRef(0);
+  const [strategy, setStrategy] = useState<Strategy>("hlsjs");
+  const resolved = useMemo(() => resolveLivepeerPlayerMedia(playbackId), [playbackId]);
+  const hlsCandidates = useMemo(() => {
+    if (resolved?.kind !== "hls") return [];
+    return buildHlsCandidates(resolved);
+  }, [resolved]);
+  const primaryHlsUrl = hlsCandidates[0] ?? "";
   const isProgressive = resolved?.kind === "progressive";
-  const hlsUrl = resolved?.kind === "hls" ? resolved.url : "";
   const lvprId = resolved?.kind === "hls" ? resolved.lvprPlaybackId : null;
-  const openExternal = lvprId ? livepeerWatchUrl(lvprId) : hlsUrl || "";
+  const openExternal =
+    lvprId != null && lvprId !== ""
+      ? livepeerWatchUrl(lvprId)
+      : primaryHlsUrl || "";
 
   useEffect(() => {
-    if (resolved?.kind === "hls") {
+    if (resolved?.kind !== "hls") return;
+    hlsCandidateIndexRef.current = 0;
+    if (browserSupportsNativeHls()) {
       setStrategy("native_hls");
+    } else if (Hls.isSupported()) {
+      setStrategy("hlsjs");
+    } else {
+      setStrategy("iframe");
     }
   }, [playbackId, resolved?.kind]);
 
@@ -68,11 +120,14 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
       } catch {
         /* ignore */
       }
-      if (!cancelled) setStrategy("hlsjs");
+      if (!cancelled) {
+        if (Hls.isSupported()) setStrategy("hlsjs");
+        else setStrategy("iframe");
+      }
     };
 
     if (strategy === "native_hls") {
-      video.src = hlsUrl;
+      video.src = primaryHlsUrl;
 
       let played = false;
       const bumpStallGuard = () => {
@@ -111,15 +166,33 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
       }
 
       const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
+        enableWorker: false,
+        lowLatencyMode: true,
+        manifestLoadingTimeOut: 25_000,
+        manifestLoadingMaxRetry: 5,
+        levelLoadingTimeOut: 25_000,
+        fragLoadingTimeOut: 25_000,
       });
+
+      hlsCandidateIndexRef.current = 0;
+      const firstUrl = hlsCandidates[hlsCandidateIndexRef.current] ?? primaryHlsUrl;
 
       let played = false;
       const bumpStallGuardJs = () => {
         clearStallTimer();
         stallTimerRef.current = window.setTimeout(() => {
           if (cancelled || played) return;
+          hlsCandidateIndexRef.current += 1;
+          if (hlsCandidateIndexRef.current < hlsCandidates.length) {
+            try {
+              hls.loadSource(hlsCandidates[hlsCandidateIndexRef.current]!);
+              hls.startLoad();
+            } catch {
+              /* ignore */
+            }
+            bumpStallGuardJs();
+            return;
+          }
           try {
             hls.destroy();
           } catch {
@@ -129,7 +202,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
         }, LIVE_STALL_MS);
       };
 
-      hls.loadSource(hlsUrl);
+      hls.loadSource(firstUrl);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         bumpStallGuardJs();
@@ -137,6 +210,17 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
       });
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (!data.fatal) return;
+        hlsCandidateIndexRef.current += 1;
+        if (hlsCandidateIndexRef.current < hlsCandidates.length) {
+          try {
+            hls.loadSource(hlsCandidates[hlsCandidateIndexRef.current]!);
+            hls.startLoad();
+          } catch {
+            hls.destroy();
+            if (!cancelled) setStrategy("iframe");
+          }
+          return;
+        }
         hls.destroy();
         if (!cancelled) setStrategy("iframe");
       });
@@ -157,18 +241,16 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
     }
 
     return undefined;
-  }, [playbackId, hlsUrl, strategy, resolved]);
+  }, [playbackId, primaryHlsUrl, strategy, resolved, hlsCandidates]);
 
   useEffect(() => {
     if (!isProgressive || !resolved) return undefined;
     const video = videoRef.current;
     if (!video) return undefined;
-    let cancelled = false;
     video.playsInline = true;
     video.src = resolved.url;
     void video.play().catch(() => {});
     return () => {
-      cancelled = true;
       try {
         video.removeAttribute("src");
         video.load();
@@ -208,11 +290,11 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
             />
-          ) : strategy === "iframe" && !lvprId && hlsUrl ? (
+          ) : strategy === "iframe" && !lvprId && primaryHlsUrl ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted-foreground">
               <p>No se pudo iniciar HLS en este navegador.</p>
               <a
-                href={hlsUrl}
+                href={primaryHlsUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="font-medium text-primary underline underline-offset-4"
@@ -221,7 +303,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
               </a>
             </div>
           ) : (
-            <video ref={videoRef} controls playsInline className="h-full w-full" title={title} />
+            <video ref={videoRef} controls playsInline className="h-full w-full bg-black" title={title} />
           )}
         </div>
       </div>
@@ -230,7 +312,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
         <span className="inline-flex items-center gap-2">
           <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
           {resolved.kind === "progressive" && "Reproduciendo video (MP4 / progresivo)…"}
-          {resolved.kind === "hls" && strategy === "native_hls" && "Reproduciendo HLS (nativo)…"}
+          {resolved.kind === "hls" && strategy === "native_hls" && "Reproduciendo HLS (Safari / nativo)…"}
           {resolved.kind === "hls" && strategy === "hlsjs" && "Reproduciendo HLS (motor web)…"}
           {resolved.kind === "hls" && strategy === "iframe" && lvprId && "Reproductor Livepeer incrustado…"}
           {resolved.kind === "hls" && strategy === "iframe" && !lvprId && "HLS: usa el enlace externo…"}
@@ -247,7 +329,8 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
         ) : null}
       </div>
       <p className="text-xs text-muted-foreground">
-        El HLS suele aparecer varios segundos después de pulsar «Iniciar live» en el celular que transmite.
+        Si acabas de iniciar la emision, espera 10–30 s: el manifest HLS puede tardar. En Android suele funcionar
+        mejor el motor HLS (no el video nativo).
       </p>
     </motion.div>
   );
