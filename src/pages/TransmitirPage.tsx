@@ -6,6 +6,7 @@ import { startNativeLiveStreaming } from "@/lib/liveStreamingNative";
 import { stopMyActiveStream } from "@/lib/activeStreams";
 import { updateProfileLiveState } from "@/lib/profile";
 import { useAuth } from "@/hooks/useAuth";
+import { getErrorMessage } from "@/lib/errors";
 
 const TransmitirPage = () => {
   const { user } = useAuth();
@@ -52,7 +53,7 @@ const TransmitirPage = () => {
         navigate("/inicio", { replace: true });
       })
       .catch((error: unknown) => {
-        toast.error(error instanceof Error ? error.message : "No se pudo abrir transmisión nativa.");
+        toast.error(getErrorMessage(error, "No se pudo abrir transmisión nativa."));
         navigate("/inicio", { replace: true });
       });
   }, [navigate, stoppedFlag, streamKey, user]);

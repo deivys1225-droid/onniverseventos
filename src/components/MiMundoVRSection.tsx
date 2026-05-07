@@ -27,16 +27,14 @@ import ChatWindow from "@/components/ChatWindow";
 import { supabase } from "@/integrations/supabase/client";
 import FriendPicker, { type FriendCandidate } from "@/components/FriendPicker";
 import SearchHub from "@/components/SearchHub";
-import StreamSetupCard, { type StreamSetupPayload } from "@/components/StreamSetupCard";
-import { startActiveStream, stopMyActiveStream } from "@/lib/activeStreams";
+import { startActiveStream } from "@/lib/activeStreams";
 import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
-import { startLivepeerWhipPublisher, type WhipPublisherHandle } from "@/lib/livepeerWhip";
-import { setLivePreviewStream } from "@/lib/livePreviewBus";
 import StorePublishCard, { type StorePublishPayload } from "@/components/StorePublishCard";
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
 import VaultCard from "@/components/VaultCard";
 import { startNativeLiveStreaming } from "@/lib/liveStreamingNative";
 import { updateProfileLiveState } from "@/lib/profile";
+import { getErrorMessage } from "@/lib/errors";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -124,10 +122,8 @@ function MoonScreenCluster({
   vrMirrorFlat,
   onOpenVault,
   onOpenLiveRequest,
-  onOpenStreamSetup,
   onOpenStoreSetup,
   onCollapseScreens,
-  cameraPreviewStream,
   isUserLive,
 }: {
   visible: boolean;
@@ -135,10 +131,8 @@ function MoonScreenCluster({
   vrMirrorFlat: boolean;
   onOpenVault?: () => void;
   onOpenLiveRequest?: () => void;
-  onOpenStreamSetup?: () => void;
   onOpenStoreSetup?: (itemType: "biblioteca" | "cursos") => void;
   onCollapseScreens?: () => void;
-  cameraPreviewStream?: MediaStream | null;
   isUserLive?: boolean;
 }) {
   const clusterRef = useRef<THREE.Group>(null);
@@ -420,34 +414,6 @@ function MoonScreenCluster({
     return texture;
   }, []);
 
-  const [cameraTexture, setCameraTexture] = useState<THREE.VideoTexture | null>(null);
-  useEffect(() => {
-    if (!cameraPreviewStream) {
-      setCameraTexture((prev) => {
-        prev?.dispose();
-        return null;
-      });
-      return;
-    }
-    const video = document.createElement("video");
-    video.srcObject = cameraPreviewStream;
-    video.muted = true;
-    video.playsInline = true;
-    video.autoplay = true;
-    void video.play().catch(() => undefined);
-    const texture = new THREE.VideoTexture(video);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    setCameraTexture((prev) => {
-      prev?.dispose();
-      return texture;
-    });
-    return () => {
-      texture.dispose();
-      video.pause();
-    };
-  }, [cameraPreviewStream]);
 
   const infoTexture = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -577,9 +543,8 @@ function MoonScreenCluster({
       liveCardTexture?.dispose();
       infoTexture?.dispose();
       offlineTexture?.dispose();
-      cameraTexture?.dispose();
     };
-  }, [cameraTexture, infoTexture, liveCardTexture, offlineTexture, socialTexture, systemTexture]);
+  }, [infoTexture, liveCardTexture, offlineTexture, socialTexture, systemTexture]);
 
   useFrame((_, delta) => {
     if (!clusterRef.current) return;
@@ -670,10 +635,6 @@ function MoonScreenCluster({
         <Billboard position={[1.35, 0.18, 0]} follow>
           <mesh
             renderOrder={6}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-              onOpenStreamSetup?.();
-            }}
             onDoubleClick={(event) => {
               event.stopPropagation();
               onCollapseScreens?.();
@@ -681,7 +642,7 @@ function MoonScreenCluster({
           >
             <planeGeometry args={[3, 1.8]} />
             <meshBasicMaterial
-              map={cameraTexture ?? (isUserLive ? systemTexture : offlineTexture) ?? undefined}
+              map={(isUserLive ? systemTexture : offlineTexture) ?? undefined}
               toneMapped={false}
               side={THREE.DoubleSide}
               transparent
@@ -765,10 +726,6 @@ function MoonScreenCluster({
         position={[1.35, 0.18, 0]}
         rotation={[0, Math.PI / 2, 0]}
         renderOrder={6}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          onOpenStreamSetup?.();
-        }}
         onDoubleClick={(event) => {
           event.stopPropagation();
           onCollapseScreens?.();
@@ -776,7 +733,7 @@ function MoonScreenCluster({
       >
         <planeGeometry args={[3, 1.8]} />
         <meshBasicMaterial
-          map={cameraTexture ?? (isUserLive ? systemTexture : offlineTexture) ?? undefined}
+          map={(isUserLive ? systemTexture : offlineTexture) ?? undefined}
           toneMapped={false}
           side={THREE.DoubleSide}
           transparent
@@ -1124,15 +1081,11 @@ const MiMundoVRSection = ({
   const [moonScreensVisible, setMoonScreensVisible] = useState(false);
   const [liveRequestOpen, setLiveRequestOpen] = useState(false);
   const [liveRequestSaving, setLiveRequestSaving] = useState(false);
-  const [streamSetupOpen, setStreamSetupOpen] = useState(false);
-  const [streamSaving, setStreamSaving] = useState(false);
   const [storeSetupOpen, setStoreSetupOpen] = useState(false);
   const [storeSetupType, setStoreSetupType] = useState<"biblioteca" | "cursos">("biblioteca");
   const [storePublishing, setStorePublishing] = useState(false);
   const [vaultOpen, setVaultOpen] = useState(false);
   const [isUserLive, setIsUserLive] = useState(false);
-  const [cameraPreviewStream, setCameraPreviewStream] = useState<MediaStream | null>(null);
-  const whipPublisherRef = useRef<WhipPublisherHandle | null>(null);
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const [activeChat, setActiveChat] = useState<{ friendshipId: string; friendName: string } | null>(null);
   const [friendCandidates, setFriendCandidates] = useState<FriendCandidate[]>([]);
@@ -1250,9 +1203,6 @@ const MiMundoVRSection = ({
     if (!moonScreensVisible) setLiveRequestOpen(false);
   }, [moonScreensVisible]);
   useEffect(() => {
-    if (!moonScreensVisible) setStreamSetupOpen(false);
-  }, [moonScreensVisible]);
-  useEffect(() => {
     if (!moonScreensVisible) setVaultOpen(false);
   }, [moonScreensVisible]);
   useEffect(() => {
@@ -1261,16 +1211,6 @@ const MiMundoVRSection = ({
       setStoreSetupType("biblioteca");
     }
   }, [moonScreensVisible]);
-  useEffect(() => {
-    if (!streamSetupOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setStreamSetupOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [streamSetupOpen]);
 
   const onOrbitEnd = (event: { target?: { object?: THREE.Camera; target?: THREE.Vector3 } }) => {
     if (typeof window === "undefined") return;
@@ -1296,86 +1236,6 @@ const MiMundoVRSection = ({
     };
     void loadLive();
   }, [user]);
-  useEffect(() => {
-    setLivePreviewStream(cameraPreviewStream);
-  }, [cameraPreviewStream]);
-
-  const onStreamSubmit = async (payload: StreamSetupPayload) => {
-    if (!user) {
-      toast.error("Debes iniciar sesion para transmitir.");
-      return;
-    }
-    setStreamSaving(true);
-    try {
-      if (payload.sourceMode === "celular") {
-        const sourceStream = cameraPreviewStream;
-        if (!sourceStream) {
-          toast.error("Activa la camara antes de iniciar el Live.");
-          return;
-        }
-        whipPublisherRef.current?.stop();
-        whipPublisherRef.current = null;
-        const lp = await createLivepeerStreamViaEdge(payload.title);
-        try {
-          whipPublisherRef.current = await startLivepeerWhipPublisher({
-            mediaStream: sourceStream,
-            streamKey: lp.streamKey,
-            whipUrl: lp.whipUrl,
-          });
-          await startActiveStream({
-            userId: user.id,
-            streamUrl: lp.ingestRtmp,
-            title: payload.title,
-            category: payload.category,
-            privacyMode: payload.privacy,
-            ticketPrice: payload.ticketPrice,
-            playbackUrl: lp.playbackUrl,
-            playbackId: lp.playbackId,
-          });
-        } catch (inner) {
-          whipPublisherRef.current?.stop();
-          whipPublisherRef.current = null;
-          throw inner;
-        }
-      } else {
-        const streamUrl = payload.streamUrl.trim();
-        if (/^rtmps?:\/\//i.test(streamUrl)) {
-          throw new Error(
-            "Modo Pro requiere URL de reproduccion (HLS .m3u8), no URL de ingest RTMP. Si usas OBS, pega la URL HLS final.",
-          );
-        }
-        const playbackGuess =
-          /^https?:\/\//i.test(streamUrl) && /\.m3u8(\?|$)/i.test(streamUrl) ? streamUrl : null;
-        await startActiveStream({
-          userId: user.id,
-          streamUrl,
-          title: payload.title,
-          category: payload.category,
-          privacyMode: payload.privacy,
-          ticketPrice: payload.ticketPrice,
-          playbackUrl: playbackGuess,
-          playbackId: null,
-        });
-      }
-      setIsUserLive(true);
-      if (payload.sourceMode === "celular") {
-        toast.success("Transmisión activa en Onniverso.", {
-          description:
-            "El otro móvil puede ver negro 10-30 s al inicio: tu cámara llega por WebRTC y Livepeer traduce a HLS. Que el espectador espere o pulse otra vez «Ver live».",
-          duration: 12_000,
-        });
-      } else {
-        toast.success("Transmision activa en Onniverso.");
-      }
-      setStreamSetupOpen(false);
-      setMoonScreensVisible(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo iniciar el live.");
-    } finally {
-      setStreamSaving(false);
-    }
-  };
-
   const onStorePublish = async (payload: StorePublishPayload) => {
     if (!user) {
       toast.error("Debes iniciar sesion para publicar en tienda.");
@@ -1403,22 +1263,6 @@ const MiMundoVRSection = ({
       toast.error(error instanceof Error ? error.message : "No se pudo publicar el item.");
     } finally {
       setStorePublishing(false);
-    }
-  };
-
-  const onStopStream = async () => {
-    try {
-      whipPublisherRef.current?.stop();
-      whipPublisherRef.current = null;
-      await stopMyActiveStream();
-      if (user) {
-        await updateProfileLiveState({ userId: user.id, isLive: false, streamKey: null });
-      }
-      setIsUserLive(false);
-      toast.success("Transmision detenida.");
-      setStreamSetupOpen(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo detener el live.");
     }
   };
 
@@ -1457,7 +1301,7 @@ const MiMundoVRSection = ({
 
       toast.success("Stream creado. Abriendo transmisión en la app...");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo iniciar el flujo LIVE.");
+      toast.error(getErrorMessage(error, "No se pudo iniciar el flujo LIVE."));
     } finally {
       setProfileSaving(false);
     }
@@ -1546,13 +1390,11 @@ const MiMundoVRSection = ({
               vrMirrorFlat={vrStereoActive}
               onOpenVault={() => setVaultOpen((prev) => !prev)}
               onOpenLiveRequest={() => setLiveRequestOpen((prev) => !prev)}
-              onOpenStreamSetup={() => setStreamSetupOpen((prev) => !prev)}
               onOpenStoreSetup={(itemType) => {
                 setStoreSetupType(itemType);
                 setStoreSetupOpen(true);
               }}
               onCollapseScreens={() => setMoonScreensVisible(false)}
-              cameraPreviewStream={cameraPreviewStream}
               isUserLive={isUserLive}
             />
           </Suspense>
@@ -1606,26 +1448,6 @@ const MiMundoVRSection = ({
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-4">
           <div className="pointer-events-auto origin-center scale-[0.66] -translate-y-[clamp(3.75rem,22vh,13rem)]">
             <LiveRequestCard onSubmit={onLiveRequestSubmit} isSubmitting={liveRequestSaving} />
-          </div>
-        </div>
-      )}
-      {!vrStereoActive && moonScreensVisible && streamSetupOpen && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-end justify-end px-4 pb-16">
-          <button
-            type="button"
-            aria-label="Cerrar transmitir"
-            className="pointer-events-auto absolute inset-0"
-            onClick={() => setStreamSetupOpen(false)}
-          />
-          <div className="pointer-events-auto">
-            <StreamSetupCard
-              isSubmitting={streamSaving}
-              onSubmit={onStreamSubmit}
-              onStopLive={onStopStream}
-              isLive={isUserLive}
-              onClose={() => setStreamSetupOpen(false)}
-              onCameraStreamChange={setCameraPreviewStream}
-            />
           </div>
         </div>
       )}
