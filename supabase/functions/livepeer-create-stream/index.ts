@@ -33,30 +33,23 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  if (!supabaseUrl || !serviceRoleKey) {
-    return new Response(JSON.stringify({ error: "Supabase service credentials are not configured." }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   const authHeader = req.headers.get("Authorization") ?? req.headers.get("authorization") ?? "";
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-  if (!token) {
-    return new Response(JSON.stringify({ error: "Missing bearer token." }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
-  const { data: userData, error: userError } = await admin.auth.getUser(token);
-  const userId = userData.user?.id ?? null;
-  if (userError || !userId) {
-    return new Response(JSON.stringify({ error: "Unauthorized user token.", details: userError?.message ?? null }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  const canSyncSupabase = Boolean(supabaseUrl && serviceRoleKey && token);
+  const admin = canSyncSupabase
+    ? createClient(supabaseUrl!, serviceRoleKey!, { auth: { persistSession: false } })
+    : null;
+  let userId: string | null = null;
+  const syncWarnings: string[] = [];
+  if (!canSyncSupabase) {
+    syncWarnings.push("Supabase sync skipped (missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or bearer token).");
+  } else {
+    const { data: userData, error: userError } = await admin!.auth.getUser(token);
+    userId = userData.user?.id ?? null;
+    if (userError || !userId) {
+      syncWarnings.push(`Supabase sync skipped (invalid user token: ${userError?.message ?? "unknown"}).`);
+      userId = null;
+    }
   }
 
   let body: CreateStreamBody = {};
@@ -135,45 +128,41 @@ Deno.serve(async (req) => {
   const whipUrl = `https://playback.livepeer.studio/webrtc/${streamKey}`;
   const transmitUrl = `onniverso://transmitir?key=${encodeURIComponent(streamKey)}`;
 
-  const profileUpdatePayload = {
-    stream_key: streamKey,
-    is_live: true,
-    live_status: "En Vivo",
-    updated_at: new Date().toISOString(),
-  };
-  const { error: profileError } = await admin
-    .from("profiles")
-    .update(profileUpdatePayload as never)
-    .eq("id", userId);
-  if (profileError) {
-    return new Response(JSON.stringify({ error: "Failed to update user profile live state.", details: profileError.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  if (admin && userId) {
+    const profileUpdatePayload = {
+      stream_key: streamKey,
+      is_live: true,
+      live_status: "En Vivo",
+      updated_at: new Date().toISOString(),
+    };
+    const { error: profileError } = await admin
+      .from("profiles")
+      .update(profileUpdatePayload as never)
+      .eq("id", userId);
+    if (profileError) {
+      syncWarnings.push(`profiles update failed: ${profileError.message}`);
+    }
 
-  const { error: activeStreamError } = await admin
-    .from("active_streams")
-    .upsert(
-      {
-        user_id: userId,
-        stream_url: ingestRtmp,
-        title: streamName,
-        category: "Social",
-        is_live: true,
-        privacy_mode: "publico",
-        ticket_price: null,
-        playback_url: playbackUrl,
-        playback_id: playbackId,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
-  if (activeStreamError) {
-    return new Response(JSON.stringify({ error: "Failed to upsert active stream.", details: activeStreamError.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const { error: activeStreamError } = await admin
+      .from("active_streams")
+      .upsert(
+        {
+          user_id: userId,
+          stream_url: ingestRtmp,
+          title: streamName,
+          category: "Social",
+          is_live: true,
+          privacy_mode: "publico",
+          ticket_price: null,
+          playback_url: playbackUrl,
+          playback_id: playbackId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+    if (activeStreamError) {
+      syncWarnings.push(`active_streams upsert failed: ${activeStreamError.message}`);
+    }
   }
 
   return new Response(
@@ -185,6 +174,7 @@ Deno.serve(async (req) => {
       ingestRtmp,
       whipUrl,
       transmitUrl,
+      warnings: syncWarnings,
     }),
     {
       status: 200,
