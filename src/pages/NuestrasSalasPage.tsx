@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
-import { SALA_MP4_URL_BY_ID, livePlaybackAppLink, onniverseDeepLink } from "@/data/salaVideoUrls";
+import { SALA_MP4_URL_BY_ID, onniverseDeepLink } from "@/data/salaVideoUrls";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -407,7 +407,13 @@ const NuestrasSalasPage = () => {
                         }
                         if (isPublicLive || paid) {
                           const playbackId = stream?.playbackId?.trim() || null;
-                          const appLiveHref = playbackId ? onniverseDeepLink(livePlaybackAppLink(playbackId)) : null;
+                          const storedHls = stream?.playbackUrl?.trim() || null;
+                          const hlsUrl =
+                            storedHls ??
+                            (playbackId
+                              ? `https://livepeercdn.studio/hls/${encodeURIComponent(playbackId)}/index.m3u8`
+                              : null);
+                          const appLiveHref = hlsUrl ? onniverseDeepLink(hlsUrl) : null;
                           return (
                             appLiveHref ? (
                               <a href={appLiveHref}>
