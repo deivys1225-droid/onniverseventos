@@ -1335,6 +1335,11 @@ const MiMundoVRSection = ({
         }
       } else {
         const streamUrl = payload.streamUrl.trim();
+        if (/^rtmps?:\/\//i.test(streamUrl)) {
+          throw new Error(
+            "Modo Pro requiere URL de reproduccion (HLS .m3u8), no URL de ingest RTMP. Si usas OBS, pega la URL HLS final.",
+          );
+        }
         const playbackGuess =
           /^https?:\/\//i.test(streamUrl) && /\.m3u8(\?|$)/i.test(streamUrl) ? streamUrl : null;
         await startActiveStream({
