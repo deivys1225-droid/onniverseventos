@@ -187,7 +187,7 @@ const PcScenePage = () => {
           title: `${streamTitle} en vivo`,
           category: "Social",
           privacyMode: "publico",
-          playbackUrl: activePlaybackUrl,
+          playbackUrl: livepeerPublicHlsUrl(activePlaybackId),
           playbackId: activePlaybackId,
         });
       } catch (syncError) {
@@ -198,6 +198,7 @@ const PcScenePage = () => {
           userId: user.id,
           isLive: true,
           streamKey: activeStreamKey,
+          playbackId: activePlaybackId,
         });
       } catch (profileError) {
         throw new Error(`Sync profiles falló: ${getUnknownErrorMessage(profileError, "Error de perfil")}`);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Hls from "hls.js";
 import {
@@ -62,6 +62,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
   const stallTimerRef = useRef<number | null>(null);
   const hlsCandidateIndexRef = useRef(0);
   const [strategy, setStrategy] = useState<Strategy>("hlsjs");
+  const [awaitingLivepeerSignal, setAwaitingLivepeerSignal] = useState(false);
   const resolved = useMemo(() => resolveLivepeerPlayerMedia(playbackId), [playbackId]);
   const hlsCandidates = useMemo(() => {
     if (resolved?.kind !== "hls") return [];
@@ -87,6 +88,26 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
       setStrategy(canEmbedLvpr ? "lvpr_iframe" : "external_only");
     }
   }, [playbackId, resolved?.kind, canEmbedLvpr]);
+
+  useEffect(() => {
+    if (!resolved || resolved.kind !== "hls" || !primaryHlsUrl) return;
+    console.info("[Livepeer] manifest:", primaryHlsUrl);
+  }, [playbackId, primaryHlsUrl, resolved]);
+
+  useLayoutEffect(() => {
+    const active =
+      resolved?.kind === "hls" && (strategy === "native_hls" || strategy === "hlsjs");
+    if (!active) {
+      setAwaitingLivepeerSignal(false);
+      return;
+    }
+    setAwaitingLivepeerSignal(true);
+    const video = videoRef.current;
+    if (!video) return undefined;
+    const onPlaying = () => setAwaitingLivepeerSignal(false);
+    video.addEventListener("playing", onPlaying);
+    return () => video.removeEventListener("playing", onPlaying);
+  }, [resolved?.kind, strategy, playbackId, primaryHlsUrl]);
 
   useEffect(() => {
     let cancelled = false;
@@ -280,7 +301,7 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
       className="space-y-3"
     >
       <div className="relative overflow-hidden rounded-2xl border border-primary/20 shadow-[0_0_60px_-15px_hsl(var(--primary)/0.3)]">
-        <div className="aspect-video w-full bg-black">
+        <div className="relative aspect-video w-full bg-black">
           {resolved.kind === "progressive" ? (
             <video ref={videoRef} controls playsInline className="h-full w-full" title={title} />
           ) : strategy === "lvpr_iframe" && lvprId ? (
@@ -305,7 +326,17 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
               </a>
             </div>
           ) : (
-            <video ref={videoRef} controls playsInline className="h-full w-full bg-black" title={title} />
+            <>
+              <video ref={videoRef} controls playsInline className="h-full w-full bg-black" title={title} />
+              {awaitingLivepeerSignal ? (
+                <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/70 px-4 text-center">
+                  <p className="text-sm font-medium text-cyan-100">Buscando señal de Livepeer…</p>
+                  <p className="max-w-full truncate text-xs text-muted-foreground" title={primaryHlsUrl}>
+                    {primaryHlsUrl}
+                  </p>
+                </div>
+              ) : null}
+            </>
           )}
         </div>
       </div>
@@ -318,6 +349,10 @@ const LivepeerPlayer = ({ playbackId, title }: LivepeerPlayerProps) => {
           {resolved.kind === "hls" && strategy === "hlsjs" && "Reproduciendo HLS (motor web)…"}
           {resolved.kind === "hls" && strategy === "lvpr_iframe" && lvprId && "Reproductor Livepeer incrustado…"}
           {resolved.kind === "hls" && strategy === "external_only" && "HLS: abre el enlace externo o espera a que empiece la señal…"}
+          {resolved.kind === "hls" &&
+            (strategy === "native_hls" || strategy === "hlsjs") &&
+            awaitingLivepeerSignal &&
+            " Buscando señal de Livepeer…"}
         </span>
         {openExternal ? (
           <a

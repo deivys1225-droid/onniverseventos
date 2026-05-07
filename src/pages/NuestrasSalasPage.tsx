@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
-import { SALA_MP4_URL_BY_ID, livePlaybackAppLink, onniverseDeepLink } from "@/data/salaVideoUrls";
+import { SALA_MP4_URL_BY_ID, onniverseDeepLink, onniverseLivePlaybackDeepLink } from "@/data/salaVideoUrls";
 import { extractPlaybackIdFromHlsUrl, livepeerPublicHlsUrl, normalizePlaybackIdForLivepeer } from "@/lib/livepeerPlayback";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -242,7 +242,7 @@ const NuestrasSalasPage = () => {
     const source = sourcePlaybackId?.trim() || hlsUrl?.trim() || "";
     if (!source) return;
     if (isMobileDevice) {
-      /** App Android: App Link https://vivevr.vercel.app/live/{id} abre MainActivity + ruta /live (Capacitor). */
+      /** App nativa: onniverso://open?url=https://vivevr.vercel.app/live/{id} → Capacitor enruta a /live/:id (ver main.tsx). */
       const pid =
         sourcePlaybackId?.trim() ||
         (hlsUrl ? extractPlaybackIdFromHlsUrl(hlsUrl) : null) ||
@@ -250,7 +250,7 @@ const NuestrasSalasPage = () => {
         extractPlaybackIdFromHlsUrl(source);
       const cleanPid = pid?.trim();
       if (cleanPid && !cleanPid.includes("://") && !cleanPid.toLowerCase().endsWith(".m3u8")) {
-        window.location.href = livePlaybackAppLink(cleanPid);
+        window.location.href = onniverseLivePlaybackDeepLink(cleanPid);
         return;
       }
       const urlToOpen =
@@ -429,7 +429,7 @@ const NuestrasSalasPage = () => {
                       const paid = paidCommunityRooms[room.id] === true;
                       const appLiveHref =
                         playbackId != null && playbackId !== ""
-                          ? livePlaybackAppLink(playbackId)
+                          ? onniverseLivePlaybackDeepLink(playbackId)
                           : hlsUrl != null && hlsUrl !== ""
                             ? onniverseDeepLink(hlsUrl)
                             : null;

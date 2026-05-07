@@ -65,3 +65,13 @@ export function livePlaybackAppLink(playbackId: string): string {
   const id = normalizePlaybackIdForLivepeer(playbackId);
   return `${APP_LINK_BASE}/live/${encodeURIComponent(id || playbackId.trim())}`;
 }
+
+/**
+ * Deep link nativo: el parámetro `url` es el manifest HLS público (livepeercdn.com).
+ * main.tsx sigue pudiendo enrutar a /live/{playbackId} extrayendo el id del path.
+ */
+export function onniverseLivePlaybackDeepLink(playbackId: string): string {
+  const id = normalizePlaybackIdForLivepeer(playbackId);
+  const hls = livepeerPublicHlsUrl(id || playbackId.trim());
+  return hls ? onniverseDeepLink(hls) : onniverseDeepLink(livePlaybackAppLink(playbackId));
+}
