@@ -35,6 +35,14 @@ function MirrorSbsRoot() {
   }, []);
 
   useEffect(() => {
+    const isAllowedWebHost = (host: string): boolean => {
+      const normalizedHost = host.trim().toLowerCase();
+      if (!normalizedHost) return false;
+      if (normalizedHost === "onniverso.com" || normalizedHost === "www.onniverso.com") return true;
+      if (normalizedHost === "vivevr.vercel.app") return true;
+      return normalizedHost.endsWith(".vercel.app");
+    };
+
     const normalizeDeepLinkPath = (incomingUrl: string): string | null => {
       try {
         const u = new URL(incomingUrl);
@@ -44,7 +52,7 @@ function MirrorSbsRoot() {
           if (!inner) return null;
           try {
             const innerUrl = new URL(inner);
-            if (innerUrl.protocol === "https:" && innerUrl.hostname === "vivevr.vercel.app") {
+            if (innerUrl.protocol === "https:" && isAllowedWebHost(innerUrl.hostname)) {
               return `${innerUrl.pathname}${innerUrl.search}${innerUrl.hash}`;
             }
           } catch {
