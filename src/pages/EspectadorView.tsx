@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AgoraRTC, { type IAgoraRTCClient, type IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
-import { Globe2, Camera, PanelsTopLeft } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
-import { detectDeviceKind } from "@/lib/deviceDetection";
-import { toast } from "sonner";
 
 const APP_ID = (import.meta.env.NEXT_PUBLIC_AGORA_APP_ID as string | undefined)?.trim() ?? "";
 const AUDIENCE_TOKEN =
@@ -24,9 +21,7 @@ const EspectadorView = () => {
   const inheritedToken = (searchParams.get("token") ?? "").trim();
   const fallbackMp4 = (searchParams.get("mp4") ?? "").trim();
   const forcedMode = (searchParams.get("mode") ?? "").trim().toLowerCase();
-  const isMobileDevice = useMemo(() => detectDeviceKind() === "mobile", []);
-  const [mobileScene, setMobileScene] = useState<"360" | "mix" | "vrdiv">("360");
-  const useVodMode = (forcedMode === "vod" || (isMobileDevice && mobileScene === "mix")) && fallbackMp4.length > 0;
+  const useVodMode = forcedMode === "vod" && fallbackMp4.length > 0;
   const [status, setStatus] = useState("Listo para conectar");
   const [connecting, setConnecting] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -146,35 +141,6 @@ const EspectadorView = () => {
     void joinAudienceRoom();
   }, [joinAudienceRoom, useVodMode]);
 
-  const openInMobileApp = (scene: "360" | "mix" | "vrdiv") => {
-    const params = new URLSearchParams();
-    params.set("title", roomTitle);
-    params.set("mode", scene === "mix" ? "vod" : "live");
-    params.set("scene", scene);
-    if (inheritedToken) params.set("token", inheritedToken);
-    if (fallbackMp4) params.set("mp4", fallbackMp4);
-
-    const path = `/sala/espectador/${encodeURIComponent(channelName)}?${params.toString()}`;
-    const webUrl = `https://vivevr.vercel.app${path}`;
-    const deepLink = `onniverso://open?url=${encodeURIComponent(webUrl)}`;
-
-    window.location.href = deepLink;
-    window.setTimeout(() => {
-      navigate(path);
-    }, 1200);
-  };
-
-  const handleSceneButton = (scene: "360" | "mix" | "vrdiv") => {
-    if (!isMobileDevice) {
-      toast.info("Disponible en App Móvil");
-      return;
-    }
-    openInMobileApp(scene);
-    if (scene === "vrdiv") return;
-    setMobileScene(scene);
-    toast.success(scene === "360" ? "Modo 360° activado" : "Modo MIX activado");
-  };
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       <Navbar />
@@ -207,44 +173,9 @@ const EspectadorView = () => {
                 className="aspect-video w-full overflow-hidden rounded-xl border border-cyan-300/45 bg-black shadow-[0_0_48px_-10px_rgba(34,211,238,0.95)]"
               />
             )}
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleSceneButton("360")}
-                className={`inline-flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-[11px] font-semibold transition ${
-                  mobileScene === "360"
-                    ? "border-cyan-300/70 bg-cyan-400/15 text-cyan-100"
-                    : "border-cyan-300/30 bg-black/25 text-cyan-200 hover:border-cyan-300/55"
-                }`}
-              >
-                <Globe2 className="h-3.5 w-3.5" />
-                360°
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSceneButton("mix")}
-                className={`inline-flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-[11px] font-semibold transition ${
-                  mobileScene === "mix"
-                    ? "border-fuchsia-300/70 bg-fuchsia-400/15 text-fuchsia-100"
-                    : "border-fuchsia-300/30 bg-black/25 text-fuchsia-200 hover:border-fuchsia-300/55"
-                }`}
-              >
-                <Camera className="h-3.5 w-3.5" />
-                MIX
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSceneButton("vrdiv")}
-                className="inline-flex items-center justify-center gap-1 rounded-lg border border-amber-300/30 bg-black/25 px-2 py-2 text-[11px] font-semibold text-amber-200 transition hover:border-amber-300/55"
-              >
-                <PanelsTopLeft className="h-3.5 w-3.5" />
-                VR DIV
-              </button>
-            </div>
             <div className="mt-3 flex items-center justify-between gap-2">
               <p className="text-xs text-cyan-100">
-                {roomTitle} ·{" "}
-                {useVodMode ? "Reproducción automática MP4" : `Canal: ${channelName} · Estado: ${status}`}
+                {roomTitle} · {useVodMode ? "Reproducción automática MP4" : `Canal: ${channelName} · Estado: ${status}`}
               </p>
               <Button type="button" variant="outline" onClick={() => navigate("/nuestras-salas")}>
                 Salir de la Sala
