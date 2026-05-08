@@ -1,20 +1,16 @@
-import { motion } from "framer-motion";
-import { Mic2, Radio, Box, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { Mic2, Radio, Box } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import { PayPalButtons } from "@paypal/react-paypal-js";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
-import { SALA_MP4_URL_BY_ID, onniverseDeepLink, onniverseLivePlaybackDeepLink } from "@/data/salaVideoUrls";
-import { extractPlaybackIdFromHlsUrl, livepeerPublicHlsUrl, normalizePlaybackIdForLivepeer } from "@/lib/livepeerPlayback";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { buildAgoraChannel } from "@/lib/agoraRooms";
+import { PayPalButtons } from "@paypal/react-paypal-js";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { addVaultItem } from "@/lib/vaultItems";
-import LivepeerPlayer from "@/components/LivepeerPlayer";
-import { detectDeviceKind } from "@/lib/deviceDetection";
+import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 
 const SectionHeader = ({
   badge,
@@ -50,133 +46,114 @@ const SectionHeader = ({
   </motion.div>
 );
 
-function resolveStreamPlaybackId(stream?: { playbackUrl: string | null; playbackId: string | null }): string | null {
-  const direct = stream?.playbackId?.trim();
-  if (direct) {
-    const n = normalizePlaybackIdForLivepeer(direct);
-    return n || null;
+type ActiveStreamRow = {
+  is_live: boolean;
+  title: string;
+  stream_url: string;
+  playback_url: string | null;
+  privacy_mode: string;
+  ticket_price: number | null;
+  user_id: string;
+  updated_at?: string;
+};
+
+type RoomCard = {
+  id: string;
+  name: string;
+  image: string;
+  subtitle: string;
+  description: string;
+  status: string;
+  liveStatus?: string;
+  channel: string;
+  isPremium: boolean;
+  priceUsd: number;
+  ownerUserId?: string;
+  mp4Url?: string;
+};
+
+const FREE_ROOM_IDS = new Set(["hablando-huevadas", "axon-king", "franco-escamilla"]);
+
+function isRoomOnline(room: RoomCard, streams: ActiveStreamRow[]): boolean {
+  const roomId = room.id.toLowerCase();
+  const roomName = room.name.toLowerCase();
+  const channel = room.channel.toLowerCase();
+  return streams.some((s) => {
+    if (!s.is_live) return false;
+    const haystack = `${s.title} ${s.stream_url} ${s.playback_url ?? ""}`.toLowerCase();
+    return haystack.includes(roomId) || haystack.includes(roomName) || haystack.includes(channel);
+  });
+}
+
+function getRoomActiveStream(room: RoomCard, streams: ActiveStreamRow[]): ActiveStreamRow | null {
+  if (room.ownerUserId) {
+    const direct = streams.find((s) => s.is_live && s.user_id === room.ownerUserId);
+    if (direct) return direct;
   }
-  const fromUrl = stream?.playbackUrl?.trim() ?? "";
-  const extracted = extractPlaybackIdFromHlsUrl(fromUrl);
-  if (extracted) return extracted;
-  const match = fromUrl.match(/\/hls\/([^/?#]+)/i);
-  if (match?.[1]) {
-    const n = normalizePlaybackIdForLivepeer(match[1]);
-    return n || null;
-  }
-  return null;
+  const roomId = room.id.toLowerCase();
+  const roomName = room.name.toLowerCase();
+  const channel = room.channel.toLowerCase();
+  const matched = streams.find((s) => {
+    if (!s.is_live) return false;
+    const haystack = `${s.title} ${s.stream_url} ${s.playback_url ?? ""}`.toLowerCase();
+    return haystack.includes(roomId) || haystack.includes(roomName) || haystack.includes(channel);
+  });
+  return matched ?? null;
 }
 
 const NuestrasSalasPage = () => {
-  const { user } = useAuth();
+  const navigate = useNavigate();
   const [communityProfiles, setCommunityProfiles] = useState<
-    Array<{ id: string; name: string; avatarUrl: string | null; liveStatus: string; isLive: boolean }>
+    Array<{ id: string; name: string; avatarUrl: string | null; liveStatus: string }>
   >([]);
-  const [activeStreamsByUser, setActiveStreamsByUser] = useState<
-    Record<
-      string,
-      { isLive: boolean; privacyMode: "publico" | "privado_ticket"; ticketPrice: number | null; playbackUrl: string | null; playbackId: string | null }
-    >
-  >({});
-  const [paidCommunityRooms, setPaidCommunityRooms] = useState<Record<string, boolean>>({});
-  const [viewerPlaybackId, setViewerPlaybackId] = useState<string | null>(null);
-  const [viewerTitle, setViewerTitle] = useState<string>("");
-  const isMobileDevice = useMemo(() => detectDeviceKind() === "mobile", []);
+  const [activeStreams, setActiveStreams] = useState<ActiveStreamRow[]>([]);
+  const [premiumModalRoom, setPremiumModalRoom] = useState<RoomCard | null>(null);
+  const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadProfiles = async () => {
-      let profileRows:
-        | Array<{ id: string; full_name: string | null; avatar_url: string | null; live_status?: string | null; is_live?: boolean | null }>
-        | null = null;
-      const withLive = await supabase
-        .from("profiles")
-        .select("id,full_name,avatar_url,live_status,is_live")
-        .order("updated_at", { ascending: false });
-      if (withLive.error) {
-        const fallback = await supabase
-          .from("profiles")
-          .select("id,full_name,avatar_url,live_status")
-          .order("updated_at", { ascending: false });
-        if (fallback.error) {
-          profileRows = [];
-        } else {
-          profileRows = (fallback.data ?? []) as Array<{
-            id: string;
-            full_name: string | null;
-            avatar_url: string | null;
-            live_status?: string | null;
-          }>;
-        }
-      } else {
-        profileRows = (withLive.data ?? []) as Array<{
-          id: string;
-          full_name: string | null;
-          avatar_url: string | null;
-          live_status?: string | null;
-          is_live?: boolean | null;
-        }>;
-      }
-      const normalized = ((profileRows ?? []) as Array<{
+    const loadData = async () => {
+      const [{ data: profilesData }, { data: activeData }] = await Promise.all([
+        supabase.from("profiles").select("id,full_name,avatar_url,live_status").order("updated_at", { ascending: false }),
+        supabase
+          .from("active_streams")
+          .select("user_id,is_live,title,stream_url,playback_url,privacy_mode,ticket_price,updated_at")
+          .eq("is_live", true),
+      ]);
+
+      const normalized = ((profilesData ?? []) as Array<{
         id: string;
         full_name: string | null;
         avatar_url: string | null;
         live_status?: string | null;
-        is_live?: boolean | null;
       }>)
         .map((p) => ({
           id: p.id,
           name: p.full_name?.trim() || "Explorador VR",
           avatarUrl: p.avatar_url,
           liveStatus: p.live_status?.trim() || "",
-          isLive: Boolean(p.is_live),
         }));
       setCommunityProfiles(normalized);
-
-      const { data: streams } = await supabase
-        .from("active_streams")
-        .select("user_id,is_live,privacy_mode,ticket_price,playback_url,playback_id")
-        .eq("is_live", true);
-      const map: Record<
-        string,
-        { isLive: boolean; privacyMode: "publico" | "privado_ticket"; ticketPrice: number | null; playbackUrl: string | null; playbackId: string | null }
-      > = {};
-      ((streams ?? []) as Array<{
-        user_id: string;
-        is_live: boolean;
-        privacy_mode: string;
-        ticket_price: number | null;
-        playback_url: string | null;
-        playback_id: string | null;
-      }>).forEach((stream) => {
-        map[stream.user_id] = {
-          isLive: stream.is_live,
-          privacyMode: stream.privacy_mode === "privado_ticket" ? "privado_ticket" : "publico",
-          ticketPrice: stream.ticket_price,
-          playbackUrl: stream.playback_url,
-          playbackId: stream.playback_id,
-        };
-      });
-      setActiveStreamsByUser(map);
+      setActiveStreams((activeData ?? []) as ActiveStreamRow[]);
     };
 
-    void loadProfiles();
+    void loadData();
 
     const channel = supabase
       .channel("public:nuestras-salas")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
-        void loadProfiles();
+        void loadData();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "active_streams" }, () => {
-        void loadProfiles();
+        void loadData();
       })
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, []);
 
-  const creatorRooms = [
+  const creatorRooms: RoomCard[] = [
     ...podcastStreamers.map((streamer) => ({
       id: streamer.id,
       name: streamer.name,
@@ -184,8 +161,10 @@ const NuestrasSalasPage = () => {
       subtitle: streamer.immersiveSalaName,
       description: streamer.loungeTitle,
       status: streamer.status === "live" ? "En Vivo" : "Offline",
-      to: `/podcast/${streamer.id}`,
-      type: "podcast" as const,
+      channel: buildAgoraChannel(streamer.id),
+      isPremium: !FREE_ROOM_IDS.has(streamer.id),
+      priceUsd: Number.isFinite(streamer.ticketGrada) ? streamer.ticketGrada : 4.99,
+      mp4Url: SALA_MP4_URL_BY_ID[streamer.id],
     })),
     {
       id: "hablando-huevadas",
@@ -194,8 +173,10 @@ const NuestrasSalasPage = () => {
       subtitle: "Peru",
       description: "Live Show Oficial",
       status: "En Vivo",
-      to: "/teatro/hablando-huevadas",
-      type: "teatro" as const,
+      channel: buildAgoraChannel("hablando-huevadas"),
+      isPremium: false,
+      priceUsd: 0,
+      mp4Url: SALA_MP4_URL_BY_ID["hablando-huevadas"],
     },
     {
       id: "michael-jackson",
@@ -204,62 +185,70 @@ const NuestrasSalasPage = () => {
       subtitle: "USA",
       description: "Show inmersivo y hits eternos",
       status: "VIP",
-      to: "/teatro/michael-jackson",
-      type: "teatro" as const,
+      channel: buildAgoraChannel("michael-jackson"),
+      isPremium: true,
+      priceUsd: 9.99,
+      mp4Url: SALA_MP4_URL_BY_ID["michael-jackson"],
     },
   ];
 
-  const communityRooms = useMemo(
+  const communityRooms: RoomCard[] = useMemo(
     () =>
       communityProfiles.map((profile) => {
-        const stream = activeStreamsByUser[profile.id];
-        const playbackIdFromStream = resolveStreamPlaybackId(stream);
-        const hlsForCard =
-          stream?.playbackUrl?.trim() ||
-          (playbackIdFromStream ? livepeerPublicHlsUrl(playbackIdFromStream) : null);
-        const reallyLive = Boolean(stream?.isLive && hlsForCard);
         return {
           id: `community-${profile.id}`,
-          profileUserId: profile.id,
           name: profile.name,
           image: profile.avatarUrl?.trim() || "/placeholder.svg",
           liveStatus: profile.liveStatus,
           subtitle: "Comunidad Onniverso",
           description: "Nuevo creador registrado en la plataforma.",
-          status: reallyLive ? "En Vivo" : "",
-          to: "/inicio",
-          type: "community" as const,
+          status: "",
+          channel: buildAgoraChannel(profile.id),
+          isPremium: false,
+          priceUsd: 0,
+          ownerUserId: profile.id,
         };
       }),
-    [activeStreamsByUser, communityProfiles],
+    [communityProfiles],
   );
 
-  const markPaidAndOpen = (roomId: string, roomTo: string) => {
-    setPaidCommunityRooms((prev) => ({ ...prev, [roomId]: true }));
-    window.location.href = roomTo;
+  const beginRoomSession = (room: RoomCard, activeStream?: ActiveStreamRow | null) => {
+    setLoadingRoomId(room.id);
+    window.setTimeout(() => {
+      const params = new URLSearchParams();
+      const resolvedChannel = activeStream?.stream_url?.trim() || room.channel;
+      const resolvedToken = activeStream?.playback_url?.trim() || "";
+      const resolvedTitle = activeStream?.title?.trim() || room.name;
+
+      if (room.mp4Url) params.set("mp4", room.mp4Url);
+      params.set("title", resolvedTitle);
+      params.set("mode", room.mp4Url && !activeStream?.is_live ? "vod" : "live");
+      if (resolvedToken) params.set("token", resolvedToken);
+      navigate(`/sala/espectador/${encodeURIComponent(resolvedChannel)}?${params.toString()}`);
+    }, 900);
   };
-  const openLiveByDevice = (sourcePlaybackId: string | null, title: string, hlsUrl?: string | null) => {
-    const source = sourcePlaybackId?.trim() || hlsUrl?.trim() || "";
-    if (!source) return;
-    if (isMobileDevice) {
-      /** App nativa: onniverso://open?url=https://vivevr.vercel.app/live/{id} → Capacitor enruta a /live/:id (ver main.tsx). */
-      const pid =
-        sourcePlaybackId?.trim() ||
-        (hlsUrl ? extractPlaybackIdFromHlsUrl(hlsUrl) : null) ||
-        (!source.includes("://") && !source.toLowerCase().includes(".m3u8") ? source : null) ||
-        extractPlaybackIdFromHlsUrl(source);
-      const cleanPid = pid?.trim();
-      if (cleanPid && !cleanPid.includes("://") && !cleanPid.toLowerCase().endsWith(".m3u8")) {
-        window.location.href = onniverseLivePlaybackDeepLink(cleanPid);
-        return;
-      }
-      const urlToOpen =
-        hlsUrl?.trim() || (source.includes("://") ? source : livepeerPublicHlsUrl(source));
-      window.location.href = onniverseDeepLink(urlToOpen);
+
+  const handleRoomAccess = (room: RoomCard, online: boolean) => {
+    const linkedStream = getRoomActiveStream(room, activeStreams);
+    if (!online && room.mp4Url) {
+      beginRoomSession(room, linkedStream);
       return;
     }
-    setViewerPlaybackId(source);
-    setViewerTitle(title);
+    if (!online) {
+      toast.info("Esta sala no está en línea en este momento.");
+      return;
+    }
+    const requiresTicket =
+      linkedStream?.privacy_mode === "privado_ticket" && Number.isFinite(linkedStream.ticket_price) && Number(linkedStream.ticket_price) > 0;
+    if (requiresTicket) {
+      setPremiumModalRoom({
+        ...room,
+        isPremium: true,
+        priceUsd: Number(linkedStream?.ticket_price ?? room.priceUsd),
+      });
+      return;
+    }
+    beginRoomSession(room, linkedStream);
   };
 
   return (
@@ -292,9 +281,8 @@ const NuestrasSalasPage = () => {
             />
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {creatorRooms.map((room, index) => {
-                const salaMp4 = SALA_MP4_URL_BY_ID[room.id];
-                const onniverseAppHref =
-                  salaMp4 !== undefined ? onniverseDeepLink(salaMp4) : null;
+                const linkedStream = getRoomActiveStream(room, activeStreams);
+                const online = Boolean(linkedStream?.is_live);
 
                 return (
                   <motion.div
@@ -304,53 +292,15 @@ const NuestrasSalasPage = () => {
                     viewport={{ once: true, margin: "-60px" }}
                     transition={{ delay: index * 0.06 }}
                   >
-                    {onniverseAppHref != null ? (
-                      <a
-                        href={onniverseAppHref}
-                        className="group block rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-primary/50 hover:shadow-[0_0_45px_-10px_hsl(var(--primary)/0.5)]"
-                      >
-                        <div className="relative mb-4 overflow-hidden rounded-xl border border-primary/20">
-                          <img
-                            src={room.image}
-                            alt={room.name}
-                            className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
-                          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between rounded-lg border border-white/10 bg-black/45 px-2 py-1 text-[10px] font-display uppercase tracking-wider text-cyan-200 backdrop-blur-md">
-                            <span className="flex items-center gap-1">
-                              <Box className="h-3 w-3 text-primary" />
-                              Sala
-                            </span>
-                            <span className="text-slate-300">{room.subtitle}</span>
-                          </div>
-                        </div>
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                          <h3 className="font-display text-lg font-semibold text-foreground">
-                            {room.name}
-                          </h3>
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-display font-bold uppercase tracking-wide ${
-                              room.status === "En Vivo"
-                                ? "bg-destructive/90 text-destructive-foreground"
-                                : room.status === "VIP"
-                                ? "bg-amber-500/90 text-black"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {room.status}
-                          </span>
-                        </div>
-                        <p className="mb-4 text-sm text-muted-foreground">{room.description}</p>
-                        <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-primary transition group-hover:bg-primary/20 group-hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]">
-                          <Mic2 className="h-4 w-4" />
-                          Entrar a sala
-                        </span>
-                      </a>
-                    ) : (
-                      <Link
-                        to={room.to}
-                        className="group block rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-primary/50 hover:shadow-[0_0_45px_-10px_hsl(var(--primary)/0.5)]"
-                      >
+                    <button
+                      type="button"
+                      onClick={() => handleRoomAccess(room, online)}
+                      className={`group block w-full rounded-2xl border bg-card/40 p-5 text-left backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 ${
+                        online
+                          ? "border-amber-300/80 shadow-[0_0_55px_-10px_rgba(250,204,21,0.95)] hover:border-yellow-200/90"
+                          : "border-border/50 hover:border-primary/50 hover:shadow-[0_0_45px_-10px_hsl(var(--primary)/0.5)]"
+                      }`}
+                    >
                     <div className="relative mb-4 overflow-hidden rounded-xl border border-primary/20">
                       <img
                         src={room.image}
@@ -372,23 +322,27 @@ const NuestrasSalasPage = () => {
                       </h3>
                       <span
                         className={`rounded-full px-2.5 py-1 text-[10px] font-display font-bold uppercase tracking-wide ${
-                          room.status === "En Vivo"
+                          online
+                            ? "bg-amber-300 text-black"
+                            : room.status === "En Vivo"
                             ? "bg-destructive/90 text-destructive-foreground"
                             : room.status === "VIP"
                             ? "bg-amber-500/90 text-black"
                             : "bg-muted text-muted-foreground"
                         }`}
                       >
-                        {room.status}
+                        {online ? "EN LÍNEA" : "OFFLINE"}
                       </span>
                     </div>
-                    <p className="mb-4 text-sm text-muted-foreground">{room.description}</p>
+                    <p className="mb-1 text-sm text-muted-foreground">{room.description}</p>
+                    <p className="mb-4 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">
+                      {room.isPremium ? `Acceso Premium · ${room.priceUsd.toFixed(2)} USD` : "Acceso Gratis"}
+                    </p>
                     <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-primary transition group-hover:bg-primary/20 group-hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]">
                       <Mic2 className="h-4 w-4" />
-                      Entrar a sala
+                      {linkedStream?.privacy_mode === "privado_ticket" ? "Ver acceso premium" : "Entrar a sala"}
                     </span>
-                      </Link>
-                    )}
+                    </button>
                   </motion.div>
                 );
               })}
@@ -410,6 +364,19 @@ const NuestrasSalasPage = () => {
                   </div>
                 )}
                 {communityRooms.map((room, index) => (
+                  (() => {
+                    const linkedStream = getRoomActiveStream(room, activeStreams);
+                    const online = room.ownerUserId
+                      ? activeStreams.some((s) => {
+                          if (!s.is_live || s.user_id !== room.ownerUserId) return false;
+                          const updatedAtMs = s.updated_at ? Date.parse(s.updated_at) : Number.NaN;
+                          if (!Number.isFinite(updatedAtMs)) return false;
+                          const ageMs = Date.now() - updatedAtMs;
+                          // Evita "en línea" por registros viejos; requiere actividad reciente.
+                          return ageMs >= 0 && ageMs <= 2 * 60 * 1000;
+                        })
+                      : false;
+                    return (
                   <motion.div
                     key={room.id}
                     initial={{ opacity: 0, y: 24 }}
@@ -417,44 +384,15 @@ const NuestrasSalasPage = () => {
                     viewport={{ once: true, margin: "-60px" }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    {(() => {
-                      const stream = activeStreamsByUser[room.profileUserId];
-                      const playbackId = resolveStreamPlaybackId(stream);
-                      const storedHls = stream?.playbackUrl?.trim() || null;
-                      const hlsUrl = storedHls ?? (playbackId ? livepeerPublicHlsUrl(playbackId) : null);
-                      const hasWatchable = Boolean(stream?.isLive && hlsUrl);
-                      const requiresTicket = Boolean(stream?.isLive && stream.privacyMode === "privado_ticket");
-                      const isLiveNow = Boolean(hasWatchable || (stream?.isLive && requiresTicket));
-                      const isPublicLive = Boolean(stream?.isLive && stream.privacyMode === "publico" && hasWatchable);
-                      const paid = paidCommunityRooms[room.id] === true;
-                      const appLiveHref =
-                        playbackId != null && playbackId !== ""
-                          ? onniverseLivePlaybackDeepLink(playbackId)
-                          : hlsUrl != null && hlsUrl !== ""
-                            ? onniverseDeepLink(hlsUrl)
-                            : null;
-                      const liveCard = isPublicLive && Boolean(hlsUrl);
-                      const CardTag = liveCard ? "button" : "div";
-
-                      return (
-                        <CardTag
-                          {...(liveCard
-                            ? {
-                                type: "button",
-                                onClick: () => {
-                                  openLiveByDevice(playbackId, room.name, hlsUrl);
-                                },
-                              }
-                            : {})}
-                          className={`group relative block rounded-2xl border bg-card/40 p-5 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 ${
-                            isLiveNow
-                              ? "border-amber-300/80 shadow-[0_0_45px_-8px_rgba(251,191,36,0.9)] hover:border-yellow-200/90 hover:shadow-[0_0_65px_-6px_rgba(250,204,21,1)]"
-                              : "border-border/50 hover:border-primary/50 hover:shadow-[0_0_45px_-10px_hsl(var(--primary)/0.5)]"
-                          }`}
-                        >
-                          {isLiveNow && (
-                            <div className="pointer-events-none absolute inset-0 rounded-2xl border border-amber-300/80 opacity-80 animate-pulse" />
-                          )}
+                    <button
+                      type="button"
+                      onClick={() => handleRoomAccess(room, online)}
+                      className={`group relative block w-full rounded-2xl border bg-card/40 p-5 text-left backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 ${
+                        online
+                          ? "border-amber-300/80 shadow-[0_0_55px_-10px_rgba(250,204,21,0.95)] hover:border-yellow-200/90"
+                          : "border-border/50 hover:border-primary/50 hover:shadow-[0_0_45px_-10px_hsl(var(--primary)/0.5)]"
+                      }`}
+                    >
                           <div className="relative mb-4 overflow-hidden rounded-xl border border-primary/20">
                             <img
                               src={room.image}
@@ -472,125 +410,108 @@ const NuestrasSalasPage = () => {
                           </div>
                           <div className="mb-2 flex items-center justify-between gap-3">
                             <h3 className="font-display text-lg font-semibold text-foreground">{room.name}</h3>
-                            {room.status === "En Vivo" && (
-                              <span className="rounded-full bg-amber-300 px-2.5 py-1 text-[10px] font-display font-bold uppercase tracking-wide text-black">
-                                {room.status}
-                              </span>
-                            )}
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[10px] font-display font-bold uppercase tracking-wide ${
+                                online ? "bg-amber-300 text-black" : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {online ? "EN LÍNEA" : "OFFLINE"}
+                            </span>
                           </div>
                           <p className="mb-4 text-sm text-muted-foreground">{room.description}</p>
-                          {(() => {
-                            if (requiresTicket && !paid) {
-                              const ticketValue = Number(stream?.ticketPrice ?? 0);
-                              const price = Number.isFinite(ticketValue) && ticketValue > 0 ? ticketValue : 5;
-                              return (
-                                <div className="space-y-2">
-                                  <p className="text-[11px] text-amber-200">
-                                    Sala privada con ticket activo (${price.toFixed(2)} USD)
-                                  </p>
-                                  <div className="rounded-xl border border-[#ffc439]/50 bg-[#ffc439]/10 p-2">
-                                    <PayPalButtons
-                                      style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 40 }}
-                                      createOrder={(_data, actions) =>
-                                        actions.order.create({
-                                          intent: "CAPTURE",
-                                          purchase_units: [
-                                            {
-                                              amount: { currency_code: "USD", value: price.toFixed(2) },
-                                              description: `Ticket sala privada - ${room.name}`,
-                                            },
-                                          ],
-                                        })
-                                      }
-                                      onApprove={async (_data, actions) => {
-                                        if (!actions.order) return;
-                                        await actions.order.capture();
-                                        if (user?.id) {
-                                          addVaultItem(user.id, {
-                                            type: "ticket",
-                                            title: `Ticket - ${room.name}`,
-                                            priceUsd: price,
-                                            thumbnailUrl: room.image,
-                                          });
-                                        }
-                                        toast.success("Pago confirmado. Entrando a la sala...");
-                                        markPaidAndOpen(room.id, room.to);
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            }
-                            if ((isPublicLive || paid) && !liveCard) {
-                              return appLiveHref ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    openLiveByDevice(playbackId, room.name, hlsUrl);
-                                  }}
-                                >
-                                  <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-primary transition group-hover:bg-primary/20 group-hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]">
-                                    <Mic2 className="h-4 w-4" />
-                                    Ver live
-                                  </span>
-                                </button>
-                              ) : (
-                                <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-500/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-emerald-200">
-                                  <Mic2 className="h-4 w-4" />
-                                  En vivo (sin playback aun)
-                                </span>
-                              );
-                            }
-                            return liveCard ? (
-                              <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/50 bg-emerald-500/15 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-emerald-100">
-                                <Mic2 className="h-4 w-4" />
-                                Entrar al stream
-                              </span>
-                            ) : null;
-                          })()}
-                        </CardTag>
-                      );
-                    })()}
+                          <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-primary transition group-hover:bg-primary/20 group-hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]">
+                            <Mic2 className="h-4 w-4" />
+                            {linkedStream?.privacy_mode === "privado_ticket" ? "Ver acceso premium" : "Entrar gratis"}
+                          </span>
+                        </button>
                   </motion.div>
+                    );
+                  })()
                 ))}
               </div>
             </div>
           </section>
         </div>
       </main>
-      {!isMobileDevice && viewerPlaybackId && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-          <button
-            type="button"
-            aria-label="Cerrar viewer live"
-            className="absolute inset-0"
-            onClick={() => {
-              setViewerPlaybackId(null);
-              setViewerTitle("");
-            }}
-          />
-          <div className="relative z-10 w-full max-w-5xl rounded-2xl border border-primary/30 bg-background/95 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-display text-xl font-bold text-foreground">{viewerTitle || "Live"}</h3>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setViewerPlaybackId(null);
-                  setViewerTitle("");
-                }}
-                aria-label="Cerrar"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-            <LivepeerPlayer playbackId={viewerPlaybackId} title={`Live ${viewerTitle || viewerPlaybackId}`} />
-          </div>
-        </div>
-      )}
 
       <Footer />
+
+      <AnimatePresence>
+        {premiumModalRoom && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ y: 18, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 12, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl border border-amber-300/55 bg-card/95 p-5 shadow-[0_0_60px_-18px_rgba(250,204,21,0.95)]"
+            >
+              <h3 className="font-display text-xl font-bold text-foreground">Acceso Premium</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Este evento requiere validación de pago para entrar a la sala.
+              </p>
+              <div className="mt-3 rounded-lg border border-amber-300/45 bg-amber-300/10 p-3">
+                <p className="text-sm font-semibold text-foreground">{premiumModalRoom.name}</p>
+                <p className="text-xs text-amber-200">Total: ${premiumModalRoom.priceUsd.toFixed(2)} USD</p>
+              </div>
+              <div className="mt-4 rounded-xl border border-[#ffc439]/70 bg-[#ffc439]/18 p-3 shadow-[0_0_30px_-10px_rgba(255,196,57,0.95)]">
+                <PayPalButtons
+                  style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 48, tagline: false }}
+                  createOrder={(_data, actions) =>
+                    actions.order.create({
+                      intent: "CAPTURE",
+                      purchase_units: [
+                        {
+                          amount: { currency_code: "USD", value: premiumModalRoom.priceUsd.toFixed(2) },
+                          description: `Acceso Premium - ${premiumModalRoom.name}`,
+                        },
+                      ],
+                    })
+                  }
+                  onApprove={async (_data, actions) => {
+                    if (!actions.order) return;
+                    await actions.order.capture();
+                    const selectedRoom = premiumModalRoom;
+                    setPremiumModalRoom(null);
+                    const linkedStream = getRoomActiveStream(selectedRoom, activeStreams);
+                    beginRoomSession(selectedRoom, linkedStream);
+                  }}
+                />
+              </div>
+              <div className="mt-3 flex justify-end">
+                <Button type="button" variant="outline" onClick={() => setPremiumModalRoom(null)}>
+                  Cancelar
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {loadingRoomId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[95] flex items-center justify-center bg-background/92 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0.6 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ repeat: Infinity, repeatType: "reverse", duration: 0.8 }}
+              className="rounded-2xl border border-cyan-300/40 bg-card/40 px-8 py-6 text-center shadow-[0_0_55px_-16px_rgba(34,211,238,0.95)]"
+            >
+              <p className="font-display text-lg font-bold text-cyan-100">Entrando a la sala...</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.16em] text-cyan-200">al universo loading sequence</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
