@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Headset, Layers2, RefreshCw } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AgoraRTC, { type IAgoraRTCClient, type IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
+import { toast } from "sonner";
 
 const SELENA_BIDI_BOM_MP4 =
   "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757336/Selena_-_Bidi_Bidi_Bom_Bom_hcvcfk.mp4";
@@ -14,6 +16,16 @@ const AUDIENCE_TOKEN =
   (import.meta.env.NEXT_PUBLIC_AGORA_AUDIENCE_TOKEN as string | undefined)?.trim() ??
   (import.meta.env.NEXT_PUBLIC_AGORA_TOKEN as string | undefined)?.trim() ??
   "";
+
+/** `al-universo-{id}` → id de podcast si existe en el directorio (escena inmersiva). */
+function podcastIdFromAgoraChannel(channelName: string): string | null {
+  const prefix = "al-universo-";
+  const n = channelName.trim().toLowerCase();
+  if (!n.startsWith(prefix)) return null;
+  const id = n.slice(prefix.length);
+  if (!id) return null;
+  return podcastStreamers.some((s) => s.id === id) ? id : null;
+}
 
 const EspectadorView = () => {
   const navigate = useNavigate();
@@ -175,6 +187,26 @@ const EspectadorView = () => {
     navigate(q ? `/pc?${q}` : "/pc");
   };
 
+  /** Pantalla dividida / escena PC — mismo criterio que el botón «VR/PC» del selector. */
+  const goPantallaDividida = () => {
+    setError(null);
+    goVrPc();
+  };
+
+  /** Escena inmersiva 360 (PodcastSala360) — mismo criterio que «360°» del selector. */
+  const goEscenaInmersiva = () => {
+    setError(null);
+    const podcastId = podcastIdFromAgoraChannel(channelName);
+    const q = searchParams.toString();
+    const suffix = q ? `?${q}` : "";
+    if (podcastId) {
+      navigate(`/podcast/${encodeURIComponent(podcastId)}${suffix}`);
+      return;
+    }
+    toast.info("Para esta sala no hay escena inmersiva en el directorio; abriendo el hub de podcasts.");
+    navigate(`/podcast-hub${suffix}`);
+  };
+
   const goSelenaBidiVod = () => {
     setError(null);
     const next = new URLSearchParams(searchParams);
@@ -230,30 +262,27 @@ const EspectadorView = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setError(null);
-                    setScenePhase("playing");
-                  }}
+                  onClick={goEscenaInmersiva}
                   className="rounded-xl border border-cyan-300/40 bg-black/40 px-3 py-3 text-left text-sm font-semibold text-cyan-50 transition hover:border-cyan-300/80 hover:bg-black/55"
                 >
-                  360°
-                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">Misma sala (etiqueta)</span>
+                  Escena inmersiva
+                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">360° · sala podcast</span>
                 </button>
                 <button
                   type="button"
                   onClick={goMixVod}
                   className="rounded-xl border border-fuchsia-300/40 bg-black/40 px-3 py-3 text-left text-sm font-semibold text-fuchsia-50 transition hover:border-fuchsia-300/80 hover:bg-black/55"
                 >
-                  MIX
-                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">MP4 si hay enlace</span>
+                  Escena mixta
+                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">MP4 si hay enlace (MIX)</span>
                 </button>
                 <button
                   type="button"
-                  onClick={goVrPc}
+                  onClick={goPantallaDividida}
                   className="rounded-xl border border-violet-300/40 bg-black/40 px-3 py-3 text-left text-sm font-semibold text-violet-50 transition hover:border-violet-300/80 hover:bg-black/55"
                 >
-                  VR / PC
-                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">Escena PC</span>
+                  Pantalla dividida
+                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">VR / escena PC</span>
                 </button>
                 <button
                   type="button"
@@ -318,6 +347,45 @@ const EspectadorView = () => {
                 Salir de la Sala
               </Button>
             </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+              <button
+                type="button"
+                title="Pantalla dividida (mismo que el selector)"
+                onClick={goPantallaDividida}
+                className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-violet-400/40 bg-black/35 px-2 py-3 text-violet-50 shadow-[0_0_28px_-12px_rgba(139,92,246,0.85)] transition hover:border-violet-300/75 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
+              >
+                <Headset className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
+                <span className="text-xs font-semibold tracking-wide sm:text-sm">VR</span>
+              </button>
+              <button
+                type="button"
+                title="Escena inmersiva (mismo que el selector)"
+                onClick={goEscenaInmersiva}
+                className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-cyan-400/45 bg-black/35 px-2 py-3 text-cyan-50 shadow-[0_0_28px_-12px_rgba(34,211,238,0.75)] transition hover:border-cyan-300/80 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
+              >
+                <span className="relative flex h-8 w-8 shrink-0 items-center justify-center" aria-hidden>
+                  <RefreshCw className="absolute h-7 w-7 text-cyan-200/90 opacity-90 transition group-hover:rotate-180 group-hover:duration-500" strokeWidth={1.75} />
+                  <span className="relative z-[1] text-[10px] font-black tabular-nums text-cyan-100 drop-shadow">360</span>
+                </span>
+                <span className="text-center text-[11px] font-semibold leading-tight sm:text-xs">
+                  360°
+                </span>
+              </button>
+              <button
+                type="button"
+                title="Escena mixta (mismo que el selector)"
+                onClick={goMixVod}
+                className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-fuchsia-400/40 bg-black/35 px-2 py-3 text-fuchsia-50 shadow-[0_0_28px_-12px_rgba(217,70,239,0.75)] transition hover:border-fuchsia-300/80 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
+              >
+                <Layers2 className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
+                <span className="flex flex-col items-center leading-none">
+                  <span className="text-xs font-semibold tracking-wide sm:text-sm">MT</span>
+                  <span className="mt-0.5 text-[9px] font-normal text-fuchsia-200/70">mixto</span>
+                </span>
+              </button>
+            </div>
+
             {error && <p className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">{error}</p>}
           </div>
 
