@@ -5,7 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
-import { stopMyActiveStream } from "@/lib/activeStreams";
 
 const APP_APK_DOWNLOAD_URL =
   "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
@@ -16,11 +15,6 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
-    try {
-      await stopMyActiveStream();
-    } catch {
-      /* ignore stream stop errors on logout */
-    }
     await supabase.auth.signOut();
     toast.success("Sesión cerrada");
     navigate("/");
@@ -35,7 +29,7 @@ const Navbar = () => {
     { label: "INICIO", action: () => handleNavigate("/inicio") },
     { label: "SALAS", action: () => handleNavigate("/nuestras-salas") },
     { label: "TIENDA", action: () => handleNavigate("/tienda") },
-    { label: "PC", action: () => handleNavigate("/pc") },
+    { label: "LIVE", action: () => handleNavigate("/pc") },
   ];
 
   return (

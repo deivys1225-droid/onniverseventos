@@ -1,5 +1,3 @@
-import { livepeerPublicHlsUrl, normalizePlaybackIdForLivepeer } from "@/lib/livepeerPlayback";
-
 /**
  * MP4 de Cloudinary por id de sala (perfil podcast o ruta teatro).
  * Único origen para Nuestras Salas y deep links de reproducción.
@@ -52,25 +50,4 @@ export const SALA_MP4_URL_BY_ID: Record<string, string> = {
 
 export function onniverseDeepLink(mp4Url: string): string {
   return `onniverso://open?url=${encodeURIComponent(mp4Url)}`;
-}
-
-const APP_LINK_BASE = "https://vivevr.vercel.app";
-
-/**
- * Abre la página /live/:playbackId en web y en la app Android (ver AndroidManifest intent-filter pathPrefix /live/).
- * Debe coincidir con el host declarado en App Links.
- */
-export function livePlaybackAppLink(playbackId: string): string {
-  const id = normalizePlaybackIdForLivepeer(playbackId);
-  return `${APP_LINK_BASE}/live/${encodeURIComponent(id || playbackId.trim())}`;
-}
-
-/**
- * Deep link nativo: el parámetro `url` es el manifest HLS público (livepeercdn.com).
- * main.tsx sigue pudiendo enrutar a /live/{playbackId} extrayendo el id del path.
- */
-export function onniverseLivePlaybackDeepLink(playbackId: string): string {
-  const id = normalizePlaybackIdForLivepeer(playbackId);
-  const hls = livepeerPublicHlsUrl(id || playbackId.trim());
-  return hls ? onniverseDeepLink(hls) : onniverseDeepLink(livePlaybackAppLink(playbackId));
 }

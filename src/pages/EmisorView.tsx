@@ -1,7 +1,7 @@
 import Navbar from "@/components/Navbar";
 import AgoraLiveStreaming from "@/components/AgoraLiveStreaming";
 
-const PcScenePage = () => {
+const EmisorView = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -12,4 +12,5 @@ const PcScenePage = () => {
   );
 };
 
-export default PcScenePage;
+export default EmisorView;
+

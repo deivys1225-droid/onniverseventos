@@ -28,13 +28,7 @@ import SearchHub from "@/components/SearchHub";
 import StorePublishCard, { type StorePublishPayload } from "@/components/StorePublishCard";
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
 import VaultCard from "@/components/VaultCard";
-import { createLivepeerStreamViaEdge } from "@/lib/livepeerStudio";
-import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
-import { startActiveStream } from "@/lib/activeStreams";
 import { updateProfileLiveState } from "@/lib/profile";
-import { detectDeviceKind } from "@/lib/deviceDetection";
-import { startNativeLiveStreaming } from "@/lib/liveStreamingNative";
-import { Capacitor } from "@capacitor/core";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -1224,35 +1218,7 @@ const MiMundoVRSection = ({
   };
 
   useEffect(() => {
-    if (!user) {
-      setIsUserLive(false);
-      return;
-    }
-    const loadLive = async () => {
-      const { data } = await supabase.from("active_streams").select("is_live").eq("user_id", user.id).maybeSingle();
-      setIsUserLive(Boolean((data as { is_live?: boolean } | null)?.is_live));
-    };
-    void loadLive();
-
-    const channel = supabase
-      .channel(`public:active_streams:user:${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "active_streams", filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          const next = payload.new as { is_live?: boolean } | null;
-          if (next && typeof next.is_live === "boolean") {
-            setIsUserLive(next.is_live);
-            return;
-          }
-          void loadLive();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+    setIsUserLive(false);
   }, [user]);
   const onStorePublish = async (payload: StorePublishPayload) => {
     if (!user) {
@@ -1291,51 +1257,16 @@ const MiMundoVRSection = ({
     }
     setProfileSaving(true);
     try {
-      const live = await createLivepeerStreamViaEdge(`${cardDisplayName} en vivo`);
-      await startActiveStream({
-        userId: user.id,
-        streamUrl: live.ingestRtmp,
-        title: `${cardDisplayName} en vivo`,
-        category: "Social",
-        privacyMode: "publico",
-        playbackUrl: live.playbackUrl,
-        playbackId: live.playbackId,
-      });
       await updateProfileLiveState({
         userId: user.id,
-        isLive: true,
-        streamKey: live.streamKey,
-        playbackId: live.playbackId,
+        isLive: false,
+        streamKey: null,
+        playbackId: null,
       });
-      const deviceKind = detectDeviceKind();
-      if (deviceKind === "mobile") {
-        setIsUserLive(true);
-        const hls = livepeerPublicHlsUrl(live.playbackId);
-        const dynamicUrl =
-          live.transmitUrl?.trim() ||
-          `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}&playbackId=${encodeURIComponent(live.playbackId)}&hls=${encodeURIComponent(hls)}`;
-
-        // App nativa: abrir cámara por plugin (evita cierres por resolver deep link dentro del WebView).
-        if (Capacitor.isNativePlatform()) {
-          try {
-            await startNativeLiveStreaming(live.streamKey);
-            toast.success("Abriendo cámara nativa para transmitir...");
-          } catch {
-            // Fallback de compatibilidad con instalaciones viejas.
-            window.setTimeout(() => {
-              window.location.href = dynamicUrl;
-            }, 300);
-          }
-        } else {
-          window.setTimeout(() => {
-            window.location.href = dynamicUrl;
-          }, 1000);
-        }
-      } else {
-        toast.info("La emision desde PC esta desactivada por ahora.");
-      }
+      setIsUserLive(false);
+      toast.info("El sistema anterior fue retirado. Usa el módulo de Agora en Inicio para transmitir.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo generar la llave LIVE.");
+      toast.error(error instanceof Error ? error.message : "No se pudo actualizar el estado de streaming.");
     } finally {
       setProfileSaving(false);
     }

@@ -1,5 +1,4 @@
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
-import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
 
 export type StreamStatus = "live" | "offline";
 export type StreamType = "platform" | "youtube";

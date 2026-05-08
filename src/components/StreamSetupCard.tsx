@@ -169,7 +169,7 @@ const StreamSetupCard = ({
         ) : (
           <div className="space-y-2 rounded-xl border border-cyan-300/30 bg-black/25 p-2.5">
             <p className="text-[11px] leading-snug text-muted-foreground">
-              Live desde el navegador del celular (WebRTC → Livepeer). La API key va solo en Supabase, no en esta web.
+              Este flujo heredado quedó desactivado. Usa el módulo principal de Agora para iniciar streaming.
             </p>
             {!cameraActive ? (
               <Button type="button" variant="outline" className="w-full" onClick={() => void enableCamera()} disabled={isSubmitting}>

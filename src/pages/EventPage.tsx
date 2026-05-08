@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import LivepeerPlayer from "@/components/LivepeerPlayer";
 import YouTubePlayer from "@/components/YouTubePlayer";
 import TicketPaywall from "@/components/TicketPaywall";
 import { useAuth } from "@/hooks/useAuth";
@@ -56,7 +55,11 @@ const EventPage = () => {
     if (isYouTube && youtubeVideoId) {
       return <YouTubePlayer videoId={youtubeVideoId} title={event!.title} />;
     }
-    return <LivepeerPlayer playbackId={event!.playback_id || ""} title={event!.title} />;
+    return (
+      <div className="rounded-xl border border-border/60 bg-card/40 p-6 text-center text-sm text-muted-foreground">
+        Este evento no tiene una fuente de streaming compatible. Actualiza el evento con un video de YouTube.
+      </div>
+    );
   };
 
   if (isLoading) {

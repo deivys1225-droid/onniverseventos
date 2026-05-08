@@ -54,17 +54,13 @@ const SearchHub = ({ currentUserId }: SearchHubProps) => {
     setQuery(value);
     if (mode !== "usuarios") return;
     setLoadingUsers(true);
-    const [{ data, error }, { data: liveRows }] = await Promise.all([
-      supabase.from("profiles").select("id,full_name,avatar_url,is_live").order("updated_at", { ascending: false }),
-      supabase.from("active_streams").select("user_id").eq("is_live", true),
-    ]);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id,full_name,avatar_url,is_live")
+      .order("updated_at", { ascending: false });
     setLoadingUsers(false);
     if (error) return;
-    const liveSet = new Set((liveRows ?? []).map((r: { user_id: string }) => r.user_id));
-    const rows = ((data ?? []) as ProfileResult[]).map((p) => ({
-      ...p,
-      is_live: liveSet.has(p.id),
-    }));
+    const rows = (data ?? []) as ProfileResult[];
     setUsers(rows);
   };
 

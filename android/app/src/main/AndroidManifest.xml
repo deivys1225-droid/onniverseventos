@@ -33,43 +33,6 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="onniverso" android:host="open" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="onniverso" android:host="transmitir" />
-            </intent-filter>
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="vivevr.vercel.app"
-                    android:pathPrefix="/live/" />
-            </intent-filter>
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="vivevr.vercel.app"
-                    android:pathPrefix="/transmitir" />
-            </intent-filter>
-        </activity>
-        <!-- Secundaria (sin VIEW público): solo startActivity explícito desde MainActivity / plugin LiveStreaming -->
-        <activity
-            android:name="com.vivevr.app.LiveStreamingActivity"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:parentActivityName="com.vivevr.app.MainActivity"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme.NoActionBar"
-            android:label="@string/title_activity_live_streaming">
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value="com.vivevr.app.MainActivity" />
         </activity>
 
         <provider

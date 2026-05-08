@@ -31,9 +31,6 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
   useEffect(() => {
     if (!open) return;
     const load = async () => {
-      const { data: liveRows } = await supabase.from("active_streams").select("user_id").eq("is_live", true);
-      const liveUserIds = new Set((liveRows ?? []).map((r: { user_id: string }) => r.user_id));
-
       const { data } = await supabase
         .from("friendships")
         .select("*")
@@ -53,7 +50,7 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
         (profiles as ProfileRow[] | null)?.forEach((p) => {
           map[p.id] = {
             name: p.full_name?.trim() || "Usuario",
-            liveStatus: liveUserIds.has(p.id) ? "En Vivo" : p.live_status?.trim() || "Offline",
+            liveStatus: p.live_status?.trim() || "Offline",
           };
         });
         setProfilesById(map);
@@ -65,7 +62,7 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
       const normalized = ((all ?? []) as ProfileRow[]).map((p) => ({
         id: p.id,
         name: p.full_name?.trim() || "Usuario",
-        liveStatus: liveUserIds.has(p.id) ? "En Vivo" : p.live_status?.trim() || "Offline",
+        liveStatus: p.live_status?.trim() || "Offline",
       }));
       setAllProfiles(normalized);
     };
@@ -85,17 +82,9 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
       })
       .subscribe();
 
-    const streamsChannel = supabase
-      .channel("public:active_streams_social")
-      .on("postgres_changes", { event: "*", schema: "public", table: "active_streams" }, () => {
-        void load();
-      })
-      .subscribe();
-
     return () => {
       void supabase.removeChannel(friendshipChannel);
       void supabase.removeChannel(profileChannel);
-      void supabase.removeChannel(streamsChannel);
     };
   }, [open, userId]);
 

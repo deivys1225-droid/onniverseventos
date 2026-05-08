@@ -25,6 +25,8 @@ import WelcomeUniversePage from "./pages/WelcomeUniversePage.tsx";
 import RegisterPage from "./pages/RegisterPage.tsx";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
 import PcScenePage from "./pages/PcScenePage.tsx";
+import EmisorView from "./pages/EmisorView.tsx";
+import EspectadorView from "./pages/EspectadorView.tsx";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +73,22 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <PcScenePage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/sala/emisor"
+              element={
+                <PrivateRoute>
+                  <EmisorView />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/sala/espectador/:channel"
+              element={
+                <PrivateRoute>
+                  <EspectadorView />
                 </PrivateRoute>
               }
             />
