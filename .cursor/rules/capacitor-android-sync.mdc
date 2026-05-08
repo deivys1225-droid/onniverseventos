@@ -1,0 +1,11 @@
+---
+description: Web es la fuente de verdad; Android solo recibe copia desde dist vía Capacitor
+alwaysApply: true
+---
+
+# Capacitor / Android y la web
+
+- La interfaz y la lógica viven **solo** en `src/` (y build en `dist/`). **No** restaurar ni fusionar cambios desde `android/app/src/main/assets/public/` hacia la web: esa carpeta es **salida** de `cap sync`, no fuente.
+- Para actualizar lo que ve la app Android después de cambiar React/Vite: desde la raíz del repo ejecutar **`npm run sync:android`** (equivale a `vite build` + `npx cap sync android`). No editar HTML/JS/CSS dentro de `assets/public`.
+- Si Android Studio muestra una versión antigua o sin botón LIVE, casi siempre es un **`dist` viejo** empaquetado: volver a ejecutar `npm run sync:android`, subir `versionCode` si publicas APK, y reinstalar.
+- Archivos Java/Kotlin del proyecto Android (`MainActivity`, manifest, etc.) sí se editan en `android/`; la UI web no.
