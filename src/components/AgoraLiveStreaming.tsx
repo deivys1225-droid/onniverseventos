@@ -23,6 +23,18 @@ import { toast } from "sonner";
 const APP_ID = (import.meta.env.NEXT_PUBLIC_AGORA_APP_ID as string | undefined)?.trim() ?? "";
 const ENV_TOKEN = (import.meta.env.NEXT_PUBLIC_AGORA_TOKEN as string | undefined)?.trim() ?? "";
 
+/** Pide cámara + micrófono y libera tracks (solo para disparar el diálogo del sistema / WebView antes de generar canal). */
+async function requestCameraMicForPrompt(): Promise<void> {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    throw new Error("Este navegador no permite acceder a cámara y micrófono.");
+  }
+  if (typeof window !== "undefined" && !window.isSecureContext) {
+    throw new Error("La cámara requiere HTTPS o localhost.");
+  }
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  stream.getTracks().forEach((t) => t.stop());
+}
+
 type StreamConfig = {
   appId: string;
   title: string;
@@ -124,13 +136,30 @@ const AgoraLiveStreaming = () => {
 
     setError(null);
     setConnecting(true);
-      setStatus("Conectando a Agora...");
 
     try {
+      if (typeof navigator !== "undefined" && !navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Este navegador no soporta getUserMedia.");
+      }
+      if (typeof window !== "undefined" && !window.isSecureContext) {
+        throw new Error("La cámara requiere contexto seguro (HTTPS o localhost).");
+      }
+
+      /**
+       * En WebView Android, el permiso debe ligarse al gesto del usuario: si primero hacemos
+       * await client.join() (varios segundos), getUserMedia puede dar NotAllowedError sin diálogo.
+       * Por eso pedimos cámara/micrófono antes de unir al canal.
+       */
+      setStatus("Permisos de cámara y micrófono…");
+      const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+      localAudioTrackRef.current = microphoneTrack;
+      localVideoTrackRef.current = cameraTrack;
+
+      setStatus("Conectando a Agora…");
       const client = createClient();
       clientRef.current = client;
       await client.setClientRole("host");
-      setStatus("Entrando al canal...");
+      setStatus("Entrando al canal…");
 
       client.on("user-published", async (user, mediaType) => {
         remoteUsersRef.current[String(user.uid)] = user;
@@ -169,23 +198,9 @@ const AgoraLiveStreaming = () => {
           normalizedJoinMessage.includes("CAN_NOT_GET_GATEWAY_SERVER") &&
           normalizedJoinMessage.includes("DYNAMIC USE STATIC KEY");
         if (!isStaticKeyProjectError) throw joinErr;
-        // Proyecto Agora en modo static key: reconecta sin token.
         await joinWithTimeout(null);
       }
-      setStatus("Canal conectado");
-
-      if (typeof navigator !== "undefined" && !navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Este navegador no soporta getUserMedia.");
-      }
-      if (typeof window !== "undefined" && !window.isSecureContext) {
-        throw new Error("La cámara requiere contexto seguro (HTTPS o localhost).");
-      }
-      setStatus("Solicitando permisos de cámara y micrófono...");
-      const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-      localAudioTrackRef.current = microphoneTrack;
-      localVideoTrackRef.current = cameraTrack;
-
-      setStatus("Publicando transmisión...");
+      setStatus("Publicando transmisión…");
       await client.publish([microphoneTrack, cameraTrack]);
       cameraTrack.play(localContainerId);
       setStatus("Transmitiendo en vivo");
@@ -225,6 +240,17 @@ const AgoraLiveStreaming = () => {
         setError(
           "Agora requiere token dinámico para este proyecto. Configura NEXT_PUBLIC_AGORA_TOKEN con un token RTC válido.",
         );
+        return;
+      }
+      if (
+        normalizedMessage.includes("PERMISSION_DENIED") ||
+        normalizedMessage.includes("NOTALLOWEDERROR")
+      ) {
+        setError(
+          "Sin permiso de cámara o micrófono. En Android: Ajustes → Apps → tu app → Permisos → permite Cámara y Micrófono. Luego pulsa de nuevo «Emitir Live».",
+        );
+        setConnecting(false);
+        setStatus("Permisos necesarios");
         return;
       }
       setError(rawMessage);
@@ -285,6 +311,13 @@ const AgoraLiveStreaming = () => {
 
     try {
       setError(null);
+      /**
+       * Mismo gesto que «Guardar y generar canal»: primero permisos (importante en Android WebView),
+       * luego toda la lógica que ya tenías (invoke agora-token, upsert active_streams, profiles, streamConfig).
+       */
+      setStatus("Permisos de cámara y micrófono…");
+      await requestCameraMicForPrompt();
+
       setConnecting(true);
       setStatus("Solicitando token a Agora...");
 
@@ -373,8 +406,20 @@ const AgoraLiveStreaming = () => {
       toast.success("Canal generado. Tu tarjeta ya está en línea.");
     } catch (e) {
       const message = e instanceof Error ? e.message : `No se pudo generar el canal (${JSON.stringify(e)})`;
-      setError(message);
-      setStatus("Error al generar canal");
+      const up = message.toUpperCase();
+      if (
+        up.includes("PERMISSION_DENIED") ||
+        up.includes("PERMISSION DENIED") ||
+        up.includes("NOTALLOWEDERROR")
+      ) {
+        setError(
+          "Sin permiso de cámara o micrófono no se puede preparar el Live. En Android: Ajustes → Apps → esta app → Permisos.",
+        );
+        setStatus("Permisos necesarios");
+      } else {
+        setError(message);
+        setStatus("Error al generar canal");
+      }
     } finally {
       setConnecting(false);
     }
@@ -459,7 +504,8 @@ const AgoraLiveStreaming = () => {
           <DialogHeader>
             <DialogTitle className="font-display">Generar canal</DialogTitle>
             <DialogDescription>
-              El sistema genera automáticamente el canal con tu nombre de usuario y solicita token de Agora.
+              El sistema genera el canal con tu nombre, pide token a Agora y actualiza tu tarjeta. Al pulsar «Guardar y
+              generar canal» se solicitarán primero cámara y micrófono (necesarios para emitir después).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">

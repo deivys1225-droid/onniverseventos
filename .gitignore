@@ -29,3 +29,7 @@ public/videos/*.mp4
 *.sw?
 
 .vercel
+
+# Capacitor: copia automática de `npm run build` → NO editar a mano ni versionar aquí.
+# Si la app Android muestra una UI vieja, ejecuta desde la raíz: npm run sync:android
+android/app/src/main/assets/public/

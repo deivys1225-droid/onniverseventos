@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 
+// La UI web no se edita en src/main/assets/public/ — viene de `vite build` + `npx cap sync android`
+// (desde la raíz del repo). Cursor/Android Studio solo muestran esa copia embebida.
+
 android {
     namespace = "com.vivevr.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +10,8 @@ android {
         applicationId "com.vivevr.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.0.2"
+        versionCode 4
+        versionName "1.0.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

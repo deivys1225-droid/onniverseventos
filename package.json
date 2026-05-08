@@ -9,6 +9,7 @@
     "export": "vite build",
     "build:dev": "vite build --mode development",
     "sync:android": "npm run build && npx cap sync android",
+    "sync:android:win": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/sync-android.ps1",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
