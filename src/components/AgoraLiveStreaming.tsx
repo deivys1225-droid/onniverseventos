@@ -41,7 +41,6 @@ const AgoraLiveStreaming = () => {
   const [status, setStatus] = useState("Esperando configuración");
   const [error, setError] = useState<string | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [channelNameInput, setChannelNameInput] = useState("");
   const [ticketInput, setTicketInput] = useState("0");
   const [isFreeEvent, setIsFreeEvent] = useState(true);
   const [streamConfig, setStreamConfig] = useState<StreamConfig | null>(null);
@@ -196,7 +195,7 @@ const AgoraLiveStreaming = () => {
 
       const { error: profileErr } = await supabase
         .from("profiles")
-        .update({ live_status: "En Línea", is_live: true, updated_at: new Date().toISOString() })
+        .update({ live_status: "En Línea", updated_at: new Date().toISOString() })
         .eq("id", user.id);
       if (profileErr) throw profileErr;
 
@@ -233,7 +232,7 @@ const AgoraLiveStreaming = () => {
       }
       await supabase
         .from("profiles")
-        .update({ live_status: "Offline", is_live: false, updated_at: new Date().toISOString() })
+        .update({ live_status: "Offline", updated_at: new Date().toISOString() })
         .eq("id", user.id);
     }
     setStatus(streamConfig ? "Canal listo para emitir" : "Live detenido");
@@ -259,11 +258,12 @@ const AgoraLiveStreaming = () => {
 
   const saveConfig = async () => {
     if (!user?.id) return;
-    const requestedChannelName = channelNameInput.trim();
-    if (requestedChannelName.length < 3) {
-      setError("Ingresa un nombre de canal válido (mínimo 3 caracteres).");
-      return;
-    }
+    const profileName =
+      (user.user_metadata?.full_name as string | undefined)?.trim() ||
+      (user.user_metadata?.name as string | undefined)?.trim() ||
+      (user.email?.split("@")[0] ?? "").trim() ||
+      "creador";
+    const requestedChannelName = profileName;
     const parsed = Number(ticketInput);
     const normalizedPrice = Number.isFinite(parsed) && parsed >= 0 ? Number(parsed.toFixed(2)) : 0;
     const isFree = isFreeEvent || normalizedPrice <= 0;
@@ -427,7 +427,7 @@ const AgoraLiveStreaming = () => {
             )}
             {streamConfig && (
               <p className="mt-2 text-center text-xs text-cyan-100/90">
-                Canal: {streamConfig.rawChannelName} · {streamConfig.isFree ? "Gratuito" : `Ticket: $${streamConfig.ticketPrice.toFixed(2)} USD`}
+                Canal: {streamConfig.rawChannelName} (auto) · {streamConfig.isFree ? "Gratuito" : `Ticket: $${streamConfig.ticketPrice.toFixed(2)} USD`}
               </p>
             )}
             {!ENV_TOKEN && (
@@ -443,15 +443,11 @@ const AgoraLiveStreaming = () => {
         <DialogContent className="border-cyan-300/40 bg-card/95 backdrop-blur-md sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-display">Generar canal</DialogTitle>
-            <DialogDescription>Ingresa nombre de canal y precio. El sistema solicitará token de Agora automáticamente.</DialogDescription>
+            <DialogDescription>
+              El sistema genera automáticamente el canal con tu nombre de usuario y solicita token de Agora.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Input
-              value={channelNameInput}
-              onChange={(e) => setChannelNameInput(e.target.value)}
-              placeholder="Nombre del canal"
-              className="border-cyan-300/35 bg-black/25"
-            />
             <Input
               type="number"
               min={0}
