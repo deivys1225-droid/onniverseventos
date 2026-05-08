@@ -33,6 +33,8 @@ import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
 import { startActiveStream } from "@/lib/activeStreams";
 import { updateProfileLiveState } from "@/lib/profile";
 import { detectDeviceKind } from "@/lib/deviceDetection";
+import { startNativeLiveStreaming } from "@/lib/liveStreamingNative";
+import { Capacitor } from "@capacitor/core";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -1312,9 +1314,23 @@ const MiMundoVRSection = ({
         const dynamicUrl =
           live.transmitUrl?.trim() ||
           `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}&playbackId=${encodeURIComponent(live.playbackId)}&hls=${encodeURIComponent(hls)}`;
-        window.setTimeout(() => {
-          window.location.href = dynamicUrl;
-        }, 1000);
+
+        // App nativa: abrir cámara por plugin (evita cierres por resolver deep link dentro del WebView).
+        if (Capacitor.isNativePlatform()) {
+          try {
+            await startNativeLiveStreaming(live.streamKey);
+            toast.success("Abriendo cámara nativa para transmitir...");
+          } catch {
+            // Fallback de compatibilidad con instalaciones viejas.
+            window.setTimeout(() => {
+              window.location.href = dynamicUrl;
+            }, 300);
+          }
+        } else {
+          window.setTimeout(() => {
+            window.location.href = dynamicUrl;
+          }, 1000);
+        }
       } else {
         toast.info("La emision desde PC esta desactivada por ahora.");
       }
