@@ -38,7 +38,7 @@ function MirrorSbsRoot() {
     const isAllowedWebHost = (host: string): boolean => {
       const normalizedHost = host.trim().toLowerCase();
       if (!normalizedHost) return false;
-      if (normalizedHost === "onniverso.com" || normalizedHost === "www.onniverso.com") return true;
+      if (normalizedHost === "onnivers.com" || normalizedHost === "www.onnivers.com") return true;
       if (normalizedHost === "vivevr.vercel.app") return true;
       return normalizedHost.endsWith(".vercel.app");
     };

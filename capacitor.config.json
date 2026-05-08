@@ -3,9 +3,11 @@
   "appName": "ViveVR",
   "webDir": "dist",
   "server": {
-    "url": "https://vivevr.vercel.app/",
+    "url": "https://onnivers.com/",
     "androidScheme": "https",
     "allowNavigation": [
+      "onnivers.com",
+      "www.onnivers.com",
       "vivevr.vercel.app",
       "*.vercel.app",
       "*.vercel.live",
