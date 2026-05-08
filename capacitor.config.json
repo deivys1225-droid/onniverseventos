@@ -3,17 +3,27 @@
   "appName": "ViveVR",
   "webDir": "dist",
   "server": {
-    "url": "https://vivevr.vercel.app",
+    "url": "https://vivevr.vercel.app/",
     "androidScheme": "https",
     "allowNavigation": [
       "vivevr.vercel.app",
       "*.vercel.app",
+      "*.vercel.live",
       "livepeer.com",
       "*.livepeer.com",
       "livepeercdn.com",
       "*.livepeercdn.com",
       "supabase.co",
-      "*.supabase.co"
+      "*.supabase.co",
+      "paypal.com",
+      "*.paypal.com",
+      "*.paypalobjects.com",
+      "google.com",
+      "*.google.com",
+      "*.googleapis.com",
+      "cloudinary.com",
+      "*.cloudinary.com",
+      "*.r2.dev"
     ]
   }
 }

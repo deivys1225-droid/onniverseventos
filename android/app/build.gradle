@@ -54,3 +54,25 @@ try {
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
+
+// Copia siempre capacitor.config.json de la raíz del repo web → assets (así Android Studio sin "npx cap copy" sigue teniendo server.url).
+def rootCapacitorConfig = file("${rootProject.projectDir}/../capacitor.config.json")
+def assetsCapacitorConfig = file("${projectDir}/src/main/assets/capacitor.config.json")
+
+tasks.register("copyRootCapacitorConfig") {
+    group = "capacitor"
+    description = "Copia capacitor.config.json desde la raíz del proyecto a app/src/main/assets/"
+    onlyIf { rootCapacitorConfig.exists() }
+    doLast {
+        assetsCapacitorConfig.parentFile.mkdirs()
+        java.nio.file.Files.copy(
+            rootCapacitorConfig.toPath(),
+            assetsCapacitorConfig.toPath(),
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING
+        )
+    }
+}
+
+afterEvaluate {
+    tasks.named("preBuild").configure { dependsOn("copyRootCapacitorConfig") }
+}
