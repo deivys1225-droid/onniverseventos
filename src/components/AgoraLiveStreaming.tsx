@@ -18,43 +18,10 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { supabase, supabasePublicUrl, supabasePublishableKey } from "@/integrations/supabase/client";
-import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 
 const APP_ID = (import.meta.env.NEXT_PUBLIC_AGORA_APP_ID as string | undefined)?.trim() ?? "";
 const ENV_TOKEN = (import.meta.env.NEXT_PUBLIC_AGORA_TOKEN as string | undefined)?.trim() ?? "";
-
-declare global {
-  interface Window {
-    AndroidLiveMedia?: {
-      /** Expuesto por MainActivity (Capacitor Android): solicita CAMERA+RECORD_AUDIO antes de WebRTC. */
-      requestNativeMediaPermissions: () => void;
-    };
-  }
-}
-
-/**
- * En la app Android, WebRTC necesita primero el permiso **nativo**; si solo fallaba en móvil al «generar»,
- * era por getUserMedia en el modal. Aquí solo lo usamos al emitir, después del puente nativo.
- */
-async function ensureAndroidNativeRuntimePermissions(): Promise<void> {
-  if (typeof window === "undefined") return;
-  if (Capacitor.getPlatform() !== "android") return;
-  const bridge = window.AndroidLiveMedia;
-  if (!bridge?.requestNativeMediaPermissions) return;
-
-  await new Promise<void>((resolve) => {
-    let tid: ReturnType<typeof setTimeout>;
-    const done = () => {
-      window.removeEventListener("onniverso-android-native-media", done);
-      clearTimeout(tid);
-      resolve();
-    };
-    tid = setTimeout(done, 45000);
-    window.addEventListener("onniverso-android-native-media", done, { once: true });
-    bridge.requestNativeMediaPermissions();
-  });
-}
 
 type StreamConfig = {
   appId: string;
@@ -166,12 +133,10 @@ const AgoraLiveStreaming = () => {
         throw new Error("La cámara requiere contexto seguro (HTTPS o localhost).");
       }
 
-      await ensureAndroidNativeRuntimePermissions();
-
       /**
        * En WebView Android, el permiso debe ligarse al gesto del usuario: si primero hacemos
        * await client.join() (varios segundos), getUserMedia puede dar NotAllowedError sin diálogo.
-       * Por eso pedimos cámara/micrófono antes de unir al canal (tras permiso nativo en Android).
+       * Por eso pedimos cámara/micrófono antes de unir al canal.
        */
       setStatus("Permisos de cámara y micrófono…");
       const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
@@ -508,9 +473,7 @@ const AgoraLiveStreaming = () => {
           <DialogHeader>
             <DialogTitle className="font-display">Generar canal</DialogTitle>
             <DialogDescription>
-              El sistema genera el canal con tu nombre, pide token a Agora y actualiza tu tarjeta. La cámara y el
-              micrófono se piden al pulsar «Emitir Live» (en Android primero el permiso del sistema y luego el de la
-              WebView).
+              El sistema genera automáticamente el canal con tu nombre de usuario y solicita token de Agora.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
