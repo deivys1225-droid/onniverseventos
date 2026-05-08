@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, supabasePublicUrl, supabasePublishableKey } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const APP_ID = (import.meta.env.NEXT_PUBLIC_AGORA_APP_ID as string | undefined)?.trim() ?? "";
@@ -273,13 +273,38 @@ const AgoraLiveStreaming = () => {
       setConnecting(true);
       setStatus("Solicitando token a Agora...");
 
-      const { data, error: fnError } = await supabase.functions.invoke("agora-token", {
+      let data: Record<string, unknown> | null = null;
+      const { data: invokedData, error: fnError } = await supabase.functions.invoke("agora-token", {
         body: {
           channelName: requestedChannelName,
           uid: 0,
         },
       });
-      if (fnError) throw new Error(fnError.message || "No se pudo generar token de Agora.");
+
+      if (!fnError && invokedData) {
+        data = invokedData as Record<string, unknown>;
+      } else {
+        // Fallback robusto por si el helper de Supabase falla en algunos navegadores.
+        const endpoint = `${supabasePublicUrl}/functions/v1/agora-token`;
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: supabasePublishableKey,
+            Authorization: `Bearer ${supabasePublishableKey}`,
+          },
+          body: JSON.stringify({
+            channelName: requestedChannelName,
+            uid: 0,
+          }),
+        });
+        const responseJson = (await response.json()) as Record<string, unknown>;
+        if (!response.ok) {
+          const backendError = String(responseJson.error ?? "");
+          throw new Error(backendError || fnError?.message || "No se pudo generar token de Agora.");
+        }
+        data = responseJson;
+      }
 
       const resolvedAppId = (data?.appId as string | undefined)?.trim() || APP_ID;
       if (!resolvedAppId) {
@@ -332,7 +357,7 @@ const AgoraLiveStreaming = () => {
       setIsConfigOpen(false);
       toast.success("Canal generado. Tu tarjeta ya está en línea.");
     } catch (e) {
-      const message = e instanceof Error ? e.message : "No se pudo generar el canal.";
+      const message = e instanceof Error ? e.message : `No se pudo generar el canal (${JSON.stringify(e)})`;
       setError(message);
       setStatus("Error al generar canal");
     } finally {
