@@ -24,9 +24,12 @@ const APP_ID = (import.meta.env.NEXT_PUBLIC_AGORA_APP_ID as string | undefined)?
 const ENV_TOKEN = (import.meta.env.NEXT_PUBLIC_AGORA_TOKEN as string | undefined)?.trim() ?? "";
 
 type StreamConfig = {
+  appId: string;
   title: string;
+  rawChannelName: string;
   channel: string;
-  token: string;
+  hostToken: string;
+  audienceToken: string;
   ticketPrice: number;
   isFree: boolean;
 };
@@ -38,7 +41,7 @@ const AgoraLiveStreaming = () => {
   const [status, setStatus] = useState("Esperando configuración");
   const [error, setError] = useState<string | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [eventName, setEventName] = useState("");
+  const [channelNameInput, setChannelNameInput] = useState("");
   const [ticketInput, setTicketInput] = useState("0");
   const [isFreeEvent, setIsFreeEvent] = useState(true);
   const [streamConfig, setStreamConfig] = useState<StreamConfig | null>(null);
@@ -52,10 +55,7 @@ const AgoraLiveStreaming = () => {
   const remoteContainerId = "agora-remote-player";
 
   const canGenerate = useMemo(() => Boolean(user?.id) && !joined && !connecting, [user?.id, joined, connecting]);
-  const canGoLive = useMemo(
-    () => Boolean(APP_ID) && Boolean(streamConfig) && !joined && !connecting,
-    [streamConfig, joined, connecting],
-  );
+  const canGoLive = useMemo(() => Boolean(streamConfig?.appId) && Boolean(streamConfig) && !joined && !connecting, [streamConfig, joined, connecting]);
 
   const createClient = useCallback(() => {
     const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
@@ -109,12 +109,12 @@ const AgoraLiveStreaming = () => {
       setError("Debes iniciar sesión para emitir.");
       return;
     }
-    if (!APP_ID) {
-      setError("Falta NEXT_PUBLIC_AGORA_APP_ID en .env.local");
-      return;
-    }
     if (!streamConfig) {
       setError("Primero genera el canal del evento.");
+      return;
+    }
+    if (!streamConfig.appId) {
+      setError("No se recibió APP ID de Agora al generar el canal.");
       return;
     }
     const room = streamConfig.channel.trim();
@@ -152,8 +152,8 @@ const AgoraLiveStreaming = () => {
         mountFirstRemoteUser();
       });
 
-      const normalizedToken = streamConfig.token.trim();
-      const joinTask = client.join(APP_ID, room, normalizedToken || null, null);
+      const normalizedToken = streamConfig.hostToken.trim();
+      const joinTask = client.join(streamConfig.appId, room, normalizedToken || null, null);
       const joinTimeout = new Promise<never>((_, reject) => {
         window.setTimeout(() => reject(new Error("Timeout al conectar con Agora (10s).")), 10000);
       });
@@ -185,7 +185,7 @@ const AgoraLiveStreaming = () => {
           category: "Musica",
           is_live: true,
           stream_url: streamConfig.channel,
-          playback_url: streamConfig.token || null,
+          playback_url: streamConfig.audienceToken || null,
           privacy_mode: privacyMode,
           ticket_price: ticketPrice,
           updated_at: new Date().toISOString(),
@@ -257,27 +257,87 @@ const AgoraLiveStreaming = () => {
     setIsConfigOpen(true);
   };
 
-  const saveConfig = () => {
+  const saveConfig = async () => {
     if (!user?.id) return;
-    const title = eventName.trim();
-    if (title.length < 3) {
-      setError("Ingresa un nombre de evento válido (mínimo 3 caracteres).");
+    const requestedChannelName = channelNameInput.trim();
+    if (requestedChannelName.length < 3) {
+      setError("Ingresa un nombre de canal válido (mínimo 3 caracteres).");
       return;
     }
     const parsed = Number(ticketInput);
     const normalizedPrice = Number.isFinite(parsed) && parsed >= 0 ? Number(parsed.toFixed(2)) : 0;
     const isFree = isFreeEvent || normalizedPrice <= 0;
 
-    setStreamConfig({
-      title,
-      channel: buildAgoraChannel(user.id),
-      token: ENV_TOKEN,
-      ticketPrice: isFree ? 0 : normalizedPrice,
-      isFree,
-    });
-    setStatus("Canal listo para emitir");
-    setIsConfigOpen(false);
-    toast.success("Canal generado. Ya puedes emitir en vivo.");
+    try {
+      setError(null);
+      setConnecting(true);
+      setStatus("Solicitando token a Agora...");
+
+      const { data, error: fnError } = await supabase.functions.invoke("agora-token", {
+        body: {
+          channelName: requestedChannelName,
+          uid: 0,
+        },
+      });
+      if (fnError) throw new Error(fnError.message || "No se pudo generar token de Agora.");
+
+      const resolvedAppId = (data?.appId as string | undefined)?.trim() || APP_ID;
+      if (!resolvedAppId) {
+        throw new Error("Agora no devolvió APP ID y no existe fallback en entorno.");
+      }
+      const resolvedChannel = (data?.channelName as string | undefined)?.trim() || buildAgoraChannel(requestedChannelName);
+      const hostToken = (data?.hostToken as string | undefined)?.trim() || ENV_TOKEN;
+      const audienceToken = (data?.audienceToken as string | undefined)?.trim() || ENV_TOKEN;
+      if (!hostToken) {
+        throw new Error("Agora no devolvió token host y no existe fallback en entorno.");
+      }
+
+      const resolvedTitle = `Canal ${requestedChannelName}`;
+      const privacyMode = isFree ? "publico" : "privado_ticket";
+      const ticketPrice = isFree ? null : Number(normalizedPrice.toFixed(2));
+
+      const { error: streamErr } = await supabase.from("active_streams").upsert(
+        {
+          user_id: user.id,
+          title: resolvedTitle,
+          category: "Musica",
+          is_live: true,
+          stream_url: resolvedChannel,
+          playback_url: audienceToken || null,
+          privacy_mode: privacyMode,
+          ticket_price: ticketPrice,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+      if (streamErr) throw streamErr;
+
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .update({ live_status: "En Línea", is_live: true, updated_at: new Date().toISOString() })
+        .eq("id", user.id);
+      if (profileErr) throw profileErr;
+
+      setStreamConfig({
+        appId: resolvedAppId,
+        title: resolvedTitle,
+        rawChannelName: requestedChannelName,
+        channel: resolvedChannel,
+        hostToken,
+        audienceToken,
+        ticketPrice: isFree ? 0 : normalizedPrice,
+        isFree,
+      });
+      setStatus("Canal generado y tarjeta en línea");
+      setIsConfigOpen(false);
+      toast.success("Canal generado. Tu tarjeta ya está en línea.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "No se pudo generar el canal.";
+      setError(message);
+      setStatus("Error al generar canal");
+    } finally {
+      setConnecting(false);
+    }
   };
 
   return (
@@ -342,12 +402,12 @@ const AgoraLiveStreaming = () => {
             )}
             {streamConfig && (
               <p className="mt-2 text-center text-xs text-cyan-100/90">
-                Evento: {streamConfig.title} · {streamConfig.isFree ? "Gratuito" : `Ticket: $${streamConfig.ticketPrice.toFixed(2)} USD`}
+                Canal: {streamConfig.rawChannelName} · {streamConfig.isFree ? "Gratuito" : `Ticket: $${streamConfig.ticketPrice.toFixed(2)} USD`}
               </p>
             )}
             {!ENV_TOKEN && (
               <p className="mt-2 text-center text-xs text-amber-300">
-                Aviso: no se encontró token en variables de entorno; Agora intentará entrar sin token.
+                Aviso: no se encontró token fallback en entorno. Configura backend de token para emitir.
               </p>
             )}
           </div>
@@ -357,14 +417,14 @@ const AgoraLiveStreaming = () => {
       <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
         <DialogContent className="border-cyan-300/40 bg-card/95 backdrop-blur-md sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display">Configurar evento</DialogTitle>
-            <DialogDescription>Define nombre del evento y precio de entrada para generar tu canal automáticamente.</DialogDescription>
+            <DialogTitle className="font-display">Generar canal</DialogTitle>
+            <DialogDescription>Ingresa nombre de canal y precio. El sistema solicitará token de Agora automáticamente.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Input
-              value={eventName}
-              onChange={(e) => setEventName(e.target.value)}
-              placeholder="Nombre del evento"
+              value={channelNameInput}
+              onChange={(e) => setChannelNameInput(e.target.value)}
+              placeholder="Nombre del canal"
               className="border-cyan-300/35 bg-black/25"
             />
             <Input
@@ -392,7 +452,7 @@ const AgoraLiveStreaming = () => {
               />
               Evento gratuito
             </label>
-            <Button type="button" className="w-full" onClick={saveConfig}>
+            <Button type="button" className="w-full" onClick={() => void saveConfig()} disabled={connecting}>
               Guardar y generar canal
             </Button>
           </div>
