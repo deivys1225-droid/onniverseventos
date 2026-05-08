@@ -3,7 +3,6 @@
   "appName": "ViveVR",
   "webDir": "dist",
   "server": {
-    "url": "https://onnivers.com/",
     "androidScheme": "https",
     "allowNavigation": [
       "onnivers.com",
