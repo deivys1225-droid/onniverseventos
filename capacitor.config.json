@@ -1,5 +1,19 @@
 {
   "appId": "com.vivevr.app",
   "appName": "ViveVR",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "url": "https://vivevr.vercel.app",
+    "androidScheme": "https",
+    "allowNavigation": [
+      "vivevr.vercel.app",
+      "*.vercel.app",
+      "livepeer.com",
+      "*.livepeer.com",
+      "livepeercdn.com",
+      "*.livepeercdn.com",
+      "supabase.co",
+      "*.supabase.co"
+    ]
+  }
 }
