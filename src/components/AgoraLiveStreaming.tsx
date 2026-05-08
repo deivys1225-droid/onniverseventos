@@ -339,7 +339,7 @@ const AgoraLiveStreaming = () => {
 
       const { error: profileErr } = await supabase
         .from("profiles")
-        .update({ live_status: "En Línea", is_live: true, updated_at: new Date().toISOString() })
+        .update({ live_status: "En Línea", updated_at: new Date().toISOString() })
         .eq("id", user.id);
       if (profileErr) throw profileErr;
 
