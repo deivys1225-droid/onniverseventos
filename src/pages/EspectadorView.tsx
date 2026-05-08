@@ -99,7 +99,26 @@ const EspectadorView = () => {
       });
 
       const audienceToken = inheritedToken || AUDIENCE_TOKEN.trim();
-      await client.join(APP_ID, channelToJoin, audienceToken || null, null);
+      const joinWithTimeout = async (token: string | null) => {
+        const joinTask = client.join(APP_ID, channelToJoin, token, null);
+        const joinTimeout = new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("Timeout al conectar con Agora (10s).")), 10000);
+        });
+        await Promise.race([joinTask, joinTimeout]);
+      };
+
+      try {
+        await joinWithTimeout(audienceToken || null);
+      } catch (joinErr) {
+        const rawJoinMessage = joinErr instanceof Error ? joinErr.message : String(joinErr);
+        const normalizedJoinMessage = rawJoinMessage.toUpperCase();
+        const isStaticKeyProjectError =
+          normalizedJoinMessage.includes("CAN_NOT_GET_GATEWAY_SERVER") &&
+          normalizedJoinMessage.includes("DYNAMIC USE STATIC KEY");
+        if (!isStaticKeyProjectError) throw joinErr;
+        // Proyecto Agora en modo static key: audiencia entra sin token.
+        await joinWithTimeout(null);
+      }
       setJoined(true);
       setConnecting(false);
       setStatus("En vivo (audiencia)");

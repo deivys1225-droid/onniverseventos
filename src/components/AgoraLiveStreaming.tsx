@@ -152,11 +152,26 @@ const AgoraLiveStreaming = () => {
       });
 
       const normalizedToken = streamConfig.hostToken.trim();
-      const joinTask = client.join(streamConfig.appId, room, normalizedToken || null, null);
-      const joinTimeout = new Promise<never>((_, reject) => {
-        window.setTimeout(() => reject(new Error("Timeout al conectar con Agora (10s).")), 10000);
-      });
-      await Promise.race([joinTask, joinTimeout]);
+      const joinWithTimeout = async (token: string | null) => {
+        const joinTask = client.join(streamConfig.appId, room, token, null);
+        const joinTimeout = new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("Timeout al conectar con Agora (10s).")), 10000);
+        });
+        await Promise.race([joinTask, joinTimeout]);
+      };
+
+      try {
+        await joinWithTimeout(normalizedToken || null);
+      } catch (joinErr) {
+        const rawJoinMessage = joinErr instanceof Error ? joinErr.message : String(joinErr);
+        const normalizedJoinMessage = rawJoinMessage.toUpperCase();
+        const isStaticKeyProjectError =
+          normalizedJoinMessage.includes("CAN_NOT_GET_GATEWAY_SERVER") &&
+          normalizedJoinMessage.includes("DYNAMIC USE STATIC KEY");
+        if (!isStaticKeyProjectError) throw joinErr;
+        // Proyecto Agora en modo static key: reconecta sin token.
+        await joinWithTimeout(null);
+      }
       setStatus("Canal conectado");
 
       if (typeof navigator !== "undefined" && !navigator.mediaDevices?.getUserMedia) {
