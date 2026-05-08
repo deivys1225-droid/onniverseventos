@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.ViewGroup;
+import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -39,6 +40,11 @@ public class MainActivity extends BridgeActivity {
       "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757336/Selena_-_Bidi_Bidi_Bom_Bom_hcvcfk.mp4";
 
   private ActivityResultLauncher<String[]> webkitMediaPermissionLauncher;
+  /** Solicita CAMERA+RECORD_AUDIO antes de WebRTC para que el cuadro nativo aparezca en el mismo flujo que «Emitir Live». */
+  private ActivityResultLauncher<String[]> proactiveMediaLauncher;
+
+  private WebView bridgeWebView;
+
   /** Petición pendiente devuelta por el WebChromeClient del WebView */
   private PermissionRequest pendingWebkitPermissionRequest;
   /** Permisos de Android lanzados junto con {@link #pendingWebkitPermissionRequest} */
@@ -48,6 +54,10 @@ public class MainActivity extends BridgeActivity {
   protected void onCreate(Bundle savedInstanceState) {
     webkitMediaPermissionLauncher =
         registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), this::finishWebKitPermissionPrompt);
+    proactiveMediaLauncher =
+        registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(),
+            unused -> fireAndroidMediaReadyEvent());
 
     SplashScreen.installSplashScreen(this);
     super.onCreate(savedInstanceState);
@@ -65,6 +75,8 @@ public class MainActivity extends BridgeActivity {
       return;
     }
     WebView webView = bridge.getWebView();
+    bridgeWebView = webView;
+    webView.addJavascriptInterface(new AndroidLiveMediaBridge(this), "AndroidLiveMedia");
     webView.setWebChromeClient(
         new BridgeWebChromeClient(bridge) {
           @Override
@@ -77,6 +89,53 @@ public class MainActivity extends BridgeActivity {
     settings.setMediaPlaybackRequiresUserGesture(false);
 
     attachCasaVideoButton();
+  }
+
+  /** Notifica a la web que terminó el diálogo nativo de permisos (o que ya estaban concedidos). */
+  private void fireAndroidMediaReadyEvent() {
+    if (bridgeWebView == null) {
+      return;
+    }
+    bridgeWebView.post(
+        () ->
+            bridgeWebView.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent('onniverso-android-native-media'));", null));
+  }
+
+  /** Invocado desde JS antes de Agora: muestra el prompt de Android para cámara/micrófono si hace falta. */
+  private void requestNativeMediaPermissionsFromBridge() {
+    runOnUiThread(
+        () -> {
+          String[] perms =
+              new String[] {Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO};
+          boolean allGranted = true;
+          for (String p : perms) {
+            if (ContextCompat.checkSelfPermission(MainActivity.this, p)
+                != PackageManager.PERMISSION_GRANTED) {
+              allGranted = false;
+              break;
+            }
+          }
+          if (allGranted) {
+            fireAndroidMediaReadyEvent();
+            return;
+          }
+          proactiveMediaLauncher.launch(perms);
+        });
+  }
+
+  /** Referencia explícita para evitar fugas del enclosing implicit en interfaces JS. */
+  private static final class AndroidLiveMediaBridge {
+    private final MainActivity activity;
+
+    AndroidLiveMediaBridge(MainActivity activity) {
+      this.activity = activity;
+    }
+
+    @JavascriptInterface
+    public void requestNativeMediaPermissions() {
+      activity.requestNativeMediaPermissionsFromBridge();
+    }
   }
 
   /**
