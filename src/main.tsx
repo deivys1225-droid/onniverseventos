@@ -38,46 +38,14 @@ function MirrorSbsRoot() {
     const normalizeDeepLinkPath = (incomingUrl: string): string | null => {
       try {
         const u = new URL(incomingUrl);
-        // App Links HTTPS: https://vivevr.vercel.app/live/{playbackId}
-        if (u.protocol === "https:" && u.hostname === "vivevr.vercel.app" && u.pathname.startsWith("/live/")) {
-          return `${u.pathname}${u.search}${u.hash}`;
-        }
-        // Manifest HLS público (Universal Links / intent-filter): extract playback id → /live/:id
-        if (u.protocol === "https:" && u.hostname === "livepeercdn.com") {
-          const parts = u.pathname.split("/").filter(Boolean);
-          const idx = parts.findIndex((p) => p === "hls");
-          if (idx >= 0 && parts[idx + 1]) {
-            return `/live/${encodeURIComponent(parts[idx + 1])}`;
-          }
-        }
-        // App Links HTTPS: https://vivevr.vercel.app/transmitir?key=...
-        if (u.protocol === "https:" && u.hostname === "vivevr.vercel.app" && u.pathname === "/transmitir") {
-          return `${u.pathname}${u.search}${u.hash}`;
-        }
-        // onniverso://open?url=<destino>: puede ser página /live de ViveVR o HLS legacy
+        // onniverso://open?url=<destino>: conserva navegación interna de la web.
         if (u.protocol === "onniverso:" && u.hostname === "open") {
           const inner = u.searchParams.get("url");
           if (!inner) return null;
           try {
             const innerUrl = new URL(inner);
-            if (
-              innerUrl.protocol === "https:" &&
-              innerUrl.hostname === "vivevr.vercel.app" &&
-              innerUrl.pathname.startsWith("/live/")
-            ) {
+            if (innerUrl.protocol === "https:" && innerUrl.hostname === "vivevr.vercel.app") {
               return `${innerUrl.pathname}${innerUrl.search}${innerUrl.hash}`;
-            }
-            if (innerUrl.protocol === "https:" && innerUrl.hostname === "livepeercdn.com") {
-              const lpParts = innerUrl.pathname.split("/").filter(Boolean);
-              const lpIdx = lpParts.findIndex((p) => p === "hls");
-              if (lpIdx >= 0 && lpParts[lpIdx + 1]) {
-                return `/live/${encodeURIComponent(lpParts[lpIdx + 1]!)}`;
-              }
-            }
-            const parts = innerUrl.pathname.split("/").filter(Boolean);
-            const idx = parts.findIndex((p) => p === "hls");
-            if (idx >= 0 && parts[idx + 1]) {
-              return `/live/${encodeURIComponent(parts[idx + 1])}`;
             }
           } catch {
             return null;

@@ -7,6 +7,7 @@ import { componentTagger } from "lovable-tagger";
 // base relativo: obligatorio para que assets carguen en WebView (file://) con Capacitor.
 export default defineConfig(({ mode }) => ({
   base: "./",
+  envPrefix: ["VITE_", "NEXT_PUBLIC_"],
   server: {
     host: "::",
     port: 5173,
