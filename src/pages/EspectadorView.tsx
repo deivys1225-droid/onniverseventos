@@ -146,19 +146,31 @@ const EspectadorView = () => {
     void joinAudienceRoom();
   }, [joinAudienceRoom, useVodMode]);
 
+  const openInMobileApp = (scene: "360" | "mix" | "vrdiv") => {
+    const params = new URLSearchParams();
+    params.set("title", roomTitle);
+    params.set("mode", scene === "mix" ? "vod" : "live");
+    params.set("scene", scene);
+    if (inheritedToken) params.set("token", inheritedToken);
+    if (fallbackMp4) params.set("mp4", fallbackMp4);
+
+    const path = `/sala/espectador/${encodeURIComponent(channelName)}?${params.toString()}`;
+    const webUrl = `https://vivevr.vercel.app${path}`;
+    const deepLink = `onniverso://open?url=${encodeURIComponent(webUrl)}`;
+
+    window.location.href = deepLink;
+    window.setTimeout(() => {
+      navigate(path);
+    }, 1200);
+  };
+
   const handleSceneButton = (scene: "360" | "mix" | "vrdiv") => {
     if (!isMobileDevice) {
       toast.info("Disponible en App Móvil");
       return;
     }
-    if (scene === "vrdiv") {
-      const params = new URLSearchParams();
-      params.set("from", "audience");
-      params.set("channel", channelName);
-      params.set("title", roomTitle);
-      navigate(`/pc?${params.toString()}`);
-      return;
-    }
+    openInMobileApp(scene);
+    if (scene === "vrdiv") return;
     setMobileScene(scene);
     toast.success(scene === "360" ? "Modo 360° activado" : "Modo MIX activado");
   };
