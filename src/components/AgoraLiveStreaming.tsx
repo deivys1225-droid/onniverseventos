@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AgoraRTC, {
   type IAgoraRTCClient,
   type IAgoraRTCRemoteUser,
@@ -7,17 +7,41 @@ import AgoraRTC, {
 } from "agora-rtc-sdk-ng";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-type LiveRole = "broadcaster" | "audience";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useAuth } from "@/hooks/useAuth";
+import { buildAgoraChannel } from "@/lib/agoraRooms";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const APP_ID = (import.meta.env.NEXT_PUBLIC_AGORA_APP_ID as string | undefined)?.trim() ?? "";
+const ENV_TOKEN = (import.meta.env.NEXT_PUBLIC_AGORA_TOKEN as string | undefined)?.trim() ?? "";
+
+type StreamConfig = {
+  title: string;
+  channel: string;
+  token: string;
+  ticketPrice: number;
+  isFree: boolean;
+};
 
 const AgoraLiveStreaming = () => {
-  const [role, setRole] = useState<LiveRole>("audience");
-  const [channel, setChannel] = useState("al-universo-main");
+  const { user } = useAuth();
   const [joined, setJoined] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [status, setStatus] = useState("Esperando configuración");
   const [error, setError] = useState<string | null>(null);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [eventName, setEventName] = useState("");
+  const [ticketInput, setTicketInput] = useState("0");
+  const [isFreeEvent, setIsFreeEvent] = useState(true);
+  const [streamConfig, setStreamConfig] = useState<StreamConfig | null>(null);
 
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
@@ -27,11 +51,15 @@ const AgoraLiveStreaming = () => {
   const localContainerId = "agora-local-player";
   const remoteContainerId = "agora-remote-player";
 
-  const canJoin = useMemo(() => Boolean(APP_ID) && channel.trim().length > 0 && !joined, [channel, joined]);
+  const canGenerate = useMemo(() => Boolean(user?.id) && !joined && !connecting, [user?.id, joined, connecting]);
+  const canGoLive = useMemo(
+    () => Boolean(APP_ID) && Boolean(streamConfig) && !joined && !connecting,
+    [streamConfig, joined, connecting],
+  );
 
-  const createClient = useCallback((nextRole: LiveRole) => {
+  const createClient = useCallback(() => {
     const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
-    client.setClientRole(nextRole === "broadcaster" ? "host" : "audience");
+    client.setClientRole("host");
     return client;
   }, []);
 
@@ -56,8 +84,10 @@ const AgoraLiveStreaming = () => {
       remoteUsersRef.current = {};
     } finally {
       setJoined(false);
+      setConnecting(false);
+      setStatus(streamConfig ? "Canal listo para emitir" : "Desconectado");
     }
-  }, []);
+  }, [streamConfig]);
 
   const mountFirstRemoteUser = useCallback(() => {
     const users = Object.values(remoteUsersRef.current);
@@ -75,22 +105,33 @@ const AgoraLiveStreaming = () => {
   }, []);
 
   const join = useCallback(async () => {
+    if (!user?.id) {
+      setError("Debes iniciar sesión para emitir.");
+      return;
+    }
     if (!APP_ID) {
       setError("Falta NEXT_PUBLIC_AGORA_APP_ID en .env.local");
       return;
     }
-
-    const room = channel.trim();
+    if (!streamConfig) {
+      setError("Primero genera el canal del evento.");
+      return;
+    }
+    const room = streamConfig.channel.trim();
     if (!room) {
-      setError("Escribe un nombre de canal.");
+      setError("No se configuró el canal interno de transmisión.");
       return;
     }
 
     setError(null);
+    setConnecting(true);
+      setStatus("Conectando a Agora...");
 
     try {
-      const client = createClient(role);
+      const client = createClient();
       clientRef.current = client;
+      await client.setClientRole("host");
+      setStatus("Entrando al canal...");
 
       client.on("user-published", async (user, mediaType) => {
         remoteUsersRef.current[String(user.uid)] = user;
@@ -111,96 +152,252 @@ const AgoraLiveStreaming = () => {
         mountFirstRemoteUser();
       });
 
-      await client.join(APP_ID, room, null, null);
+      const normalizedToken = streamConfig.token.trim();
+      const joinTask = client.join(APP_ID, room, normalizedToken || null, null);
+      const joinTimeout = new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error("Timeout al conectar con Agora (10s).")), 10000);
+      });
+      await Promise.race([joinTask, joinTimeout]);
+      setStatus("Canal conectado");
 
-      if (role === "broadcaster") {
-        const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-        localAudioTrackRef.current = microphoneTrack;
-        localVideoTrackRef.current = cameraTrack;
-
-        await client.publish([microphoneTrack, cameraTrack]);
-        cameraTrack.play(localContainerId);
-      } else {
-        const remoteContainer = document.getElementById(remoteContainerId);
-        if (remoteContainer) {
-          remoteContainer.innerHTML =
-            '<p class="text-sm text-muted-foreground">Conectado como audiencia. Esperando video...</p>';
-        }
+      if (typeof navigator !== "undefined" && !navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Este navegador no soporta getUserMedia.");
       }
+      if (typeof window !== "undefined" && !window.isSecureContext) {
+        throw new Error("La cámara requiere contexto seguro (HTTPS o localhost).");
+      }
+      setStatus("Solicitando permisos de cámara y micrófono...");
+      const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+      localAudioTrackRef.current = microphoneTrack;
+      localVideoTrackRef.current = cameraTrack;
+
+      setStatus("Publicando transmisión...");
+      await client.publish([microphoneTrack, cameraTrack]);
+      cameraTrack.play(localContainerId);
+      setStatus("Transmitiendo en vivo");
+
+      const privacyMode = streamConfig.isFree ? "publico" : "privado_ticket";
+      const ticketPrice = streamConfig.isFree ? null : Number(streamConfig.ticketPrice.toFixed(2));
+      const { error: streamErr } = await supabase.from("active_streams").upsert(
+        {
+          user_id: user.id,
+          title: streamConfig.title,
+          category: "Musica",
+          is_live: true,
+          stream_url: streamConfig.channel,
+          playback_url: streamConfig.token || null,
+          privacy_mode: privacyMode,
+          ticket_price: ticketPrice,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+      if (streamErr) throw streamErr;
+
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .update({ live_status: "En Línea", is_live: true, updated_at: new Date().toISOString() })
+        .eq("id", user.id);
+      if (profileErr) throw profileErr;
 
       setJoined(true);
+      setConnecting(false);
+      toast.success("Live iniciado. Tu tarjeta ya aparece En Línea.");
     } catch (e) {
       await leave();
-      setError(e instanceof Error ? e.message : "No se pudo conectar al canal.");
+      const rawMessage = e instanceof Error ? e.message : "No se pudo conectar al canal.";
+      const normalizedMessage = rawMessage.toUpperCase();
+      if (normalizedMessage.includes("CAN_NOT_GET_GATEWAY_SERVER")) {
+        setError(
+          "Agora requiere token dinámico para este proyecto. Configura NEXT_PUBLIC_AGORA_TOKEN con un token RTC válido.",
+        );
+        return;
+      }
+      setError(rawMessage);
+      setConnecting(false);
+      setStatus("Error de conexión");
     }
-  }, [channel, createClient, leave, mountFirstRemoteUser, role]);
+  }, [createClient, leave, mountFirstRemoteUser, streamConfig, user?.id]);
+
+  const stopLive = useCallback(async () => {
+    if (!user?.id) return;
+    await leave();
+    const { error: rpcErr } = await supabase.rpc("stop_my_active_streams");
+    if (rpcErr) {
+      const { error: streamErr } = await supabase
+        .from("active_streams")
+        .update({ is_live: false, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id);
+      if (streamErr) {
+        toast.error("No se pudo cerrar la señal de Live en el backend.");
+      }
+      await supabase
+        .from("profiles")
+        .update({ live_status: "Offline", is_live: false, updated_at: new Date().toISOString() })
+        .eq("id", user.id);
+    }
+    setStatus(streamConfig ? "Canal listo para emitir" : "Live detenido");
+    toast.info("Transmisión detenida.");
+  }, [leave, streamConfig, user?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (!user?.id) return;
+      if (!joined) return;
+      void supabase.rpc("stop_my_active_streams");
+    };
+  }, [joined, user?.id]);
+
+  const handleGenerateChannel = () => {
+    if (!user?.id) {
+      setError("Debes iniciar sesión para generar tu canal.");
+      return;
+    }
+    setError(null);
+    setIsConfigOpen(true);
+  };
+
+  const saveConfig = () => {
+    if (!user?.id) return;
+    const title = eventName.trim();
+    if (title.length < 3) {
+      setError("Ingresa un nombre de evento válido (mínimo 3 caracteres).");
+      return;
+    }
+    const parsed = Number(ticketInput);
+    const normalizedPrice = Number.isFinite(parsed) && parsed >= 0 ? Number(parsed.toFixed(2)) : 0;
+    const isFree = isFreeEvent || normalizedPrice <= 0;
+
+    setStreamConfig({
+      title,
+      channel: buildAgoraChannel(user.id),
+      token: ENV_TOKEN,
+      ticketPrice: isFree ? 0 : normalizedPrice,
+      isFree,
+    });
+    setStatus("Canal listo para emitir");
+    setIsConfigOpen(false);
+    toast.success("Canal generado. Ya puedes emitir en vivo.");
+  };
 
   return (
-    <section className="mx-auto w-full max-w-5xl rounded-2xl border border-border/60 bg-card/40 p-4 backdrop-blur-sm md:p-6">
-      <div className="mb-4 flex flex-col gap-2 md:mb-5">
-        <h2 className="font-display text-xl font-bold text-foreground md:text-2xl">Streaming Agora (Al Universo)</h2>
-        <p className="text-sm text-muted-foreground">
-          Estructura base con roles Broadcaster y Audience, optimizada para móvil Android.
-        </p>
+    <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-cyan-300/30 bg-card/35 p-4 shadow-[0_0_60px_-18px_rgba(34,211,238,0.9)] backdrop-blur-xl md:p-6">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,hsl(var(--primary)/0.22),transparent_45%),radial-gradient(circle_at_85%_90%,hsl(290_80%_60%/0.15),transparent_45%)]" />
+        <div
+          className="absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "linear-gradient(hsl(var(--primary)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)",
+            backgroundSize: "52px 52px",
+          }}
+        />
       </div>
 
-      <div className="mb-4 grid gap-3 md:mb-5 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="agora-channel">Canal</Label>
-          <Input
-            id="agora-channel"
-            value={channel}
-            onChange={(e) => setChannel(e.target.value)}
-            disabled={joined}
-            placeholder="al-universo-main"
+      <div className="relative z-10 mb-4 text-center md:mb-5">
+        <h2 className="font-display text-xl font-bold tracking-tight text-foreground md:text-2xl">
+          Evento <span className="text-gradient-neon">Live</span> en Al Universo
+        </h2>
+      </div>
+
+      <div className="relative z-10 mb-3 flex justify-center">
+        <p className="rounded-full border border-cyan-300/35 bg-cyan-400/10 px-4 py-1 text-xs text-cyan-100">Estado: {status}</p>
+      </div>
+      {error && <p className="relative z-10 mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">{error}</p>}
+
+      <div className="relative z-10">
+        <div className="mx-auto w-full max-w-xl space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-cyan-200">Pantalla Central · Vista Local</p>
+          <div
+            id={localContainerId}
+            className="h-[min(44vh,340px)] w-full overflow-hidden rounded-2xl border border-cyan-300/40 bg-black shadow-[0_0_40px_-10px_rgba(34,211,238,0.85)]"
           />
-        </div>
-        <div className="space-y-2">
-          <Label>Rol</Label>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant={role === "broadcaster" ? "hero" : "outline"}
-              onClick={() => setRole("broadcaster")}
-              disabled={joined}
-              className="h-10 text-xs sm:text-sm"
-            >
-              Broadcaster
-            </Button>
-            <Button
-              type="button"
-              variant={role === "audience" ? "hero" : "outline"}
-              onClick={() => setRole("audience")}
-              disabled={joined}
-              className="h-10 text-xs sm:text-sm"
-            >
-              Audience
-            </Button>
+          <div className="pt-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <Button
+                type="button"
+                variant="hero"
+                onClick={handleGenerateChannel}
+                disabled={!canGenerate}
+                className="min-h-12 min-w-[220px] px-8 text-sm font-bold uppercase tracking-wide"
+              >
+                Generar Canal
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void join()}
+                disabled={!canGoLive}
+                className="min-h-12 min-w-[220px] border-cyan-300/40 bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/30"
+              >
+                {connecting ? "Conectando..." : "Emitir Live"}
+              </Button>
+            </div>
+            {joined && (
+              <div className="mt-2 flex justify-center">
+                <Button type="button" variant="outline" onClick={() => void stopLive()}>
+                  Detener transmisión
+                </Button>
+              </div>
+            )}
+            {streamConfig && (
+              <p className="mt-2 text-center text-xs text-cyan-100/90">
+                Evento: {streamConfig.title} · {streamConfig.isFree ? "Gratuito" : `Ticket: $${streamConfig.ticketPrice.toFixed(2)} USD`}
+              </p>
+            )}
+            {!ENV_TOKEN && (
+              <p className="mt-2 text-center text-xs text-amber-300">
+                Aviso: no se encontró token en variables de entorno; Agora intentará entrar sin token.
+              </p>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2 md:mb-5">
-        <Button type="button" onClick={() => void join()} disabled={!canJoin}>
-          Unirse al canal
-        </Button>
-        <Button type="button" variant="outline" onClick={() => void leave()} disabled={!joined}>
-          Salir
-        </Button>
-      </div>
-
-      {error && <p className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">{error}</p>}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Vista local (Broadcaster)</p>
-          <div id={localContainerId} className="aspect-video w-full overflow-hidden rounded-xl border border-border/60 bg-black" />
-        </div>
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Vista remota (Audience)</p>
-          <div id={remoteContainerId} className="aspect-video w-full overflow-hidden rounded-xl border border-border/60 bg-black" />
-        </div>
-      </div>
+      <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
+        <DialogContent className="border-cyan-300/40 bg-card/95 backdrop-blur-md sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">Configurar evento</DialogTitle>
+            <DialogDescription>Define nombre del evento y precio de entrada para generar tu canal automáticamente.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={eventName}
+              onChange={(e) => setEventName(e.target.value)}
+              placeholder="Nombre del evento"
+              className="border-cyan-300/35 bg-black/25"
+            />
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={ticketInput}
+              onChange={(e) => {
+                const next = e.target.value;
+                setTicketInput(next);
+                const asNum = Number(next);
+                setIsFreeEvent(!(Number.isFinite(asNum) && asNum > 0));
+              }}
+              placeholder="Precio de entrada (USD)"
+              className="border-cyan-300/35 bg-black/25"
+            />
+            <label className="flex items-center gap-2 text-sm text-cyan-100">
+              <Checkbox
+                checked={isFreeEvent}
+                onCheckedChange={(checked) => {
+                  const next = checked === true;
+                  setIsFreeEvent(next);
+                  if (next) setTicketInput("0");
+                }}
+              />
+              Evento gratuito
+            </label>
+            <Button type="button" className="w-full" onClick={saveConfig}>
+              Guardar y generar canal
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };
