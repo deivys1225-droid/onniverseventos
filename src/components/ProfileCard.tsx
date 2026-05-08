@@ -191,7 +191,13 @@ const ProfileCard = ({
           )}
           variant="outline"
         >
-          {isSaving ? (hasUnsavedChanges ? "Guardando..." : "Cargando...") : hasUnsavedChanges ? saveLabel : liveLabel}
+          {isSaving
+            ? hasUnsavedChanges
+              ? "Guardando..."
+              : "Solicitando señal..."
+            : hasUnsavedChanges
+              ? saveLabel
+              : liveLabel}
         </Button>
       ) : (
         <a

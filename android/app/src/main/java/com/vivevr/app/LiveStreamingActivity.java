@@ -31,6 +31,8 @@ public class LiveStreamingActivity extends AppCompatActivity implements ConnectC
   private RtmpCamera2 rtmpCamera2;
   private boolean canStartPreview = false;
   private String pendingStreamKey;
+  private boolean shouldNotifyStopped = false;
+  private boolean notifiedStopped = false;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -40,7 +42,10 @@ public class LiveStreamingActivity extends AppCompatActivity implements ConnectC
     surfaceView = findViewById(R.id.svPreview);
     startButton = findViewById(R.id.btnStartStreaming);
     FloatingActionButton closeButton = findViewById(R.id.btnCloseStreaming);
-    closeButton.setOnClickListener(v -> finish());
+    closeButton.setOnClickListener(v -> {
+      shouldNotifyStopped = true;
+      finish();
+    });
     startButton.setOnClickListener(v -> startFromPendingKey());
 
     surfaceView.getHolder().addCallback(this);
@@ -72,6 +77,7 @@ public class LiveStreamingActivity extends AppCompatActivity implements ConnectC
 
     if (prepareEncoders()) {
       rtmpCamera2.startStream(streamUrl);
+      shouldNotifyStopped = true;
       Toast.makeText(this, "Conectando stream...", Toast.LENGTH_SHORT).show();
     } else {
       Toast.makeText(this, "No se pudo preparar audio/video", Toast.LENGTH_LONG).show();
@@ -160,9 +166,16 @@ public class LiveStreamingActivity extends AppCompatActivity implements ConnectC
   @Override
   protected void onDestroy() {
     stopStreamAndPreview();
-    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(STOPPED_REDIRECT_URL));
-    intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-    startActivity(intent);
+    if (shouldNotifyStopped && !notifiedStopped && isFinishing()) {
+      notifiedStopped = true;
+      try {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(STOPPED_REDIRECT_URL));
+        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent);
+      } catch (Exception ignored) {
+        // No bloquear salida del usuario si falla el deep link de retorno.
+      }
+    }
     super.onDestroy();
   }
 

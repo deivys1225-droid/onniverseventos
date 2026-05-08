@@ -33,6 +33,8 @@ import { livepeerPublicHlsUrl } from "@/lib/livepeerPlayback";
 import { startActiveStream } from "@/lib/activeStreams";
 import { updateProfileLiveState } from "@/lib/profile";
 import { detectDeviceKind } from "@/lib/deviceDetection";
+import { startNativeLiveStreaming } from "@/lib/liveStreamingNative";
+import { Capacitor } from "@capacitor/core";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -1309,12 +1311,27 @@ const MiMundoVRSection = ({
       if (deviceKind === "mobile") {
         setIsUserLive(true);
         const hls = livepeerPublicHlsUrl(live.playbackId);
-        const dynamicUrl =
-          live.transmitUrl?.trim() ||
-          `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}&playbackId=${encodeURIComponent(live.playbackId)}&hls=${encodeURIComponent(hls)}`;
-        window.setTimeout(() => {
-          window.location.href = dynamicUrl;
-        }, 1000);
+        // En la app nativa: usar el puente Capacitor → plugin Android para abrir la cámara.
+        if (Capacitor.isNativePlatform()) {
+          try {
+            await startNativeLiveStreaming(live.streamKey);
+            toast.success("Abriendo cámara nativa para transmitir...");
+          } catch {
+            // Fallback: si el bridge/plugin no responde, intentar deep link nativo como respaldo.
+            const dynamicUrl =
+              live.transmitUrl?.trim() ||
+              `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}&playbackId=${encodeURIComponent(live.playbackId)}&hls=${encodeURIComponent(hls)}`;
+            window.location.href = dynamicUrl;
+          }
+        } else {
+          // En navegador móvil: saltar a la app por deep link (si está instalada).
+          const dynamicUrl =
+            live.transmitUrl?.trim() ||
+            `onniverso://transmitir?key=${encodeURIComponent(live.streamKey)}&playbackId=${encodeURIComponent(live.playbackId)}&hls=${encodeURIComponent(hls)}`;
+          window.setTimeout(() => {
+            window.location.href = dynamicUrl;
+          }, 1000);
+        }
       } else {
         toast.info("La emision desde PC esta desactivada por ahora.");
       }
