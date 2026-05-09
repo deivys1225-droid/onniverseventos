@@ -40,7 +40,7 @@ import java.util.Map;
 public class MainActivity extends BridgeActivity {
 
   /** URL de entrada oficial al abrir la app. */
-  private static final String INITIAL_WEB_URL = "https://aluniverso.com";
+  private static final String INITIAL_WEB_URL = "https://onnivers.com";
   private static final String DEFAULT_AUDIENCE_CHANNEL = "main";
 
   /** Vídeo “Casa” (Cloudinary); abierto con el reproductor del sistema — sin cambiar la web empaquetada. */
@@ -227,7 +227,10 @@ public class MainActivity extends BridgeActivity {
     String path = uri.getPath() != null ? uri.getPath().toLowerCase(Locale.ROOT) : "";
     if ("onniverso".equals(scheme) && "open".equals(host)) return true;
     if (!"https".equals(scheme)) return false;
-    if ("aluniverso.com".equals(host) || "www.aluniverso.com".equals(host)) {
+    if ("aluniverso.com".equals(host)
+        || "www.aluniverso.com".equals(host)
+        || "onnivers.com".equals(host)
+        || "www.onnivers.com".equals(host)) {
       return path.startsWith("/sala/espectador/");
     }
     return path.endsWith(".mp4");
