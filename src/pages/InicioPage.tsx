@@ -1,6 +1,5 @@
 import Navbar from "@/components/Navbar";
 import MiMundoVRSection from "@/components/MiMundoVRSection";
-import AgoraLiveStreaming from "@/components/AgoraLiveStreaming";
 import type { ProfileCardConfirmPayload } from "@/components/ProfileCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -69,9 +68,6 @@ const InicioPage = () => {
           profileAvatarUrl={profile?.avatar_url}
           onProfilePersist={handleProfilePersist}
         />
-        <div className="px-4 pb-10 pt-6 md:px-6">
-          <AgoraLiveStreaming />
-        </div>
       </main>
     </div>
   );

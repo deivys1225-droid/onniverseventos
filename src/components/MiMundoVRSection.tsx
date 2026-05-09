@@ -16,10 +16,8 @@ import {
 import { MessageCircleMore, UsersRound } from "lucide-react";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
-import LiveRequestCard, { type LiveRequestPayload } from "@/components/LiveRequestCard";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { createLiveRequest, uploadLiveEventImage } from "@/lib/liveRequests";
 import SocialMenu from "@/components/SocialMenu";
 import ChatWindow from "@/components/ChatWindow";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +26,6 @@ import SearchHub from "@/components/SearchHub";
 import StorePublishCard, { type StorePublishPayload } from "@/components/StorePublishCard";
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
 import VaultCard from "@/components/VaultCard";
-import { updateProfileLiveState } from "@/lib/profile";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -114,7 +111,6 @@ function MoonScreenCluster({
   visible,
   vrMirrorFlat,
   onOpenVault,
-  onOpenLiveRequest,
   onOpenStoreSetup,
   onCollapseScreens,
   isUserLive,
@@ -123,166 +119,12 @@ function MoonScreenCluster({
   /** Mismo canvas 2D: planos que miran a la cámara, sin profundidad de escena. */
   vrMirrorFlat: boolean;
   onOpenVault?: () => void;
-  onOpenLiveRequest?: () => void;
   onOpenStoreSetup?: (itemType: "biblioteca" | "cursos") => void;
   onCollapseScreens?: () => void;
   isUserLive?: boolean;
 }) {
   const clusterRef = useRef<THREE.Group>(null);
   const systemTexture = useLoader(THREE.TextureLoader, WINDOWS11_DESKTOP_URL);
-  const liveCardTexture = useMemo(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1280;
-    canvas.height = 720;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    bg.addColorStop(0, "rgba(2,6,14,0.72)");
-    bg.addColorStop(0.55, "rgba(5,10,22,0.65)");
-    bg.addColorStop(1, "rgba(2,6,14,0.72)");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const cyanAura = ctx.createRadialGradient(1010, 145, 40, 1010, 145, 360);
-    cyanAura.addColorStop(0, "rgba(75,225,255,0.32)");
-    cyanAura.addColorStop(1, "rgba(75,225,255,0)");
-    ctx.fillStyle = cyanAura;
-    ctx.fillRect(680, 0, 600, 420);
-
-    ctx.strokeStyle = "rgba(70,228,255,0.96)";
-    ctx.lineWidth = 5;
-    ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
-    ctx.strokeStyle = "rgba(66,198,255,0.72)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(34, 34, canvas.width - 68, canvas.height - 68);
-
-    const vipTagX = 66;
-    const vipTagY = 52;
-    const vipTagW = 320;
-    const vipTagH = 58;
-    const vipTagGrad = ctx.createLinearGradient(vipTagX, vipTagY, vipTagX + vipTagW, vipTagY + vipTagH);
-    vipTagGrad.addColorStop(0, "rgba(20,42,66,0.78)");
-    vipTagGrad.addColorStop(1, "rgba(10,26,46,0.78)");
-    ctx.fillStyle = vipTagGrad;
-    ctx.beginPath();
-    ctx.roundRect(vipTagX, vipTagY, vipTagW, vipTagH, 20);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(98,224,255,0.85)";
-    ctx.lineWidth = 2.4;
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(255,166,233,0.68)";
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.roundRect(vipTagX + 5, vipTagY + 5, vipTagW - 10, vipTagH - 10, 16);
-    ctx.stroke();
-    ctx.fillStyle = "#ff9ce4";
-    ctx.font = "800 30px 'Trebuchet MS'";
-    ctx.fillText("ONNIVERSO VIP", 84, 91);
-
-    ctx.shadowColor = "rgba(91, 228, 255, 0.82)";
-    ctx.shadowBlur = 18;
-    ctx.fillStyle = "#ff86d8";
-    ctx.font = "900 62px 'Trebuchet MS'";
-    ctx.fillText("REVOLUCION VIP", 78, 182);
-    ctx.fillStyle = "#d5f7ff";
-    ctx.font = "900 58px 'Trebuchet MS'";
-    ctx.fillText("MONETIZA SIN FRONTERAS", 78, 246);
-    ctx.shadowBlur = 0;
-
-    const copy = "Activa tu estadio virtual 360 y vende Tickets VIP globales para tus artistas con infraestructura premium segura.";
-    const words = copy.split(" ");
-    let line = "";
-    let y = 294;
-    ctx.fillStyle = "rgba(226,246,255,0.96)";
-    ctx.font = "600 26px 'Trebuchet MS'";
-    for (const word of words) {
-      const test = line ? `${line} ${word}` : word;
-      if (ctx.measureText(test).width > 690) {
-        ctx.fillText(line, 80, y);
-        line = word;
-        y += 34;
-      } else {
-        line = test;
-      }
-    }
-    if (line) ctx.fillText(line, 80, y);
-
-    const photoX = 810;
-    const photoY = 200;
-    const photoW = 392;
-    const photoH = 275;
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.fillRect(photoX, photoY, photoW, photoH);
-    ctx.strokeStyle = "rgba(88,226,255,0.86)";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(photoX, photoY, photoW, photoH);
-
-    const visorImg = new Image();
-    visorImg.crossOrigin = "anonymous";
-    visorImg.onload = () => {
-      ctx.drawImage(visorImg, photoX + 8, photoY + 8, photoW - 16, photoH - 16);
-      texture.needsUpdate = true;
-    };
-    visorImg.src =
-      "https://images.unsplash.com/photo-1622979135225-d2ba269cf1ac?auto=format&fit=crop&w=1600&q=90";
-
-    const visorTagX = 810;
-    const visorTagY = 494;
-    const visorTagW = 392;
-    const visorTagH = 56;
-    const visorTagGrad = ctx.createLinearGradient(visorTagX, visorTagY, visorTagX + visorTagW, visorTagY + visorTagH);
-    visorTagGrad.addColorStop(0, "rgba(18,48,74,0.72)");
-    visorTagGrad.addColorStop(1, "rgba(11,29,52,0.72)");
-    ctx.fillStyle = visorTagGrad;
-    ctx.beginPath();
-    ctx.roundRect(visorTagX, visorTagY, visorTagW, visorTagH, 18);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(92,230,255,0.82)";
-    ctx.lineWidth = 2.2;
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(255,162,232,0.56)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(visorTagX + 4, visorTagY + 4, visorTagW - 8, visorTagH - 8, 14);
-    ctx.stroke();
-    ctx.fillStyle = "#ecfbff";
-    ctx.font = "800 22px 'Trebuchet MS'";
-    ctx.fillText("VISOR VR · PREMIUM", 902, 530);
-
-    const btnW = 620;
-    const btnH = 88;
-    const btnX = 80;
-    const btnY = 600;
-    const btnGradient = ctx.createLinearGradient(btnX, btnY, btnX + btnW, btnY + btnH);
-    btnGradient.addColorStop(0, "rgba(20,122,156,0.72)");
-    btnGradient.addColorStop(1, "rgba(10,66,103,0.7)");
-    ctx.fillStyle = btnGradient;
-    ctx.beginPath();
-    ctx.roundRect(btnX, btnY, btnW, btnH, 26);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(124,237,255,0.98)";
-    ctx.lineWidth = 3.2;
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(255,166,233,0.62)";
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.roundRect(btnX + 5, btnY + 5, btnW - 10, btnH - 10, 21);
-    ctx.stroke();
-    const ctaGlow = ctx.createRadialGradient(btnX + btnW / 2, btnY + btnH / 2, 20, btnX + btnW / 2, btnY + btnH / 2, 240);
-    ctaGlow.addColorStop(0, "rgba(97,230,255,0.34)");
-    ctaGlow.addColorStop(1, "rgba(97,230,255,0)");
-    ctx.fillStyle = ctaGlow;
-    ctx.fillRect(btnX - 50, btnY - 40, btnW + 100, btnH + 80);
-    ctx.fillStyle = "#f2fdff";
-    ctx.font = "900 38px 'Trebuchet MS'";
-    ctx.fillText("INSCRIBIR ARTISTA", btnX + 122, btnY + 57);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.needsUpdate = true;
-    return texture;
-  }, []);
 
   const socialTexture = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -519,25 +361,20 @@ function MoonScreenCluster({
   useEffect(() => {
     systemTexture.colorSpace = THREE.SRGBColorSpace;
     systemTexture.anisotropy = 8;
-    if (liveCardTexture) {
-      liveCardTexture.anisotropy = 8;
-      liveCardTexture.needsUpdate = true;
-    }
     if (infoTexture) {
       infoTexture.anisotropy = 8;
       infoTexture.needsUpdate = true;
     }
-  }, [infoTexture, liveCardTexture, systemTexture]);
+  }, [infoTexture, systemTexture]);
 
   useEffect(() => {
     return () => {
       socialTexture?.dispose();
       systemTexture?.dispose();
-      liveCardTexture?.dispose();
       infoTexture?.dispose();
       offlineTexture?.dispose();
     };
-  }, [infoTexture, liveCardTexture, offlineTexture, socialTexture, systemTexture]);
+  }, [infoTexture, offlineTexture, socialTexture, systemTexture]);
 
   useFrame((_, delta) => {
     if (!clusterRef.current) return;
@@ -596,28 +433,6 @@ function MoonScreenCluster({
             <planeGeometry args={[2.9, 1.72]} />
             <meshBasicMaterial
               map={infoTexture ?? undefined}
-              toneMapped={false}
-              side={THREE.DoubleSide}
-              transparent
-              opacity={1}
-            />
-          </mesh>
-        </Billboard>
-        <Billboard position={[-1.35, 0.18, 0]} follow>
-          <mesh
-            renderOrder={6}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-              onOpenLiveRequest?.();
-            }}
-            onDoubleClick={(event) => {
-              event.stopPropagation();
-              onCollapseScreens?.();
-            }}
-          >
-            <planeGeometry args={[2.9, 1.72]} />
-            <meshBasicMaterial
-              map={liveCardTexture ?? undefined}
               toneMapped={false}
               side={THREE.DoubleSide}
               transparent
@@ -687,28 +502,6 @@ function MoonScreenCluster({
         <planeGeometry args={[2.9, 1.72]} />
         <meshBasicMaterial
           map={infoTexture ?? undefined}
-          toneMapped={false}
-          side={THREE.DoubleSide}
-          transparent
-          opacity={1}
-        />
-      </mesh>
-      <mesh
-        position={[-1.35, 0.18, 0]}
-        rotation={[0, -Math.PI / 2, 0]}
-        renderOrder={6}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          onOpenLiveRequest?.();
-        }}
-        onDoubleClick={(event) => {
-          event.stopPropagation();
-          onCollapseScreens?.();
-        }}
-      >
-        <planeGeometry args={[2.9, 1.72]} />
-        <meshBasicMaterial
-          map={liveCardTexture ?? undefined}
           toneMapped={false}
           side={THREE.DoubleSide}
           transparent
@@ -1072,8 +865,6 @@ const MiMundoVRSection = ({
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [moonScreensVisible, setMoonScreensVisible] = useState(false);
-  const [liveRequestOpen, setLiveRequestOpen] = useState(false);
-  const [liveRequestSaving, setLiveRequestSaving] = useState(false);
   const [storeSetupOpen, setStoreSetupOpen] = useState(false);
   const [storeSetupType, setStoreSetupType] = useState<"biblioteca" | "cursos">("biblioteca");
   const [storePublishing, setStorePublishing] = useState(false);
@@ -1118,31 +909,6 @@ const MiMundoVRSection = ({
       await onProfilePersist(payload);
     } finally {
       setProfileSaving(false);
-    }
-  };
-
-  const onLiveRequestSubmit = async (payload: LiveRequestPayload) => {
-    if (!user) {
-      toast.error("Debes iniciar sesion para enviar solicitud LIVE.");
-      return;
-    }
-    setLiveRequestSaving(true);
-    try {
-      const eventImageUrl = await uploadLiveEventImage(user.id, payload.eventImageFile);
-      await createLiveRequest({
-        userId: user.id,
-        requesterEmail: payload.email,
-        artistName: payload.artistName,
-        ticketPrice: payload.ticketPrice,
-        stadiumDisplayName: payload.stadiumName,
-        eventImageUrl,
-      });
-      toast.success("Solicitud LIVE enviada.");
-      setLiveRequestOpen(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo enviar la solicitud LIVE.");
-    } finally {
-      setLiveRequestSaving(false);
     }
   };
 
@@ -1192,9 +958,6 @@ const MiMundoVRSection = ({
     void loadFriendCandidates();
   }, [user]);
 
-  useEffect(() => {
-    if (!moonScreensVisible) setLiveRequestOpen(false);
-  }, [moonScreensVisible]);
   useEffect(() => {
     if (!moonScreensVisible) setVaultOpen(false);
   }, [moonScreensVisible]);
@@ -1247,28 +1010,6 @@ const MiMundoVRSection = ({
       toast.error(error instanceof Error ? error.message : "No se pudo publicar el item.");
     } finally {
       setStorePublishing(false);
-    }
-  };
-
-  const onProfileLiveAction = async () => {
-    if (!user) {
-      toast.error("Debes iniciar sesion para transmitir.");
-      return;
-    }
-    setProfileSaving(true);
-    try {
-      await updateProfileLiveState({
-        userId: user.id,
-        isLive: false,
-        streamKey: null,
-        playbackId: null,
-      });
-      setIsUserLive(false);
-      toast.info("El sistema anterior fue retirado. Usa el módulo de Agora en Inicio para transmitir.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo actualizar el estado de streaming.");
-    } finally {
-      setProfileSaving(false);
     }
   };
 
@@ -1353,7 +1094,6 @@ const MiMundoVRSection = ({
               visible={moonScreensVisible}
               vrMirrorFlat={vrStereoActive}
               onOpenVault={() => setVaultOpen((prev) => !prev)}
-              onOpenLiveRequest={() => setLiveRequestOpen((prev) => !prev)}
               onOpenStoreSetup={(itemType) => {
                 setStoreSetupType(itemType);
                 setStoreSetupOpen(true);
@@ -1392,7 +1132,7 @@ const MiMundoVRSection = ({
               initialAvatarSrc={cardAvatarSrc}
               isSaving={profileSaving}
               onConfirm={onProfileConfirm}
-              onLiveAction={onProfileLiveAction}
+              liveNavPath="/pc"
               showAddFriend={Boolean(user && friendCandidates.length > 0)}
               onAddFriend={onAddFriendFromProfile}
             />
@@ -1408,13 +1148,6 @@ const MiMundoVRSection = ({
         />
       )}
 
-      {!vrStereoActive && moonScreensVisible && liveRequestOpen && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-4">
-          <div className="pointer-events-auto origin-center scale-[0.66] -translate-y-[clamp(3.75rem,22vh,13rem)]">
-            <LiveRequestCard onSubmit={onLiveRequestSubmit} isSubmitting={liveRequestSaving} />
-          </div>
-        </div>
-      )}
       {!vrStereoActive && moonScreensVisible && storeSetupOpen && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-4">
           <button

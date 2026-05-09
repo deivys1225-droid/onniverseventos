@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Camera, PencilLine, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -18,10 +19,10 @@ export interface ProfileCardProps {
   isSaving?: boolean;
   saveLabel?: string;
   liveLabel?: string;
-  liveHref?: string;
+  /** Muestra LIVE debajo del nombre y navega a esta ruta (p. ej. `/pc`). */
+  liveNavPath?: string;
   /** Al confirmar devuelve nombre, archivo opcional y URL de objeto para previsualización. Revoca previews antiguos en el padre si aplica. */
   onConfirm?: (payload: ProfileCardConfirmPayload) => void;
-  onLiveAction?: () => void | Promise<void>;
   onAddFriend?: () => void | Promise<void>;
   showAddFriend?: boolean;
   className?: string;
@@ -34,13 +35,13 @@ const ProfileCard = ({
   isSaving = false,
   saveLabel = "Guardar cambios",
   liveLabel = "LIVE",
-  liveHref,
+  liveNavPath,
   onConfirm,
-  onLiveAction,
   onAddFriend,
   showAddFriend = false,
   className,
 }: ProfileCardProps) => {
+  const navigate = useNavigate();
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(initialName);
@@ -88,15 +89,10 @@ const ProfileCard = ({
   }, []);
 
   const handleConfirm = useCallback(async () => {
-    if (isSaving) return;
-    if (hasUnsavedChanges) {
-      await onConfirm?.({ name: name.trim() || initialName, avatarFile, avatarPreviewUrl });
-      setAvatarFile(null);
-      return;
-    }
-    if (liveHref) return;
-    await onLiveAction?.();
-  }, [avatarFile, avatarPreviewUrl, hasUnsavedChanges, initialName, isSaving, liveHref, name, onConfirm, onLiveAction]);
+    if (isSaving || !hasUnsavedChanges) return;
+    await onConfirm?.({ name: name.trim() || initialName, avatarFile, avatarPreviewUrl });
+    setAvatarFile(null);
+  }, [avatarFile, avatarPreviewUrl, hasUnsavedChanges, initialName, isSaving, name, onConfirm]);
 
   return (
     <motion.div
@@ -178,35 +174,31 @@ const ProfileCard = ({
         )}
       </div>
 
-      {hasUnsavedChanges || !liveHref ? (
+      {liveNavPath ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="mb-4 w-full rounded-xl border border-primary/40 bg-primary/5 font-display text-xs font-bold uppercase tracking-[0.18em] text-primary shadow-[0_0_20px_-8px_hsl(var(--primary)/0.5)] transition hover:bg-primary/12 hover:border-primary/55"
+          onClick={() => navigate(liveNavPath)}
+        >
+          {liveLabel}
+        </Button>
+      ) : null}
+
+      {hasUnsavedChanges ? (
         <Button
           type="button"
           onClick={handleConfirm}
           disabled={isSaving}
           className={cn(
             "w-full rounded-xl font-display text-xs font-bold uppercase tracking-[0.14em] transition",
-            hasUnsavedChanges
-              ? "border border-primary/40 bg-primary/10 text-primary shadow-[0_0_20px_-6px_hsl(var(--primary)/0.55)] hover:bg-primary/20 hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]"
-              : "border border-cyan-300/70 bg-cyan-500/20 text-cyan-100 shadow-[0_0_26px_-7px_rgba(0,224,255,0.92)] hover:bg-cyan-500/28 hover:shadow-[0_0_34px_-6px_rgba(20,235,255,1)]",
+            "border border-primary/40 bg-primary/10 text-primary shadow-[0_0_20px_-6px_hsl(var(--primary)/0.55)] hover:bg-primary/20 hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]",
           )}
           variant="outline"
         >
-          {isSaving
-            ? hasUnsavedChanges
-              ? "Guardando..."
-              : "Solicitando señal..."
-            : hasUnsavedChanges
-              ? saveLabel
-              : liveLabel}
+          {isSaving ? "Guardando..." : saveLabel}
         </Button>
-      ) : (
-        <a
-          href={liveHref}
-          className="inline-flex w-full items-center justify-center rounded-xl border border-cyan-300/70 bg-cyan-500/20 px-4 py-2 text-center font-display text-xs font-bold uppercase tracking-[0.14em] text-cyan-100 shadow-[0_0_26px_-7px_rgba(0,224,255,0.92)] transition hover:bg-cyan-500/28 hover:shadow-[0_0_34px_-6px_rgba(20,235,255,1)]"
-        >
-          {liveLabel}
-        </a>
-      )}
+      ) : null}
     </motion.div>
   );
 };
