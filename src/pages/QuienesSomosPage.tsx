@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import LegalPageLayout from "@/components/LegalPageLayout";
+import { SOCIAL_LINKS } from "@/components/SocialFooterIcons";
 
 const ORG_JSON_LD = {
   "@context": "https://schema.org",
@@ -9,12 +10,14 @@ const ORG_JSON_LD = {
   legalName: "Empresa Tecnológica de Colombia S.A.S.",
   url: "https://onnivers.com",
   taxID: "901.083.478-0",
+  foundingDate: "2017",
   email: "gerencia@onniverso.com",
   founder: {
     "@type": "Person",
     name: "Davis Herrera",
     jobTitle: "Fundador y CEO",
   },
+  sameAs: [SOCIAL_LINKS.instagram, SOCIAL_LINKS.facebook, SOCIAL_LINKS.tiktok],
 };
 
 const QuienesSomosPage = () => {
@@ -32,8 +35,25 @@ const QuienesSomosPage = () => {
   return (
     <LegalPageLayout
       title="Quiénes somos"
-      description="OnniVers — La experiencia inmersiva definitiva, impulsada desde Colombia para el mundo."
+      description="Empresa Tecnológica de Colombia S.A.S. — titular legal de OnniVers desde 2017. Experiencia inmersiva desde Colombia para el mundo."
     >
+      <section
+        className="rounded-xl border border-primary/25 bg-primary/5 p-4 md:p-5 [&_h2]:mt-0"
+        aria-labelledby="identity-developer-heading"
+      >
+        <h2 id="identity-developer-heading">Identidad legal y titular del servicio</h2>
+        <p>
+          <strong className="text-foreground">Empresa Tecnológica de Colombia S.A.S.</strong> (
+          <span className="whitespace-nowrap tabular-nums">
+            NIT <strong>901.083.478-0</strong>
+          </span>
+          ) es la <strong>entidad legal responsable</strong> del producto y servicio digital publicado bajo la marca{" "}
+          <strong>OnniVers</strong>, con continuidad operativa documentada desde <strong>2017</strong>. Esta información
+          identifica al desarrollador y titular frente a usuarios, tiendas de aplicaciones y autoridades, según las buenas
+          prácticas de transparencia exigidas por Google Play y políticas de confianza del consumidor.
+        </p>
+      </section>
+
       <section>
         <h2>Empresa y trayectoria</h2>
         <p>

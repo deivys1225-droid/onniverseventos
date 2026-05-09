@@ -186,21 +186,21 @@ const WorldCupVrHero = () => {
                   className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2.5"
                   aria-label="Cuatro pilares de OnniVerso"
                 >
-                  <li className="flex items-center gap-2 rounded-lg border border-cyan-400/35 bg-cyan-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-100 shadow-sm shadow-cyan-500/10 sm:text-xs">
+                  <li className="flex min-w-0 items-center gap-2 rounded-lg border border-cyan-400/35 bg-cyan-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-100 shadow-sm shadow-cyan-500/10 max-sm:text-[10px] max-sm:tracking-tight sm:text-xs">
                     <Users className="h-3.5 w-3.5 shrink-0 text-cyan-300" aria-hidden />
-                    Red Social
+                    <span className="min-w-0 leading-tight">Red Social</span>
                   </li>
-                  <li className="flex items-center gap-2 rounded-lg border border-fuchsia-400/35 bg-fuchsia-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-100 shadow-sm shadow-fuchsia-500/10 sm:text-xs">
+                  <li className="flex min-w-0 items-center gap-2 rounded-lg border border-fuchsia-400/35 bg-fuchsia-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-100 shadow-sm shadow-fuchsia-500/10 max-sm:text-[10px] max-sm:tracking-tight sm:text-xs">
                     <Music2 className="h-3.5 w-3.5 shrink-0 text-fuchsia-300" aria-hidden />
-                    Conciertos
+                    <span className="min-w-0 leading-tight [font-size:95%]">Conciertos</span>
                   </li>
-                  <li className="flex items-center gap-2 rounded-lg border border-amber-400/35 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-amber-100 shadow-sm shadow-amber-500/10 sm:text-xs">
+                  <li className="flex min-w-0 items-center gap-2 rounded-lg border border-amber-400/35 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-amber-100 shadow-sm shadow-amber-500/10 max-sm:text-[10px] max-sm:tracking-tight sm:text-xs">
                     <GraduationCap className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-hidden />
-                    Educación
+                    <span className="min-w-0 leading-tight">Educación</span>
                   </li>
-                  <li className="flex items-center gap-2 rounded-lg border border-emerald-400/35 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-emerald-100 shadow-sm shadow-emerald-500/10 sm:text-xs">
+                  <li className="flex min-w-0 items-center gap-2 rounded-lg border border-emerald-400/35 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-emerald-100 shadow-sm shadow-emerald-500/10 max-sm:text-[10px] max-sm:tracking-tight sm:text-xs">
                     <Store className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden />
-                    Tiendas
+                    <span className="min-w-0 leading-tight">Tiendas</span>
                   </li>
                 </ul>
                 <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-[15px]">

@@ -31,6 +31,7 @@ import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
 import PcScenePage from "./pages/PcScenePage.tsx";
 import EmisorView from "./pages/EmisorView.tsx";
 import EspectadorView from "./pages/EspectadorView.tsx";
+import SupportTechFab from "@/components/SupportTechFab";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <SupportTechFab />
           <Routes>
             {/* Portada pública: Mundial VR + navbar (sin login obligatorio) */}
             <Route path="/" element={<Index />} />
