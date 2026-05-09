@@ -1,0 +1,34 @@
+import type { ReactNode } from "react";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+
+type LegalPageLayoutProps = {
+  title: string;
+  description?: string;
+  children: ReactNode;
+};
+
+/** Shell común para páginas legales / institucionales (article semántico para SEO). */
+const LegalPageLayout = ({ title, description, children }: LegalPageLayoutProps) => {
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main className="relative z-10 px-6 pb-20 pt-28">
+        <article className="container mx-auto max-w-3xl">
+          <header className="mb-10 border-b border-primary/20 pb-8">
+            <h1 className="font-display text-3xl font-bold tracking-tight text-foreground md:text-4xl">{title}</h1>
+            {description ? (
+              <p className="mt-3 text-sm text-muted-foreground md:text-base">{description}</p>
+            ) : null}
+          </header>
+          <div className="space-y-6 text-sm leading-relaxed text-muted-foreground md:text-base [&_a]:text-primary [&_a]:underline-offset-2 [&_a:hover]:underline [&_h2]:mt-10 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-foreground [&_strong]:text-foreground">
+            {children}
+          </div>
+        </article>
+      </main>
+      <Footer />
+    </div>
+  );
+};
+
+export default LegalPageLayout;
