@@ -15,7 +15,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "OnniVerso"
+rootProject.name = "OnniVers"
 
 include(":app")
 include(":capacitor-cordova-android-plugins")

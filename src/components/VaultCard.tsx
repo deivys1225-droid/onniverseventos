@@ -49,7 +49,7 @@ export default function VaultCard({ userId, onClose }: VaultCardProps) {
     <div className="w-[min(92vw,620px)] rounded-2xl border border-cyan-300/45 bg-black/65 p-4 shadow-[0_0_45px_-14px_rgba(34,211,238,0.82)] backdrop-blur-xl">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">Boveda Onniverso</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">Boveda OnniVers</p>
           <h3 className="text-lg font-semibold text-cyan-50">Tus compras en miniatura</h3>
         </div>
         <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onClose?.()}>

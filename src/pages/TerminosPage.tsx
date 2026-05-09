@@ -4,12 +4,12 @@ const TerminosPage = () => {
   return (
     <LegalPageLayout
       title="Términos y condiciones de uso"
-      description="OnniVerso — Empresa Tecnológica de Colombia S.A.S. NIT 901083478-0. Última actualización: 2026."
+      description="OnniVers — Empresa Tecnológica de Colombia S.A.S. NIT 901083478-0. Última actualización: 2026."
     >
       <section>
         <h2>1. Identificación</h2>
         <p>
-          El sitio y la aplicación <strong>OnniVerso</strong> son operados por{" "}
+          El sitio y la aplicación <strong>OnniVers</strong> son operados por{" "}
           <strong>Empresa Tecnológica de Colombia S.A.S.</strong>, NIT <strong>901083478-0</strong>. Al acceder o usar
           el servicio, usted acepta estos términos.
         </p>
@@ -18,7 +18,7 @@ const TerminosPage = () => {
       <section>
         <h2>2. Objeto del servicio</h2>
         <p>
-          OnniVerso ofrece experiencias digitales e inmersivas, incluyendo acceso a salas, contenidos y funciones
+          OnniVers ofrece experiencias digitales e inmersivas, incluyendo acceso a salas, contenidos y funciones
           descritas en la plataforma, sujetas a disponibilidad técnica y a las reglas de cada evento o sala.
         </p>
       </section>
@@ -27,7 +27,7 @@ const TerminosPage = () => {
         <h2>3. Propiedad intelectual y uso del contenido</h2>
         <p>
           Los contenidos, marcas, diseños y transmisiones están protegidos. El usuario se compromete a no reproducir,
-          distribuir ni explotar material sin autorización. OnniVerso mantiene un{" "}
+          distribuir ni explotar material sin autorización. OnniVers mantiene un{" "}
           <strong>protocolo de seguridad de contenido</strong> que{" "}
           <strong>prohíbe estrictamente la grabación de pantalla, capturas de video no autorizadas</strong> y conductas
           que vulneren derechos de autor o contratos con terceros.
@@ -56,7 +56,7 @@ const TerminosPage = () => {
       <section>
         <h2>6. Limitación y ley aplicable</h2>
         <p>
-          En la medida permitida por la ley, OnniVerso limita responsabilidades por daños indirectos o pérdidas de
+          En la medida permitida por la ley, OnniVers limita responsabilidades por daños indirectos o pérdidas de
           beneficios. Para controversias, se aplicará la legislación colombiana y los tribunales competentes en Colombia,
           salvo norma imperativa en contrario.
         </p>

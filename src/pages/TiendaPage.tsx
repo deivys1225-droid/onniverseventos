@@ -460,7 +460,7 @@ const TiendaPage = () => {
                 <span className="text-gradient-neon">entretenimiento inmersivo</span>
               </h2>
               <p className="text-muted-foreground text-base md:text-lg max-w-3xl leading-relaxed mb-10">
-                OnniVerso está redefiniendo cómo el mundo experimenta la música en vivo.
+                OnniVers está redefiniendo cómo el mundo experimenta la música en vivo.
                 Con tecnología de punta en VR, streaming descentralizado y una comunidad
                 en crecimiento exponencial, esta es tu oportunidad de ser parte de la
                 próxima revolución digital.

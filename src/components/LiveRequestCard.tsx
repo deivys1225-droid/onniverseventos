@@ -41,7 +41,7 @@ const LiveRequestCard = ({ onSubmit, isSubmitting = false }: LiveRequestCardProp
         </span>
         <div>
           <p className="font-display text-sm font-bold uppercase tracking-[0.18em] text-cyan-200">LIVE Request</p>
-          <p className="text-xs text-muted-foreground">Solicitud para emitir en vivo con ticketing Onniverso.</p>
+          <p className="text-xs text-muted-foreground">Solicitud para emitir en vivo con ticketing OnniVers.</p>
         </div>
       </div>
 

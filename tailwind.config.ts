@@ -16,6 +16,9 @@ export default {
       fontFamily: {
         display: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
         body: ['Inter', 'system-ui', 'sans-serif'],
+        /** Marca hero / logo — estética futurista (Orbitron + respaldo Montserrat) */
+        headline: ['Orbitron', 'Montserrat', 'system-ui', 'sans-serif'],
+        subtitle: ['Montserrat', 'Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

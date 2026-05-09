@@ -1,7 +1,7 @@
 import { useId } from "react";
 
 /**
- * Marca OnniVerso — icono esférico + texto legible para SEO y lectores de pantalla.
+ * Marca OnniVers — icono esférico + texto legible para SEO y lectores de pantalla.
  */
 type OnniVersoLogoProps = {
   className?: string;
@@ -33,8 +33,8 @@ const OnniVersoLogo = ({ className = "", iconSize = 28 }: OnniVersoLogoProps) =>
         <ellipse cx="24" cy="24" rx="21" ry="10" fill="none" stroke={`url(#${gradId})`} strokeWidth="1.4" opacity="0.65" />
         <circle cx="24" cy="24" r="7" fill="hsl(190 90% 52% / 0.25)" stroke={`url(#${gradId})`} strokeWidth="1.5" />
       </svg>
-      <span className="font-display font-bold text-lg tracking-tight text-foreground md:text-xl">
-        Onni<span className="text-primary">Verso</span>
+      <span className="font-headline text-lg font-semibold tracking-[0.14em] text-foreground md:text-xl md:tracking-[0.16em]">
+        Onni<span className="font-bold tracking-[0.22em] text-primary">Vers</span>
       </span>
     </span>
   );

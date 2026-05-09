@@ -4,13 +4,13 @@ const PrivacidadPage = () => {
   return (
     <LegalPageLayout
       title="Política de privacidad"
-      description="OnniVerso — Empresa Tecnológica de Colombia S.A.S. Última actualización: 2026."
+      description="OnniVers — Empresa Tecnológica de Colombia S.A.S. Última actualización: 2026."
     >
       <section>
         <h2>1. Responsable del tratamiento</h2>
         <p>
-          <strong>Empresa Tecnológica de Colombia S.A.S.</strong>, NIT <strong>901083478-0</strong>, en adelante «OnniVerso»,
-          opera la plataforma OnniVerso y es responsable del tratamiento de datos personales conforme a la normativa
+          <strong>Empresa Tecnológica de Colombia S.A.S.</strong>, NIT <strong>901083478-0</strong>, en adelante «OnniVers»,
+          opera la plataforma OnniVers y es responsable del tratamiento de datos personales conforme a la normativa
           colombiana aplicable y buenas prácticas internacionales.
         </p>
       </section>
@@ -26,7 +26,7 @@ const PrivacidadPage = () => {
       <section>
         <h2>3. Seguridad de contenido y protección de obra</h2>
         <p>
-          OnniVerso aplica un <strong>protocolo de seguridad de contenido</strong> orientado a la protección de derechos de
+          OnniVers aplica un <strong>protocolo de seguridad de contenido</strong> orientado a la protección de derechos de
           autor y de los titulares de contenido. Entre las medidas se incluyen políticas y controles técnicos que{" "}
           <strong>prohíben de manera estricta</strong>, salvo autorización expresa y por escrito, la{" "}
           <strong>grabación de pantalla, captura de video o reproducción no autorizada</strong> de las transmisiones y
@@ -50,7 +50,7 @@ const PrivacidadPage = () => {
         <p>
           Las transacciones comerciales habilitadas en la plataforma se procesan mediante la{" "}
           <strong>integración oficial de PayPal</strong>, que aplica sus propios estándares de seguridad y cifrado para
-          pagos. OnniVerso no almacena datos completos de tarjeta en sus sistemas como parte de ese flujo; el tratamiento
+          pagos. OnniVers no almacena datos completos de tarjeta en sus sistemas como parte de ese flujo; el tratamiento
           queda sujeto también a las políticas de PayPal.
         </p>
       </section>

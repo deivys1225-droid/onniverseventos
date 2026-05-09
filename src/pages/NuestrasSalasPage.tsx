@@ -209,7 +209,7 @@ const NuestrasSalasPage = () => {
           name: profile.name,
           image: profile.avatarUrl?.trim() || "/placeholder.svg",
           liveStatus: profile.liveStatus,
-          subtitle: "Comunidad Onniverso",
+          subtitle: "Comunidad OnniVers",
           description: "Nuevo creador registrado en la plataforma.",
           status: "",
           channel: buildAgoraChannel(profile.id),
@@ -316,7 +316,7 @@ const NuestrasSalasPage = () => {
       return;
     }
     if (result.status === "accepted") {
-      toast.success(`Ya son contactos en OnniVerso con ${displayName}.`);
+      toast.success(`Ya son contactos en OnniVers con ${displayName}.`);
     } else {
       toast.success(`Solicitud enviada a ${displayName}. Queda guardada en Supabase hasta que la acepten.`);
     }

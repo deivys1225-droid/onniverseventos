@@ -138,25 +138,28 @@ const WorldCupVrHero = () => {
       <div className="absolute inset-0">
         <img
           src="https://images.unsplash.com/photo-1577223625816-7546f13df25d?auto=format&fit=crop&w=2200&q=80"
-          alt="Estadio de fútbol futurista"
+          alt=""
           className="h-full w-full object-cover"
           loading="eager"
         />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,hsl(200_95%_60%/.25),transparent_38%),radial-gradient(circle_at_85%_20%,hsl(45_95%_60%/.18),transparent_35%),linear-gradient(to_bottom,hsl(220_55%_10%/.55),hsl(220_55%_5%/.9))]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,hsl(190_70%_48%/.14),transparent_42%),radial-gradient(circle_at_85%_22%,hsl(270_55%_52%/.12),transparent_38%),linear-gradient(to_bottom,hsl(230_45%_8%/.45),hsl(235_40%_4%/.82))]" />
       </div>
 
       <div className="relative z-10 container mx-auto max-w-7xl">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-          className="mb-10 text-center"
+          transition={{ duration: 0.75 }}
+          className="mb-14 px-2 text-center md:mb-16"
         >
-          <h1 className="mx-auto max-w-5xl font-display text-3xl font-bold leading-tight text-foreground md:text-5xl">
-            OnniVerso: La Experiencia Inmersiva Definitiva
+          <h1 className="mx-auto max-w-4xl font-headline text-[clamp(2.25rem,6vw,4rem)] font-semibold leading-[1.08] tracking-[0.14em] md:tracking-[0.2em]">
+            <span className="bg-gradient-to-br from-cyan-50 via-white to-slate-200 bg-clip-text text-transparent">
+              Onni
+            </span>
+            <span className="tracking-[0.26em] text-primary drop-shadow-[0_0_36px_hsl(175_80%_50%/0.42)]">Vers</span>
           </h1>
-          <p className="mx-auto mt-5 max-w-4xl text-center text-lg text-muted-foreground md:text-xl">
-            El Mundial como nunca lo imaginaste: <span className="text-primary font-semibold">Primera Fila en VR</span>
+          <p className="font-subtitle mx-auto mt-8 max-w-xl text-[11px] font-medium uppercase tracking-[0.42em] text-muted-foreground/75 md:mt-10 md:text-xs">
+            Tu Realidad Evolucionada
           </p>
         </motion.div>
 

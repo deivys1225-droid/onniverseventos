@@ -39,7 +39,7 @@ const Navbar = () => {
           type="button"
           className="flex cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/50"
           onClick={() => handleNavigate("/")}
-          aria-label="OnniVerso — Inicio"
+          aria-label="OnniVers — Inicio"
         >
           <OnniVersoLogo />
         </button>

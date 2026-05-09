@@ -5,7 +5,7 @@ import LegalPageLayout from "@/components/LegalPageLayout";
 const ORG_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  name: "OnniVerso",
+  name: "OnniVers",
   legalName: "Empresa Tecnológica de Colombia S.A.S.",
   url: "https://onnivers.com",
   taxID: "901083478-0",
@@ -32,12 +32,12 @@ const QuienesSomosPage = () => {
   return (
     <LegalPageLayout
       title="Quiénes somos"
-      description="OnniVerso — La experiencia inmersiva definitiva, impulsada desde Colombia para el mundo."
+      description="OnniVers — La experiencia inmersiva definitiva, impulsada desde Colombia para el mundo."
     >
       <section>
-        <h2>OnniVerso</h2>
+        <h2>OnniVers</h2>
         <p>
-          <strong>OnniVerso</strong> es la plataforma de <strong>Empresa Tecnológica de Colombia S.A.S.</strong> (NIT{" "}
+          <strong>OnniVers</strong> es la plataforma de <strong>Empresa Tecnológica de Colombia S.A.S.</strong> (NIT{" "}
           <strong>901083478-0</strong>), dedicada a experiencias inmersivas, streaming y contenido en entornos virtuales y
           web, con un enfoque futurista y accesible.
         </p>
@@ -47,7 +47,7 @@ const QuienesSomosPage = () => {
         <h2>Liderazgo</h2>
         <p>
           <strong>David</strong> es <strong>Fundador y CEO</strong> de la compañía, liderando la visión de producto, la
-          relación con creadores y la expansión internacional de OnniVerso.
+          relación con creadores y la expansión internacional de OnniVers.
         </p>
       </section>
 

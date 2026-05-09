@@ -8,7 +8,7 @@ const Footer = () => {
         <div className="flex flex-col gap-3">
           <OnniVersoLogo iconSize={32} />
           <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-            © 2017 OnniVerso — Empresa Tecnológica de Colombia S.A.S. NIT 901083478-0. Derechos reservados.
+            © 2017 OnniVers — Empresa Tecnológica de Colombia S.A.S. NIT 901083478-0. Derechos reservados.
           </p>
         </div>
         <nav

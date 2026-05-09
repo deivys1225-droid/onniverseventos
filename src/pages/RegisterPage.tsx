@@ -109,7 +109,7 @@ const RegisterPage = () => {
               <Headset className="h-8 w-8 text-primary" />
             </div>
             <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-              Crear cuenta en <span className="text-gradient-neon">OnniVerso</span>
+              Crear cuenta en <span className="text-gradient-neon">OnniVers</span>
             </h1>
           </div>
 

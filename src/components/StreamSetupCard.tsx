@@ -127,7 +127,7 @@ const StreamSetupCard = ({
           </span>
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">Transmitir</p>
-            <p className="text-xs text-muted-foreground">Configura tu live en Onniverso.</p>
+            <p className="text-xs text-muted-foreground">Configura tu live en OnniVers.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -256,7 +256,7 @@ const StreamSetupCard = ({
                       purchase_units: [
                         {
                           amount: { currency_code: "USD", value: parsedTicket.toFixed(2) },
-                          description: `Ticket VIP Live - ${title || "Onniverso"}`,
+                          description: `Ticket VIP Live - ${title || "OnniVers"}`,
                         },
                       ],
                     })

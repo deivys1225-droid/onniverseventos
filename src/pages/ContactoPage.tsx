@@ -4,7 +4,7 @@ const ContactoPage = () => {
   return (
     <LegalPageLayout
       title="Contacto"
-      description="Canales oficiales de OnniVerso — Empresa Tecnológica de Colombia S.A.S."
+      description="Canales oficiales de OnniVers — Empresa Tecnológica de Colombia S.A.S."
     >
       <section>
         <h2>Correo electrónico</h2>
@@ -22,7 +22,7 @@ const ContactoPage = () => {
       <section>
         <h2>Información corporativa</h2>
         <p>
-          Razón social: Empresa Tecnológica de Colombia S.A.S. · NIT 901083478-0 · Marca OnniVerso.
+          Razón social: Empresa Tecnológica de Colombia S.A.S. · NIT 901083478-0 · Marca OnniVers.
         </p>
       </section>
     </LegalPageLayout>
