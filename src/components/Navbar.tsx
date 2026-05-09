@@ -10,10 +10,6 @@ import { Capacitor } from "@capacitor/core";
 const APP_APK_DOWNLOAD_URL =
   "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
 
-/** Sala fija para el botón SELECTOR: Android usa URL absoluta con {@link window.irAlSelectorNativo} → AndroidBridge.openSelector; web usa ruta SPA. */
-const SELECTOR_AUDIENCE_NATIVE_URL = "https://onnivers.com/sala/espectador/al-universo-beele";
-const SELECTOR_AUDIENCE_WEB_PATH = "/sala/espectador/al-universo-beele";
-
 const Navbar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -30,14 +26,15 @@ const Navbar = () => {
     setIsMobileMenuOpen(false);
   };
 
-  /** [SELECTOR] App Android: selector nativo (main.tsx → AndroidBridge). PC/navegador: misma sala por React Router. */
+  /** [SELECTOR] Solo Android: {@code AndroidBridge.abrirMiSelectorNativo()} — mismo AlertDialog que ya tiene la app; sin cargar URL. */
   const handleSelectorAudience = () => {
     setIsMobileMenuOpen(false);
-    if (Capacitor.getPlatform() === "android" && typeof window.irAlSelectorNativo === "function") {
-      window.irAlSelectorNativo(SELECTOR_AUDIENCE_NATIVE_URL);
+    const bridge = typeof window.AndroidBridge !== "undefined" ? window.AndroidBridge : undefined;
+    if (Capacitor.getPlatform() === "android" && bridge != null && typeof bridge.abrirMiSelectorNativo === "function") {
+      bridge.abrirMiSelectorNativo();
       return;
     }
-    navigate(SELECTOR_AUDIENCE_WEB_PATH);
+    toast.info("Solo disponible en App");
   };
 
   const navItems = [
@@ -66,7 +63,7 @@ const Navbar = () => {
               {item.label}
             </button>
           ))}
-          {/* [SELECTOR] Botón nuevo: escena audiencia Beele vía irAlSelectorNativo (Android) o ruta SPA (web). */}
+          {/* [SELECTOR] Android: AndroidBridge.abrirMiSelectorNativo() — misma UI que openSceneSelector; web: toast. */}
           <button
             type="button"
             onClick={handleSelectorAudience}

@@ -64,7 +64,7 @@ public class MainActivity extends BridgeActivity {
     void onSelected(String sceneKey);
   }
 
-  /** Usado por {@link AndroidBridge#openSelector(String)} y por la interceptación de URLs en el WebViewClient. */
+  /** Usado por la interceptación de URLs en el WebViewClient (navegación + selector + loadUrl). */
   private void setPendingSceneAfterNavigation(String scene) {
     pendingSceneAfterNavigation = scene;
   }
@@ -199,7 +199,7 @@ public class MainActivity extends BridgeActivity {
   /**
    * Puente Web → nativo para los botones 360°, VR y MT del reproductor:
    * {@code AndroidBridge.on360Click()}, {@code AndroidBridge.onVrClick()}, {@code AndroidBridge.onMtClick()}.
-   * {@code AndroidBridge.openSelector(url)} muestra primero el selector de escena y luego carga la URL (mismo flujo que interceptar navegación).
+   * {@code AndroidBridge.abrirMiSelectorNativo()} solo muestra el mismo {@link AlertDialog} de escena que {@link AudienceSceneBridge#openSceneSelector(String)} (sin cargar URL).
    */
   private static final class AndroidBridge {
 
@@ -211,15 +211,9 @@ public class MainActivity extends BridgeActivity {
       this.bridge = bridge;
     }
 
-    /**
-     * Abre el AlertDialog de escena y, al elegir, carga {@code url} en el WebView y despacha la escena al JS al terminar de cargar.
-     */
+    /** Solo UI nativa: AlertDialog “Selector de escena”; al elegir se despacha a JS como {@link AudienceSceneBridge}. Sin {@code loadUrl}. */
     @JavascriptInterface
-    public void openSelector(String url) {
-      if (url == null || url.trim().isEmpty()) {
-        return;
-      }
-      final String target = url.trim();
+    public void abrirMiSelectorNativo() {
       activity.runOnUiThread(
           () -> {
             WebView webView = bridge.getWebView();
@@ -229,10 +223,7 @@ public class MainActivity extends BridgeActivity {
             activity.showSceneSelector(
                 webView,
                 "split",
-                scene -> {
-                  activity.setPendingSceneAfterNavigation(scene);
-                  webView.loadUrl(target);
-                });
+                scene -> activity.dispatchSceneToJs(webView, scene));
           });
     }
 

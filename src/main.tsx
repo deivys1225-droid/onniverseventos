@@ -7,18 +7,17 @@ import "./index.css";
 
 declare global {
   interface Window {
-    irAlSelectorNativo?: (url: string) => void;
-    AndroidBridge?: { openSelector?: (url: string) => void };
+    /** Solo Android: llama {@code AndroidBridge.abrirMiSelectorNativo()} (sin cargar página). */
+    irAlSelectorNativo?: () => void;
+    AndroidBridge?: { abrirMiSelectorNativo?: () => void };
   }
 }
 
-/** App nativa Android: abre el selector de escena y luego carga la URL. En PC: navegación normal. */
-function irAlSelectorNativo(url: string) {
+/** Android: solo puente nativo (AlertDialog escena). PC: no-op (usa toast desde UI si hace falta). */
+function irAlSelectorNativo() {
   const bridge = typeof window.AndroidBridge !== "undefined" ? window.AndroidBridge : undefined;
-  if (bridge != null && typeof bridge.openSelector === "function") {
-    bridge.openSelector(url);
-  } else {
-    window.location.href = url;
+  if (bridge != null && typeof bridge.abrirMiSelectorNativo === "function") {
+    bridge.abrirMiSelectorNativo();
   }
 }
 
