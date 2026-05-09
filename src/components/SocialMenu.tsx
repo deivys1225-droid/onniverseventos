@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, MessageCircle, UserPlus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 type FriendshipRow = {
   id: string;
@@ -123,9 +124,18 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
 
   const respond = async (friendshipId: string, status: "accepted" | "declined") => {
     setBusyRequestId(friendshipId);
-    await supabase.rpc("respond_friendship_request", { p_friendship_id: friendshipId, p_status: status });
+    const { error } = await supabase.rpc("respond_friendship_request", {
+      p_friendship_id: friendshipId,
+      p_status: status,
+    });
+    if (error) {
+      toast.error(error.message);
+      setBusyRequestId(null);
+      return;
+    }
     setFriendships((prev) => prev.map((f) => (f.id === friendshipId ? { ...f, status } : f)));
     setBusyRequestId(null);
+    toast.success(status === "accepted" ? "Solicitud aceptada." : "Solicitud rechazada.");
   };
 
   if (!open) return null;
