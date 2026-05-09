@@ -5,9 +5,14 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
+import { Capacitor } from "@capacitor/core";
 
 const APP_APK_DOWNLOAD_URL =
   "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
+
+/** Sala fija para el botón SELECTOR: Android usa URL absoluta con {@link window.irAlSelectorNativo} → AndroidBridge.openSelector; web usa ruta SPA. */
+const SELECTOR_AUDIENCE_NATIVE_URL = "https://onnivers.com/sala/espectador/al-universo-beele";
+const SELECTOR_AUDIENCE_WEB_PATH = "/sala/espectador/al-universo-beele";
 
 const Navbar = () => {
   const { user } = useAuth();
@@ -23,6 +28,16 @@ const Navbar = () => {
   const handleNavigate = (path: string) => {
     navigate(path);
     setIsMobileMenuOpen(false);
+  };
+
+  /** [SELECTOR] App Android: selector nativo (main.tsx → AndroidBridge). PC/navegador: misma sala por React Router. */
+  const handleSelectorAudience = () => {
+    setIsMobileMenuOpen(false);
+    if (Capacitor.getPlatform() === "android" && typeof window.irAlSelectorNativo === "function") {
+      window.irAlSelectorNativo(SELECTOR_AUDIENCE_NATIVE_URL);
+      return;
+    }
+    navigate(SELECTOR_AUDIENCE_WEB_PATH);
   };
 
   const navItems = [
@@ -51,6 +66,14 @@ const Navbar = () => {
               {item.label}
             </button>
           ))}
+          {/* [SELECTOR] Botón nuevo: escena audiencia Beele vía irAlSelectorNativo (Android) o ruta SPA (web). */}
+          <button
+            type="button"
+            onClick={handleSelectorAudience}
+            className="relative px-4 py-1.5 text-sm font-display font-semibold tracking-wider text-primary border border-primary/30 rounded-full bg-primary/5 hover:bg-primary/15 hover:border-primary/60 transition-all duration-300 glow-cyan"
+          >
+            SELECTOR
+          </button>
         </div>
 
         {user ? (
@@ -107,6 +130,13 @@ const Navbar = () => {
                   {item.label}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={handleSelectorAudience}
+                className="w-full rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-left text-sm font-display font-semibold tracking-wide text-primary transition hover:bg-primary/15"
+              >
+                SELECTOR
+              </button>
             </div>
             {user ? (
               <div className="mt-4 space-y-3">

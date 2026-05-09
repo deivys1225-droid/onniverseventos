@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Mic2, Radio, Box } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { podcastStreamers } from "@/data/podcastStreamers";
@@ -224,7 +225,14 @@ const NuestrasSalasPage = () => {
       params.set("title", resolvedTitle);
       params.set("mode", room.mp4Url && !activeStream?.is_live ? "vod" : "live");
       if (resolvedToken) params.set("token", resolvedToken);
-      navigate(`/sala/espectador/${encodeURIComponent(resolvedChannel)}?${params.toString()}`);
+      const path = `/sala/espectador/${encodeURIComponent(resolvedChannel)}?${params.toString()}`;
+      // En Android el WebView solo intercepta cargas reales de URL (selector nativo en MainActivity).
+      // navigate() del SPA no dispara shouldOverrideUrlLoading; location.assign sí.
+      if (Capacitor.getPlatform() === "android") {
+        window.location.assign(`${window.location.origin}${path}`);
+      } else {
+        navigate(path);
+      }
     }, 900);
   };
 

@@ -5,6 +5,25 @@ import html2canvas from "html2canvas";
 import App from "./App.tsx";
 import "./index.css";
 
+declare global {
+  interface Window {
+    irAlSelectorNativo?: (url: string) => void;
+    AndroidBridge?: { openSelector?: (url: string) => void };
+  }
+}
+
+/** App nativa Android: abre el selector de escena y luego carga la URL. En PC: navegación normal. */
+function irAlSelectorNativo(url: string) {
+  const bridge = typeof window.AndroidBridge !== "undefined" ? window.AndroidBridge : undefined;
+  if (bridge != null && typeof bridge.openSelector === "function") {
+    bridge.openSelector(url);
+  } else {
+    window.location.href = url;
+  }
+}
+
+window.irAlSelectorNativo = irAlSelectorNativo;
+
 function MirrorSbsRoot() {
   const [vrMode, setVrMode] = useState(false);
   const [hasFrame, setHasFrame] = useState(false);

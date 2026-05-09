@@ -41,6 +41,12 @@ public class MainActivity extends BridgeActivity {
 
   /** URL de entrada oficial al abrir la app. */
   private static final String INITIAL_WEB_URL = "https://onnivers.com";
+
+  /** Destinos del reproductor de audiencia (botones 360 / VR / MT desde JS {@code AndroidBridge}). */
+  private static final String AUDIENCE_GO_360_URL = "https://onnivers.com/go/360";
+  private static final String AUDIENCE_GO_VR_URL = "https://onnivers.com/go/vr";
+  private static final String AUDIENCE_GO_MT_URL = "https://onnivers.com/go/mt";
+
   private static final String DEFAULT_AUDIENCE_CHANNEL = "main";
 
   /** Vídeo “Casa” (Cloudinary); abierto con el reproductor del sistema — sin cambiar la web empaquetada. */
@@ -56,6 +62,11 @@ public class MainActivity extends BridgeActivity {
 
   private interface SceneSelectionCallback {
     void onSelected(String sceneKey);
+  }
+
+  /** Usado por {@link AndroidBridge#openSelector(String)} y por la interceptación de URLs en el WebViewClient. */
+  private void setPendingSceneAfterNavigation(String scene) {
+    pendingSceneAfterNavigation = scene;
   }
 
   @Override
@@ -92,7 +103,7 @@ public class MainActivity extends BridgeActivity {
                 view,
                 "split",
                 scene -> {
-                  pendingSceneAfterNavigation = scene;
+                  setPendingSceneAfterNavigation(scene);
                   view.loadUrl(playbackUrl);
                 });
             return true;
@@ -122,6 +133,7 @@ public class MainActivity extends BridgeActivity {
     webView.loadUrl(INITIAL_WEB_URL);
 
     webView.addJavascriptInterface(new AudienceSceneBridge(this, bridge), "AndroidScene");
+    webView.addJavascriptInterface(new AndroidBridge(this, bridge), "AndroidBridge");
 
     attachCasaVideoButton();
   }
@@ -181,6 +193,72 @@ public class MainActivity extends BridgeActivity {
               + esc
               + "'); })()",
           null);
+    }
+  }
+
+  /**
+   * Puente Web → nativo para los botones 360°, VR y MT del reproductor:
+   * {@code AndroidBridge.on360Click()}, {@code AndroidBridge.onVrClick()}, {@code AndroidBridge.onMtClick()}.
+   * {@code AndroidBridge.openSelector(url)} muestra primero el selector de escena y luego carga la URL (mismo flujo que interceptar navegación).
+   */
+  private static final class AndroidBridge {
+
+    private final MainActivity activity;
+    private final Bridge bridge;
+
+    AndroidBridge(MainActivity activity, Bridge bridge) {
+      this.activity = activity;
+      this.bridge = bridge;
+    }
+
+    /**
+     * Abre el AlertDialog de escena y, al elegir, carga {@code url} en el WebView y despacha la escena al JS al terminar de cargar.
+     */
+    @JavascriptInterface
+    public void openSelector(String url) {
+      if (url == null || url.trim().isEmpty()) {
+        return;
+      }
+      final String target = url.trim();
+      activity.runOnUiThread(
+          () -> {
+            WebView webView = bridge.getWebView();
+            if (webView == null) {
+              return;
+            }
+            activity.showSceneSelector(
+                webView,
+                "split",
+                scene -> {
+                  activity.setPendingSceneAfterNavigation(scene);
+                  webView.loadUrl(target);
+                });
+          });
+    }
+
+    private void loadAudienceGoUrl(String url) {
+      activity.runOnUiThread(
+          () -> {
+            WebView webView = bridge.getWebView();
+            if (webView != null) {
+              webView.loadUrl(url);
+            }
+          });
+    }
+
+    @JavascriptInterface
+    public void on360Click() {
+      loadAudienceGoUrl(AUDIENCE_GO_360_URL);
+    }
+
+    @JavascriptInterface
+    public void onVrClick() {
+      loadAudienceGoUrl(AUDIENCE_GO_VR_URL);
+    }
+
+    @JavascriptInterface
+    public void onMtClick() {
+      loadAudienceGoUrl(AUDIENCE_GO_MT_URL);
     }
   }
 

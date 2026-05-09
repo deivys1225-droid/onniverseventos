@@ -403,7 +403,14 @@ const EspectadorView = () => {
               <button
                 type="button"
                 title="Pantalla dividida (mismo que el selector)"
-                onClick={onAudienceBarSplit}
+                onClick={() => {
+                  const b = (window as Window & { AndroidBridge?: { onVrClick?: () => void } }).AndroidBridge;
+                  if (typeof b?.onVrClick === "function") {
+                    b.onVrClick();
+                    return;
+                  }
+                  window.location.assign("https://onnivers.com/go/vr");
+                }}
                 className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-violet-400/40 bg-black/35 px-2 py-3 text-violet-50 shadow-[0_0_28px_-12px_rgba(139,92,246,0.85)] transition hover:border-violet-300/75 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
               >
                 <Headset className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
@@ -412,7 +419,14 @@ const EspectadorView = () => {
               <button
                 type="button"
                 title="Escena inmersiva (mismo que el selector)"
-                onClick={onAudienceBarImmersive}
+                onClick={() => {
+                  const b = (window as Window & { AndroidBridge?: { on360Click?: () => void } }).AndroidBridge;
+                  if (typeof b?.on360Click === "function") {
+                    b.on360Click();
+                    return;
+                  }
+                  window.location.assign("https://onnivers.com/go/360");
+                }}
                 className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-cyan-400/45 bg-black/35 px-2 py-3 text-cyan-50 shadow-[0_0_28px_-12px_rgba(34,211,238,0.75)] transition hover:border-cyan-300/80 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
               >
                 <span className="relative flex h-8 w-8 shrink-0 items-center justify-center" aria-hidden>
@@ -426,7 +440,14 @@ const EspectadorView = () => {
               <button
                 type="button"
                 title="Escena mixta (mismo que el selector)"
-                onClick={onAudienceBarMix}
+                onClick={() => {
+                  const b = (window as Window & { AndroidBridge?: { onMtClick?: () => void } }).AndroidBridge;
+                  if (typeof b?.onMtClick === "function") {
+                    b.onMtClick();
+                    return;
+                  }
+                  window.location.assign("https://onnivers.com/go/mt");
+                }}
                 className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-fuchsia-400/40 bg-black/35 px-2 py-3 text-fuchsia-50 shadow-[0_0_28px_-12px_rgba(217,70,239,0.75)] transition hover:border-fuchsia-300/80 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
               >
                 <Layers2 className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
