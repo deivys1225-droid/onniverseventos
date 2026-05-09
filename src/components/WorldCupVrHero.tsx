@@ -154,7 +154,7 @@ const WorldCupVrHero = () => {
             <span className="tracking-[0.26em] text-primary drop-shadow-[0_0_36px_hsl(175_80%_50%/0.42)]">Vers</span>
           </h1>
           <p className="font-subtitle mx-auto mt-8 max-w-xl text-[11px] font-medium uppercase tracking-[0.42em] text-muted-foreground/75 md:mt-10 md:text-xs">
-            Tu Realidad Evolucionada
+            Tu Realidad Inmersiva Evolucionada
           </p>
         </motion.div>
 
