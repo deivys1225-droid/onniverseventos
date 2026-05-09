@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trophy, Ticket, MonitorPlay, Sparkles, LogIn } from "lucide-react";
+import { Trophy, Ticket, MonitorPlay, Sparkles, LogIn, Users, Music2, GraduationCap, Store } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PayPalButtons } from "@paypal/react-paypal-js";
 import { useState } from "react";
@@ -11,15 +11,10 @@ import LoginAuthModal from "@/components/LoginAuthModal";
 import PaymentSuccessModal from "@/components/PaymentSuccessModal";
 import { notifyN8nPaymentSuccess } from "@/lib/n8n";
 
+/** Arte OnniVerso (metaverso / pilares) — servido desde `public/` para web y Capacitor (`base: "./"`). */
+const ONNI_ECOSYSTEM_HERO_IMAGE = `${import.meta.env.BASE_URL}onni-ecosystem-metaverse.png`;
+
 const offers = [
-  {
-    kind: "semifinal" as const,
-    title: "Preventa Semifinales",
-    description: "Vive las dos semifinales con inmersión total",
-    usd: WORLD_CUP_SEMIFINALS_USD,
-    image:
-      "https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?auto=format&fit=crop&w=1400&q=80",
-  },
   {
     kind: "final" as const,
     title: "Preventa Gran Final",
@@ -163,56 +158,111 @@ const WorldCupVrHero = () => {
           </p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12, duration: 0.6 }}
-          className="mx-auto mb-6 max-w-4xl"
-        >
-          <Card className="overflow-hidden border border-primary/35 bg-card/60 backdrop-blur-xl shadow-[0_0_45px_-14px_hsl(var(--primary)/0.8)]">
-            <div className="relative h-44 overflow-hidden">
-              <img
-                src="https://images.unsplash.com/photo-1570498839593-e565b39455fc?auto=format&fit=crop&w=1600&q=80"
-                alt="Fútbol colombiano en estadio"
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-card via-card/25 to-transparent" />
-            </div>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-display text-xl font-semibold text-foreground">Transmisiones Iniciales Mundial 2026</h3>
-                <span className="rounded-full border border-emerald-300/45 bg-emerald-400/15 px-3 py-1 text-xs font-display font-bold uppercase tracking-wider text-emerald-300">
-                  GRATIS
-                </span>
+        <div className="mx-auto mb-6 max-w-4xl space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08, duration: 0.6 }}
+          >
+            <Card className="overflow-hidden border border-primary/35 bg-card/60 backdrop-blur-xl shadow-[0_0_45px_-14px_hsl(var(--primary)/0.8)]">
+              <div className="onniverso-hero-platform-visual relative h-52 overflow-hidden bg-gradient-to-b from-[hsl(230_42%_11%)] to-[hsl(235_38%_7%)] ring-1 ring-inset ring-primary/20 md:h-56">
+                <img
+                  src={ONNI_ECOSYSTEM_HERO_IMAGE}
+                  alt="Ecosistema OnniVerso: conciertos, educación, tiendas digitales y red social inmersiva en VR y hologramas"
+                  className="h-full w-full object-cover object-[center_42%_38%] md:object-[center_45%_35%]"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-card/5" />
+                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,hsl(230_45%_6%/0.35)_0%,transparent_50%)]" />
               </div>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Los primeros partidos y transmisiones son gratuitos para toda la comunidad. Entra, vive la emoción del
-                Mundial 2026 y prueba la experiencia VR premium sin costo.
-              </p>
-              <Button
-                variant="heroOutline"
-                className="mt-5 w-full"
-                onClick={() =>
-                  navigate("/inicio", {
-                    state: { openFreeMatchScreen: true },
-                  })
-                }
-              >
-                Ver partidos gratis
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
-          <WorldCupOfferColumn offer={offers[0]} orderClass="lg:order-1" />
+              <CardContent className="p-6">
+                <h3 className="font-display text-xl font-semibold leading-snug tracking-tight md:text-[1.35rem]">
+                  <span className="bg-gradient-to-r from-cyan-100 via-white to-violet-200 bg-clip-text text-transparent drop-shadow-[0_0_28px_hsl(175_80%_52%/0.22)]">
+                    OnniVerso: El Ecosistema Digital Infinito.
+                  </span>
+                </h3>
+                <ul
+                  className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2.5"
+                  aria-label="Cuatro pilares de OnniVerso"
+                >
+                  <li className="flex items-center gap-2 rounded-lg border border-cyan-400/35 bg-cyan-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-100 shadow-sm shadow-cyan-500/10 sm:text-xs">
+                    <Users className="h-3.5 w-3.5 shrink-0 text-cyan-300" aria-hidden />
+                    Red Social
+                  </li>
+                  <li className="flex items-center gap-2 rounded-lg border border-fuchsia-400/35 bg-fuchsia-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-100 shadow-sm shadow-fuchsia-500/10 sm:text-xs">
+                    <Music2 className="h-3.5 w-3.5 shrink-0 text-fuchsia-300" aria-hidden />
+                    Conciertos
+                  </li>
+                  <li className="flex items-center gap-2 rounded-lg border border-amber-400/35 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-amber-100 shadow-sm shadow-amber-500/10 sm:text-xs">
+                    <GraduationCap className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-hidden />
+                    Educación
+                  </li>
+                  <li className="flex items-center gap-2 rounded-lg border border-emerald-400/35 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-emerald-100 shadow-sm shadow-emerald-500/10 sm:text-xs">
+                    <Store className="h-3.5 w-3.5 shrink-0 text-emerald-300" aria-hidden />
+                    Tiendas
+                  </li>
+                </ul>
+                <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-[15px]">
+                  La primera <strong className="font-semibold text-cyan-200/95">Red Social Inmersiva</strong> que une los{" "}
+                  <strong className="font-semibold text-fuchsia-200/95">Conciertos</strong> más impactantes,{" "}
+                  <strong className="font-semibold text-amber-200/95">Educación</strong> de vanguardia y{" "}
+                  <strong className="font-semibold text-emerald-200/95">Tiendas Digitales</strong> de otro nivel. Vive una
+                  experiencia total en Realidad Aumentada y Mixta donde el entretenimiento, el aprendizaje y el comercio
+                  convergen.
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12, duration: 0.6 }}
+          >
+            <Card className="overflow-hidden border border-primary/35 bg-card/60 backdrop-blur-xl shadow-[0_0_45px_-14px_hsl(var(--primary)/0.8)]">
+              <div className="relative h-44 overflow-hidden">
+                <img
+                  src="https://images.unsplash.com/photo-1570498839593-e565b39455fc?auto=format&fit=crop&w=1600&q=80"
+                  alt="Fútbol colombiano en estadio"
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/25 to-transparent" />
+              </div>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-display text-xl font-semibold text-foreground">Transmisiones Iniciales Mundial 2026</h3>
+                  <span className="rounded-full border border-emerald-300/45 bg-emerald-400/15 px-3 py-1 text-xs font-display font-bold uppercase tracking-wider text-emerald-300">
+                    GRATIS
+                  </span>
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Los primeros partidos y transmisiones son gratuitos para toda la comunidad. Entra, vive la emoción del
+                  Mundial 2026 y prueba la experiencia VR premium sin costo.
+                </p>
+                <Button
+                  variant="heroOutline"
+                  className="mt-5 w-full"
+                  onClick={() =>
+                    navigate("/inicio", {
+                      state: { openFreeMatchScreen: true },
+                    })
+                  }
+                >
+                  Ver partidos gratis
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-stretch">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05, duration: 0.7 }}
-            className="lg:order-2"
+            className="lg:order-1"
           >
             <Card className="h-full border border-primary/45 bg-card/65 backdrop-blur-xl shadow-[0_0_60px_-15px_hsl(var(--primary)/0.9)]">
               <CardContent className="p-7 md:p-8">
@@ -249,7 +299,7 @@ const WorldCupVrHero = () => {
             </Card>
           </motion.div>
 
-          <WorldCupOfferColumn offer={offers[1]} orderClass="lg:order-3" />
+          <WorldCupOfferColumn offer={offers[0]} orderClass="lg:order-2" />
         </div>
       </div>
     </section>
