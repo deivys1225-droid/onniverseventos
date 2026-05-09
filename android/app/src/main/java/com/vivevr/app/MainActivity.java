@@ -9,8 +9,10 @@ import android.view.Gravity;
 import android.view.ViewGroup;
 import android.webkit.PermissionRequest;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
 import androidx.appcompat.app.AlertDialog;
@@ -28,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -35,6 +38,10 @@ import java.util.Map;
  * hay que resolver {@link PermissionRequest} y lanzar los permisos en tiempo de ejecución.
  */
 public class MainActivity extends BridgeActivity {
+
+  /** URL de entrada oficial al abrir la app. */
+  private static final String INITIAL_WEB_URL = "https://aluniverso.com";
+  private static final String DEFAULT_AUDIENCE_CHANNEL = "main";
 
   /** Vídeo “Casa” (Cloudinary); abierto con el reproductor del sistema — sin cambiar la web empaquetada. */
   private static final String CASA_VIDEO_URL =
@@ -45,6 +52,11 @@ public class MainActivity extends BridgeActivity {
   private PermissionRequest pendingWebkitPermissionRequest;
   /** Permisos de Android lanzados junto con {@link #pendingWebkitPermissionRequest} */
   private String[] pendingAndroidPermissionNames;
+  private String pendingSceneAfterNavigation;
+
+  private interface SceneSelectionCallback {
+    void onSelected(String sceneKey);
+  }
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +79,36 @@ public class MainActivity extends BridgeActivity {
       return;
     }
     WebView webView = bridge.getWebView();
+    webView.setWebViewClient(
+        new WebViewClient() {
+          @Override
+          public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            Uri target = request != null ? request.getUrl() : null;
+            if (target == null || !isPlaybackTarget(target)) {
+              return false;
+            }
+            String playbackUrl = resolvePlaybackUrl(target);
+            showSceneSelector(
+                view,
+                "split",
+                scene -> {
+                  pendingSceneAfterNavigation = scene;
+                  view.loadUrl(playbackUrl);
+                });
+            return true;
+          }
+
+          @Override
+          public void onPageFinished(WebView view, String url) {
+            super.onPageFinished(view, url);
+            if (pendingSceneAfterNavigation == null || pendingSceneAfterNavigation.isEmpty()) {
+              return;
+            }
+            String scene = pendingSceneAfterNavigation;
+            pendingSceneAfterNavigation = null;
+            dispatchSceneToJs(view, scene);
+          }
+        });
     webView.setWebChromeClient(
         new BridgeWebChromeClient(bridge) {
           @Override
@@ -77,6 +119,7 @@ public class MainActivity extends BridgeActivity {
 
     WebSettings settings = webView.getSettings();
     settings.setMediaPlaybackRequiresUserGesture(false);
+    webView.loadUrl(INITIAL_WEB_URL);
 
     webView.addJavascriptInterface(new AudienceSceneBridge(this, bridge), "AndroidScene");
 
@@ -112,24 +155,18 @@ public class MainActivity extends BridgeActivity {
                   "Escena inmersiva (360°)",
                   "Escena mixta",
                 };
-            int checkedItem = 0;
-            if ("immersive".equals(preferredScene)) {
-              checkedItem = 1;
-            } else if ("mix".equals(preferredScene)) {
-              checkedItem = 2;
-            }
-
-            new AlertDialog.Builder(activity)
-                .setTitle("Selector de escena")
-                .setSingleChoiceItems(
-                    labels,
-                    checkedItem,
-                    (dialog, which) -> {
-                      dispatchSceneToJs(keys[which]);
-                      dialog.dismiss();
-                    })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+            activity.showSceneSelector(
+                webView,
+                preferredScene,
+                selectedScene -> {
+                  for (int i = 0; i < keys.length; i++) {
+                    if (keys[i].equals(selectedScene)) {
+                      dispatchSceneToJs(keys[i]);
+                      return;
+                    }
+                  }
+                  dispatchSceneToJs("split");
+                });
           });
     }
 
@@ -145,6 +182,74 @@ public class MainActivity extends BridgeActivity {
               + "'); })()",
           null);
     }
+  }
+
+  private void showSceneSelector(WebView webView, String preferredScene, SceneSelectionCallback callback) {
+    final String[] keys = new String[] {"split", "immersive", "mix"};
+    final String[] labels =
+        new String[] {
+          "Pantalla dividida",
+          "Escena inmersiva (360°)",
+          "Escena mixta",
+        };
+    int checkedItem = 0;
+    if ("immersive".equals(preferredScene)) {
+      checkedItem = 1;
+    } else if ("mix".equals(preferredScene)) {
+      checkedItem = 2;
+    }
+
+    new AlertDialog.Builder(this)
+        .setTitle("Selector de escena")
+        .setSingleChoiceItems(
+            labels,
+            checkedItem,
+            (dialog, which) -> {
+              callback.onSelected(keys[which]);
+              dialog.dismiss();
+            })
+        .setNegativeButton(android.R.string.cancel, null)
+        .show();
+  }
+
+  private void dispatchSceneToJs(WebView webView, String scene) {
+    String esc = scene.replace("\\", "\\\\").replace("'", "\\'");
+    webView.evaluateJavascript(
+        "(function(){ if(window.__onniversoNativeDispatch) window.__onniversoNativeDispatch('"
+            + esc
+            + "'); })()",
+        null);
+  }
+
+  private boolean isPlaybackTarget(Uri uri) {
+    String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase(Locale.ROOT) : "";
+    String host = uri.getHost() != null ? uri.getHost().toLowerCase(Locale.ROOT) : "";
+    String path = uri.getPath() != null ? uri.getPath().toLowerCase(Locale.ROOT) : "";
+    if ("onniverso".equals(scheme) && "open".equals(host)) return true;
+    if (!"https".equals(scheme)) return false;
+    if ("aluniverso.com".equals(host) || "www.aluniverso.com".equals(host)) {
+      return path.startsWith("/sala/espectador/");
+    }
+    return path.endsWith(".mp4");
+  }
+
+  private String resolvePlaybackUrl(Uri uri) {
+    String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase(Locale.ROOT) : "";
+    if ("onniverso".equals(scheme) && "open".equals(uri.getHost())) {
+      String inner = uri.getQueryParameter("url");
+      if (inner != null && !inner.trim().isEmpty()) {
+        return inner.trim();
+      }
+    }
+    String path = uri.getPath() != null ? uri.getPath().toLowerCase(Locale.ROOT) : "";
+    if (path.endsWith(".mp4")) {
+      return INITIAL_WEB_URL
+          + "/sala/espectador/"
+          + DEFAULT_AUDIENCE_CHANNEL
+          + "?mode=vod&mp4="
+          + Uri.encode(uri.toString());
+    }
+    return uri.toString();
   }
 
   /**

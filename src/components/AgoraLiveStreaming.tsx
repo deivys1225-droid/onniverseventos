@@ -340,11 +340,8 @@ const AgoraLiveStreaming = () => {
         throw new Error("Agora no devolvió APP ID y no existe fallback en entorno.");
       }
       const resolvedChannel = (data?.channelName as string | undefined)?.trim() || buildAgoraChannel(requestedChannelName);
-      const hostToken = (data?.hostToken as string | undefined)?.trim() || ENV_TOKEN;
+      const hostToken = (data?.hostToken as string | undefined)?.trim() || ENV_TOKEN || "";
       const audienceToken = (data?.audienceToken as string | undefined)?.trim() || ENV_TOKEN;
-      if (!hostToken) {
-        throw new Error("Agora no devolvió token host y no existe fallback en entorno.");
-      }
 
       const resolvedTitle = `Canal ${requestedChannelName}`;
       const privacyMode = isFree ? "publico" : "privado_ticket";
@@ -457,11 +454,6 @@ const AgoraLiveStreaming = () => {
             {streamConfig && (
               <p className="mt-2 text-center text-xs text-cyan-100/90">
                 Canal: {streamConfig.rawChannelName} (auto) · {streamConfig.isFree ? "Gratuito" : `Ticket: $${streamConfig.ticketPrice.toFixed(2)} USD`}
-              </p>
-            )}
-            {!ENV_TOKEN && (
-              <p className="mt-2 text-center text-xs text-amber-300">
-                Aviso: no se encontró token fallback en entorno. Configura backend de token para emitir.
               </p>
             )}
           </div>
