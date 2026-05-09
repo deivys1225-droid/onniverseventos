@@ -141,7 +141,7 @@ const SocialMenu = ({ userId, open, onClose, onOpenChat }: SocialMenuProps) => {
   if (!open) return null;
 
   return (
-    <div className="pointer-events-auto fixed bottom-20 right-4 z-[70] w-[min(92vw,340px)] rounded-2xl border border-cyan-300/35 bg-card/85 p-3 shadow-[0_0_45px_-16px_rgba(34,211,238,0.85)] backdrop-blur-xl">
+    <div className="pointer-events-auto fixed bottom-20 left-4 z-[70] w-[min(92vw,340px)] rounded-2xl border border-cyan-300/35 bg-card/85 p-3 shadow-[0_0_45px_-16px_rgba(34,211,238,0.85)] backdrop-blur-xl">
       <div className="mb-3 flex items-center justify-between">
         <p className="font-display text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">Social</p>
         <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={onClose} aria-label="Cerrar social">

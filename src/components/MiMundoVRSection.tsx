@@ -1123,7 +1123,7 @@ const MiMundoVRSection = ({
 
       {!vrStereoActive && (
         <>
-          <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2 pb-[env(safe-area-inset-bottom,0px)] pr-[env(safe-area-inset-right,0px)]">
+          <div className="pointer-events-none fixed bottom-4 left-4 z-[60] flex flex-col items-start gap-2 pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]">
             <button
               type="button"
               onClick={() => setSocialMenuOpen((prev) => !prev)}
@@ -1154,7 +1154,7 @@ const MiMundoVRSection = ({
             />
           )}
           {!user && socialMenuOpen && (
-            <div className="pointer-events-auto fixed bottom-20 right-4 z-[70] rounded-xl border border-cyan-300/35 bg-card/90 px-3 py-2 text-xs text-cyan-100 backdrop-blur-xl">
+            <div className="pointer-events-auto fixed bottom-20 left-4 z-[70] rounded-xl border border-cyan-300/35 bg-card/90 px-3 py-2 text-xs text-cyan-100 backdrop-blur-xl">
               <MessageCircleMore className="mr-1 inline h-3.5 w-3.5" />
               Inicia sesion para usar Social.
             </div>
