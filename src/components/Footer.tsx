@@ -8,7 +8,10 @@ const Footer = () => {
         <div className="flex flex-col gap-3">
           <OnniVersoLogo iconSize={32} />
           <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-            © 2017 OnniVers — Empresa Tecnológica de Colombia S.A.S. NIT 901083478-0. Derechos reservados.
+            <strong className="font-medium text-foreground">Empresa Tecnológica de Colombia S.A.S.</strong>{" "}
+            <span className="whitespace-nowrap tabular-nums">NIT 901.083.478-0</span>
+            <br />
+            OnniVers · © 2017–2026 · Casi una década de trayectoria tecnológica con operación continua desde 2017.
           </p>
         </div>
         <nav

@@ -4,14 +4,18 @@ const TerminosPage = () => {
   return (
     <LegalPageLayout
       title="Términos y condiciones de uso"
-      description="OnniVers — Empresa Tecnológica de Colombia S.A.S. NIT 901083478-0. Última actualización: 2026."
+      description={`OnniVers — Empresa Tecnológica de Colombia S.A.S. NIT 901.083.478\u20110. Última actualización: 2026.`}
     >
       <section>
         <h2>1. Identificación</h2>
         <p>
           El sitio y la aplicación <strong>OnniVers</strong> son operados por{" "}
-          <strong>Empresa Tecnológica de Colombia S.A.S.</strong>, NIT <strong>901083478-0</strong>. Al acceder o usar
-          el servicio, usted acepta estos términos.
+          <strong>Empresa Tecnológica de Colombia S.A.S.</strong>,{" "}
+          <span className="whitespace-nowrap tabular-nums">
+            NIT <strong>901.083.478-0</strong>
+          </span>
+          . Al acceder o usar el servicio, usted acepta estos
+          términos.
         </p>
       </section>
 
@@ -34,17 +38,29 @@ const TerminosPage = () => {
         </p>
       </section>
 
-      <section>
-        <h2>4. Seguridad de la plataforma y certificaciones</h2>
-        <p>
-          La comunicación con la plataforma se protege mediante <strong>certificados SSL/TLS</strong> y prácticas de
-          seguridad orientadas a la <strong>protección de identidad</strong> y la integridad del servicio. El usuario es
-          responsable de la confidencialidad de sus credenciales.
+      <section
+        className="rounded-xl border border-primary/25 bg-primary/5 p-4 md:p-5 [&_h2]:mt-0"
+        aria-labelledby="terms-disclosure-heading"
+      >
+        <h2 id="terms-disclosure-heading">4. Permisos de cámara y micrófono (emisión en vivo)</h2>
+        <p className="text-foreground">
+          <strong>Solicitamos acceso a cámara y audio únicamente para habilitar la función de emisión en vivo del usuario.</strong>{" "}
+          El uso de estos permisos queda limitado a esa finalidad, conforme a la configuración de su dispositivo y a esta
+          política.
         </p>
       </section>
 
       <section>
-        <h2>5. Pagos con PayPal</h2>
+        <h2>5. Seguridad de la plataforma y certificaciones (SSL/TLS)</h2>
+        <p>
+          La comunicación con la plataforma se protege mediante <strong>certificados SSL/TLS (HTTPS)</strong> y prácticas
+          de seguridad orientadas a la <strong>protección de identidad</strong> y la integridad del servicio. El usuario
+          es responsable de la confidencialidad de sus credenciales.
+        </p>
+      </section>
+
+      <section>
+        <h2>6. Pagos con PayPal</h2>
         <p>
           Cuando estén disponibles pagos en línea, estos se procesan mediante la{" "}
           <strong>pasarela oficial PayPal</strong>, con transacciones seguras y encriptadas según los estándares de dicho
@@ -54,7 +70,7 @@ const TerminosPage = () => {
       </section>
 
       <section>
-        <h2>6. Limitación y ley aplicable</h2>
+        <h2>7. Limitación y ley aplicable</h2>
         <p>
           En la medida permitida por la ley, OnniVers limita responsabilidades por daños indirectos o pérdidas de
           beneficios. Para controversias, se aplicará la legislación colombiana y los tribunales competentes en Colombia,
@@ -63,10 +79,14 @@ const TerminosPage = () => {
       </section>
 
       <section>
-        <h2>7. Contacto</h2>
+        <h2>8. Contacto</h2>
         <p>
-          <a href="mailto:gerencia@onniverso.com">gerencia@onniverso.com</a> · Soporte internacional{" "}
-          <strong>01-8000</strong>.
+          <a href="mailto:gerencia@onniverso.com">gerencia@onniverso.com</a> ·{" "}
+          <a href="mailto:empresatecnologicadecolombia@gmail.com">empresatecnologicadecolombia@gmail.com</a>
+          <br />
+          Línea nacional <strong className="tabular-nums">01 8000 210 21054</strong> · Fijo{" "}
+          <strong className="tabular-nums">(601) 570 7476</strong> · WhatsApp{" "}
+          <strong className="tabular-nums">311 748 6855</strong>.
         </p>
       </section>
     </LegalPageLayout>
