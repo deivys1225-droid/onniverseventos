@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Headset, LogIn, LogOut, Menu, X } from "lucide-react";
+import OnniVersoLogo from "@/components/branding/OnniVersoLogo";
+import { LogIn, LogOut, Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,12 +35,14 @@ const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavigate("/")}>
-          <Headset className="w-6 h-6 text-primary" />
-          <span className="font-display font-bold text-lg text-foreground tracking-tight">
-            ViveVR
-          </span>
-        </div>
+        <button
+          type="button"
+          className="flex cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/50"
+          onClick={() => handleNavigate("/")}
+          aria-label="OnniVerso — Inicio"
+        >
+          <OnniVersoLogo />
+        </button>
 
         <div className="hidden md:flex items-center gap-2">
           {navItems.map((item) => (

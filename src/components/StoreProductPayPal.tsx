@@ -133,7 +133,7 @@ const StoreProductPayPal = ({
                 purchase_units: [
                   {
                     amount: { currency_code: "USD", value },
-                    description: `ViveVR — ${categoryTitle} — ${productTitle}`.slice(0, 120),
+                    description: `OnniVerso — ${categoryTitle} — ${productTitle}`.slice(0, 120),
                   },
                 ],
               })

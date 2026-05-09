@@ -21,6 +21,10 @@ import InicioPage from "./pages/InicioPage.tsx";
 import NuestrasSalasPage from "./pages/NuestrasSalasPage.tsx";
 import EducacionPage from "./pages/EducacionPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import PrivacidadPage from "./pages/PrivacidadPage.tsx";
+import TerminosPage from "./pages/TerminosPage.tsx";
+import QuienesSomosPage from "./pages/QuienesSomosPage.tsx";
+import ContactoPage from "./pages/ContactoPage.tsx";
 import WelcomeUniversePage from "./pages/WelcomeUniversePage.tsx";
 import RegisterPage from "./pages/RegisterPage.tsx";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
@@ -58,6 +62,11 @@ const App = () => (
             />
             <Route path="/actualizar-contrasena" element={<UpdatePasswordPage />} />
             <Route path="/auth" element={<AuthPage />} />
+
+            <Route path="/privacidad" element={<PrivacidadPage />} />
+            <Route path="/terminos" element={<TerminosPage />} />
+            <Route path="/quienes-somos" element={<QuienesSomosPage />} />
+            <Route path="/contacto" element={<ContactoPage />} />
 
             <Route
               path="/inicio"

@@ -21,7 +21,6 @@ import { toast } from "sonner";
 import SocialMenu from "@/components/SocialMenu";
 import ChatWindow from "@/components/ChatWindow";
 import { supabase } from "@/integrations/supabase/client";
-import FriendPicker, { type FriendCandidate } from "@/components/FriendPicker";
 import SearchHub from "@/components/SearchHub";
 import StorePublishCard, { type StorePublishPayload } from "@/components/StorePublishCard";
 import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
@@ -872,8 +871,6 @@ const MiMundoVRSection = ({
   const [isUserLive, setIsUserLive] = useState(false);
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const [activeChat, setActiveChat] = useState<{ friendshipId: string; friendName: string } | null>(null);
-  const [friendCandidates, setFriendCandidates] = useState<FriendCandidate[]>([]);
-  const [friendPickerOpen, setFriendPickerOpen] = useState(false);
   const panoramaUrl = GALAXY_PANORAMA_URL;
   const vrStereoActive = useVrModeActive();
   const moonRef = useRef<THREE.Mesh>(null);
@@ -911,52 +908,6 @@ const MiMundoVRSection = ({
       setProfileSaving(false);
     }
   };
-
-  const onAddFriendFromProfile = async () => {
-    setFriendPickerOpen(true);
-  };
-
-  const sendFriendRequest = async (candidate: FriendCandidate) => {
-    if (!user) {
-      toast.error("Debes iniciar sesion para enviar solicitudes de amistad.");
-      return;
-    }
-    if (candidate.id === user.id) {
-      toast.error("No puedes enviarte una solicitud a ti mismo.");
-      return;
-    }
-    const { error } = await supabase.rpc("send_friendship_request", { p_receiver_id: candidate.id });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success(`Solicitud enviada a ${candidate.name}.`);
-    setFriendPickerOpen(false);
-  };
-
-  useEffect(() => {
-    if (!user) {
-      setFriendCandidates([]);
-      return;
-    }
-    const loadFriendCandidates = async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id,full_name,avatar_url")
-        .neq("id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(10);
-      const rows = (data ?? []) as { id: string; full_name: string | null; avatar_url: string | null }[];
-      setFriendCandidates(
-        rows.map((row) => ({
-          id: row.id,
-          name: row.full_name?.trim() || "Usuario",
-          avatarUrl: row.avatar_url,
-        })),
-      );
-    };
-    void loadFriendCandidates();
-  }, [user]);
 
   useEffect(() => {
     if (!moonScreensVisible) setVaultOpen(false);
@@ -1133,21 +1084,10 @@ const MiMundoVRSection = ({
               isSaving={profileSaving}
               onConfirm={onProfileConfirm}
               liveNavPath="/pc"
-              showAddFriend={Boolean(user && friendCandidates.length > 0)}
-              onAddFriend={onAddFriendFromProfile}
             />
           </div>
         </div>
       )}
-      {user && (
-        <FriendPicker
-          open={friendPickerOpen}
-          candidates={friendCandidates}
-          onClose={() => setFriendPickerOpen(false)}
-          onSelect={(candidate) => void sendFriendRequest(candidate)}
-        />
-      )}
-
       {!vrStereoActive && moonScreensVisible && storeSetupOpen && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-4">
           <button

@@ -1,21 +1,33 @@
-import { Headset } from "lucide-react";
+import { Link } from "react-router-dom";
+import OnniVersoLogo from "@/components/branding/OnniVersoLogo";
 
 const Footer = () => {
   return (
-    <footer className="border-t border-border py-12 px-6">
-      <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-2">
-          <Headset className="w-5 h-5 text-primary" />
-          <span className="font-display font-bold text-foreground">ViveVR</span>
+    <footer className="border-t border-border px-6 py-12">
+      <div className="container mx-auto flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-3">
+          <OnniVersoLogo iconSize={32} />
+          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+            © 2017 OnniVerso — Empresa Tecnológica de Colombia S.A.S. NIT 901083478-0. Derechos reservados.
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          © 2026 ViveVR. Todos los derechos reservados.
-        </p>
-        <div className="flex gap-6 text-sm text-muted-foreground">
-          <a href="#" className="hover:text-foreground transition-colors">Privacidad</a>
-          <a href="#" className="hover:text-foreground transition-colors">Términos</a>
-          <a href="#" className="hover:text-foreground transition-colors">Contacto</a>
-        </div>
+        <nav
+          className="flex flex-wrap items-start gap-x-8 gap-y-3 text-sm text-muted-foreground md:justify-end"
+          aria-label="Enlaces legales y contacto"
+        >
+          <Link to="/quienes-somos" className="transition-colors hover:text-foreground">
+            Quiénes somos
+          </Link>
+          <Link to="/privacidad" className="transition-colors hover:text-foreground">
+            Privacidad
+          </Link>
+          <Link to="/terminos" className="transition-colors hover:text-foreground">
+            Términos
+          </Link>
+          <Link to="/contacto" className="transition-colors hover:text-foreground">
+            Contacto
+          </Link>
+        </nav>
       </div>
     </footer>
   );

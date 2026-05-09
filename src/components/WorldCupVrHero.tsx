@@ -153,8 +153,11 @@ const WorldCupVrHero = () => {
           className="mb-10 text-center"
         >
           <h1 className="mx-auto max-w-5xl font-display text-3xl font-bold leading-tight text-foreground md:text-5xl">
-            El Mundial como nunca lo imaginaste: <span className="text-primary">Primera Fila en VR</span>
+            OnniVerso: La Experiencia Inmersiva Definitiva
           </h1>
+          <p className="mx-auto mt-5 max-w-4xl text-center text-lg text-muted-foreground md:text-xl">
+            El Mundial como nunca lo imaginaste: <span className="text-primary font-semibold">Primera Fila en VR</span>
+          </p>
         </motion.div>
 
         <motion.div

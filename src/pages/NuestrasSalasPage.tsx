@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Mic2, Radio, Box } from "lucide-react";
+import { Mic2, Radio, Box, UserPlus, Check, Clock, UserRoundCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { Capacitor } from "@capacitor/core";
@@ -12,6 +12,12 @@ import { PayPalButtons } from "@paypal/react-paypal-js";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  loadFriendshipPairStates,
+  sendFriendshipRequest,
+  type FriendshipPairState,
+} from "@/lib/friendships";
 
 const SectionHeader = ({
   badge,
@@ -104,12 +110,14 @@ function getRoomActiveStream(room: RoomCard, streams: ActiveStreamRow[]): Active
 
 const NuestrasSalasPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [communityProfiles, setCommunityProfiles] = useState<
     Array<{ id: string; name: string; avatarUrl: string | null; liveStatus: string }>
   >([]);
   const [activeStreams, setActiveStreams] = useState<ActiveStreamRow[]>([]);
   const [premiumModalRoom, setPremiumModalRoom] = useState<RoomCard | null>(null);
   const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
+  const [friendshipStates, setFriendshipStates] = useState<Map<string, FriendshipPairState>>(new Map());
 
   useEffect(() => {
     const loadData = async () => {
@@ -213,6 +221,40 @@ const NuestrasSalasPage = () => {
     [communityProfiles],
   );
 
+  const communityProfileIdsKey = useMemo(
+    () => communityProfiles.map((p) => p.id).sort().join(","),
+    [communityProfiles],
+  );
+
+  useEffect(() => {
+    if (!user?.id || communityProfiles.length === 0) {
+      setFriendshipStates(new Map());
+      return;
+    }
+    const ids = communityProfiles.map((p) => p.id);
+    let cancelled = false;
+    void loadFriendshipPairStates(user.id, ids).then((m) => {
+      if (!cancelled) setFriendshipStates(m);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, communityProfileIdsKey, communityProfiles]);
+
+  useEffect(() => {
+    if (!user?.id || communityProfiles.length === 0) return;
+    const ids = communityProfiles.map((p) => p.id);
+    const ch = supabase
+      .channel("nuestras-salas-friendships")
+      .on("postgres_changes", { event: "*", schema: "public", table: "friendships" }, () => {
+        void loadFriendshipPairStates(user.id, ids).then(setFriendshipStates);
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(ch);
+    };
+  }, [user?.id, communityProfileIdsKey]);
+
   const beginRoomSession = (room: RoomCard, activeStream?: ActiveStreamRow | null) => {
     setLoadingRoomId(room.id);
     window.setTimeout(() => {
@@ -257,6 +299,30 @@ const NuestrasSalasPage = () => {
       return;
     }
     beginRoomSession(room, linkedStream);
+  };
+
+  const sendFriendRequestToCommunityMember = async (receiverId: string, displayName: string) => {
+    if (!user) {
+      toast.error("Inicia sesión para enviar solicitudes de amistad.");
+      return;
+    }
+    if (receiverId === user.id) {
+      toast.error("No puedes enviarte una solicitud a ti mismo.");
+      return;
+    }
+    const result = await sendFriendshipRequest(receiverId);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    if (result.status === "accepted") {
+      toast.success(`Ya son contactos en OnniVerso con ${displayName}.`);
+    } else {
+      toast.success(`Solicitud enviada a ${displayName}. Queda guardada en Supabase hasta que la acepten.`);
+    }
+    const ids = communityProfiles.map((p) => p.id);
+    const next = await loadFriendshipPairStates(user.id, ids);
+    setFriendshipStates(next);
   };
 
   return (
@@ -384,14 +450,65 @@ const NuestrasSalasPage = () => {
                           return ageMs >= 0 && ageMs <= 2 * 60 * 1000;
                         })
                       : false;
+                    const pairState: FriendshipPairState = room.ownerUserId
+                      ? friendshipStates.get(room.ownerUserId) ?? "none"
+                      : "none";
                     return (
                   <motion.div
                     key={room.id}
+                    className="relative"
                     initial={{ opacity: 0, y: 24 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-60px" }}
                     transition={{ delay: index * 0.05 }}
                   >
+                    {user && room.ownerUserId && room.ownerUserId !== user.id && (
+                      pairState === "friends" ? (
+                        <div
+                          className="absolute right-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-emerald-400/50 bg-black/40 text-emerald-400 shadow-[0_0_14px_-4px_rgba(52,211,153,0.75)]"
+                          title="Ya son contactos"
+                          aria-hidden
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </div>
+                      ) : pairState === "pending_out" ? (
+                        <div
+                          className="absolute right-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/30 bg-black/35 text-cyan-200/60"
+                          title="Solicitud enviada · pendiente"
+                          aria-hidden
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="secondary"
+                          className="absolute right-3 top-3 z-20 h-7 w-7 rounded-full border border-cyan-300/40 bg-black/35 text-cyan-200 shadow-[0_0_14px_-4px_rgba(34,211,238,0.85)] hover:bg-black/50"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            void sendFriendRequestToCommunityMember(room.ownerUserId!, room.name);
+                          }}
+                          title={
+                            pairState === "pending_in"
+                              ? "Te enviaron solicitud · pulsa para aceptar (se guarda en Supabase)"
+                              : "Enviar solicitud de amistad"
+                          }
+                          aria-label={
+                            pairState === "pending_in"
+                              ? `Aceptar solicitud de ${room.name}`
+                              : `Enviar solicitud de amistad a ${room.name}`
+                          }
+                        >
+                          {pairState === "pending_in" ? (
+                            <UserRoundCheck className="h-3.5 w-3.5" />
+                          ) : (
+                            <UserPlus className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      )
+                    )}
                     <button
                       type="button"
                       onClick={() => handleRoomAccess(room, online)}

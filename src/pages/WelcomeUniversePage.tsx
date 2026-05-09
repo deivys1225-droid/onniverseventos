@@ -87,7 +87,7 @@ const WelcomeUniversePage = () => {
               Bienvenida al <span className="text-gradient-neon">Universo</span>
             </h1>
             <p className="mt-3 text-sm text-muted-foreground">
-              Entra con tu cuenta ViveVR para explorar la Tierra y tus salas inmersivas.
+              Entra con tu cuenta OnniVerso para explorar la Tierra y tus salas inmersivas.
             </p>
           </div>
 
