@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { Headset, Layers2, RefreshCw } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AgoraRTC, { type IAgoraRTCClient, type IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
@@ -27,6 +28,19 @@ function podcastIdFromAgoraChannel(channelName: string): string | null {
   return podcastStreamers.some((s) => s.id === id) ? id : null;
 }
 
+type AudienceSceneKey = "split" | "immersive" | "mix";
+
+/** Solo Android APK: abre el selector nativo (AlertDialog). En web/iOS devuelve false. */
+function tryAndroidNativeSceneSelector(preferred: AudienceSceneKey): boolean {
+  if (Capacitor.getPlatform() !== "android") return false;
+  const bridge = (window as Window & { AndroidScene?: { openSceneSelector?: (p: string) => void } }).AndroidScene;
+  if (typeof bridge?.openSceneSelector === "function") {
+    bridge.openSceneSelector(preferred);
+    return true;
+  }
+  return false;
+}
+
 const EspectadorView = () => {
   const navigate = useNavigate();
   const { channel } = useParams<{ channel: string }>();
@@ -46,6 +60,13 @@ const EspectadorView = () => {
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const remoteUsersRef = useRef<Record<string, IAgoraRTCRemoteUser>>({});
   const remoteContainerId = "agora-audience-remote-player";
+
+  /** Callbacks para el puente Android → JS tras elegir escena en el diálogo nativo. */
+  const nativeSceneActionsRef = useRef({
+    split: () => {},
+    immersive: () => {},
+    mix: () => {},
+  });
 
   const mountFirstRemoteUser = useCallback(() => {
     const users = Object.values(remoteUsersRef.current);
@@ -216,6 +237,36 @@ const EspectadorView = () => {
     navigate(`/sala/espectador/${encodeURIComponent(channelName)}?${next.toString()}`);
   };
 
+  nativeSceneActionsRef.current.split = goPantallaDividida;
+  nativeSceneActionsRef.current.immersive = goEscenaInmersiva;
+  nativeSceneActionsRef.current.mix = goMixVod;
+
+  useEffect(() => {
+    const w = window as Window & { __onniversoNativeDispatch?: (scene: string) => void };
+    w.__onniversoNativeDispatch = (scene: string) => {
+      if (scene === "immersive") nativeSceneActionsRef.current.immersive();
+      else if (scene === "mix") nativeSceneActionsRef.current.mix();
+      else nativeSceneActionsRef.current.split();
+    };
+    return () => {
+      delete w.__onniversoNativeDispatch;
+    };
+  }, []);
+
+  /** Barra inferior: en Android abre el selector nativo; en PC igual que antes (directo). */
+  const onAudienceBarSplit = () => {
+    if (tryAndroidNativeSceneSelector("split")) return;
+    goPantallaDividida();
+  };
+  const onAudienceBarImmersive = () => {
+    if (tryAndroidNativeSceneSelector("immersive")) return;
+    goEscenaInmersiva();
+  };
+  const onAudienceBarMix = () => {
+    if (tryAndroidNativeSceneSelector("mix")) return;
+    goMixVod();
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       <Navbar />
@@ -352,7 +403,7 @@ const EspectadorView = () => {
               <button
                 type="button"
                 title="Pantalla dividida (mismo que el selector)"
-                onClick={goPantallaDividida}
+                onClick={onAudienceBarSplit}
                 className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-violet-400/40 bg-black/35 px-2 py-3 text-violet-50 shadow-[0_0_28px_-12px_rgba(139,92,246,0.85)] transition hover:border-violet-300/75 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
               >
                 <Headset className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
@@ -361,7 +412,7 @@ const EspectadorView = () => {
               <button
                 type="button"
                 title="Escena inmersiva (mismo que el selector)"
-                onClick={goEscenaInmersiva}
+                onClick={onAudienceBarImmersive}
                 className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-cyan-400/45 bg-black/35 px-2 py-3 text-cyan-50 shadow-[0_0_28px_-12px_rgba(34,211,238,0.75)] transition hover:border-cyan-300/80 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
               >
                 <span className="relative flex h-8 w-8 shrink-0 items-center justify-center" aria-hidden>
@@ -375,7 +426,7 @@ const EspectadorView = () => {
               <button
                 type="button"
                 title="Escena mixta (mismo que el selector)"
-                onClick={goMixVod}
+                onClick={onAudienceBarMix}
                 className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-fuchsia-400/40 bg-black/35 px-2 py-3 text-fuchsia-50 shadow-[0_0_28px_-12px_rgba(217,70,239,0.75)] transition hover:border-fuchsia-300/80 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
               >
                 <Layers2 className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />

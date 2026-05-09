@@ -8,10 +8,12 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.webkit.PermissionRequest;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
@@ -76,7 +78,73 @@ public class MainActivity extends BridgeActivity {
     WebSettings settings = webView.getSettings();
     settings.setMediaPlaybackRequiresUserGesture(false);
 
+    webView.addJavascriptInterface(new AudienceSceneBridge(this, bridge), "AndroidScene");
+
     attachCasaVideoButton();
+  }
+
+  /**
+   * Puente Web → nativo: la sala de audiencia llama {@code AndroidScene.openSceneSelector(preferred)}
+   * para mostrar el selector de escenas en UI Android (AlertDialog) y devolver la elección al JS.
+   */
+  private static final class AudienceSceneBridge {
+
+    private final MainActivity activity;
+    private final Bridge bridge;
+
+    AudienceSceneBridge(MainActivity activity, Bridge bridge) {
+      this.activity = activity;
+      this.bridge = bridge;
+    }
+
+    @JavascriptInterface
+    public void openSceneSelector(String preferredScene) {
+      activity.runOnUiThread(
+          () -> {
+            WebView webView = bridge.getWebView();
+            if (webView == null) {
+              return;
+            }
+            final String[] keys = new String[] {"split", "immersive", "mix"};
+            final String[] labels =
+                new String[] {
+                  "Pantalla dividida",
+                  "Escena inmersiva (360°)",
+                  "Escena mixta",
+                };
+            int checkedItem = 0;
+            if ("immersive".equals(preferredScene)) {
+              checkedItem = 1;
+            } else if ("mix".equals(preferredScene)) {
+              checkedItem = 2;
+            }
+
+            new AlertDialog.Builder(activity)
+                .setTitle("Selector de escena")
+                .setSingleChoiceItems(
+                    labels,
+                    checkedItem,
+                    (dialog, which) -> {
+                      dispatchSceneToJs(keys[which]);
+                      dialog.dismiss();
+                    })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+          });
+    }
+
+    private void dispatchSceneToJs(String scene) {
+      WebView webView = bridge.getWebView();
+      if (webView == null) {
+        return;
+      }
+      String esc = scene.replace("\\", "\\\\").replace("'", "\\'");
+      webView.evaluateJavascript(
+          "(function(){ if(window.__onniversoNativeDispatch) window.__onniversoNativeDispatch('"
+              + esc
+              + "'); })()",
+          null);
+    }
   }
 
   /**
