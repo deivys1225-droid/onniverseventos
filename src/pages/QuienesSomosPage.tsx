@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import LegalPageLayout from "@/components/LegalPageLayout";
+import LandingSeoContent from "@/components/LandingSeoContent";
 import { SOCIAL_LINKS } from "@/components/SocialFooterIcons";
 
 const ORG_JSON_LD = {
@@ -35,7 +36,8 @@ const QuienesSomosPage = () => {
   return (
     <LegalPageLayout
       title="Quiénes somos"
-      description="Empresa Tecnológica de Colombia S.A.S. — titular legal de OnniVers desde 2017. Experiencia inmersiva desde Colombia para el mundo."
+      description="OnniVers: tu realidad evolucionada — ecosistema inmersivo. Más abajo: identidad legal de Empresa Tecnológica de Colombia S.A.S. y contacto corporativo."
+      topContent={<LandingSeoContent embedded />}
     >
       <section
         className="rounded-xl border border-primary/25 bg-primary/5 p-4 md:p-5 [&_h2]:mt-0"

@@ -1,19 +1,25 @@
 import type { ReactNode } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { cn } from "@/lib/utils";
 
 type LegalPageLayoutProps = {
   title: string;
   description?: string;
   children: ReactNode;
+  /** Contenido ancho completo bajo el navbar (p. ej. bloque editorial) sin heredar estilos de artículo. */
+  topContent?: ReactNode;
 };
 
 /** Shell común para páginas legales / institucionales (article semántico para SEO). */
-const LegalPageLayout = ({ title, description, children }: LegalPageLayoutProps) => {
+const LegalPageLayout = ({ title, description, children, topContent }: LegalPageLayoutProps) => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="relative z-10 px-6 pb-20 pt-28">
+      {topContent != null ? <div className="pt-16">{topContent}</div> : null}
+      <main
+        className={cn("relative z-10 px-6 pb-20", topContent != null ? "pt-10 md:pt-12" : "pt-28")}
+      >
         <article className="container mx-auto max-w-3xl">
           <header className="mb-10 border-b border-primary/20 pb-8">
             <h1 className="font-display text-3xl font-bold tracking-tight text-foreground md:text-4xl">{title}</h1>

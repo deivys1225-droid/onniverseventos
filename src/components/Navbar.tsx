@@ -25,6 +25,7 @@ const Navbar = () => {
     { label: "INICIO", path: "/inicio" },
     { label: "SALAS", path: "/nuestras-salas" },
     { label: "TIENDA", path: "/tienda" },
+    { label: "QUIENES SOMOS", path: "/quienes-somos" },
   ];
 
   return (

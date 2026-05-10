@@ -1,14 +1,23 @@
+type LandingSeoContentProps = {
+  /** Cuando está dentro de LegalPageLayout u otra página, sin doble contenedor ni borde superior de portada. */
+  embedded?: boolean;
+};
+
 /**
- * Bloque editorial para SEO en la portada: texto indexable, jerarquía H2/H3, estilo acorde al tema oscuro.
+ * Bloque editorial SEO: historia OnniVers, jerarquía H2/H3, tema oscuro.
  */
-const LandingSeoContent = () => {
+const LandingSeoContent = ({ embedded = false }: LandingSeoContentProps) => {
   return (
-    <article
+    <section
       id="contenido-onnivers"
-      className="relative border-t border-primary/20 bg-gradient-to-b from-background via-background to-[hsl(235_40%_6%)] px-4 py-14 sm:px-6 md:py-20"
       lang="es"
+      className={
+        embedded
+          ? "not-prose border-b border-primary/15 bg-gradient-to-b from-background/80 to-[hsl(235_40%_6%)] px-4 py-10 sm:px-6 md:py-12"
+          : "relative border-t border-primary/20 bg-gradient-to-b from-background via-background to-[hsl(235_40%_6%)] px-4 py-14 sm:px-6 md:py-20"
+      }
     >
-      <div className="container mx-auto max-w-3xl">
+      <div className={embedded ? "w-full" : "container mx-auto max-w-3xl"}>
         <p className="mb-8 text-center font-display text-lg font-semibold italic text-primary md:text-xl">
           OnniVers: Tu Realidad Evolucionada
         </p>
@@ -81,7 +90,7 @@ const LandingSeoContent = () => {
           </p>
         </div>
       </div>
-    </article>
+    </section>
   );
 };
 
