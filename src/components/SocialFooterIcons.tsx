@@ -1,8 +1,8 @@
-/** Perfiles oficiales de Empresa Tecnológica de Colombia — verifica slugs en cada red y ajusta si tu página verificada difiere. */
+/** Perfiles oficiales OnniVers / marca — enlaces directos a redes. */
 export const SOCIAL_LINKS = {
-  instagram: "https://www.instagram.com/empresatecnologicadecolombia/",
-  facebook: "https://www.facebook.com/EmpresaTecnologicadeColombia",
-  tiktok: "https://www.tiktok.com/@empresatecnologicadecolombia",
+  instagram: "https://www.instagram.com/onniversovr?igsh=bW9lNjB1M256cHF5",
+  facebook: "https://www.facebook.com/profile.php?id=61588834621279",
+  tiktok: "https://vm.tiktok.com/ZS9Fu7eQQLv32-uIcNu/",
 } as const;
 
 const iconWrap =

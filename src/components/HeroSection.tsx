@@ -10,7 +10,7 @@ const HeroSection = () => {
       <div className="absolute inset-0">
         <img
           src={heroBg}
-          alt="ADH Speak Peak Lobby"
+          alt="Lobby esférico ADH Speak Peak — ambiente inmersivo de eventos OnniVers"
           className="w-full h-full object-cover"
           width={1920}
           height={1080}

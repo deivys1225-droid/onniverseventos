@@ -77,7 +77,7 @@ const FeaturedEvents = () => {
   ];
 
   return (
-    <section id="eventos" className="py-10 px-4 md:px-6">
+    <section id="eventos" aria-labelledby="eventos-destacados-titulo" className="py-10 px-4 md:px-6">
       <div className="container mx-auto max-w-6xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -85,7 +85,7 @@ const FeaturedEvents = () => {
           viewport={{ once: true }}
           className="text-center mb-10"
         >
-          <h2 className="text-4xl md:text-5xl font-display font-bold mb-4">
+          <h2 id="eventos-destacados-titulo" className="text-4xl md:text-5xl font-display font-bold mb-4">
             Eventos <span className="text-primary">destacados</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
@@ -112,7 +112,7 @@ const FeaturedEvents = () => {
                   <div className="relative aspect-[4/3] overflow-hidden">
                     <img
                       src={event.image}
-                      alt={event.title}
+                      alt={`${event.title} — ${event.genre}`}
                       loading="lazy"
                       width={800}
                       height={600}

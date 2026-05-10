@@ -121,7 +121,7 @@ const RegisterPage = () => {
               <div className="relative h-24 w-24">
                 <img
                   src={preview ?? "/placeholder.svg"}
-                  alt=""
+                  alt="Vista previa de la foto de perfil para crear cuenta en OnniVers"
                   className="h-full w-full rounded-full border border-primary/30 object-cover ring-2 ring-white/10"
                 />
                 <button

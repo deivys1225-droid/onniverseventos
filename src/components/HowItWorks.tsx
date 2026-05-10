@@ -35,7 +35,7 @@ const HowItWorks = () => {
             <div className="relative rounded-2xl overflow-hidden glow-cyan">
               <img
                 src={vrImage}
-                alt="Experiencia VR inmersiva"
+                alt="Persona con casco de realidad virtual viviendo una experiencia inmersiva audiovisual OnniVers"
                 loading="lazy"
                 width={800}
                 height={800}

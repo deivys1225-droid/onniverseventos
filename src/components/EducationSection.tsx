@@ -266,7 +266,7 @@ const EducationSection = () => {
                       <div className="relative h-40 overflow-hidden">
                         <img
                           src={track.image}
-                          alt={`${track.title} futurista`}
+                          alt={`${track.title} — ruta de formación inmersiva OnniVers`}
                           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                           loading="lazy"
                           width={600}

@@ -132,7 +132,7 @@ const ProfileCard = ({
         <div className="absolute inset-0 rounded-full border border-primary/20 bg-black/20 shadow-[inset_0_0_20px_hsl(var(--primary)/0.12)]" />
         <img
           src={displayAvatar}
-          alt=""
+          alt={name.trim() ? `Foto de perfil de ${name.trim()}` : "Foto de perfil"}
           className="relative z-0 h-full w-full rounded-full object-cover ring-2 ring-white/10"
         />
         <Button

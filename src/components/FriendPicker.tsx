@@ -36,7 +36,7 @@ const FriendPicker = ({ open, candidates, onClose, onSelect }: FriendPickerProps
           >
             <img
               src={c.avatarUrl?.trim() || "/placeholder.svg"}
-              alt=""
+              alt={`Avatar de ${c.name}`}
               className="h-8 w-8 rounded-full object-cover ring-1 ring-white/15"
             />
             <span className="flex-1 truncate text-sm text-foreground">{c.name}</span>

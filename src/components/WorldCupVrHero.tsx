@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Users, Music2, GraduationCap, Store, ArrowRight, Smartphone, Rss } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { BRAND_IMAGE_ALT } from "@/lib/seoBrand";
+import { ALT_CARD_MUNDIAL_STREAMING, ALT_CARD_ONNI_ECOSYSTEM, ALT_HERO_BACKDROP } from "@/lib/seoBrand";
 
 /** Arte OnniVerso (metaverso / pilares) — servido desde `public/` para web y Capacitor (`base: "./"`). */
 const ONNI_ECOSYSTEM_HERO_IMAGE = `${import.meta.env.BASE_URL}onni-ecosystem-metaverse.png`;
@@ -201,7 +201,7 @@ const WorldCupVrHero = () => {
       <div className="absolute inset-0">
         <img
           src="https://images.unsplash.com/photo-1577223625816-7546f13df25d?auto=format&fit=crop&w=2200&q=80"
-          alt={BRAND_IMAGE_ALT}
+          alt={ALT_HERO_BACKDROP}
           className="h-full w-full object-cover"
           loading="eager"
         />
@@ -219,10 +219,10 @@ const WorldCupVrHero = () => {
             <span className="block bg-gradient-to-br from-cyan-50 via-white to-slate-200 bg-clip-text text-transparent text-[clamp(1.85rem,6.5vw,3.25rem)] tracking-[0.18em] sm:tracking-[0.22em]">
               ONNIVERS
             </span>
-            <span className="mt-3 block px-2 text-[clamp(0.65rem,2.8vw,0.85rem)] font-medium uppercase tracking-[0.28em] text-primary drop-shadow-[0_0_28px_hsl(175_80%_50%/0.38)] sm:mt-4 sm:tracking-[0.36em]">
-              — TU REALIDAD EVOLUCIONADA —
-            </span>
           </h1>
+          <h2 className="mx-auto mt-3 max-w-5xl px-2 font-headline text-[clamp(0.75rem,2.6vw,1.05rem)] font-medium leading-snug tracking-[0.08em] text-primary drop-shadow-[0_0_28px_hsl(175_80%_50%/0.38)] sm:mt-4 sm:tracking-[0.1em] md:leading-relaxed">
+            Realidad Inmersiva, Educación, Conciertos y Tecnología Accesible
+          </h2>
         </motion.div>
 
         <div className="mx-auto mb-6 max-w-4xl space-y-6">
@@ -243,7 +243,7 @@ const WorldCupVrHero = () => {
               <div className="onniverso-hero-platform-visual relative h-52 overflow-hidden bg-gradient-to-b from-[hsl(230_42%_11%)] to-[hsl(235_38%_7%)] ring-1 ring-inset ring-primary/20 md:h-56">
                 <img
                   src={ONNI_ECOSYSTEM_HERO_IMAGE}
-                  alt={BRAND_IMAGE_ALT}
+                  alt={ALT_CARD_ONNI_ECOSYSTEM}
                   className="h-full w-full object-cover object-[center_42%_38%] md:object-[center_45%_35%]"
                   loading="lazy"
                   decoding="async"
@@ -326,7 +326,7 @@ const WorldCupVrHero = () => {
               <div className="relative h-44 overflow-hidden">
                 <img
                   src="https://images.unsplash.com/photo-1570498839593-e565b39455fc?auto=format&fit=crop&w=1600&q=80"
-                  alt={BRAND_IMAGE_ALT}
+                  alt={ALT_CARD_MUNDIAL_STREAMING}
                   className="h-full w-full object-cover"
                   loading="lazy"
                 />
@@ -356,6 +356,74 @@ const WorldCupVrHero = () => {
                 </Button>
               </CardContent>
             </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.34, duration: 0.6 }}
+            className="mx-auto mt-2 max-w-4xl"
+          >
+            <section aria-labelledby="onnivers-editorial-heading" className="rounded-2xl border border-primary/35 bg-card/60 p-6 shadow-[0_0_45px_-14px_hsl(var(--primary)/0.8)] backdrop-blur-xl md:p-8">
+              <h3
+                id="onnivers-editorial-heading"
+                className="font-display text-xl font-bold leading-snug tracking-tight text-foreground md:text-2xl"
+              >
+                <span className="bg-gradient-to-r from-cyan-100 via-white to-violet-200 bg-clip-text text-transparent drop-shadow-[0_0_28px_hsl(175_80%_52%/0.22)]">
+                  OnniVers: Tu Realidad Evolucionada
+                </span>
+              </h3>
+              <div className="mt-6 space-y-5 text-sm leading-relaxed text-muted-foreground md:text-[15px]">
+                <p>
+                  Somos el ecosistema digital inmersivo más completo e innovador del mundo, desarrollado con tecnología propia
+                  para transformar la forma en que las personas se conectan, aprenden y viven experiencias. Nacimos con una
+                  visión clara: llevar la realidad virtual, aumentada y mixta a cada rincón del planeta, eliminando barreras
+                  y haciendo accesible lo que antes parecía imposible.
+                </p>
+                <div className="space-y-2">
+                  <p className="font-semibold text-foreground">
+                    🔹 <strong>EDUCACIÓN INMERSIVA:</strong>
+                  </p>
+                  <p>
+                    Revolucionamos el aprendizaje para colegios, universidades y centros educativos. Creamos entornos donde el
+                    estudiante no solo lee, sino que vive el conocimiento: recorridos históricos, laboratorios virtuales,
+                    simulaciones científicas y modelos 3D interactivos. Una herramienta poderosa para la educación del futuro.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-semibold text-foreground">
+                    🔹 <strong>CONCIERTOS Y ENTRETENIMIENTO:</strong>
+                  </p>
+                  <p>
+                    Llevamos los eventos más grandes a la pantalla de tu celular. Conciertos, espectáculos y presentaciones
+                    en vivo en 360°, donde tú eliges qué ver y desde dónde verlo. Entra al escenario, vive la música y siente la
+                    emoción como si estuvieras ahí mismo.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-semibold text-foreground">
+                    🔹 <strong>RED SOCIAL Y TIENDAS:</strong>
+                  </p>
+                  <p>
+                    Conecta con personas de todo el mundo en un espacio social totalmente inmersivo. Comparte experiencias,
+                    crea contenido y accede a tiendas digitales exclusivas donde el comercio y la tecnología convergen en un
+                    solo lugar.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-semibold text-foreground">
+                    ✅ <strong>ACCESIBILIDAD TOTAL:</strong>
+                  </p>
+                  <p>
+                    Nuestra mayor fortaleza:{" "}
+                    <strong className="font-semibold text-cyan-200/95">funciona en CUALQUIER DISPOSITIVO</strong>, desde los
+                    celulares más económicos hasta los de última generación. No necesitas gafas costosas ni equipos
+                    especiales. Vive la experiencia total con el celular que ya tienes en tu mano. Tecnología mundial, al
+                    alcance de todos.
+                  </p>
+                </div>
+              </div>
+            </section>
           </motion.div>
         </div>
       </div>

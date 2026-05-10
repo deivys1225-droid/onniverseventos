@@ -170,7 +170,11 @@ const SearchHub = ({ currentUserId }: SearchHubProps) => {
                     : "border-white/10 bg-white/5"
                 }`}
               >
-                <img src={u.avatar_url?.trim() || "/placeholder.svg"} alt="" className="h-9 w-9 rounded-full object-cover" />
+                <img
+                  src={u.avatar_url?.trim() || "/placeholder.svg"}
+                  alt={`Foto de perfil de ${u.full_name?.trim() || "usuario"}`}
+                  className="h-9 w-9 rounded-full object-cover"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">{u.full_name?.trim() || "Usuario"}</p>
                   <p className={`text-[11px] ${u.is_live ? "text-amber-300" : "text-cyan-200"}`}>

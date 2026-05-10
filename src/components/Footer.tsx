@@ -22,13 +22,13 @@ const Footer = () => {
               <strong className="font-medium text-foreground">Empresa Tecnológica de Colombia S.A.S.</strong>{" "}
               <span className="whitespace-nowrap tabular-nums">NIT 901.083.478-0</span>
             </p>
-            <div className="flex flex-wrap items-center gap-2 pt-0.5" aria-label="Redes sociales de Empresa Tecnológica de Colombia">
+            <div className="flex flex-wrap items-center gap-2 pt-0.5" aria-label="Redes sociales OnniVers">
               <a
                 href={SOCIAL_LINKS.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={socialFooterIconClass}
-                aria-label="Instagram — Empresa Tecnológica de Colombia"
+                aria-label="Instagram — OnniVers"
               >
                 <InstagramGlyph />
               </a>
@@ -37,7 +37,7 @@ const Footer = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 className={socialFooterIconClass}
-                aria-label="Facebook — Empresa Tecnológica de Colombia"
+                aria-label="Facebook — OnniVers"
               >
                 <FacebookGlyph />
               </a>
@@ -46,7 +46,7 @@ const Footer = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 className={socialFooterIconClass}
-                aria-label="TikTok — Empresa Tecnológica de Colombia"
+                aria-label="TikTok — OnniVers"
               >
                 <TikTokGlyph />
               </a>
