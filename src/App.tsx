@@ -17,6 +17,7 @@ import TeatroHub from "./pages/TeatroHub.tsx";
 import SalaTeatro from "./pages/SalaTeatro.tsx";
 import LobbyGlobalPage from "./pages/LobbyGlobalPage.tsx";
 import EventosPage from "./pages/EventosPage.tsx";
+import RedSocialInmersivaPage from "./pages/RedSocialInmersivaPage.tsx";
 import InicioPage from "./pages/InicioPage.tsx";
 import NuestrasSalasPage from "./pages/NuestrasSalasPage.tsx";
 import EducacionPage from "./pages/EducacionPage.tsx";
@@ -79,6 +80,7 @@ const App = () => (
               }
             />
             <Route path="/eventos" element={<EventosPage />} />
+            <Route path="/red-social-inmersiva" element={<RedSocialInmersivaPage />} />
             <Route
               path="/pc"
               element={

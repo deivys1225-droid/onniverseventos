@@ -55,7 +55,7 @@ const pillars: {
       "Encuentros, comunidades y contenido en espacios compartidos virtuales: interacción en tiempo real, presencia y conexión pensadas para la nueva comunicación humana, no solo para desplazar el feed a otra pantalla.",
     imageAlt:
       "Red social inmersiva OnniVers: personas con cascos RV, interacción en plaza digital y conexión en comunidad.",
-    to: "/mi-mundo/lobby-global",
+    to: "/red-social-inmersiva",
     badge: "Comunidad",
     Icon: Users,
     accent: "cyan",
