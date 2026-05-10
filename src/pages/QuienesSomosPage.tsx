@@ -8,7 +8,7 @@ const ORG_JSON_LD = {
   "@type": "Organization",
   name: "OnniVers",
   legalName: "Empresa Tecnológica de Colombia S.A.S.",
-  url: "https://onnivers.com",
+  url: "https://onniverso.com",
   taxID: "901.083.478-0",
   foundingDate: "2017",
   email: "gerencia@onniverso.com",

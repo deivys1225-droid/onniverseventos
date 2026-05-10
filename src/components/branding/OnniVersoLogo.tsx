@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { BRAND_IMAGE_ALT } from "@/lib/seoBrand";
 
 /**
  * Marca OnniVers — icono esférico + texto legible para SEO y lectores de pantalla.
@@ -14,7 +15,7 @@ const OnniVersoLogo = ({ className = "", iconSize = 28 }: OnniVersoLogoProps) =>
   const gradId = `onni-grad-${rid}`;
 
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
+    <span className={`inline-flex items-center gap-2 ${className}`} role="img" aria-label={BRAND_IMAGE_ALT}>
       <svg
         width={iconSize}
         height={iconSize}
@@ -33,7 +34,7 @@ const OnniVersoLogo = ({ className = "", iconSize = 28 }: OnniVersoLogoProps) =>
         <ellipse cx="24" cy="24" rx="21" ry="10" fill="none" stroke={`url(#${gradId})`} strokeWidth="1.4" opacity="0.65" />
         <circle cx="24" cy="24" r="7" fill="hsl(190 90% 52% / 0.25)" stroke={`url(#${gradId})`} strokeWidth="1.5" />
       </svg>
-      <span className="font-headline text-lg font-semibold tracking-[0.14em] text-foreground md:text-xl md:tracking-[0.16em]">
+      <span aria-hidden className="font-headline text-lg font-semibold tracking-[0.14em] text-foreground md:text-xl md:tracking-[0.16em]">
         Onni<span className="font-bold tracking-[0.22em] text-primary">Vers</span>
       </span>
     </span>

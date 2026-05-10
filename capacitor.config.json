@@ -5,11 +5,8 @@
   "server": {
     "androidScheme": "https",
     "allowNavigation": [
-      "onnivers.com",
-      "www.onnivers.com",
-      "vivevr.vercel.app",
-      "*.vercel.app",
-      "*.vercel.live",
+      "onniverso.com",
+      "www.onniverso.com",
       "supabase.co",
       "*.supabase.co",
       "paypal.com",

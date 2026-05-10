@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 const glassPanel =
   "rounded-2xl border border-border/50 bg-card/40 p-8 shadow-[0_0_45px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl";
@@ -45,10 +46,12 @@ const RegisterPage = () => {
     setLoading(true);
 
     try {
+      const site = getSiteUrl();
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
+          emailRedirectTo: `${site}/inicio`,
           data: {
             full_name: fullName.trim(),
             display_name: fullName.trim(),

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { getSiteUrl } from "@/lib/siteUrl";
 
 const glassPanel =
   "rounded-2xl border border-border/50 bg-card/40 p-8 shadow-[0_0_45px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl";
@@ -27,7 +28,7 @@ const WelcomeUniversePage = () => {
     }
     setLoading(true);
     try {
-      const site = window.location.origin;
+      const site = getSiteUrl();
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${site}/actualizar-contrasena`,
       });

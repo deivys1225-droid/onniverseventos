@@ -10,6 +10,7 @@ import { WORLD_CUP_FINAL_USD, WORLD_CUP_SEMIFINALS_USD, formatUsd } from "@/lib/
 import LoginAuthModal from "@/components/LoginAuthModal";
 import PaymentSuccessModal from "@/components/PaymentSuccessModal";
 import { notifyN8nPaymentSuccess } from "@/lib/n8n";
+import { BRAND_IMAGE_ALT } from "@/lib/seoBrand";
 
 /** Arte OnniVerso (metaverso / pilares) — servido desde `public/` para web y Capacitor (`base: "./"`). */
 const ONNI_ECOSYSTEM_HERO_IMAGE = `${import.meta.env.BASE_URL}onni-ecosystem-metaverse.png`;
@@ -74,7 +75,7 @@ const WorldCupOfferColumn = ({ offer, orderClass }: { offer: (typeof offers)[0];
 
       <Card className="presale-glass-card h-full">
         <div className="relative h-44 overflow-hidden">
-          <img src={offer.image} alt={offer.title} className="h-full w-full object-cover" loading="lazy" />
+          <img src={offer.image} alt={BRAND_IMAGE_ALT} className="h-full w-full object-cover" loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
         </div>
         <CardContent className="p-5">
@@ -133,7 +134,7 @@ const WorldCupVrHero = () => {
       <div className="absolute inset-0">
         <img
           src="https://images.unsplash.com/photo-1577223625816-7546f13df25d?auto=format&fit=crop&w=2200&q=80"
-          alt=""
+          alt={BRAND_IMAGE_ALT}
           className="h-full w-full object-cover"
           loading="eager"
         />
@@ -168,7 +169,7 @@ const WorldCupVrHero = () => {
               <div className="onniverso-hero-platform-visual relative h-52 overflow-hidden bg-gradient-to-b from-[hsl(230_42%_11%)] to-[hsl(235_38%_7%)] ring-1 ring-inset ring-primary/20 md:h-56">
                 <img
                   src={ONNI_ECOSYSTEM_HERO_IMAGE}
-                  alt="Ecosistema OnniVerso: conciertos, educación, tiendas digitales y red social inmersiva en VR y hologramas"
+                  alt={BRAND_IMAGE_ALT}
                   className="h-full w-full object-cover object-[center_42%_38%] md:object-[center_45%_35%]"
                   loading="lazy"
                   decoding="async"
@@ -224,7 +225,7 @@ const WorldCupVrHero = () => {
               <div className="relative h-44 overflow-hidden">
                 <img
                   src="https://images.unsplash.com/photo-1570498839593-e565b39455fc?auto=format&fit=crop&w=1600&q=80"
-                  alt="Fútbol colombiano en estadio"
+                  alt={BRAND_IMAGE_ALT}
                   className="h-full w-full object-cover"
                   loading="lazy"
                 />

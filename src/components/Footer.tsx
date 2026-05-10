@@ -8,6 +8,9 @@ import {
   socialFooterIconClass,
 } from "@/components/SocialFooterIcons";
 
+const legalLinkClass =
+  "font-medium text-primary underline-offset-4 transition-colors hover:text-primary hover:underline";
+
 const Footer = () => {
   return (
     <footer className="border-t border-border px-6 py-12">
@@ -60,10 +63,10 @@ const Footer = () => {
           <Link to="/quienes-somos" className="transition-colors hover:text-foreground">
             Quiénes somos
           </Link>
-          <Link to="/privacidad" className="transition-colors hover:text-foreground">
+          <Link to="/privacidad" className={legalLinkClass}>
             Privacidad
           </Link>
-          <Link to="/terminos" className="transition-colors hover:text-foreground">
+          <Link to="/terminos" className={legalLinkClass}>
             Términos
           </Link>
           <Link to="/contacto" className="transition-colors hover:text-foreground">
@@ -71,6 +74,9 @@ const Footer = () => {
           </Link>
         </nav>
       </div>
+      <p className="container mx-auto mt-10 max-w-4xl border-t border-border/70 pt-6 text-center text-[11px] leading-relaxed text-muted-foreground md:text-xs">
+        Este sitio cumple con los estándares de seguridad SSL y protección de datos Habeas Data.
+      </p>
     </footer>
   );
 };

@@ -1,8 +1,8 @@
-/** Enlaces oficiales — actualiza las URLs si tus perfiles difieren. */
+/** Perfiles oficiales de Empresa Tecnológica de Colombia — verifica slugs en cada red y ajusta si tu página verificada difiere. */
 export const SOCIAL_LINKS = {
-  instagram: "https://www.instagram.com/onniverso/",
-  facebook: "https://www.facebook.com/onniverso",
-  tiktok: "https://www.tiktok.com/@onniverso",
+  instagram: "https://www.instagram.com/empresatecnologicadecolombia/",
+  facebook: "https://www.facebook.com/EmpresaTecnologicadeColombia",
+  tiktok: "https://www.tiktok.com/@empresatecnologicadecolombia",
 } as const;
 
 const iconWrap =
