@@ -1,130 +1,145 @@
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trophy, Ticket, MonitorPlay, Sparkles, LogIn, Users, Music2, GraduationCap, Store } from "lucide-react";
+import { Sparkles, Users, Music2, GraduationCap, Store, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { PayPalButtons } from "@paypal/react-paypal-js";
-import { useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { WORLD_CUP_FINAL_USD, WORLD_CUP_SEMIFINALS_USD, formatUsd } from "@/lib/pricing";
-import LoginAuthModal from "@/components/LoginAuthModal";
-import PaymentSuccessModal from "@/components/PaymentSuccessModal";
-import { notifyN8nPaymentSuccess } from "@/lib/n8n";
+import { cn } from "@/lib/utils";
 import { BRAND_IMAGE_ALT } from "@/lib/seoBrand";
 
 /** Arte OnniVerso (metaverso / pilares) — servido desde `public/` para web y Capacitor (`base: "./"`). */
 const ONNI_ECOSYSTEM_HERO_IMAGE = `${import.meta.env.BASE_URL}onni-ecosystem-metaverse.png`;
 
-const offers = [
+/** Arte en `public/` y Unsplash — una por pilar visual del ecosistema. */
+const PILLAR_IMAGES = {
+  /** Ilustración propia: aula OnniVers con cascos RV y modelos holográficos 3D. */
+  education: `${import.meta.env.BASE_URL}educacion-inmersiva.jpeg`,
+  /** Ilustración propia: conciertos, estadio virtual y metaverso OnniVers. */
+  events: `${import.meta.env.BASE_URL}eventos-inmersivos.jpeg`,
+  /** Ilustración propia: tienda inmersiva OnniVers con RA, vitrinas holográficas y compras digitales. */
+  stores: `${import.meta.env.BASE_URL}compras-inmersivas.jpeg`,
+  /** Ilustración propia: plaza digital, avatares y red social inmersiva OnniVers. */
+  social: `${import.meta.env.BASE_URL}red-social-inmersiva.jpeg`,
+} as const;
+
+type PillarKey = keyof typeof PILLAR_IMAGES;
+
+const pillars: {
+  key: PillarKey;
+  title: string;
+  description: string;
+  imageAlt: string;
+  to: string;
+  badge: string;
+  Icon: typeof GraduationCap;
+  accent: "amber" | "fuchsia" | "emerald" | "cyan";
+}[] = [
   {
-    kind: "final" as const,
-    title: "Preventa Gran Final",
-    description: "Acceso exclusivo a la final histórica",
-    usd: WORLD_CUP_FINAL_USD,
-    image:
-      "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=1400&q=80",
+    key: "events",
+    title: "CONCIERTOS INMERSIVOS DE REALIDAD VIRTUAL",
+    description:
+      "No solo mires el evento, sé parte de él. Transmisiones 360° en vivo, realidad mixta y aforo virtual ilimitado desde cualquier dispositivo.",
+    imageAlt:
+      "Universo de eventos inmersivos OnniVers: conciertos virtuales, estadio con realidad mixta y experiencias 360°.",
+    to: "/eventos",
+    badge: "En vivo & 360°",
+    Icon: Sparkles,
+    accent: "fuchsia",
+  },
+  {
+    key: "social",
+    title: "Red social inmersiva",
+    description:
+      "Encuentros, comunidades y contenido en espacios compartidos virtuales: interacción en tiempo real, presencia y conexión pensadas para la nueva comunicación humana, no solo para desplazar el feed a otra pantalla.",
+    imageAlt:
+      "Red social inmersiva OnniVers: personas con cascos RV, interacción en plaza digital y conexión en comunidad.",
+    to: "/mi-mundo/lobby-global",
+    badge: "Comunidad",
+    Icon: Users,
+    accent: "cyan",
+  },
+  {
+    key: "education",
+    title: "Educación inmersiva",
+    description:
+      "Soluciones tecnológicas para colegios y universidades: aulas con realidad aumentada, laboratorios virtuales y rutas donde el estudiante vive el conocimiento —histórico, científico o técnico— con modelos 3D y simulación, sin sustituir al docente sino ampliando el aula al mundo.",
+    imageAlt:
+      "Educación inmersiva OnniVers: estudiantes en aula futurista con RV, ADN y sistema solar holográficos.",
+    to: "/educacion",
+    badge: "Campus & aulas",
+    Icon: GraduationCap,
+    accent: "amber",
+  },
+  {
+    key: "stores",
+    title: "Tiendas inmersivas",
+    description:
+      "Comercio digital con vitrinas espaciales y recorridos en RA: productos y marcas en escenas diseñadas para explorar, comparar y comprar fuera del catálogo plano tradicional.",
+    imageAlt:
+      "Tienda inmersiva OnniVers: centro comercial futurista con cascos RV, productos holográficos y compra aumentada.",
+    to: "/tienda",
+    badge: "Retail digital",
+    Icon: Store,
+    accent: "emerald",
   },
 ];
 
-const WorldCupOfferColumn = ({ offer, orderClass }: { offer: (typeof offers)[0]; orderClass: string }) => {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [successOpen, setSuccessOpen] = useState(false);
-  const eventKey = offer.kind === "final" ? "worldcup-final" : "worldcup-semifinal";
-  const priceStr = offer.usd.toFixed(2);
+const accentBadge: Record<(typeof pillars)[number]["accent"], string> = {
+  amber: "border-amber-400/45 bg-amber-500/12 text-amber-100",
+  fuchsia: "border-fuchsia-400/45 bg-fuchsia-500/12 text-fuchsia-100",
+  emerald: "border-emerald-400/45 bg-emerald-500/12 text-emerald-100",
+  cyan: "border-cyan-400/45 bg-cyan-500/12 text-cyan-100",
+};
 
-  const onCapture = async (orderId: string) => {
-    try {
-      await notifyN8nPaymentSuccess({
-        source: offer.kind === "final" ? "worldcup-final" : "worldcup-semifinal",
-        amount: priceStr,
-        currency: "USD",
-        userId: user?.id ?? null,
-        userEmail: user?.email ?? null,
-        eventId: eventKey,
-        paypalOrderId: orderId,
-        at: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.error("n8n notification:", e);
-    }
-    setSuccessOpen(true);
-  };
+const accentIcon: Record<(typeof pillars)[number]["accent"], string> = {
+  amber: "text-amber-300",
+  fuchsia: "text-fuchsia-300",
+  emerald: "text-emerald-300",
+  cyan: "text-cyan-300",
+};
+
+function PillarSpotlightCard({ pillar }: { pillar: (typeof pillars)[number] }) {
+  const navigate = useNavigate();
+  const Icon = pillar.Icon;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: orderClass.includes("order-1") ? -20 : 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.15, duration: 0.6 }}
-      className={orderClass}
-    >
-      <LoginAuthModal
-        open={loginOpen}
-        onOpenChange={setLoginOpen}
-        onGoToAuth={() => {
-          setLoginOpen(false);
-          navigate("/entrar");
-        }}
-      />
-      <PaymentSuccessModal
-        open={successOpen}
-        onOpenChange={setSuccessOpen}
-        message="Pago con PayPal confirmado. Pronto activaremos tu acceso según el calendario de transmisiones."
-      />
-
-      <Card className="presale-glass-card h-full">
-        <div className="relative h-44 overflow-hidden">
-          <img src={offer.image} alt={BRAND_IMAGE_ALT} className="h-full w-full object-cover" loading="lazy" />
-          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+    <Card className="overflow-hidden border border-primary/35 bg-card/60 backdrop-blur-xl shadow-[0_0_45px_-14px_hsl(var(--primary)/0.8)]">
+      <div className="relative h-44 overflow-hidden">
+        <img
+          src={PILLAR_IMAGES[pillar.key]}
+          alt={pillar.imageAlt}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/25 to-transparent" />
+      </div>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="min-w-0 flex-1 font-display text-xl font-semibold text-foreground">{pillar.title}</h3>
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-display font-bold uppercase tracking-wider text-right sm:text-xs",
+              accentBadge[pillar.accent],
+            )}
+          >
+            <Icon className={cn("h-3.5 w-3.5 shrink-0", accentIcon[pillar.accent])} aria-hidden />
+            {pillar.badge}
+          </span>
         </div>
-        <CardContent className="p-5">
-          <h3 className="font-display text-xl font-semibold text-foreground">{offer.title}</h3>
-          <p className="mt-2 text-sm text-muted-foreground">{offer.description}</p>
-          <p className="mt-4 text-2xl font-display font-bold text-primary">{formatUsd(offer.usd)}</p>
-          {!user ? (
-            <Button
-              type="button"
-              className="mt-3 w-full gap-2 rounded-lg border border-[#ffc439]/80 bg-[#ffc439] px-3 py-2 text-sm font-semibold text-[#003087] transition hover:brightness-95"
-              onClick={() => setLoginOpen(true)}
-            >
-              <LogIn className="h-4 w-4" />
-              Iniciar sesión con PayPal
-            </Button>
-          ) : (
-            <div className="mt-3 w-full">
-              <PayPalButtons
-                style={{
-                  layout: "vertical",
-                  color: "gold",
-                  shape: "rect",
-                  label: "pay",
-                  height: 45,
-                }}
-                createOrder={(_data, actions) =>
-                  actions.order.create({
-                    intent: "CAPTURE",
-                    purchase_units: [
-                      {
-                        amount: { currency_code: "USD", value: priceStr },
-                        description: `Preventa VR — ${offer.title}`,
-                      },
-                    ],
-                  })
-                }
-                onApprove={async (_data, actions) => {
-                  if (!actions.order) return;
-                  const order = await actions.order.capture();
-                  await onCapture(order.id ?? "");
-                }}
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </motion.div>
+        <p className="mt-3 text-sm text-muted-foreground">{pillar.description}</p>
+        <Button
+          type="button"
+          variant="heroOutline"
+          className="mt-5 w-full gap-2"
+          onClick={() => navigate(pillar.to)}
+        >
+          Explorar
+          <ArrowRight className="h-4 w-4" aria-hidden />
+        </Button>
+      </CardContent>
+    </Card>
   );
-};
+}
 
 const WorldCupVrHero = () => {
   const navigate = useNavigate();
@@ -215,10 +230,37 @@ const WorldCupVrHero = () => {
             </Card>
           </motion.div>
 
+          {pillars.slice(0, 2).map((pillar, index) => (
+            <motion.div
+              key={pillar.key}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12 + index * 0.04, duration: 0.6 }}
+            >
+              <PillarSpotlightCard pillar={pillar} />
+            </motion.div>
+          ))}
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.12, duration: 0.6 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+          >
+            <PillarSpotlightCard pillar={pillars[2]} />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.24, duration: 0.6 }}
+          >
+            <PillarSpotlightCard pillar={pillars[3]} />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.28, duration: 0.6 }}
           >
             <Card className="overflow-hidden border border-primary/35 bg-card/60 backdrop-blur-xl shadow-[0_0_45px_-14px_hsl(var(--primary)/0.8)]">
               <div className="relative h-44 overflow-hidden">
@@ -255,51 +297,6 @@ const WorldCupVrHero = () => {
               </CardContent>
             </Card>
           </motion.div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-stretch">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05, duration: 0.7 }}
-            className="lg:order-1"
-          >
-            <Card className="h-full border border-primary/45 bg-card/65 backdrop-blur-xl shadow-[0_0_60px_-15px_hsl(var(--primary)/0.9)]">
-              <CardContent className="p-7 md:p-8">
-                <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-display font-semibold tracking-wider text-primary">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  MUNDIAL VR EXPERIENCE
-                </span>
-                <h2 className="mt-4 font-display text-2xl font-bold text-foreground md:text-3xl">
-                  Transmisión total del Mundial en realidad virtual
-                </h2>
-
-                <div className="mt-6 space-y-4">
-                  <div className="rounded-xl border border-primary/35 bg-primary/10 p-4">
-                    <p className="flex items-start gap-2 text-sm md:text-base text-foreground">
-                      <MonitorPlay className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      Disfruta de una pantalla virtual de 100 pulgadas para todos los partidos.
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-amber-300/35 bg-amber-300/10 p-4">
-                    <p className="flex items-start gap-2 text-sm md:text-base text-foreground">
-                      <Ticket className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-                      Ahorra dinero en boletas y vive la pasión desde la primera fila virtual.
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-cyan-300/35 bg-cyan-300/10 p-4">
-                    <p className="flex items-start gap-2 text-sm md:text-base text-foreground">
-                      <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
-                      Los partidos de fase de grupos y octavos son GRATIS. Semifinales y Gran Final:{" "}
-                      {formatUsd(WORLD_CUP_SEMIFINALS_USD)} y {formatUsd(WORLD_CUP_FINAL_USD)}.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <WorldCupOfferColumn offer={offers[0]} orderClass="lg:order-2" />
         </div>
       </div>
     </section>

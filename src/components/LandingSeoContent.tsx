@@ -14,7 +14,7 @@ const LandingSeoContent = () => {
         </p>
 
         <h2 className="font-display text-xl font-bold leading-snug tracking-tight text-foreground sm:text-2xl md:text-[1.65rem]">
-          Eventos Inmersivos, Realidad Virtual y Transmisiones Globales
+          Educación Inmersiva — Eventos en Realidad Virtual y Aumentada — Transmisiones Globales
         </h2>
         <div className="mt-4 space-y-4 text-sm leading-relaxed text-muted-foreground sm:text-base md:leading-[1.75]">
           <p>
@@ -38,7 +38,7 @@ const LandingSeoContent = () => {
         </div>
 
         <h2 className="mt-12 font-display text-xl font-bold leading-snug tracking-tight text-foreground sm:text-2xl md:text-[1.65rem]">
-          Tecnología Propia Accesible para Todo el Mundo
+          Tecnología Propia, Realidad Aumentada y Accesible para Todo el Mundo
         </h2>
         <div className="mt-4 space-y-4 text-sm leading-relaxed text-muted-foreground sm:text-base md:leading-[1.75]">
           <p>
@@ -48,8 +48,25 @@ const LandingSeoContent = () => {
           </p>
         </div>
 
+        <h2 className="mt-12 font-display text-xl font-bold leading-snug tracking-tight text-foreground sm:text-2xl md:text-[1.65rem]">
+          Educación Inmersiva: Tecnología para Colegios y Universidades
+        </h2>
+        <div className="mt-4 space-y-4 text-sm leading-relaxed text-muted-foreground sm:text-base md:leading-[1.75]">
+          <p className="font-display font-semibold text-primary/95">
+            🔹 EDUCACIÓN INMERSIVA Y REALIDAD AUMENTADA:
+          </p>
+          <p>
+            Una de nuestras grandes fortalezas y áreas de desarrollo principal es transformar la enseñanza y el
+            aprendizaje. Creamos soluciones tecnológicas exclusivas diseñadas para colegios, universidades e instituciones
+            educativas de todo el mundo, llevando el conocimiento a otro nivel. Aquí el estudiante no solo lee o escucha:{" "}
+            <em className="font-medium italic text-foreground/90">vive la experiencia.</em> Recorridos históricos
+            interactivos, simulaciones científicas, laboratorios virtuales, modelos 3D y realidad aumentada aplicada,
+            diseñados para que el conocimiento se comprenda, se recuerde y se disfrute al máximo.
+          </p>
+        </div>
+
         <h3 className="mt-10 font-display text-lg font-semibold leading-snug text-cyan-100/95 sm:text-xl md:text-[1.35rem]">
-          Escenas 360°, Realidad Mixta y Experiencias Sin Límites
+          Escenas 360°, Realidad Mixta, Realidad Aumentada y Experiencias Sin Límites
         </h3>
         <div className="mt-4 space-y-4 text-sm leading-relaxed text-muted-foreground sm:text-base md:leading-[1.75]">
           <p>

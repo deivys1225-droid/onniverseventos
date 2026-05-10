@@ -69,6 +69,9 @@ const Footer = () => {
           <Link to="/contacto" className="transition-colors hover:text-foreground">
             Soporte
           </Link>
+          <Link to="/educacion" className="transition-colors hover:text-foreground">
+            Soluciones Educativas
+          </Link>
           <Link to="/privacidad" className={legalLinkClass}>
             Privacidad
           </Link>
