@@ -15,10 +15,14 @@ declare global {
       on360Click?: (mp4Url?: string) => void;
       onMtClick?: (mp4Url?: string) => void;
     };
-    /** Puente AR: {@code Android.onArClick()} o {@code Android.onArClick(url)} (registrado en MainActivity como {@code Android}). */
+    /** Puente AR / VR: registrados en MainActivity como {@code Android}. */
     Android?: {
       onArClick(url?: string): void;
+      /** Interruptor modo estereoscópico (SBS) — WebView → nativo puede reinyectar {@link __onniversoToggleVrMode}. */
+      onVrModeClick(): void;
     };
+    /** Alterna el modo VR duplicado (canvas SBS) — usable desde JS y desde {@code evaluateJavascript} tras {@code Android.onVrModeClick}. */
+    __onniversoToggleVrMode?: () => void;
   }
 }
 
@@ -35,6 +39,13 @@ window.irAlSelectorNativo = irAlSelectorNativo;
 function MirrorSbsRoot() {
   const [vrMode, setVrMode] = useState(false);
   const [hasFrame, setHasFrame] = useState(false);
+
+  useEffect(() => {
+    window.__onniversoToggleVrMode = () => setVrMode((v) => !v);
+    return () => {
+      delete window.__onniversoToggleVrMode;
+    };
+  }, []);
   const sourceHostRef = useRef<HTMLDivElement | null>(null);
   const masterCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const leftEyeCanvasRef = useRef<HTMLCanvasElement | null>(null);

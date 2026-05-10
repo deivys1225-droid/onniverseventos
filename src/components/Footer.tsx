@@ -1,3 +1,4 @@
+import { Headphones } from "lucide-react";
 import { Link } from "react-router-dom";
 import OnniVersoLogo from "@/components/branding/OnniVersoLogo";
 import {
@@ -11,6 +12,9 @@ import {
 const legalLinkClass =
   "font-medium text-primary underline-offset-4 transition-colors hover:text-primary hover:underline";
 
+const MAIL_SUPPORT =
+  "mailto:gerencia@onniverso.com?subject=Soporte%20T%C3%A9cnico%20OnniVers";
+
 const Footer = () => {
   return (
     <footer className="border-t border-border px-6 py-12">
@@ -22,7 +26,10 @@ const Footer = () => {
               <strong className="font-medium text-foreground">Empresa Tecnológica de Colombia S.A.S.</strong>{" "}
               <span className="whitespace-nowrap tabular-nums">NIT 901.083.478-0</span>
             </p>
-            <div className="flex flex-wrap items-center gap-2 pt-0.5" aria-label="Redes sociales OnniVers">
+            <div
+              className="flex flex-wrap items-center gap-2 pt-0.5"
+              aria-label="Redes sociales y soporte técnico OnniVers"
+            >
               <a
                 href={SOCIAL_LINKS.instagram}
                 target="_blank"
@@ -49,6 +56,14 @@ const Footer = () => {
                 aria-label="TikTok — OnniVers"
               >
                 <TikTokGlyph />
+              </a>
+              <a
+                href={MAIL_SUPPORT}
+                className={socialFooterIconClass}
+                aria-label="Soporte técnico — escribir a gerencia@onniverso.com"
+                title="Soporte Técnico"
+              >
+                <Headphones className="h-[18px] w-[18px] shrink-0" aria-hidden />
               </a>
             </div>
             <p className="text-sm leading-relaxed text-muted-foreground">

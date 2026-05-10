@@ -100,6 +100,21 @@ public class MainActivity extends BridgeActivity {
     return t;
   }
 
+  /**
+   * Botón VR en la web llama {@code Android.onVrModeClick()}; aquí se reinyecta el interruptor del modo
+   * estereoscópico SBS ({@code window.__onniversoToggleVrMode}) en el WebView.
+   */
+  private void toggleStereoscopicModeFromJsBridge() {
+    Bridge bridge = getBridge();
+    WebView webView = bridge != null ? bridge.getWebView() : null;
+    if (webView == null) {
+      return;
+    }
+    webView.evaluateJavascript(
+        "(function(){ if(window.__onniversoToggleVrMode) window.__onniversoToggleVrMode(); })()",
+        null);
+  }
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     webkitMediaPermissionLauncher =
@@ -307,8 +322,7 @@ public class MainActivity extends BridgeActivity {
   }
 
   /**
-   * Objeto global {@code window.Android} para AR (contrato JS explícito:
-   * {@code Android.onArClick()} o {@code Android.onArClick(url)}).
+   * Objeto global {@code window.Android}: AR ({@code onArClick}) y modo VR estereoscópico ({@code onVrModeClick}).
    */
   private static final class AndroidJsApi {
 
@@ -331,6 +345,12 @@ public class MainActivity extends BridgeActivity {
       String u = salaUrl != null ? salaUrl.trim() : "";
       activity.openAudienceSelector(
           "immersive", activity.resolveAudienceLaunchUrl(u, AUDIENCE_GO_AR_URL));
+    }
+
+    /** Interruptor modo estereoscópico (JS: {@code window.Android.onVrModeClick()}). */
+    @JavascriptInterface
+    public void onVrModeClick() {
+      activity.runOnUiThread(() -> activity.toggleStereoscopicModeFromJsBridge());
     }
   }
 
