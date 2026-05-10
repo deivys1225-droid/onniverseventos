@@ -180,7 +180,7 @@ const WorldCupVrHero = () => {
               <CardContent className="p-6">
                 <h3 className="font-display text-xl font-semibold leading-snug tracking-tight md:text-[1.35rem]">
                   <span className="bg-gradient-to-r from-cyan-100 via-white to-violet-200 bg-clip-text text-transparent drop-shadow-[0_0_28px_hsl(175_80%_52%/0.22)]">
-                    OnniVerso: El Ecosistema Digital Infinito.
+                    OnniVerso: El Ecosistema Digital Inmersivo.
                   </span>
                 </h3>
                 <ul

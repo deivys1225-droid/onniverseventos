@@ -13,10 +13,11 @@ const SupportTechFab = () => {
   return (
     <a
       href={MAIL_SUPPORT}
-      className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-primary/45 bg-background/75 px-4 py-2.5 text-sm font-semibold text-primary shadow-[0_0_28px_-6px_hsl(var(--primary)/0.55)] backdrop-blur-md transition hover:border-primary/70 hover:bg-background/90 hover:shadow-[0_0_36px_-4px_hsl(var(--primary)/0.65)]"
+      aria-label="Soporte técnico — escribir a gerencia@onniverso.com"
+      title="Soporte Técnico"
+      className="fixed bottom-5 right-5 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary/45 bg-background/75 text-primary shadow-[0_0_28px_-6px_hsl(var(--primary)/0.55)] backdrop-blur-md transition hover:border-primary/70 hover:bg-background/90 hover:shadow-[0_0_36px_-4px_hsl(var(--primary)/0.65)]"
     >
-      <Headphones className="h-4 w-4 shrink-0" aria-hidden />
-      Soporte Técnico
+      <Headphones className="h-5 w-5 shrink-0" aria-hidden />
     </a>
   );
 };
