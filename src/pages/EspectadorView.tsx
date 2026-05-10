@@ -9,9 +9,6 @@ import { podcastStreamers } from "@/data/podcastStreamers";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { toast } from "sonner";
 
-const SELENA_BIDI_BOM_MP4 =
-  "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757336/Selena_-_Bidi_Bidi_Bom_Bom_hcvcfk.mp4";
-
 const APP_ID = (import.meta.env.NEXT_PUBLIC_AGORA_APP_ID as string | undefined)?.trim() ?? "";
 const AUDIENCE_TOKEN =
   (import.meta.env.NEXT_PUBLIC_AGORA_AUDIENCE_TOKEN as string | undefined)?.trim() ??
@@ -51,8 +48,6 @@ const EspectadorView = () => {
   const fallbackMp4 = (searchParams.get("mp4") ?? "").trim();
   const forcedMode = (searchParams.get("mode") ?? "").trim().toLowerCase();
   const useVodMode = forcedMode === "vod" && fallbackMp4.length > 0;
-  /** Evita unirse a Agora hasta elegir escena (salvo VOD directo por URL). */
-  const [scenePhase, setScenePhase] = useState<"selector" | "playing">(() => (useVodMode ? "playing" : "selector"));
   const [status, setStatus] = useState("Listo para conectar");
   const [connecting, setConnecting] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -175,18 +170,9 @@ const EspectadorView = () => {
   }, [leaveAudienceRoom]);
 
   useEffect(() => {
-    if (useVodMode) setScenePhase("playing");
-  }, [useVodMode]);
-
-  useEffect(() => {
     if (useVodMode) return;
-    if (scenePhase !== "playing") return;
     void joinAudienceRoom();
-  }, [joinAudienceRoom, useVodMode, scenePhase]);
-
-  const openOnniversWeb = () => {
-    window.open("https://www.onnivers.com/", "_blank", "noopener,noreferrer");
-  };
+  }, [joinAudienceRoom, useVodMode]);
 
   const goMixVod = () => {
     if (!fallbackMp4) {
@@ -203,13 +189,13 @@ const EspectadorView = () => {
     navigate(q ? `/pc?${q}` : "/pc");
   };
 
-  /** Pantalla dividida / escena PC — mismo criterio que el botón «VR/PC» del selector. */
+  /** Pantalla dividida / escena PC — mismo criterio que el botón «VR/PC». */
   const goPantallaDividida = () => {
     setError(null);
     goVrPc();
   };
 
-  /** Escena inmersiva 360 (PodcastSala360) — mismo criterio que «360°» del selector. */
+  /** Escena inmersiva 360 (PodcastSala360) — mismo criterio que «360°». */
   const goEscenaInmersiva = () => {
     setError(null);
     const podcastId = podcastIdFromAgoraChannel(channelName);
@@ -221,15 +207,6 @@ const EspectadorView = () => {
     }
     toast.info("Para esta sala no hay escena inmersiva en el directorio; abriendo el hub de podcasts.");
     navigate(`/podcast-hub${suffix}`);
-  };
-
-  const goSelenaBidiVod = () => {
-    setError(null);
-    const next = new URLSearchParams(searchParams);
-    next.set("mode", "vod");
-    next.set("mp4", SELENA_BIDI_BOM_MP4);
-    next.set("title", "Selena — Bidi Bidi Bom Bom");
-    navigate(`/sala/espectador/${encodeURIComponent(channelName)}?${next.toString()}`);
   };
 
   nativeSceneActionsRef.current.split = goPantallaDividida;
@@ -248,7 +225,7 @@ const EspectadorView = () => {
     };
   }, []);
 
-  /** Barra inferior: en Android abre el selector nativo; en PC igual que antes (directo). */
+  /** Reservado para integración Android / barra inferior (si se enlaza desde nativo). */
   const onAudienceBarSplit = () => {
     if (tryAndroidNativeSceneSelector("split")) return;
     goPantallaDividida();
@@ -278,89 +255,6 @@ const EspectadorView = () => {
       </div>
 
       <main className="relative z-10 px-4 pb-10 pt-24 md:px-6">
-        {scenePhase === "selector" && !useVodMode && (
-          <div
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="scene-selector-title"
-          >
-            <div className="w-full max-w-lg rounded-2xl border border-cyan-300/45 bg-card/90 p-5 shadow-[0_0_60px_-12px_rgba(34,211,238,0.85)] backdrop-blur-xl">
-              <h2 id="scene-selector-title" className="mb-1 text-center text-lg font-bold tracking-tight text-cyan-50">
-                Selector de escena
-              </h2>
-              <p className="mb-2 text-center text-xs text-muted-foreground">Elige cómo ver esta sala o abre el sitio.</p>
-              <p className="mb-4 text-center text-[10px] leading-snug text-muted-foreground/85">
-                ¿No ves botones nuevos en la app Android? En la carpeta del proyecto ejecuta{" "}
-                <span className="font-mono text-cyan-200/90">npm run sync:android</span> y vuelve a instalar el APK.
-              </p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setScenePhase("playing");
-                  }}
-                  className="rounded-xl border border-cyan-300/40 bg-black/40 px-3 py-3 text-left text-sm font-semibold text-cyan-50 transition hover:border-cyan-300/80 hover:bg-black/55"
-                >
-                  Reproductor
-                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">Agora en vivo</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={goEscenaInmersiva}
-                  className="rounded-xl border border-cyan-300/40 bg-black/40 px-3 py-3 text-left text-sm font-semibold text-cyan-50 transition hover:border-cyan-300/80 hover:bg-black/55"
-                >
-                  Escena inmersiva
-                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">360° · sala podcast</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={goMixVod}
-                  className="rounded-xl border border-fuchsia-300/40 bg-black/40 px-3 py-3 text-left text-sm font-semibold text-fuchsia-50 transition hover:border-fuchsia-300/80 hover:bg-black/55"
-                >
-                  Escena mixta
-                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">MP4 si hay enlace (MIX)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={goPantallaDividida}
-                  className="rounded-xl border border-violet-300/40 bg-black/40 px-3 py-3 text-left text-sm font-semibold text-violet-50 transition hover:border-violet-300/80 hover:bg-black/55"
-                >
-                  Pantalla dividida
-                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">VR / escena PC</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={openOnniversWeb}
-                  className="rounded-xl border border-emerald-400/45 bg-black/40 px-3 py-3 text-left text-sm font-semibold text-emerald-100 transition hover:border-emerald-300/85 hover:bg-black/55"
-                >
-                  onnivers
-                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">www.onnivers.com</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={goSelenaBidiVod}
-                  className="col-span-2 sm:col-span-3 rounded-xl border border-rose-400/45 bg-black/40 px-3 py-3 text-left text-sm font-semibold text-rose-100 transition hover:border-rose-300/85 hover:bg-black/55"
-                >
-                  Selena · Bidi Bidi
-                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">Video Cloudinary</span>
-                </button>
-              </div>
-              {error && (
-                <p className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{error}</p>
-              )}
-              <button
-                type="button"
-                onClick={() => navigate("/nuestras-salas")}
-                className="mt-4 w-full rounded-lg border border-border/60 bg-transparent py-2 text-xs text-muted-foreground hover:bg-muted/20"
-              >
-                Volver a salas
-              </button>
-            </div>
-          </div>
-        )}
-
         <section className="mx-auto max-w-6xl space-y-4">
           <div className="rounded-2xl border border-cyan-300/35 bg-card/35 p-3 shadow-[0_0_50px_-18px_rgba(34,211,238,0.9)] backdrop-blur-xl md:p-4">
             {useVodMode ? (
@@ -389,7 +283,7 @@ const EspectadorView = () => {
             <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
               <button
                 type="button"
-                title="Pantalla dividida (mismo que el selector)"
+                title="Pantalla dividida / VR"
                 onClick={() => {
                   const b = (window as Window & { AndroidBridge?: { onVrClick?: () => void } }).AndroidBridge;
                   if (typeof b?.onVrClick === "function") {
@@ -405,7 +299,7 @@ const EspectadorView = () => {
               </button>
               <button
                 type="button"
-                title="Escena inmersiva (mismo que el selector)"
+                title="Escena inmersiva 360°"
                 onClick={() => {
                   const b = (window as Window & { AndroidBridge?: { on360Click?: () => void } }).AndroidBridge;
                   if (typeof b?.on360Click === "function") {
@@ -426,7 +320,7 @@ const EspectadorView = () => {
               </button>
               <button
                 type="button"
-                title="Escena mixta (mismo que el selector)"
+                title="Escena mixta (MT)"
                 onClick={() => {
                   const b = (window as Window & { AndroidBridge?: { onMtClick?: () => void } }).AndroidBridge;
                   if (typeof b?.onMtClick === "function") {
