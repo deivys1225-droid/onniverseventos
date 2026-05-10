@@ -7,4 +7,5 @@
     <string name="live_streaming_start">Iniciar stream</string>
     <string name="package_name">com.vivevr.app</string>
     <string name="custom_url_scheme">com.vivevr.app</string>
+    <string name="selector_scene_title">Selector de escena</string>
 </resources>

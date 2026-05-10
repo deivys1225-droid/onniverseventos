@@ -1,6 +1,7 @@
 package com.vivevr.app;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.net.Uri;
@@ -54,6 +55,9 @@ public class MainActivity extends BridgeActivity {
       "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757336/Selena_-_Bidi_Bidi_Bom_Bom_hcvcfk.mp4";
 
   private ActivityResultLauncher<String[]> webkitMediaPermissionLauncher;
+  /** Tras elegir escena en {@link SelectorActivity}, URL a cargar en el WebView (MP4 o /go/*). */
+  private ActivityResultLauncher<Intent> selectorActivityLauncher;
+  private String pendingPlaybackUrlForSelector;
   /** Petición pendiente devuelta por el WebChromeClient del WebView */
   private PermissionRequest pendingWebkitPermissionRequest;
   /** Permisos de Android lanzados junto con {@link #pendingWebkitPermissionRequest} */
@@ -69,10 +73,64 @@ public class MainActivity extends BridgeActivity {
     pendingSceneAfterNavigation = scene;
   }
 
+  /**
+   * Abre {@link SelectorActivity} y, al elegir escena, carga la URL de reproducción en el WebView
+   * (misma secuencia que antes con {@code loadUrl} + diálogo).
+   */
+  private void openAudienceSelector(String preferredScene, String playbackUrl) {
+    runOnUiThread(
+        () -> {
+          pendingPlaybackUrlForSelector = playbackUrl;
+          Intent i = new Intent(this, SelectorActivity.class);
+          i.putExtra(SelectorActivity.EXTRA_PREFERRED_SCENE, preferredScene);
+          selectorActivityLauncher.launch(i);
+        });
+  }
+
+  /** Coincide con la lógica que envía JS desde Espectador (MP4 de sala o fallback /go/*). */
+  private String resolveAudienceLaunchUrl(String mp4FromJs, String fallbackGoUrl) {
+    if (mp4FromJs == null) {
+      return fallbackGoUrl;
+    }
+    String t = mp4FromJs.trim();
+    if (t.isEmpty()) {
+      return fallbackGoUrl;
+    }
+    return t;
+  }
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     webkitMediaPermissionLauncher =
         registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), this::finishWebKitPermissionPrompt);
+
+    selectorActivityLauncher =
+        registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+              if (result.getResultCode() != Activity.RESULT_OK) {
+                pendingPlaybackUrlForSelector = null;
+                return;
+              }
+              Intent data = result.getData();
+              if (data == null) {
+                pendingPlaybackUrlForSelector = null;
+                return;
+              }
+              String scene = data.getStringExtra(SelectorActivity.EXTRA_SELECTED_SCENE);
+              String url = pendingPlaybackUrlForSelector;
+              pendingPlaybackUrlForSelector = null;
+              if (scene == null || scene.isEmpty() || url == null || url.isEmpty()) {
+                return;
+              }
+              Bridge bridge = getBridge();
+              WebView webView = bridge != null ? bridge.getWebView() : null;
+              if (webView == null) {
+                return;
+              }
+              setPendingSceneAfterNavigation(scene);
+              webView.loadUrl(url);
+            });
 
     SplashScreen.installSplashScreen(this);
     super.onCreate(savedInstanceState);
@@ -198,8 +256,8 @@ public class MainActivity extends BridgeActivity {
 
   /**
    * Puente Web → nativo para los botones 360°, VR y MT del reproductor:
-   * {@code AndroidBridge.on360Click()}, {@code AndroidBridge.onVrClick()}, {@code AndroidBridge.onMtClick()}.
-   * {@code AndroidBridge.abrirMiSelectorNativo()} solo muestra el mismo {@link AlertDialog} de escena que {@link AudienceSceneBridge#openSceneSelector(String)} (sin cargar URL).
+   * abren {@link SelectorActivity}; al confirmar escena se carga la URL (MP4 de sala o /go/*) en el WebView.
+   * {@code AndroidBridge.abrirMiSelectorNativo()} sigue usando {@link AlertDialog} (solo selector, sin reproducción).
    */
   private static final class AndroidBridge {
 
@@ -227,44 +285,22 @@ public class MainActivity extends BridgeActivity {
           });
     }
 
-    private void loadAudienceGoUrl(String url) {
-      activity.runOnUiThread(
-          () -> {
-            WebView webView = bridge.getWebView();
-            if (webView != null) {
-              webView.loadUrl(url);
-            }
-          });
-    }
-
-    /**
-     * Si JS envía la URL del MP4 de la sala actual, el WebViewClient la intercepta y abre el mismo
-     * flujo de escena nativo con ese vídeo. Si viene vacío, se mantiene el destino /go/* (páginas remotas).
-     */
-    private static String resolveAudienceLaunchUrl(String mp4FromJs, String fallbackGoUrl) {
-      if (mp4FromJs == null) {
-        return fallbackGoUrl;
-      }
-      String t = mp4FromJs.trim();
-      if (t.isEmpty()) {
-        return fallbackGoUrl;
-      }
-      return t;
-    }
-
     @JavascriptInterface
     public void on360Click(String mp4Url) {
-      loadAudienceGoUrl(resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_360_URL));
+      activity.openAudienceSelector(
+          "immersive", activity.resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_360_URL));
     }
 
     @JavascriptInterface
     public void onVrClick(String mp4Url) {
-      loadAudienceGoUrl(resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_VR_URL));
+      activity.openAudienceSelector(
+          "split", activity.resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_VR_URL));
     }
 
     @JavascriptInterface
     public void onMtClick(String mp4Url) {
-      loadAudienceGoUrl(resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_MT_URL));
+      activity.openAudienceSelector(
+          "mix", activity.resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_MT_URL));
     }
   }
 
