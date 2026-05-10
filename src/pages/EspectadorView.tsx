@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
-import { Headset, Layers2, RefreshCw } from "lucide-react";
+import { Headset, Layers2, RefreshCw, Scan } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AgoraRTC, { type IAgoraRTCClient, type IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
 import Navbar from "@/components/Navbar";
@@ -293,7 +293,7 @@ const EspectadorView = () => {
               </Button>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
               <button
                 type="button"
                 title="Pantalla dividida / VR"
@@ -349,6 +349,28 @@ const EspectadorView = () => {
                   <span className="text-xs font-semibold tracking-wide sm:text-sm">MT</span>
                   <span className="mt-0.5 text-[9px] font-normal text-fuchsia-200/70">mixto</span>
                 </span>
+              </button>
+              <button
+                type="button"
+                title="Realidad aumentada (AR)"
+                onClick={() => {
+                  if (typeof window.Android?.onArClick === "function") {
+                    const url = nativeBridgeMp4Url.trim();
+                    if (url) {
+                      // Opción 2 (recomendado): window.Android.onArClick("URL_DE_TU_SALA")
+                      window.Android.onArClick(url);
+                    } else {
+                      // Opción 1: window.Android.onArClick()
+                      window.Android.onArClick();
+                    }
+                    return;
+                  }
+                  window.location.assign("https://onnivers.com/go/ar");
+                }}
+                className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-amber-400/45 bg-black/35 px-2 py-3 text-amber-50 shadow-[0_0_28px_-12px_rgba(245,158,11,0.55)] transition hover:border-amber-300/85 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
+              >
+                <Scan className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
+                <span className="text-xs font-semibold tracking-wide sm:text-sm">AR</span>
               </button>
             </div>
 

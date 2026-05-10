@@ -15,6 +15,10 @@ declare global {
       on360Click?: (mp4Url?: string) => void;
       onMtClick?: (mp4Url?: string) => void;
     };
+    /** Puente AR: {@code Android.onArClick()} o {@code Android.onArClick(url)} (registrado en MainActivity como {@code Android}). */
+    Android?: {
+      onArClick(url?: string): void;
+    };
   }
 }
 

@@ -47,6 +47,7 @@ public class MainActivity extends BridgeActivity {
   private static final String AUDIENCE_GO_360_URL = "https://onnivers.com/go/360";
   private static final String AUDIENCE_GO_VR_URL = "https://onnivers.com/go/vr";
   private static final String AUDIENCE_GO_MT_URL = "https://onnivers.com/go/mt";
+  private static final String AUDIENCE_GO_AR_URL = "https://onnivers.com/go/ar";
 
   private static final String DEFAULT_AUDIENCE_CHANNEL = "main";
 
@@ -192,6 +193,7 @@ public class MainActivity extends BridgeActivity {
 
     webView.addJavascriptInterface(new AudienceSceneBridge(this, bridge), "AndroidScene");
     webView.addJavascriptInterface(new AndroidBridge(this, bridge), "AndroidBridge");
+    webView.addJavascriptInterface(new AndroidJsApi(this), "Android");
 
     attachCasaVideoButton();
   }
@@ -301,6 +303,34 @@ public class MainActivity extends BridgeActivity {
     public void onMtClick(String mp4Url) {
       activity.openAudienceSelector(
           "mix", activity.resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_MT_URL));
+    }
+  }
+
+  /**
+   * Objeto global {@code window.Android} para AR (contrato JS explícito:
+   * {@code Android.onArClick()} o {@code Android.onArClick(url)}).
+   */
+  private static final class AndroidJsApi {
+
+    private final MainActivity activity;
+
+    AndroidJsApi(MainActivity activity) {
+      this.activity = activity;
+    }
+
+    /** Coincide con {@code window.Android.onArClick()} desde JS (sin argumentos). */
+    @JavascriptInterface
+    public void onArClick() {
+      activity.openAudienceSelector(
+          "immersive", activity.resolveAudienceLaunchUrl("", AUDIENCE_GO_AR_URL));
+    }
+
+    /** Coincide con {@code window.Android.onArClick("URL_DE_TU_SALA")}. */
+    @JavascriptInterface
+    public void onArClick(String salaUrl) {
+      String u = salaUrl != null ? salaUrl.trim() : "";
+      activity.openAudienceSelector(
+          "immersive", activity.resolveAudienceLaunchUrl(u, AUDIENCE_GO_AR_URL));
     }
   }
 
