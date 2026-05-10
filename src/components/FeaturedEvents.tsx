@@ -4,50 +4,75 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { formatUsd, stableUsdInRange } from "@/lib/pricing";
 
+/** Rutas reales de la app: hub teatro, eventos Supabase por id, podcast hub, educación. */
 const FeaturedEvents = () => {
   const events = [
     {
       id: "a1b2c3d4-0003-4000-8000-000000000003",
-      title: "STAND-UP / TEATRO Royale",
-      genre: "Comedia & Teatro | Red Carpet",
-      date: "8 Mayo 2026 | Distrito Premium",
+      title: "STAND-UP / TEATRO Royale OnniVers",
+      genre: "Comedia & teatro en vivo · Platea inmersiva · Gala premium sin barreras",
+      date: "8 Mayo 2026 · Sala Royale · Distrito Premium",
       viewers: "31.4K en sala",
       image:
         "https://images.unsplash.com/photo-1503095396549-807759245b35?auto=format&fit=crop&w=1600&q=80",
       live: true,
       isFree: true,
-      price: 0,
       anchorId: "en-vivo",
       ctaLabel: "Entrar al Teatro Hub",
       to: "/teatro-hub",
     },
     {
       id: "a1b2c3d4-0001-4000-8000-000000000001",
-      title: "Eclipse Mainstage Festival",
-      genre: "Electrónica | Epic Mainstage",
-      date: "15 Mayo 2026 | Neon Valley",
+      title: "NEÓN PRIME Mainstage",
+      genre: "Electrónica · Festival central · Escenario VR & luces sincronizadas",
+      date: "15 Mayo 2026 · Valle Neón · Mainstage 360°",
       viewers: "58.2K conectados",
       image:
         "https://images.unsplash.com/photo-1470229538611-16ba8c7ffbd7?auto=format&fit=crop&w=1600&q=80",
       live: true,
       isFree: false,
-      price: 0,
-      anchorId: undefined,
+      ctaLabel: "Ver evento",
+      to: "/event/a1b2c3d4-0001-4000-8000-000000000001",
     },
     {
       id: "a1b2c3d4-0002-4000-8000-000000000002",
-      title: "Inferno Rock Arena Live",
-      genre: "Rock | Stadium Energy",
-      date: "22 Mayo 2026 | Full House",
+      title: "CRÁTER ROCK ARENA",
+      genre: "Rock · Arena en vivo · Energía de estadio en pantalla inmersiva",
+      date: "22 Mayo 2026 · Arena Cráter · Full House",
       viewers: "36.9K conectados",
       image:
         "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1600&q=80",
       live: false,
       isFree: false,
-      price: 0,
       anchorId: "vr",
       ctaLabel: "Ver evento",
       to: "/event/a1b2c3d4-0002-4000-8000-000000000002",
+    },
+    {
+      id: "featured-podcast-hub",
+      title: "PODCAST HUB 360°",
+      genre: "Salas esféricas · Voces en vivo · Chat y panorama sincronizado",
+      date: "Siempre disponible · Lobby planetario",
+      viewers: "Explora podcasters",
+      image:
+        "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?auto=format&fit=crop&w=1600&q=80",
+      live: true,
+      isFree: true,
+      ctaLabel: "Ir al Podcast Hub",
+      to: "/podcast-hub",
+    },
+    {
+      id: "featured-educacion",
+      title: "CAMPUS INMERSIVO OnniVers",
+      genre: "Educación · RA & laboratorios virtuales · Desde tu móvil",
+      date: "Programación abierta · Aulas conectadas",
+      viewers: "Aprendizaje experiencial",
+      image:
+        "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1600&q=80",
+      live: false,
+      isFree: true,
+      ctaLabel: "Ir a Educación",
+      to: "/educacion",
     },
   ];
 
@@ -63,24 +88,25 @@ const FeaturedEvents = () => {
           <h2 className="text-4xl md:text-5xl font-display font-bold mb-4">
             Eventos <span className="text-primary">destacados</span>
           </h2>
-          <p className="text-muted-foreground text-lg max-w-md mx-auto">
-            Descubre conciertos y experiencias inmersivas
+          <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+            Conciertos, podcast inmersivo, teatro y educación en un solo lugar
           </p>
         </motion.div>
 
-        <div className="grid max-w-6xl mx-auto grid-cols-2 gap-3 sm:gap-6 md:gap-8">
+        <div className="grid max-w-6xl mx-auto grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8">
           {events.map((event, i) => {
             const paidUsd = !event.isFree
               ? stableUsdInRange(`featured-event:${event.id}`, 10, 15)
               : 0;
+            const href = event.to ?? `/event/${event.id}`;
             return (
-              <Link key={event.id} to={event.to ?? `/event/${event.id}`}>
+              <Link key={event.id} to={href}>
                 <motion.div
                   id={event.anchorId}
                   initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.15 }}
+                  transition={{ delay: i * 0.1 }}
                   className="group glass rounded-xl overflow-hidden cursor-pointer hover:border-primary/30 transition-all duration-500 h-full flex flex-col"
                 >
                   <div className="relative aspect-[4/3] overflow-hidden">
@@ -111,10 +137,10 @@ const FeaturedEvents = () => {
                     </span>
                   </div>
                   <div className="p-3 sm:p-6 flex-1 flex flex-col">
-                    <span className="text-[10px] sm:text-xs font-display text-primary tracking-wider uppercase line-clamp-2">
+                    <span className="text-[10px] sm:text-xs font-display text-primary tracking-wider uppercase line-clamp-3">
                       {event.genre}
                     </span>
-                    <h3 className="text-sm sm:text-xl font-display font-semibold mt-1.5 sm:mt-2 mb-2 sm:mb-4 text-foreground line-clamp-2">
+                    <h3 className="text-sm sm:text-xl font-display font-semibold mt-1.5 sm:mt-2 mb-2 sm:mb-4 text-foreground line-clamp-3">
                       {event.title}
                     </h3>
                     <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-4 text-[11px] sm:text-sm text-muted-foreground mt-auto">
@@ -122,9 +148,9 @@ const FeaturedEvents = () => {
                         <Calendar className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
                         <span className="truncate sm:line-clamp-none">{event.date}</span>
                       </span>
-                      <span className="hidden sm:flex items-center gap-1.5">
-                        <Eye className="w-4 h-4" />
-                        {event.viewers}
+                      <span className="hidden sm:flex items-center gap-1.5 min-w-0">
+                        <Eye className="w-4 h-4 shrink-0" />
+                        <span className="truncate">{event.viewers}</span>
                       </span>
                     </div>
                     <Button variant="heroOutline" size="sm" className="mt-3 sm:mt-5 w-full text-[11px] sm:text-sm h-8 sm:h-9">

@@ -1,13 +1,16 @@
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Users, Music2, GraduationCap, Store, ArrowRight } from "lucide-react";
+import { Sparkles, Users, Music2, GraduationCap, Store, ArrowRight, Smartphone, Rss } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { BRAND_IMAGE_ALT } from "@/lib/seoBrand";
 
 /** Arte OnniVerso (metaverso / pilares) — servido desde `public/` para web y Capacitor (`base: "./"`). */
 const ONNI_ECOSYSTEM_HERO_IMAGE = `${import.meta.env.BASE_URL}onni-ecosystem-metaverse.png`;
+
+/** Ilustración accesibilidad: diversidad de dispositivos y experiencia inmersiva para todos. */
+const ACCESSIBILITY_CARD_IMAGE = `${import.meta.env.BASE_URL}accesibilidad-universal.jpeg`;
 
 /** Arte en `public/` y Unsplash — una por pilar visual del ecosistema. */
 const PILLAR_IMAGES = {
@@ -97,6 +100,55 @@ const accentIcon: Record<(typeof pillars)[number]["accent"], string> = {
   cyan: "text-cyan-300",
 };
 
+function AccessibilitySpotlightCard() {
+  const navigate = useNavigate();
+
+  return (
+    <Card className="overflow-hidden border border-primary/35 bg-card/60 backdrop-blur-xl shadow-[0_0_45px_-14px_hsl(var(--primary)/0.8)]">
+      <div className="relative h-44 overflow-hidden sm:h-48">
+        <img
+          src={ACCESSIBILITY_CARD_IMAGE}
+          alt="Personas diversas con smartphones y RV: accesibilidad universal de la tecnología inmersiva OnniVers."
+          className="h-full w-full object-cover object-[center_45%]"
+          loading="lazy"
+          decoding="async"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/25 to-transparent" />
+      </div>
+      <CardContent className="p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+          <h3 className="min-w-0 flex-1 font-display text-lg font-bold leading-snug sm:text-xl md:text-[1.35rem]">
+            <span className="bg-gradient-to-r from-cyan-100 via-primary to-violet-200 bg-clip-text text-transparent drop-shadow-[0_0_28px_hsl(175_80%_52%/0.22)]">
+              Accesibilidad Universal
+            </span>
+          </h3>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-sky-400/45 bg-sky-500/12 px-3 py-1.5 text-[10px] font-display font-bold uppercase tracking-wider text-sky-100 sm:text-xs">
+            <span className="relative inline-flex items-center" aria-hidden>
+              <Smartphone className="h-3.5 w-3.5 shrink-0 text-sky-300" />
+              <Rss className="-ml-0.5 h-3 w-3 shrink-0 text-sky-200/95" />
+            </span>
+            Alcance global
+          </span>
+        </div>
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          Tecnología inmersiva y de Realidad Aumentada diseñada para funcionar en cualquier dispositivo móvil, desde
+          modelos económicos hasta los de última generación. Sin necesidad de equipos costosos: vive una experiencia
+          total con el celular que ya tienes. Rompemos las barreras técnicas para conectar al mundo entero.
+        </p>
+        <Button
+          type="button"
+          variant="heroOutline"
+          className="mt-5 w-full min-h-[44px] gap-2 sm:min-h-0"
+          onClick={() => navigate("/inicio")}
+        >
+          Explorar
+          <ArrowRight className="h-4 w-4" aria-hidden />
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function PillarSpotlightCard({ pillar }: { pillar: (typeof pillars)[number] }) {
   const navigate = useNavigate();
   const Icon = pillar.Icon;
@@ -177,7 +229,15 @@ const WorldCupVrHero = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08, duration: 0.6 }}
+            transition={{ delay: 0.06, duration: 0.6 }}
+          >
+            <AccessibilitySpotlightCard />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.6 }}
           >
             <Card className="overflow-hidden border border-primary/35 bg-card/60 backdrop-blur-xl shadow-[0_0_45px_-14px_hsl(var(--primary)/0.8)]">
               <div className="onniverso-hero-platform-visual relative h-52 overflow-hidden bg-gradient-to-b from-[hsl(230_42%_11%)] to-[hsl(235_38%_7%)] ring-1 ring-inset ring-primary/20 md:h-56">
@@ -235,7 +295,7 @@ const WorldCupVrHero = () => {
               key={pillar.key}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.12 + index * 0.04, duration: 0.6 }}
+              transition={{ delay: 0.14 + index * 0.04, duration: 0.6 }}
             >
               <PillarSpotlightCard pillar={pillar} />
             </motion.div>
@@ -244,7 +304,7 @@ const WorldCupVrHero = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
+            transition={{ delay: 0.22, duration: 0.6 }}
           >
             <PillarSpotlightCard pillar={pillars[2]} />
           </motion.div>
@@ -252,7 +312,7 @@ const WorldCupVrHero = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.24, duration: 0.6 }}
+            transition={{ delay: 0.26, duration: 0.6 }}
           >
             <PillarSpotlightCard pillar={pillars[3]} />
           </motion.div>
@@ -260,7 +320,7 @@ const WorldCupVrHero = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.28, duration: 0.6 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
           >
             <Card className="overflow-hidden border border-primary/35 bg-card/60 backdrop-blur-xl shadow-[0_0_45px_-14px_hsl(var(--primary)/0.8)]">
               <div className="relative h-44 overflow-hidden">
