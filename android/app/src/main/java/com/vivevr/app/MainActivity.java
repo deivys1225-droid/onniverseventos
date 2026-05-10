@@ -237,19 +237,34 @@ public class MainActivity extends BridgeActivity {
           });
     }
 
-    @JavascriptInterface
-    public void on360Click() {
-      loadAudienceGoUrl(AUDIENCE_GO_360_URL);
+    /**
+     * Si JS envía la URL del MP4 de la sala actual, el WebViewClient la intercepta y abre el mismo
+     * flujo de escena nativo con ese vídeo. Si viene vacío, se mantiene el destino /go/* (páginas remotas).
+     */
+    private static String resolveAudienceLaunchUrl(String mp4FromJs, String fallbackGoUrl) {
+      if (mp4FromJs == null) {
+        return fallbackGoUrl;
+      }
+      String t = mp4FromJs.trim();
+      if (t.isEmpty()) {
+        return fallbackGoUrl;
+      }
+      return t;
     }
 
     @JavascriptInterface
-    public void onVrClick() {
-      loadAudienceGoUrl(AUDIENCE_GO_VR_URL);
+    public void on360Click(String mp4Url) {
+      loadAudienceGoUrl(resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_360_URL));
     }
 
     @JavascriptInterface
-    public void onMtClick() {
-      loadAudienceGoUrl(AUDIENCE_GO_MT_URL);
+    public void onVrClick(String mp4Url) {
+      loadAudienceGoUrl(resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_VR_URL));
+    }
+
+    @JavascriptInterface
+    public void onMtClick(String mp4Url) {
+      loadAudienceGoUrl(resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_MT_URL));
     }
   }
 

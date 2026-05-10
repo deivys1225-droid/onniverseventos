@@ -6,6 +6,7 @@ import AgoraRTC, { type IAgoraRTCClient, type IAgoraRTCRemoteUser } from "agora-
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
+import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { toast } from "sonner";
 
@@ -48,6 +49,16 @@ const EspectadorView = () => {
   const fallbackMp4 = (searchParams.get("mp4") ?? "").trim();
   const forcedMode = (searchParams.get("mode") ?? "").trim().toLowerCase();
   const useVodMode = forcedMode === "vod" && fallbackMp4.length > 0;
+  /** MP4 asociado al canal (catálogo o VOD actual) para VR/360/MT nativos — evita abrir siempre el vídeo por defecto de /go/*. */
+  const nativeBridgeMp4Url = useMemo(() => {
+    if (useVodMode && fallbackMp4) return fallbackMp4;
+    const prefix = "al-universo-";
+    const n = channelName.trim().toLowerCase();
+    if (!n.startsWith(prefix)) return "";
+    const roomId = n.slice(prefix.length);
+    if (!roomId) return "";
+    return SALA_MP4_URL_BY_ID[roomId] ?? "";
+  }, [useVodMode, fallbackMp4, channelName]);
   const [status, setStatus] = useState("Listo para conectar");
   const [connecting, setConnecting] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -257,20 +268,22 @@ const EspectadorView = () => {
       <main className="relative z-10 px-4 pb-10 pt-24 md:px-6">
         <section className="mx-auto max-w-6xl space-y-4">
           <div className="rounded-2xl border border-cyan-300/35 bg-card/35 p-3 shadow-[0_0_50px_-18px_rgba(34,211,238,0.9)] backdrop-blur-xl md:p-4">
-            {useVodMode ? (
-              <video
-                src={fallbackMp4}
-                autoPlay
-                controls
-                playsInline
-                className="aspect-video w-full overflow-hidden rounded-xl border border-cyan-300/45 bg-black shadow-[0_0_48px_-10px_rgba(34,211,238,0.95)]"
-              />
-            ) : (
-              <div
-                id={remoteContainerId}
-                className="aspect-video w-full overflow-hidden rounded-xl border border-cyan-300/45 bg-black shadow-[0_0_48px_-10px_rgba(34,211,238,0.95)]"
-              />
-            )}
+            <div className="mx-auto w-[70%] max-w-full">
+              {useVodMode ? (
+                <video
+                  src={fallbackMp4}
+                  autoPlay
+                  controls
+                  playsInline
+                  className="aspect-video w-full overflow-hidden rounded-xl border border-cyan-300/45 bg-black shadow-[0_0_48px_-10px_rgba(34,211,238,0.95)]"
+                />
+              ) : (
+                <div
+                  id={remoteContainerId}
+                  className="aspect-video w-full overflow-hidden rounded-xl border border-cyan-300/45 bg-black shadow-[0_0_48px_-10px_rgba(34,211,238,0.95)]"
+                />
+              )}
+            </div>
             <div className="mt-3 flex items-center justify-between gap-2">
               <p className="text-xs text-cyan-100">
                 {roomTitle} · {useVodMode ? "Reproducción automática MP4" : `Canal: ${channelName} · Estado: ${status}`}
@@ -285,9 +298,9 @@ const EspectadorView = () => {
                 type="button"
                 title="Pantalla dividida / VR"
                 onClick={() => {
-                  const b = (window as Window & { AndroidBridge?: { onVrClick?: () => void } }).AndroidBridge;
+                  const b = (window as Window & { AndroidBridge?: { onVrClick?: (mp4?: string) => void } }).AndroidBridge;
                   if (typeof b?.onVrClick === "function") {
-                    b.onVrClick();
+                    b.onVrClick(nativeBridgeMp4Url);
                     return;
                   }
                   window.location.assign("https://onnivers.com/go/vr");
@@ -301,9 +314,9 @@ const EspectadorView = () => {
                 type="button"
                 title="Escena inmersiva 360°"
                 onClick={() => {
-                  const b = (window as Window & { AndroidBridge?: { on360Click?: () => void } }).AndroidBridge;
+                  const b = (window as Window & { AndroidBridge?: { on360Click?: (mp4?: string) => void } }).AndroidBridge;
                   if (typeof b?.on360Click === "function") {
-                    b.on360Click();
+                    b.on360Click(nativeBridgeMp4Url);
                     return;
                   }
                   window.location.assign("https://onnivers.com/go/360");
@@ -322,9 +335,9 @@ const EspectadorView = () => {
                 type="button"
                 title="Escena mixta (MT)"
                 onClick={() => {
-                  const b = (window as Window & { AndroidBridge?: { onMtClick?: () => void } }).AndroidBridge;
+                  const b = (window as Window & { AndroidBridge?: { onMtClick?: (mp4?: string) => void } }).AndroidBridge;
                   if (typeof b?.onMtClick === "function") {
-                    b.onMtClick();
+                    b.onMtClick(nativeBridgeMp4Url);
                     return;
                   }
                   window.location.assign("https://onnivers.com/go/mt");

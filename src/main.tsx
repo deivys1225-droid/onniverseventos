@@ -9,7 +9,12 @@ declare global {
   interface Window {
     /** Solo Android: llama {@code AndroidBridge.abrirMiSelectorNativo()} (sin cargar página). */
     irAlSelectorNativo?: () => void;
-    AndroidBridge?: { abrirMiSelectorNativo?: () => void };
+    AndroidBridge?: {
+      abrirMiSelectorNativo?: () => void;
+      onVrClick?: (mp4Url?: string) => void;
+      on360Click?: (mp4Url?: string) => void;
+      onMtClick?: (mp4Url?: string) => void;
+    };
   }
 }
 
