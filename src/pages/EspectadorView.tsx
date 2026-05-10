@@ -188,11 +188,6 @@ const EspectadorView = () => {
     window.open("https://www.onnivers.com/", "_blank", "noopener,noreferrer");
   };
 
-  /** Ruta “mala” (apex); útil para probar el launcher / TLS que falla. */
-  const openMaloLauncher = () => {
-    window.location.assign("https://onnivers.com/");
-  };
-
   const goMixVod = () => {
     if (!fallbackMp4) {
       setError("Esta sala no incluye un MP4 para la vista MIX. Pide al anfitrión el enlace con parámetro mp4.");
@@ -342,14 +337,6 @@ const EspectadorView = () => {
                 >
                   onnivers
                   <span className="mt-1 block text-[10px] font-normal text-muted-foreground">www.onnivers.com</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={openMaloLauncher}
-                  className="rounded-xl border border-amber-500/45 bg-black/40 px-3 py-3 text-left text-sm font-semibold text-amber-100 transition hover:border-amber-400/85 hover:bg-black/55"
-                >
-                  malo
-                  <span className="mt-1 block text-[10px] font-normal text-muted-foreground">onnivers.com (apex)</span>
                 </button>
                 <button
                   type="button"
