@@ -1,27 +1,28 @@
 ---
-description: Candado — emisión y recepción en vivo funcionando; no tocar sin orden explícita
+description: Candado — streaming, túneles WebView, SelectorActivity; no tocar sin orden explícita
 alwaysApply: true
 ---
 
-# Streaming / Agora — congelado (candado)
+# Streaming / Agora / Android — congelado (candado)
 
-La emisión y la transmisión en vivo **están validadas y deben mantenerse**. Trátalas como **solo lectura** para el agente.
+La emisión, la recepción en vivo, los **túneles** WebView ↔ JS, **`SelectorActivity`** y el flujo AR (`window.Android`) **están validados**. Trátalos como **solo lectura** para el agente salvo petición explícita del usuario que nombre exactamente qué cambiar.
 
-## No modificar salvo que el usuario lo pida de forma explícita
+## No modificar sin orden explícita
 
-- No refactorizar, “mejorar”, limpiar ni ajustar “por si acaso” el flujo Agora, tokens, canales, ni la navegación a salas en vivo.
-- No revertir ni reintroducir selectores modales, cambios de `scenePhase`, ni lógica eliminada a propósito en sesiones anteriores.
+- Flujo Agora (tokens, join, audiencia, tracks), `joinAudienceRoom`, `mountFirstRemoteUser`, `leaveAudienceRoom`.
+- Puente **`AndroidBridge`**, **`AndroidJsApi` (`window.Android`)**, **`AndroidScene`**, **`__onniversoNativeDispatch`**, interceptación `WebViewClient` / `resolvePlaybackUrl` / `openAudienceSelector` / **`SelectorActivity`** en `MainActivity.java`.
+- No “limpiar”, renombrar ni refactorizar esos archivos por estilo.
 
-## Áreas especialmente protegidas (editar solo si el usuario nombra el cambio)
+## Áreas especialmente protegidas
 
 | Área | Rutas típicas |
 |------|----------------|
-| Audiencia / sala espectador | `src/pages/EspectadorView.tsx` |
+| Audiencia / sala espectador (lógica stream) | `src/pages/EspectadorView.tsx` — solo editar si el usuario pide cambio UI explícito que no rompa lo anterior |
 | Emisión / host | `src/components/AgoraLiveStreaming.tsx` |
 | Canales Agora | `src/lib/agoraRooms.ts` |
-| Entrada a salas / enlaces | `src/pages/NuestrasSalasPage.tsx` (solo si afecta ir a vivo) |
-| Puente WebView Android ↔ JS | `android/app/src/main/java/**/MainActivity.java` (y callbacks relacionados) |
+| Entrada a salas | `src/pages/NuestrasSalasPage.tsx` (solo enlaces a vivo si el usuario lo pide) |
+| Android WebView / selector | `android/.../MainActivity.java`, `android/.../SelectorActivity.java`, `AndroidManifest.xml` (puentes y actividades de escena) |
 
 ## Si el usuario pide otra cosa
 
-Puedes trabajar en **otros** archivos y features con normalidad. Si el cambio podría afectar lo anterior, **pregunta** o limita el alcance para no tocar las rutas de la tabla.
+Limita el alcance al mínimo; si el cambio puede tocar la tabla, **confirma** o **no modifiques** esas rutas.

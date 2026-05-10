@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
-import { Headset, Layers2, RefreshCw, Scan } from "lucide-react";
+import { Scan } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AgoraRTC, { type IAgoraRTCClient, type IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
 import Navbar from "@/components/Navbar";
@@ -293,63 +293,7 @@ const EspectadorView = () => {
               </Button>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-              <button
-                type="button"
-                title="Pantalla dividida / VR"
-                onClick={() => {
-                  const b = (window as Window & { AndroidBridge?: { onVrClick?: (mp4?: string) => void } }).AndroidBridge;
-                  if (typeof b?.onVrClick === "function") {
-                    b.onVrClick(nativeBridgeMp4Url);
-                    return;
-                  }
-                  window.location.assign("https://onnivers.com/go/vr");
-                }}
-                className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-violet-400/40 bg-black/35 px-2 py-3 text-violet-50 shadow-[0_0_28px_-12px_rgba(139,92,246,0.85)] transition hover:border-violet-300/75 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
-              >
-                <Headset className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
-                <span className="text-xs font-semibold tracking-wide sm:text-sm">VR</span>
-              </button>
-              <button
-                type="button"
-                title="Escena inmersiva 360°"
-                onClick={() => {
-                  const b = (window as Window & { AndroidBridge?: { on360Click?: (mp4?: string) => void } }).AndroidBridge;
-                  if (typeof b?.on360Click === "function") {
-                    b.on360Click(nativeBridgeMp4Url);
-                    return;
-                  }
-                  window.location.assign("https://onnivers.com/go/360");
-                }}
-                className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-cyan-400/45 bg-black/35 px-2 py-3 text-cyan-50 shadow-[0_0_28px_-12px_rgba(34,211,238,0.75)] transition hover:border-cyan-300/80 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
-              >
-                <span className="relative flex h-8 w-8 shrink-0 items-center justify-center" aria-hidden>
-                  <RefreshCw className="absolute h-7 w-7 text-cyan-200/90 opacity-90 transition group-hover:rotate-180 group-hover:duration-500" strokeWidth={1.75} />
-                  <span className="relative z-[1] text-[10px] font-black tabular-nums text-cyan-100 drop-shadow">360</span>
-                </span>
-                <span className="text-center text-[11px] font-semibold leading-tight sm:text-xs">
-                  360°
-                </span>
-              </button>
-              <button
-                type="button"
-                title="Escena mixta (MT)"
-                onClick={() => {
-                  const b = (window as Window & { AndroidBridge?: { onMtClick?: (mp4?: string) => void } }).AndroidBridge;
-                  if (typeof b?.onMtClick === "function") {
-                    b.onMtClick(nativeBridgeMp4Url);
-                    return;
-                  }
-                  window.location.assign("https://onnivers.com/go/mt");
-                }}
-                className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-fuchsia-400/40 bg-black/35 px-2 py-3 text-fuchsia-50 shadow-[0_0_28px_-12px_rgba(217,70,239,0.75)] transition hover:border-fuchsia-300/80 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
-              >
-                <Layers2 className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
-                <span className="flex flex-col items-center leading-none">
-                  <span className="text-xs font-semibold tracking-wide sm:text-sm">MT</span>
-                  <span className="mt-0.5 text-[9px] font-normal text-fuchsia-200/70">mixto</span>
-                </span>
-              </button>
+            <div className="mt-4 flex justify-center">
               <button
                 type="button"
                 title="Realidad aumentada (AR)"
