@@ -148,15 +148,14 @@ const WorldCupVrHero = () => {
           transition={{ duration: 0.75 }}
           className="mb-14 px-2 text-center md:mb-16"
         >
-          <h1 className="mx-auto max-w-4xl font-headline text-[clamp(2.25rem,6vw,4rem)] font-semibold leading-[1.08] tracking-[0.14em] md:tracking-[0.2em]">
-            <span className="bg-gradient-to-br from-cyan-50 via-white to-slate-200 bg-clip-text text-transparent">
-              Onni
+          <h1 className="mx-auto max-w-5xl font-headline font-semibold leading-[1.12]">
+            <span className="block bg-gradient-to-br from-cyan-50 via-white to-slate-200 bg-clip-text text-transparent text-[clamp(1.85rem,6.5vw,3.25rem)] tracking-[0.18em] sm:tracking-[0.22em]">
+              ONNIVERS
             </span>
-            <span className="tracking-[0.26em] text-primary drop-shadow-[0_0_36px_hsl(175_80%_50%/0.42)]">Vers</span>
+            <span className="mt-3 block px-2 text-[clamp(0.65rem,2.8vw,0.85rem)] font-medium uppercase tracking-[0.28em] text-primary drop-shadow-[0_0_28px_hsl(175_80%_50%/0.38)] sm:mt-4 sm:tracking-[0.36em]">
+              — TU REALIDAD EVOLUCIONADA —
+            </span>
           </h1>
-          <p className="font-subtitle mx-auto mt-8 max-w-xl text-[11px] font-medium uppercase tracking-[0.42em] text-muted-foreground/75 md:mt-10 md:text-xs">
-            Tu Realidad Inmersiva Evolucionada
-          </p>
         </motion.div>
 
         <div className="mx-auto mb-6 max-w-4xl space-y-6">

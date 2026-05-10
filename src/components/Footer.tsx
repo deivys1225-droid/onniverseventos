@@ -58,19 +58,22 @@ const Footer = () => {
         </div>
         <nav
           className="flex flex-wrap items-start gap-x-8 gap-y-3 text-sm text-muted-foreground md:justify-end"
-          aria-label="Enlaces legales y contacto"
+          aria-label="Enlaces del sitio, legales y contacto"
         >
           <Link to="/quienes-somos" className="transition-colors hover:text-foreground">
-            Quiénes somos
+            Sobre Nosotros
+          </Link>
+          <Link to="/tienda" className="transition-colors hover:text-foreground">
+            Servicios
+          </Link>
+          <Link to="/contacto" className="transition-colors hover:text-foreground">
+            Soporte
           </Link>
           <Link to="/privacidad" className={legalLinkClass}>
             Privacidad
           </Link>
           <Link to="/terminos" className={legalLinkClass}>
             Términos
-          </Link>
-          <Link to="/contacto" className="transition-colors hover:text-foreground">
-            Contacto
           </Link>
         </nav>
       </div>

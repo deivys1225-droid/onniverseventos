@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WorldCupVrHero from "@/components/WorldCupVrHero";
+import LandingSeoContent from "@/components/LandingSeoContent";
 
 const Index = () => {
   const location = useLocation();
@@ -21,6 +22,7 @@ const Index = () => {
       <section id="perfil" className="relative">
         <Navbar />
         <WorldCupVrHero />
+        <LandingSeoContent />
         <Footer />
       </section>
     </div>
