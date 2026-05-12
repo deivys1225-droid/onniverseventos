@@ -1,10 +1,14 @@
-import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, PointerLockControls, Stars, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import { isMobileCoarseDevice } from "@/lib/webglRendererPrefs";
+import {
+  applyPixelRatioCap,
+  isMobileCoarseDevice,
+  MAX_WEBGL_PIXEL_RATIO,
+} from "@/lib/webglRendererPrefs";
 import MobileLobbyMovePad, {
   createMobileMoveInput,
   type MobileMoveInput,
@@ -176,6 +180,36 @@ function stopCameraStream(video: HTMLVideoElement | null) {
   }
   if (video) {
     video.srcObject = null;
+  }
+}
+
+function getLobbyCameraVideoConstraints(): MediaTrackConstraints {
+  if (typeof window === "undefined") {
+    return { facingMode: { ideal: "environment" } };
+  }
+
+  const cap = Math.min(window.devicePixelRatio || 1, MAX_WEBGL_PIXEL_RATIO);
+  const idealWidth = Math.min(Math.round(window.innerWidth * cap), 1920);
+  const idealHeight = Math.min(Math.round(window.innerHeight * cap), 1080);
+
+  return {
+    facingMode: { ideal: "environment" },
+    width: { ideal: idealWidth, max: 1920 },
+    height: { ideal: idealHeight, max: 1080 },
+  };
+}
+
+async function applyCameraTrackConstraints(video: HTMLVideoElement | null) {
+  const stream = video?.srcObject;
+  if (!(stream instanceof MediaStream)) return;
+
+  const track = stream.getVideoTracks()[0];
+  if (!track) return;
+
+  try {
+    await track.applyConstraints(getLobbyCameraVideoConstraints());
+  } catch {
+    /* ignore */
   }
 }
 
@@ -697,60 +731,6 @@ function MixedRealityScene({ active }: { active: boolean }) {
   return null;
 }
 
-function MixedRealityPassthrough({
-  videoRef,
-  active,
-}: {
-  videoRef: RefObject<HTMLVideoElement | null>;
-  active: boolean;
-}) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
-  const { camera } = useThree();
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!active || !video) {
-      setTexture((previous) => {
-        previous?.dispose();
-        return null;
-      });
-      return;
-    }
-
-    const nextTexture = new THREE.VideoTexture(video);
-    nextTexture.colorSpace = THREE.SRGBColorSpace;
-    setTexture(nextTexture);
-
-    return () => {
-      nextTexture.dispose();
-    };
-  }, [active, videoRef]);
-
-  useFrame(() => {
-    if (!meshRef.current) return;
-    meshRef.current.position.copy(camera.position);
-    meshRef.current.quaternion.copy(camera.quaternion);
-    if (texture) {
-      texture.needsUpdate = true;
-    }
-  });
-
-  if (!active || !texture) return null;
-
-  return (
-    <mesh ref={meshRef} frustumCulled={false} renderOrder={-1000}>
-      <sphereGeometry args={[120, 32, 24]} />
-      <meshBasicMaterial
-        map={texture}
-        side={THREE.BackSide}
-        depthWrite={false}
-        toneMapped={false}
-      />
-    </mesh>
-  );
-}
-
 const MOBILE_TOUCH_LOOK_SENSITIVITY = 0.0045;
 
 // ---------- First Person Controller (WASD) ----------
@@ -945,6 +925,18 @@ export default function NeonRoom() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!mixedRealityEnabled) return;
+
+    const syncCamera = () => {
+      void applyCameraTrackConstraints(cameraVideoRef.current);
+    };
+
+    syncCamera();
+    window.addEventListener("resize", syncCamera);
+    return () => window.removeEventListener("resize", syncCamera);
+  }, [mixedRealityEnabled]);
+
   const requestMovementLock = () => {
     if (isMobileTouch) return;
     window.requestAnimationFrame(() => {
@@ -1039,7 +1031,7 @@ export default function NeonRoom() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
+        video: getLobbyCameraVideoConstraints(),
       });
       const video = cameraVideoRef.current;
       if (!video) {
@@ -1049,6 +1041,7 @@ export default function NeonRoom() {
 
       video.srcObject = stream;
       await video.play();
+      await applyCameraTrackConstraints(video);
       setMixedRealityEnabled(true);
     } catch {
       stopCameraStream(cameraVideoRef.current);
@@ -1067,14 +1060,26 @@ export default function NeonRoom() {
         autoPlay
         muted
         aria-hidden
-        style={{
-          position: "fixed",
-          width: 1,
-          height: 1,
-          opacity: 0,
-          pointerEvents: "none",
-          overflow: "hidden",
-        }}
+        style={
+          mixedRealityEnabled
+            ? {
+                position: "fixed",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                zIndex: 0,
+                pointerEvents: "none",
+              }
+            : {
+                position: "fixed",
+                width: 1,
+                height: 1,
+                opacity: 0,
+                pointerEvents: "none",
+                overflow: "hidden",
+              }
+        }
       />
       <button
         type="button"
@@ -1117,15 +1122,17 @@ export default function NeonRoom() {
         </p>
       )}
       <Canvas
+        className="relative z-10"
         camera={{ fov: 75, near: 0.1, far: 200, position: [0, PLAYER_HEIGHT, 4] }}
+        dpr={[1, MAX_WEBGL_PIXEL_RATIO]}
         gl={{ antialias: true, alpha: true }}
         onCreated={({ gl }) => {
           canvasRef.current = gl.domElement;
           gl.domElement.style.touchAction = "none";
+          applyPixelRatioCap(gl);
         }}
       >
           <MixedRealityScene active={mixedRealityEnabled} />
-          <MixedRealityPassthrough videoRef={cameraVideoRef} active={mixedRealityEnabled} />
           {!mixedRealityEnabled && <color attach="background" args={["#050510"]} />}
 
           {/* Background stars (still visible through the holographic window) */}
