@@ -33,9 +33,6 @@ const EARTH_CLOUDS = `${PLANETS}/earth_clouds_1024.png`;
 /** Tierra y luna al 50% del tamano anterior. */
 const CENTRAL_SPHERE_RADIUS = 0.925;
 
-const GALAXY_PANORAMA_URL =
-  "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=7680&q=90";
-
 /** Luna: textura ligera + parametros de orbita. */
 const MOON_TEXTURE_URL = `${PLANETS}/moon_1024.jpg`;
 const MOON_RADIUS = CENTRAL_SPHERE_RADIUS * 0.27;
@@ -150,87 +147,6 @@ function OrbitingMoon({
         <meshBasicMaterial map={moonTexture} toneMapped transparent opacity={1} />
       </mesh>
     </group>
-  );
-}
-
-/**
- * Panorama 360°: una sola esfera gigante en el origen (cara interior, textura equirectangular).
- * La cámara orbita cerca del origen (~12 u max); cuanto mayor el radio, menor parallax y menos sensación de “en la cara”.
- * Valores subidos respecto al inicio (~360 u); ajusta aquí si quieres aún más lejanía.
- */
-const PANORAMA_INTERIOR_RADIUS_STANDARD = 1400;
-
-/** Estadio + escenas 1–4 y 6 (+20 % radio); la escena 5 solo estándar. */
-const EXTRA_DEPTH_PANORAMA_SRC = new Set<string>([
-  "/estadio.jpg",
-  "/1.jpeg",
-  "/2.jpeg",
-  "/3.jpeg",
-  "/4.jpeg",
-  "/6.jpeg",
-]);
-
-function panoramaInteriorRadius(roomTextureUrl: string): number {
-  return EXTRA_DEPTH_PANORAMA_SRC.has(roomTextureUrl)
-    ? PANORAMA_INTERIOR_RADIUS_STANDARD * 1.2
-    : PANORAMA_INTERIOR_RADIUS_STANDARD;
-}
-
-function SpaceBackground({
-  roomTextureUrl,
-  vrStereo,
-  simpleGpu,
-}: {
-  roomTextureUrl: string;
-  vrStereo: boolean;
-  simpleGpu: boolean;
-}) {
-  const [map, setMap] = useState<THREE.Texture | null>(null);
-  const textureRef = useRef<THREE.Texture | null>(null);
-
-  const sphereRadius = useMemo(() => panoramaInteriorRadius(roomTextureUrl), [roomTextureUrl]);
-  const sphereSegments = vrStereo ? 32 : simpleGpu ? 40 : 48;
-
-  useEffect(() => {
-    let cancelled = false;
-    const loader = new THREE.TextureLoader();
-    loader.load(roomTextureUrl, (texture) => {
-      if (cancelled) {
-        texture.dispose();
-        return;
-      }
-      if (textureRef.current) textureRef.current.dispose();
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.mapping = THREE.EquirectangularReflectionMapping;
-      texture.anisotropy = vrStereo ? 1 : 8;
-      textureRef.current = texture;
-      setMap(texture);
-    });
-    return () => {
-      cancelled = true;
-      setMap(null);
-      if (textureRef.current) {
-        textureRef.current.dispose();
-        textureRef.current = null;
-      }
-    };
-  }, [roomTextureUrl]);
-
-  useEffect(() => {
-    const t = textureRef.current;
-    if (t) {
-      t.anisotropy = vrStereo ? 1 : 8;
-      t.needsUpdate = true;
-    }
-  }, [vrStereo]);
-
-  if (!map) return null;
-
-  return (
-    <mesh key={`panorama-${sphereRadius}-${roomTextureUrl}`} frustumCulled={false} renderOrder={-2000}>
-      <sphereGeometry args={[sphereRadius, sphereSegments, sphereSegments]} />
-      <meshBasicMaterial map={map} side={THREE.BackSide} depthWrite={false} toneMapped={!vrStereo} />
-    </mesh>
   );
 }
 
@@ -444,7 +360,6 @@ const MiMundoVRSection = ({
   const [profileSaving, setProfileSaving] = useState(false);
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const [lobbyOpening, setLobbyOpening] = useState(false);
-  const panoramaUrl = GALAXY_PANORAMA_URL;
   const vrStereoActive = useVrModeActive();
   const environmentId = useMemo<MiMundoEnvironmentId>(() => "lobby", []);
   const storedCameraView = useMemo(
@@ -522,7 +437,7 @@ const MiMundoVRSection = ({
   };
 
   return (
-    <section id="mi-mundo-vr" className="relative h-[100dvh] w-full overflow-hidden bg-black">
+    <section id="mi-mundo-vr" className="relative h-[100dvh] w-full overflow-hidden bg-white">
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0">
         <Canvas
@@ -540,7 +455,7 @@ const MiMundoVRSection = ({
           }}
           camera={{ position: cameraPosition, fov: 62, near: 0.1, far: 2000 }}
         >
-          <color attach="background" args={roomMode === "equirect_interior" ? ["#0c0812"] : ["#02030a"]} />
+          <color attach="background" args={["#ffffff"]} />
           {/* VR espejo 2D: sin luces (solo meshBasic + fondo); evita sombras y shading */}
           {!vrStereoActive &&
             (isMobileCoarse ? (
@@ -560,14 +475,6 @@ const MiMundoVRSection = ({
               </>
             ))}
 
-          {/* Fondo: solo textura en scene.background (0 geometría de esfera). */}
-          <Suspense fallback={null}>
-            <SpaceBackground
-              roomTextureUrl={panoramaUrl}
-              vrStereo={vrStereoActive}
-              simpleGpu={isMobileCoarse || vrStereoActive}
-            />
-          </Suspense>
           <Suspense fallback={null}>
             <CentralEarth
               simpleGpu={isMobileCoarse || vrStereoActive}
@@ -635,9 +542,9 @@ const MiMundoVRSection = ({
             <button
               type="button"
               onClick={() => setSocialMenuOpen((prev) => !prev)}
-              aria-label={socialMenuOpen ? "Cerrar social" : "Abrir social"}
+              aria-label={socialMenuOpen ? "Cerrar Messenger" : "Abrir Messenger"}
               aria-expanded={socialMenuOpen}
-              className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-500/10 text-cyan-200 shadow-[0_0_24px_-8px_rgba(34,211,238,0.75)] transition hover:bg-cyan-500/20"
+              className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/60 bg-slate-950/95 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] transition hover:border-cyan-300 hover:bg-slate-900 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
             >
               <UsersRound className="h-5 w-5" />
             </button>
