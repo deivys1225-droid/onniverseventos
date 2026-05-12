@@ -967,27 +967,34 @@ export default function NeonRoom() {
       />
       <button
         type="button"
-        onClick={() => navigate("/inicio")}
-        className="pointer-events-auto fixed left-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-cyan-300/40 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-[0_0_24px_-8px_rgba(34,211,238,0.75)] backdrop-blur-md transition hover:bg-cyan-500/20"
+        data-lobby-ui
+        onClick={() => navigate("/")}
+        aria-label="Volver al perfil"
+        className="pointer-events-auto fixed left-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/60 bg-slate-950/95 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:border-cyan-300 hover:bg-slate-900 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
         style={{
           top: "max(1rem, env(safe-area-inset-top))",
           left: "max(1rem, env(safe-area-inset-left))",
         }}
       >
-        <ArrowLeft className="h-4 w-4" aria-hidden />
-        Volver al perfil
+        <ArrowLeft className="h-5 w-5" aria-hidden />
       </button>
       <button
         type="button"
+        data-lobby-ui
         onClick={() => void toggleMixedReality()}
         disabled={mixedRealityLoading}
-        className="pointer-events-auto fixed right-4 top-4 z-20 max-w-[min(92vw,18rem)] rounded-full border border-cyan-300/40 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-100 shadow-[0_0_24px_-8px_rgba(34,211,238,0.75)] backdrop-blur-md transition hover:bg-cyan-500/20 disabled:cursor-wait disabled:opacity-70"
+        aria-label={mixedRealityEnabled ? "Desactivar modo realidad mixta" : "Activar modo realidad mixta"}
+        className={`pointer-events-auto fixed right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 font-display text-xs font-bold tracking-[0.18em] shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:bg-slate-900 hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)] disabled:cursor-wait disabled:opacity-70 ${
+          mixedRealityEnabled
+            ? "border-violet-400/70 text-violet-200 hover:border-violet-300 hover:text-white"
+            : "border-cyan-400/60 text-cyan-200 hover:border-cyan-300 hover:text-white"
+        }`}
         style={{
           top: "max(1rem, env(safe-area-inset-top))",
           right: "max(1rem, env(safe-area-inset-right))",
         }}
       >
-        {mixedRealityEnabled ? "Desactivar Modo Realidad Mixta" : "Activar Modo Realidad Mixta"}
+        RM
       </button>
       {mixedRealityError && (
         <p
