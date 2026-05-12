@@ -100,7 +100,7 @@ function LobbySceneContent({
           style={{ pointerEvents: "auto" }}
         >
           <Link
-            to="/"
+            to="/inicio-2"
             className="mb-2 inline-flex items-center gap-2 rounded-full border border-cyan-400/45 px-3 py-1.5 text-[10px] font-display font-bold uppercase tracking-wider text-cyan-100"
           >
             ← Inicio

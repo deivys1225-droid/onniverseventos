@@ -5,7 +5,12 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, PointerLockControls, Stars } from "@react-three/drei";
 import * as THREE from "three";
 import { isMobileCoarseDevice } from "@/lib/webglRendererPrefs";
-import MobileLobbyMovePad, { createMobileMoveInput, type MobileMoveInput } from "@/components/lobby/MobileLobbyMovePad";
+import MobileLobbyControls, {
+  createMobileLookInput,
+  createMobileMoveInput,
+  type MobileLookInput,
+  type MobileMoveInput,
+} from "@/components/lobby/MobileLobbyMovePad";
 
 const ROOM_SIZE = 20;
 const WALL_HEIGHT = 8;
@@ -660,6 +665,8 @@ function MixedRealityPassthrough({
   );
 }
 
+const MOBILE_LOOK_SPEED = 2.2;
+
 // ---------- First Person Controller (WASD) ----------
 function FirstPersonController({
   enabled,
@@ -733,10 +740,39 @@ function FirstPersonController({
   return null;
 }
 
+function MobileFirstPersonLook({
+  enabled,
+  lookInputRef,
+}: {
+  enabled: boolean;
+  lookInputRef?: React.MutableRefObject<MobileLookInput>;
+}) {
+  const { camera } = useThree();
+
+  useFrame((_, delta) => {
+    if (!enabled || !lookInputRef) return;
+
+    const yaw = lookInputRef.current.yaw;
+    const pitch = lookInputRef.current.pitch;
+    if (yaw === 0 && pitch === 0) return;
+
+    camera.rotation.y -= yaw * MOBILE_LOOK_SPEED * delta;
+    camera.rotation.x -= pitch * MOBILE_LOOK_SPEED * delta;
+    camera.rotation.x = THREE.MathUtils.clamp(
+      camera.rotation.x,
+      -Math.PI / 2 + 0.05,
+      Math.PI / 2 - 0.05,
+    );
+  });
+
+  return null;
+}
+
 export default function NeonRoom() {
   const navigate = useNavigate();
   const isMobileTouch = useMemo(() => isMobileCoarseDevice(), []);
   const mobileMoveInput = useRef(createMobileMoveInput());
+  const mobileLookInput = useRef(createMobileLookInput());
   const [locked, setLocked] = useState(false);
   const [escapeBarVisible, setEscapeBarVisible] = useState(true);
   const [focusedScreen, setFocusedScreen] = useState<number | null>(null);
@@ -752,6 +788,8 @@ export default function NeonRoom() {
     if (focusedScreen === null) return;
     mobileMoveInput.current.forward = 0;
     mobileMoveInput.current.right = 0;
+    mobileLookInput.current.yaw = 0;
+    mobileLookInput.current.pitch = 0;
   }, [focusedScreen]);
 
   useEffect(() => {
@@ -961,8 +999,12 @@ export default function NeonRoom() {
 
         <EarthMoonAnchor />
         <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
+        <MobileFirstPersonLook
+          enabled={isMobileTouch && focusedScreen === null}
+          lookInputRef={mobileLookInput}
+        />
 
-        {focusedScreen === null && (
+        {focusedScreen === null && !isMobileTouch && (
           <PointerLockControls
             onLock={() => {
               setLocked(true);
@@ -973,9 +1015,10 @@ export default function NeonRoom() {
         )}
       </Canvas>
 
-      <MobileLobbyMovePad
+      <MobileLobbyControls
         enabled={isMobileTouch && focusedScreen === null}
-        inputRef={mobileMoveInput}
+        moveInputRef={mobileMoveInput}
+        lookInputRef={mobileLookInput}
       />
 
       {escapeBarVisible && focusedScreen === null && (

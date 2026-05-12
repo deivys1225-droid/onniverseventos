@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -51,8 +51,16 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Portada pública: Mundial VR + navbar (sin login obligatorio) */}
-            <Route path="/" element={<Index />} />
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <InicioPage />
+                </PrivateRoute>
+              }
+            />
+            <Route path="/inicio" element={<Navigate to="/" replace />} />
+            <Route path="/inicio-2" element={<Index />} />
             <Route
               path="/entrar"
               element={
@@ -77,14 +85,6 @@ const App = () => (
             <Route path="/quienes-somos" element={<QuienesSomosPage />} />
             <Route path="/contacto" element={<ContactoPage />} />
 
-            <Route
-              path="/inicio"
-              element={
-                <PrivateRoute>
-                  <InicioPage />
-                </PrivateRoute>
-              }
-            />
             <Route
               path="/lobby-inmersivo"
               element={

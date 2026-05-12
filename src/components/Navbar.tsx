@@ -18,11 +18,11 @@ const Navbar = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Sesión cerrada");
-    navigate("/");
+    navigate("/inicio-2");
   };
 
   const navItems = [
-    { label: "INICIO", path: "/inicio" },
+    { label: "VIVEVR", path: "/inicio-2" },
     { label: "SALAS", path: "/nuestras-salas" },
     { label: "TIENDA", path: "/tienda" },
     { label: "QUIENES SOMOS", path: "/quienes-somos" },

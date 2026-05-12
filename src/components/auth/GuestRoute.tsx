@@ -6,7 +6,7 @@ const GuestRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
 
   if (loading) return <AuthLoadingSplash />;
-  if (user) return <Navigate to="/inicio" replace />;
+  if (user) return <Navigate to="/" replace />;
 
   return <>{children}</>;
 };

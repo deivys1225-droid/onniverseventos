@@ -88,7 +88,7 @@ const UpdatePasswordPage = () => {
             Abre este enlace desde el correo de recuperación de contraseña. Si ya pediste uno, revisa la bandeja de
             entrada.
           </p>
-          <Button variant="heroOutline" className="mt-6" onClick={() => navigate("/")}>
+          <Button variant="heroOutline" className="mt-6" onClick={() => navigate("/inicio-2")}>
             Volver al inicio
           </Button>
         </div>

@@ -51,7 +51,7 @@ const RegisterPage = () => {
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: `${site}/inicio`,
+          emailRedirectTo: `${site}/`,
           data: {
             full_name: fullName.trim(),
             display_name: fullName.trim(),
@@ -75,7 +75,7 @@ const RegisterPage = () => {
 
       if (session) {
         toast.success("¡Cuenta lista! Entrando al universo…");
-        navigate("/inicio", { replace: true });
+        navigate("/", { replace: true });
       } else {
         toast.success("Revisa tu correo para confirmar la cuenta. Luego podrás iniciar sesión.");
         navigate("/entrar", { replace: true });
@@ -196,7 +196,7 @@ const RegisterPage = () => {
           </form>
 
           <p className="mt-6 text-center text-sm">
-            <Link to="/" className="text-muted-foreground underline-offset-4 transition hover:text-primary hover:underline">
+            <Link to="/inicio-2" className="text-muted-foreground underline-offset-4 transition hover:text-primary hover:underline">
               ← Volver a la portada
             </Link>
           </p>

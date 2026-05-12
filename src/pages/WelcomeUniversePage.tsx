@@ -51,7 +51,7 @@ const WelcomeUniversePage = () => {
       });
       if (error) throw error;
       toast.success("Bienvenido al universo");
-      navigate("/inicio", { replace: true });
+      navigate("/", { replace: true });
     } catch (err: unknown) {
       toast.error(formatSupabaseAuthError(err));
     } finally {
@@ -152,7 +152,7 @@ const WelcomeUniversePage = () => {
           </form>
 
           <p className="mt-6 text-center text-sm">
-            <Link to="/" className="text-muted-foreground underline-offset-4 transition hover:text-primary hover:underline">
+            <Link to="/inicio-2" className="text-muted-foreground underline-offset-4 transition hover:text-primary hover:underline">
               ← Volver a la portada (Mundial VR)
             </Link>
           </p>
