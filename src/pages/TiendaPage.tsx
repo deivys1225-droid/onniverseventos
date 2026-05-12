@@ -90,20 +90,6 @@ const bibliotecaDinosaurProduct: Product = {
   actionLabel: "Ver",
 };
 
-const bibliotecaLobbyProduct: Product = {
-  title: "Lobby",
-  description:
-    "Explora un lobby en realidad aumentada. Rótalo y estúdialo como un holograma en tu espacio.",
-  detail: "Modelo 3D interactivo",
-  price: "GRATIS",
-  priceUsd: 0,
-  image:
-    "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80",
-  actionUrl:
-    "https://res.cloudinary.com/dfsabdxup/image/upload/v1778555949/free_fire_max_lobby_2_hmievo.glb",
-  actionLabel: "Ver",
-};
-
 type DynamicStoreProduct = {
   id: string;
   item_type: "biblioteca" | "cursos";
@@ -328,7 +314,6 @@ const TiendaPage = () => {
             bibliotecaHeartProduct,
             bibliotecaGeochemicalProduct,
             bibliotecaDinosaurProduct,
-            bibliotecaLobbyProduct,
             ...bibliotecaDynamic,
             ...category.products,
           ],

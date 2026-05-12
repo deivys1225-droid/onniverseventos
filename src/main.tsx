@@ -18,6 +18,7 @@ declare global {
     /** Puente AR: registrado en MainActivity como {@code Android}. */
     Android?: {
       onArClick(url?: string): void;
+      openLobby?(): void;
     };
   }
 }

@@ -42,6 +42,7 @@ public class MainActivity extends BridgeActivity {
 
   /** URL de entrada oficial al abrir la app. */
   private static final String INITIAL_WEB_URL = "https://onnivers.com";
+  private static final String LOBBY_IMMERSIVE_URL = INITIAL_WEB_URL + "/lobby-inmersivo/index.html";
 
   /** Destinos del reproductor de audiencia (botones 360 / VR / MT desde JS {@code AndroidBridge}). */
   private static final String AUDIENCE_GO_360_URL = "https://onnivers.com/go/360";
@@ -154,7 +155,14 @@ public class MainActivity extends BridgeActivity {
           @Override
           public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             Uri target = request != null ? request.getUrl() : null;
-            if (target == null || !isPlaybackTarget(target)) {
+            if (target == null) {
+              return false;
+            }
+            if (isLobbyDeepLink(target)) {
+              openLobbyImmersive(view);
+              return true;
+            }
+            if (!isPlaybackTarget(target)) {
               return false;
             }
             String playbackUrl = resolvePlaybackUrl(target);
@@ -331,6 +339,12 @@ public class MainActivity extends BridgeActivity {
       activity.openAudienceSelector(
           "immersive", activity.resolveAudienceLaunchUrl(u, AUDIENCE_GO_AR_URL));
     }
+
+    /** Coincide con {@code window.Android.openLobby()} desde el botón Lobby del perfil. */
+    @JavascriptInterface
+    public void openLobby() {
+      activity.runOnUiThread(() -> activity.openLobbyImmersive(null));
+    }
   }
 
   private void showSceneSelector(WebView webView, String preferredScene, SceneSelectionCallback callback) {
@@ -362,12 +376,34 @@ public class MainActivity extends BridgeActivity {
   }
 
   private void dispatchSceneToJs(WebView webView, String scene) {
+    if (webView == null) {
+      return;
+    }
     String esc = scene.replace("\\", "\\\\").replace("'", "\\'");
     webView.evaluateJavascript(
         "(function(){ if(window.__onniversoNativeDispatch) window.__onniversoNativeDispatch('"
             + esc
             + "'); })()",
         null);
+  }
+
+  private boolean isLobbyDeepLink(Uri uri) {
+    String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase(Locale.ROOT) : "";
+    String host = uri.getHost() != null ? uri.getHost().toLowerCase(Locale.ROOT) : "";
+    return "onniver".equals(scheme) && "open-lobby".equals(host);
+  }
+
+  private void openLobbyImmersive(WebView webView) {
+    WebView target = webView;
+    if (target == null) {
+      Bridge bridge = getBridge();
+      if (bridge != null) {
+        target = bridge.getWebView();
+      }
+    }
+    if (target != null) {
+      target.loadUrl(LOBBY_IMMERSIVE_URL);
+    }
   }
 
   private boolean isPlaybackTarget(Uri uri) {

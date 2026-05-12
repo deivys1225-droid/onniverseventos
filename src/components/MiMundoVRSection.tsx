@@ -1,6 +1,7 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
-import { Billboard, DeviceOrientationControls, OrbitControls } from "@react-three/drei";
+import { DeviceOrientationControls, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import {
   getRoomMode,
@@ -17,13 +18,8 @@ import { MessageCircleMore, UsersRound } from "lucide-react";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { LOBBY_OPEN_TRANSITION_MS, openLobbyImmersiveWithTransition } from "@/lib/lobbyImmersive";
 import SocialMenu from "@/components/SocialMenu";
-import { supabase } from "@/integrations/supabase/client";
-import SearchHub from "@/components/SearchHub";
-import StorePublishCard, { type StorePublishPayload } from "@/components/StorePublishCard";
-import { createStoreItem, uploadStoreAsset } from "@/lib/storeItems";
-import VaultCard from "@/components/VaultCard";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
 const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
@@ -44,8 +40,6 @@ const MOON_RADIUS = CENTRAL_SPHERE_RADIUS * 0.27;
 const MOON_ORBIT_RADIUS = CENTRAL_SPHERE_RADIUS * 1.95;
 const MOON_ORBIT_SPEED = 0.22;
 const EARTH_ROTATION_SPEED = 0.08;
-const WINDOWS11_DESKTOP_URL =
-  "https://images.unsplash.com/photo-1633419461186-7d40a38105ec?auto=format&fit=crop&w=1600&q=80";
 const MI_MUNDO_CAMERA_VIEW_STORAGE_KEY = "onniverso.mi_mundo.camera_view";
 const PROFILE_NAME_STORAGE_KEY = "onniverso.profile.name";
 function readStoredProfileName(): string | undefined {
@@ -105,442 +99,21 @@ function readStoredCameraView(): StoredCameraView | null {
   }
 }
 
-function MoonScreenCluster({
-  visible,
-  vrMirrorFlat,
-  onOpenVault,
-  onOpenStoreSetup,
-  onCollapseScreens,
-  isUserLive,
-}: {
-  visible: boolean;
-  /** Mismo canvas 2D: planos que miran a la cámara, sin profundidad de escena. */
-  vrMirrorFlat: boolean;
-  onOpenVault?: () => void;
-  onOpenStoreSetup?: (itemType: "biblioteca" | "cursos") => void;
-  onCollapseScreens?: () => void;
-  isUserLive?: boolean;
-}) {
-  const clusterRef = useRef<THREE.Group>(null);
-  const systemTexture = useLoader(THREE.TextureLoader, WINDOWS11_DESKTOP_URL);
-
-  const socialTexture = useMemo(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1024;
-    canvas.height = 512;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    bg.addColorStop(0, "rgba(2,6,14,0.62)");
-    bg.addColorStop(0.5, "rgba(4,10,22,0.55)");
-    bg.addColorStop(1, "rgba(2,6,14,0.62)");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.strokeStyle = "rgba(70,228,255,0.96)";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(16, 16, canvas.width - 32, canvas.height - 32);
-    ctx.strokeStyle = "rgba(66,198,255,0.72)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
-
-    ctx.fillStyle = "rgba(0,0,0,0.22)";
-    ctx.fillRect(28, 32, canvas.width - 56, 68);
-
-    ctx.font = "900 48px 'Trebuchet MS'";
-    ctx.fillStyle = "#ff86d8";
-    ctx.fillText("BOVEDA ONNIVERSO", 44, 78);
-
-    const items = [
-      {
-        label: "Biblioteca",
-        color: "#4dd8ff",
-        x: 70,
-        y: 150,
-        iconUrl: "https://cdn.simpleicons.org/bookstack/ffffff",
-      },
-      {
-        label: "Tickets",
-        color: "#4dd8ff",
-        x: 350,
-        y: 150,
-        iconUrl: "https://cdn.simpleicons.org/ticketmaster/ffffff",
-      },
-      {
-        label: "Cursos",
-        color: "#4dd8ff",
-        x: 630,
-        y: 150,
-        iconUrl: "https://cdn.simpleicons.org/coursera/ffffff",
-      },
-      {
-        label: "Skins",
-        color: "#4dd8ff",
-        x: 210,
-        y: 296,
-        iconUrl: "https://cdn.simpleicons.org/shield/ffffff",
-      },
-      {
-        label: "VIP",
-        color: "#4dd8ff",
-        x: 490,
-        y: 296,
-        iconUrl: "https://cdn.simpleicons.org/openbadges/ffffff",
-      },
-    ];
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-
-    const drawItem = (item: (typeof items)[number]) => {
-      ctx.fillStyle = "rgba(0,0,0,0.24)";
-      ctx.beginPath();
-      ctx.roundRect(item.x, item.y, 250, 110, 22);
-      ctx.fill();
-      ctx.strokeStyle = `${item.color}cc`;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.fillStyle = "#ff9ce4";
-      ctx.font = "800 30px 'Trebuchet MS'";
-      ctx.fillText(item.label, item.x + 82, item.y + 66);
-    };
-
-    items.forEach(drawItem);
-
-    // Cargar iconos oficiales y pintar encima de cada tarjeta.
-    items.forEach((item) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        ctx.fillStyle = `${item.color}cc`;
-        ctx.beginPath();
-        ctx.roundRect(item.x + 16, item.y + 16, 50, 50, 12);
-        ctx.fill();
-        ctx.drawImage(img, item.x + 25, item.y + 25, 32, 32);
-        texture.needsUpdate = true;
-      };
-      img.src = item.iconUrl;
-    });
-
-    return texture;
-  }, []);
-
-  const offlineTexture = useMemo(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1024;
-    canvas.height = 576;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.fillStyle = "rgba(0,0,0,0.72)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "rgba(160,160,160,0.35)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
-    ctx.fillStyle = "rgba(245,245,245,0.9)";
-    ctx.font = "700 82px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("OFF LINE", canvas.width / 2, canvas.height / 2);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
-    return texture;
-  }, []);
-
-
-  const infoTexture = useMemo(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1024;
-    canvas.height = 512;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    const drawBase = () => {
-      const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      bg.addColorStop(0, "rgba(2,6,14,0.62)");
-      bg.addColorStop(0.45, "rgba(4,10,22,0.55)");
-      bg.addColorStop(1, "rgba(2,6,14,0.62)");
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      const halo = ctx.createRadialGradient(840, 120, 30, 840, 120, 300);
-      halo.addColorStop(0, "rgba(52,210,255,0.28)");
-      halo.addColorStop(1, "rgba(70,212,255,0)");
-      ctx.fillStyle = halo;
-      ctx.fillRect(620, 0, 404, 320);
-
-      ctx.strokeStyle = "rgba(70,228,255,0.96)";
-      ctx.lineWidth = 4;
-      ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
-      ctx.strokeStyle = "rgba(66,198,255,0.72)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(26, 26, canvas.width - 52, canvas.height - 52);
-
-      ctx.fillStyle = "#ff86d8";
-      ctx.font = "900 56px 'Trebuchet MS'";
-      ctx.fillText("ONNIVERSO STORE", 52, 86);
-
-      const cardW = 446;
-      const cardH = 320;
-      const y = 148;
-      const leftX = 52;
-      const rightX = 526;
-
-      const drawCard = (
-        x: number,
-        title: string,
-        subtitle: string,
-        accent: string,
-      ) => {
-        const cardBg = ctx.createLinearGradient(x, y, x + cardW, y + cardH);
-        cardBg.addColorStop(0, "rgba(4,12,24,0.58)");
-        cardBg.addColorStop(1, "rgba(5,10,20,0.62)");
-        ctx.fillStyle = cardBg;
-        ctx.fillRect(x, y, cardW, cardH);
-        ctx.strokeStyle = accent;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(x + 4, y + 4, cardW - 8, cardH - 8);
-
-        ctx.fillStyle = "rgba(0,0,0,0.22)";
-        ctx.fillRect(x + 18, y + 20, cardW - 36, 170);
-        ctx.strokeStyle = "rgba(109,223,255,0.62)";
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(x + 18, y + 20, cardW - 36, 170);
-
-        ctx.fillStyle = "#ff86d8";
-        ctx.font = "900 40px 'Trebuchet MS'";
-        ctx.fillText(title, x + 22, y + 244);
-        ctx.fillStyle = "rgba(255,206,239,0.95)";
-        ctx.font = "700 22px 'Trebuchet MS'";
-        ctx.fillText(subtitle, x + 22, y + 278);
-
-        ctx.fillStyle = "rgba(22,188,255,0.16)";
-        ctx.fillRect(x + 22, y + 290, 230, 16);
-        ctx.strokeStyle = "rgba(91,218,255,0.6)";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x + 22, y + 290, 230, 16);
-      };
-
-      drawCard(leftX, "BIBLIOTECA", "E-books premium + PDF", "rgba(84,224,255,0.92)");
-      drawCard(rightX, "CURSOS VIRTUALES", "Masterclass y programas VR", "rgba(84,224,255,0.92)");
-    };
-
-    drawBase();
-    const imageSpecs = [
-      {
-        x: 70,
-        y: 168,
-        w: 410,
-        h: 130,
-        url: "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        x: 544,
-        y: 168,
-        w: 410,
-        h: 130,
-        url: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80",
-      },
-    ];
-    imageSpecs.forEach((spec) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        ctx.drawImage(img, spec.x, spec.y, spec.w, spec.h);
-        texture.needsUpdate = true;
-      };
-      img.src = spec.url;
-    });
-    texture.needsUpdate = true;
-    return texture;
-  }, []);
-
-  useEffect(() => {
-    systemTexture.colorSpace = THREE.SRGBColorSpace;
-    systemTexture.anisotropy = 8;
-    if (infoTexture) {
-      infoTexture.anisotropy = 8;
-      infoTexture.needsUpdate = true;
-    }
-  }, [infoTexture, systemTexture]);
-
-  useEffect(() => {
-    return () => {
-      socialTexture?.dispose();
-      systemTexture?.dispose();
-      infoTexture?.dispose();
-      offlineTexture?.dispose();
-    };
-  }, [infoTexture, offlineTexture, socialTexture, systemTexture]);
-
-  useFrame((_, delta) => {
-    if (!clusterRef.current) return;
-    const target = visible ? 1 : 0;
-    const scale = THREE.MathUtils.damp(clusterRef.current.scale.x, target, 9, delta);
-    clusterRef.current.scale.setScalar(scale);
-  });
-
-  const enableAudioFor = (video: HTMLVideoElement | null) => {
-    if (!video) return;
-    video.muted = false;
-    video.defaultMuted = false;
-    video.removeAttribute("muted");
-    video.volume = 1;
-    void video.play().catch(() => undefined);
-  };
-
-  if (vrMirrorFlat) {
-    return (
-      <group ref={clusterRef}>
-        <Billboard position={[0, 0.18, 1.35]} follow>
-          <mesh
-            renderOrder={6}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-              onOpenVault?.();
-            }}
-            onDoubleClick={(event) => {
-              event.stopPropagation();
-              onCollapseScreens?.();
-            }}
-          >
-            <planeGeometry args={[2.9, 1.72]} />
-            <meshBasicMaterial
-              map={socialTexture ?? undefined}
-              toneMapped={false}
-              side={THREE.DoubleSide}
-              transparent
-              opacity={1}
-            />
-          </mesh>
-        </Billboard>
-        <Billboard position={[0, 0.18, -1.35]} follow>
-          <mesh
-            renderOrder={6}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-              const itemType = (event.uv?.x ?? 0.5) < 0.5 ? "biblioteca" : "cursos";
-              onOpenStoreSetup?.(itemType);
-            }}
-            onDoubleClick={(event) => {
-              event.stopPropagation();
-              onCollapseScreens?.();
-            }}
-          >
-            <planeGeometry args={[2.9, 1.72]} />
-            <meshBasicMaterial
-              map={infoTexture ?? undefined}
-              toneMapped={false}
-              side={THREE.DoubleSide}
-              transparent
-              opacity={1}
-            />
-          </mesh>
-        </Billboard>
-        <Billboard position={[1.35, 0.18, 0]} follow>
-          <mesh
-            renderOrder={6}
-            onDoubleClick={(event) => {
-              event.stopPropagation();
-              onCollapseScreens?.();
-            }}
-          >
-            <planeGeometry args={[3, 1.8]} />
-            <meshBasicMaterial
-              map={(isUserLive ? systemTexture : offlineTexture) ?? undefined}
-              toneMapped={false}
-              side={THREE.DoubleSide}
-              transparent
-              opacity={1}
-            />
-          </mesh>
-        </Billboard>
-      </group>
-    );
-  }
-
-  return (
-    <group ref={clusterRef}>
-      <mesh
-        position={[0, 0.18, 1.35]}
-        renderOrder={6}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          onOpenVault?.();
-        }}
-        onDoubleClick={(event) => {
-          event.stopPropagation();
-          onCollapseScreens?.();
-        }}
-      >
-        <planeGeometry args={[2.9, 1.72]} />
-        <meshBasicMaterial
-          map={socialTexture ?? undefined}
-          toneMapped={false}
-          side={THREE.DoubleSide}
-          transparent
-          opacity={1}
-        />
-      </mesh>
-      <mesh
-        position={[0, 0.18, -1.35]}
-        rotation={[0, Math.PI, 0]}
-        renderOrder={6}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          const itemType = (event.uv?.x ?? 0.5) < 0.5 ? "biblioteca" : "cursos";
-          onOpenStoreSetup?.(itemType);
-        }}
-        onDoubleClick={(event) => {
-          event.stopPropagation();
-          onCollapseScreens?.();
-        }}
-      >
-        <planeGeometry args={[2.9, 1.72]} />
-        <meshBasicMaterial
-          map={infoTexture ?? undefined}
-          toneMapped={false}
-          side={THREE.DoubleSide}
-          transparent
-          opacity={1}
-        />
-      </mesh>
-      <mesh
-        position={[1.35, 0.18, 0]}
-        rotation={[0, Math.PI / 2, 0]}
-        renderOrder={6}
-        onDoubleClick={(event) => {
-          event.stopPropagation();
-          onCollapseScreens?.();
-        }}
-      >
-        <planeGeometry args={[3, 1.8]} />
-        <meshBasicMaterial
-          map={(isUserLive ? systemTexture : offlineTexture) ?? undefined}
-          toneMapped={false}
-          side={THREE.DoubleSide}
-          transparent
-          opacity={1}
-        />
-      </mesh>
-    </group>
-  );
-}
-
 function OrbitingMoon({
-  moonRef,
   simpleGpu,
   vrStereo,
-  onSelect,
+  onOpenLobby,
+  openingLobby,
 }: {
-  moonRef: React.RefObject<THREE.Mesh>;
   simpleGpu: boolean;
   vrStereo: boolean;
-  onSelect?: () => void;
+  onOpenLobby?: () => void;
+  openingLobby?: boolean;
 }) {
   const pivotRef = useRef<THREE.Group>(null);
+  const moonRef = useRef<THREE.Mesh>(null);
   const moonTexture = useLoader(THREE.TextureLoader, MOON_TEXTURE_URL);
+  const moonScale = useRef(1);
 
   const moonSeg = useMemo(() => getAdaptiveSphereSegments(vrStereo), [vrStereo]);
 
@@ -553,6 +126,10 @@ function OrbitingMoon({
     if (pivotRef.current) {
       pivotRef.current.rotation.y += delta * MOON_ORBIT_SPEED;
     }
+    if (!moonRef.current) return;
+    const targetScale = openingLobby ? 1.12 : 1;
+    moonScale.current = THREE.MathUtils.damp(moonScale.current, targetScale, 10, delta);
+    moonRef.current.scale.setScalar(moonScale.current);
   });
 
   return (
@@ -562,8 +139,9 @@ function OrbitingMoon({
         position={[MOON_ORBIT_RADIUS, -0.45, 0]}
         key={`moon-${moonSeg}`}
         onPointerDown={(event) => {
+          if (!onOpenLobby) return;
           event.stopPropagation();
-          onSelect?.();
+          onOpenLobby();
         }}
       >
         <sphereGeometry args={[MOON_RADIUS, moonSeg, moonSeg]} />
@@ -688,13 +266,16 @@ function specularToRoughnessTexture(specular: THREE.Texture): THREE.CanvasTextur
 function CentralEarth({
   simpleGpu,
   vrStereo,
-  onSelect,
+  onOpenLobby,
+  openingLobby,
 }: {
   simpleGpu: boolean;
   vrStereo: boolean;
-  onSelect?: () => void;
+  onOpenLobby?: () => void;
+  openingLobby?: boolean;
 }) {
   const earthRef = useRef<THREE.Group>(null);
+  const earthScale = useRef(1);
   const [dayMap, normalMap, specularMap, cloudsMap] = useLoader(THREE.TextureLoader, [
     EARTH_DAY_4K,
     EARTH_NORMAL,
@@ -726,23 +307,25 @@ function CentralEarth({
   }, [dayMap, normalMap, specularMap, cloudsMap, simpleGpu, vrStereo]);
 
   useFrame((_, delta) => {
-    if (earthRef.current) {
-      earthRef.current.rotation.y += delta * EARTH_ROTATION_SPEED;
-    }
+    if (!earthRef.current) return;
+    earthRef.current.rotation.y += delta * EARTH_ROTATION_SPEED;
+    const targetScale = openingLobby ? 1.08 : 1;
+    earthScale.current = THREE.MathUtils.damp(earthScale.current, targetScale, 10, delta);
+    earthRef.current.scale.setScalar(earthScale.current);
   });
+
+  const openLobbyFromPlanet = (event: { stopPropagation: () => void }) => {
+    if (!onOpenLobby) return;
+    event.stopPropagation();
+    onOpenLobby();
+  };
 
   const seg = useMemo(() => getAdaptiveSphereSegments(vrStereo), [vrStereo]);
 
   if (simpleGpu) {
     return (
       <group ref={earthRef} key={`earth-s-${seg}`}>
-        <mesh
-          renderOrder={0}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            onSelect?.();
-          }}
-        >
+        <mesh renderOrder={0} onPointerDown={openLobbyFromPlanet}>
           <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
           <meshBasicMaterial map={dayMap} toneMapped />
         </mesh>
@@ -767,13 +350,7 @@ function CentralEarth({
 
   return (
     <group ref={earthRef} key={`earth-hd-${seg}`}>
-      <mesh
-        renderOrder={0}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          onSelect?.();
-        }}
-      >
+      <mesh renderOrder={0} onPointerDown={openLobbyFromPlanet}>
         <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
         <meshStandardMaterial
           map={dayMap}
@@ -862,16 +439,10 @@ const MiMundoVRSection = ({
   const { user } = useAuth();
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
-  const [moonScreensVisible, setMoonScreensVisible] = useState(false);
-  const [storeSetupOpen, setStoreSetupOpen] = useState(false);
-  const [storeSetupType, setStoreSetupType] = useState<"biblioteca" | "cursos">("biblioteca");
-  const [storePublishing, setStorePublishing] = useState(false);
-  const [vaultOpen, setVaultOpen] = useState(false);
-  const [isUserLive, setIsUserLive] = useState(false);
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
+  const [lobbyOpening, setLobbyOpening] = useState(false);
   const panoramaUrl = GALAXY_PANORAMA_URL;
   const vrStereoActive = useVrModeActive();
-  const moonRef = useRef<THREE.Mesh>(null);
   const environmentId = useMemo<MiMundoEnvironmentId>(() => "lobby", []);
   const storedCameraView = useMemo(
     () => (typeof window === "undefined" ? null : readStoredCameraView()),
@@ -907,15 +478,6 @@ const MiMundoVRSection = ({
     }
   };
 
-  useEffect(() => {
-    if (!moonScreensVisible) setVaultOpen(false);
-  }, [moonScreensVisible]);
-  useEffect(() => {
-    if (!moonScreensVisible) {
-      setStoreSetupOpen(false);
-      setStoreSetupType("biblioteca");
-    }
-  }, [moonScreensVisible]);
   const onOrbitEnd = (event: { target?: { object?: THREE.Camera; target?: THREE.Vector3 } }) => {
     if (typeof window === "undefined") return;
     const controlsTarget = event.target;
@@ -927,39 +489,6 @@ const MiMundoVRSection = ({
       target: [target.x, target.y, target.z],
     };
     localStorage.setItem(MI_MUNDO_CAMERA_VIEW_STORAGE_KEY, JSON.stringify(payload));
-  };
-
-  useEffect(() => {
-    setIsUserLive(false);
-  }, [user]);
-  const onStorePublish = async (payload: StorePublishPayload) => {
-    if (!user) {
-      toast.error("Debes iniciar sesion para publicar en tienda.");
-      return;
-    }
-    setStorePublishing(true);
-    try {
-      const coverImageUrl = await uploadStoreAsset(user.id, payload.coverFile, "cover");
-      let fileUrl: string | null = null;
-      if (payload.itemType === "biblioteca" && payload.bookFile) {
-        fileUrl = await uploadStoreAsset(user.id, payload.bookFile, "book");
-      }
-      await createStoreItem({
-        userId: user.id,
-        itemType: payload.itemType,
-        title: payload.title,
-        coverImageUrl,
-        salePrice: payload.salePrice,
-        fileUrl,
-        videoUrl: payload.itemType === "cursos" ? payload.videoUrl : null,
-      });
-      toast.success("Publicado en tienda.");
-      setStoreSetupOpen(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo publicar el item.");
-    } finally {
-      setStorePublishing(false);
-    }
   };
 
   const enableGyroscope = async () => {
@@ -976,6 +505,13 @@ const MiMundoVRSection = ({
 
     setGyroEnabled(true);
   };
+
+  const handleLobbyOpen = () => {
+    if (lobbyOpening || vrStereoActive) return;
+    setLobbyOpening(true);
+    openLobbyImmersiveWithTransition();
+  };
+
   return (
     <section id="mi-mundo-vr" className="relative h-[100dvh] w-full overflow-hidden bg-black">
       <div className="absolute inset-0 z-0">
@@ -1027,28 +563,16 @@ const MiMundoVRSection = ({
             <CentralEarth
               simpleGpu={isMobileCoarse || vrStereoActive}
               vrStereo={vrStereoActive}
-              onSelect={() => setMoonScreensVisible((prev) => !prev)}
+              onOpenLobby={vrStereoActive ? undefined : handleLobbyOpen}
+              openingLobby={lobbyOpening}
             />
           </Suspense>
           <Suspense fallback={null}>
             <OrbitingMoon
-              moonRef={moonRef}
               simpleGpu={isMobileCoarse || vrStereoActive}
               vrStereo={vrStereoActive}
-              onSelect={() => setMoonScreensVisible((prev) => !prev)}
-            />
-          </Suspense>
-          <Suspense fallback={null}>
-            <MoonScreenCluster
-              visible={moonScreensVisible}
-              vrMirrorFlat={vrStereoActive}
-              onOpenVault={() => setVaultOpen((prev) => !prev)}
-              onOpenStoreSetup={(itemType) => {
-                setStoreSetupType(itemType);
-                setStoreSetupOpen(true);
-              }}
-              onCollapseScreens={() => setMoonScreensVisible(false)}
-              isUserLive={isUserLive}
+              onOpenLobby={vrStereoActive ? undefined : handleLobbyOpen}
+              openingLobby={lobbyOpening}
             />
           </Suspense>
 
@@ -1071,9 +595,7 @@ const MiMundoVRSection = ({
         </Canvas>
         </div>
       </div>
-      {!vrStereoActive && moonScreensVisible && <SearchHub currentUserId={user?.id} />}
-
-      {!vrStereoActive && !moonScreensVisible && (
+      {!vrStereoActive && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
           <div className="pointer-events-auto origin-center scale-[0.63] -translate-y-[clamp(7rem,34vh,20rem)]">
             <ProfileCard
@@ -1086,41 +608,20 @@ const MiMundoVRSection = ({
           </div>
         </div>
       )}
-      {!vrStereoActive && moonScreensVisible && storeSetupOpen && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-4">
-          <button
-            type="button"
-            aria-label="Cerrar tienda"
-            className="pointer-events-auto absolute inset-0"
-            onClick={() => setStoreSetupOpen(false)}
-          />
-          <div className="pointer-events-auto origin-center scale-[0.66] -translate-y-[clamp(3.75rem,22vh,13rem)]">
-            <StorePublishCard
-              isSubmitting={storePublishing}
-              onSubmit={onStorePublish}
-              initialItemType={storeSetupType}
-              lockedItemType
-              onClose={() => setStoreSetupOpen(false)}
-            />
-          </div>
-        </div>
-      )}
-      {!vrStereoActive && moonScreensVisible && vaultOpen && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-4">
-          <button
-            type="button"
-            aria-label="Cerrar boveda"
-            className="pointer-events-auto absolute inset-0"
-            onClick={() => setVaultOpen(false)}
-          />
-          <div className="pointer-events-auto origin-center scale-[0.72] -translate-y-[clamp(3.75rem,22vh,13rem)]">
-            <VaultCard userId={user?.id} onClose={() => setVaultOpen(false)} />
-          </div>
-        </div>
-      )}
-
       {!vrStereoActive && (
         <>
+          <AnimatePresence>
+            {lobbyOpening ? (
+              <motion.div
+                key="lobby-opening"
+                className="pointer-events-none fixed inset-0 z-[55] bg-black/35 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: LOBBY_OPEN_TRANSITION_MS / 1000, ease: "easeOut" }}
+              />
+            ) : null}
+          </AnimatePresence>
           <div className="pointer-events-none fixed bottom-4 left-4 z-[60] flex flex-col items-start gap-2 pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]">
             <button
               type="button"
