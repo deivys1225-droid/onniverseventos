@@ -19,7 +19,6 @@ import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/Profil
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import SocialMenu from "@/components/SocialMenu";
-import ChatWindow from "@/components/ChatWindow";
 import { supabase } from "@/integrations/supabase/client";
 import SearchHub from "@/components/SearchHub";
 import StorePublishCard, { type StorePublishPayload } from "@/components/StorePublishCard";
@@ -870,7 +869,6 @@ const MiMundoVRSection = ({
   const [vaultOpen, setVaultOpen] = useState(false);
   const [isUserLive, setIsUserLive] = useState(false);
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
-  const [activeChat, setActiveChat] = useState<{ friendshipId: string; friendName: string } | null>(null);
   const panoramaUrl = GALAXY_PANORAMA_URL;
   const vrStereoActive = useVrModeActive();
   const moonRef = useRef<THREE.Mesh>(null);
@@ -1135,23 +1133,7 @@ const MiMundoVRSection = ({
             </button>
           </div>
           {user && (
-            <SocialMenu
-              userId={user.id}
-              open={socialMenuOpen}
-              onClose={() => setSocialMenuOpen(false)}
-              onOpenChat={(friend) => {
-                setActiveChat({ friendshipId: friend.friendshipId, friendName: friend.name });
-                setSocialMenuOpen(false);
-              }}
-            />
-          )}
-          {user && activeChat && (
-            <ChatWindow
-              friendshipId={activeChat.friendshipId}
-              currentUserId={user.id}
-              friendName={activeChat.friendName}
-              onClose={() => setActiveChat(null)}
-            />
+            <SocialMenu userId={user.id} open={socialMenuOpen} onClose={() => setSocialMenuOpen(false)} />
           )}
           {!user && socialMenuOpen && (
             <div className="pointer-events-auto fixed bottom-20 left-4 z-[70] rounded-xl border border-cyan-300/35 bg-card/90 px-3 py-2 text-xs text-cyan-100 backdrop-blur-xl">
