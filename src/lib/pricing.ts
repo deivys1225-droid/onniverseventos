@@ -20,6 +20,12 @@ export const EVENT_TICKET_USD_MAX = 15;
 export const STORE_GENERAL_USD_MIN = 5;
 export const STORE_GENERAL_USD_MAX = 15;
 
+/** Videos de Sala (VOD / acceso a tarjeta) */
+export const SALA_VIDEO_USD_MIN = 2;
+export const SALA_VIDEO_USD_MAX = 8;
+export const SALA_VIDEO_PRICE_TIERS = [2, 5, 8] as const;
+export const BIBLIOTECA_PRICE_TIERS = [5, 10, 15] as const;
+
 /** Salas Pro y sets de streaming / transmisiones premium */
 export const PREMIUM_SALA_STREAM_USD_MIN = 10;
 export const PREMIUM_SALA_STREAM_USD_MAX = 15;
@@ -53,6 +59,24 @@ export function formatUsd(amount: number): string {
   return `$${amount.toFixed(2)} USD`;
 }
 
+export function formatStorePrice(amount: number): string {
+  if (amount === 0) return "GRATIS";
+  return formatUsd(amount);
+}
+
+export function stableTierFromSeed(seed: string, tiers: readonly number[]): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
+  }
+  return tiers[(h >>> 0) % tiers.length];
+}
+
+export function salaVideoPriceUsd(roomId: string, freeRoomIds: ReadonlySet<string>): number {
+  if (freeRoomIds.has(roomId)) return 0;
+  return stableTierFromSeed(`sala-video:${roomId}`, SALA_VIDEO_PRICE_TIERS);
+}
+
 type StoreProduct = { title: string; price: string; [k: string]: unknown };
 type StoreCategory = { id: string; products: StoreProduct[]; [k: string]: unknown };
 
@@ -65,14 +89,21 @@ export function mapStoreCategoriesWithDynamicPrices<T extends StoreCategory>(cat
       return {
         ...cat,
         products: cat.products.map((p) => {
-          const usd = stableUsdInRange(
-            `store:${cat.id}:${p.title}`,
-            STORE_GENERAL_USD_MIN,
-            STORE_GENERAL_USD_MAX,
-          );
+          const existingUsd = typeof p.priceUsd === "number" ? p.priceUsd : null;
+          if (cat.id === "biblioteca" && existingUsd === 0) {
+            return { ...p, price: formatStorePrice(0), priceUsd: 0 };
+          }
+          const usd =
+            cat.id === "biblioteca"
+              ? stableTierFromSeed(`store:biblioteca:${p.title}`, BIBLIOTECA_PRICE_TIERS)
+              : stableUsdInRange(
+                  `store:${cat.id}:${p.title}`,
+                  STORE_GENERAL_USD_MIN,
+                  STORE_GENERAL_USD_MAX,
+                );
           return {
             ...p,
-            price: formatUsd(usd),
+            price: formatStorePrice(usd),
             priceUsd: usd,
           };
         }),

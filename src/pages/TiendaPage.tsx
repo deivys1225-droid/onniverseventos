@@ -1,5 +1,8 @@
+import { Capacitor } from "@capacitor/core";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { mapStoreCategoriesWithDynamicPrices } from "@/lib/pricing";
+import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -20,7 +23,9 @@ import Navbar from "@/components/Navbar";
 import PricingSection from "@/components/PricingSection";
 import Footer from "@/components/Footer";
 import StoreProductPayPal from "@/components/StoreProductPayPal";
+import { useAuth } from "@/hooks/useAuth";
 import type { SkinRarityLabel } from "@/lib/pricing";
+import { hasVaultPurchase, type VaultItemType } from "@/lib/vaultItems";
 import { supabase } from "@/integrations/supabase/client";
 
 type CategoryId = "tickets" | "biblioteca" | "cursos" | "salas-pro" | "set-streamer" | "skins";
@@ -34,6 +39,27 @@ type Product = {
   /** Añadido en runtime por `mapStoreCategoriesWithDynamicPrices` */
   priceUsd?: number;
   skinRarity?: SkinRarityLabel;
+  actionUrl?: string;
+  actionLabel?: string;
+  imageAttribution?: string;
+  imageAttributionUrl?: string;
+  licenseUrl?: string;
+};
+
+const bibliotecaHeartProduct: Product = {
+  title: "Corazón Humano Interactivo (Holograma 3D)",
+  description:
+    "Explora la anatomía cardíaca en realidad aumentada. Rótalo y estúdialo como un holograma en tu espacio.",
+  detail: "Modelo 3D interactivo",
+  price: "GRATIS",
+  priceUsd: 0,
+  image:
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/3D_model_of_a_human_heart.stl/1280px-3D_model_of_a_human_heart.stl.png",
+  imageAttribution: "neshallads / Wikimedia Commons",
+  imageAttributionUrl: "https://commons.wikimedia.org/wiki/File:3D_model_of_a_human_heart.stl",
+  licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+  actionUrl: "https://res.cloudinary.com/dfsabdxup/image/upload/v1778502197/el_corazon_dbhvfn.glb",
+  actionLabel: "Ver",
 };
 
 type DynamicStoreProduct = {
@@ -181,6 +207,30 @@ const storeCategories: {
   },
 ];
 
+function vaultTypeForCategory(categoryId: CategoryId): VaultItemType {
+  if (categoryId === "biblioteca") return "biblioteca";
+  if (categoryId === "cursos") return "cursos";
+  if (categoryId === "tickets") return "ticket";
+  return "skin";
+}
+
+function openImmersiveContent(contentUrl: string, title: string) {
+  if (Capacitor.getPlatform() === "android") {
+    if (typeof window.Android?.onArClick === "function") {
+      window.Android.onArClick(contentUrl);
+      return;
+    }
+    const params = new URLSearchParams();
+    params.set("mp4", contentUrl);
+    params.set("title", title);
+    params.set("mode", "vod");
+    const path = `/sala/espectador/${encodeURIComponent(buildAgoraChannel("main"))}?${params.toString()}`;
+    window.location.assign(`${window.location.origin}${path}`);
+    return;
+  }
+  window.open(contentUrl, "_blank", "noopener,noreferrer");
+}
+
 const investorStats = [
   { label: "Usuarios Activos", value: "120K+" },
   { label: "Eventos Realizados", value: "340" },
@@ -189,8 +239,11 @@ const investorStats = [
 ];
 
 const TiendaPage = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [dynamicProducts, setDynamicProducts] = useState<DynamicStoreProduct[]>([]);
+  const [sessionPurchases, setSessionPurchases] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     const loadDynamicStore = async () => {
@@ -211,9 +264,8 @@ const TiendaPage = () => {
         title: item.title,
         description: "Libro virtual publicado por la comunidad.",
         detail: "Disponible para descarga",
-        price: `$${Number(item.sale_price).toFixed(2)} USD`,
+        price: "",
         image: item.cover_image_url,
-        priceUsd: Number(item.sale_price),
       }));
     const cursosDynamic: Product[] = dynamicProducts
       .filter((item) => item.item_type === "cursos")
@@ -228,7 +280,10 @@ const TiendaPage = () => {
 
     const merged = storeCategories.map((category) => {
       if (category.id === "biblioteca") {
-        return { ...category, products: [...bibliotecaDynamic, ...category.products] };
+        return {
+          ...category,
+          products: [bibliotecaHeartProduct, ...bibliotecaDynamic, ...category.products],
+        };
       }
       if (category.id === "cursos") {
         return { ...category, products: [...cursosDynamic, ...category.products] };
@@ -270,7 +325,7 @@ const TiendaPage = () => {
       {/* Categorías — mismo patrón de tarjetas que Educación */}
       <section className="relative px-6 pt-20 pb-28 overflow-hidden">
         <div className="absolute inset-0 -z-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
-        <div className="container relative z-10 mx-auto max-w-6xl">
+        <div className="container relative z-10 mx-auto max-w-[93.6rem]">
           <AnimatePresence mode="wait">
             {selectedCategory ? (
               <motion.div
@@ -296,6 +351,22 @@ const TiendaPage = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4">
                   {selectedCategory.products.map((product, index) => {
                     const usd = product.priceUsd ?? 0;
+                    const vaultType = vaultTypeForCategory(selectedCategory.id);
+                    const purchaseKey = `${selectedCategory.id}:${product.title}`;
+                    const isFree = usd === 0;
+                    const isUnlocked =
+                      isFree ||
+                      sessionPurchases.has(purchaseKey) ||
+                      hasVaultPurchase(user?.id, vaultType, product.title);
+                    const canOpenImmersive = Boolean(product.actionUrl) && isUnlocked;
+                    const immersiveLabel =
+                      selectedCategory.id === "biblioteca"
+                        ? isUnlocked
+                          ? "Ver en 3D"
+                          : product.actionLabel ?? "Ver"
+                        : isFree || isUnlocked
+                          ? product.actionLabel ?? "Ver Holograma / Abrir"
+                          : product.actionLabel ?? "Ver";
                     return (
                       <motion.div
                         key={product.title}
@@ -305,7 +376,7 @@ const TiendaPage = () => {
                         className="min-w-0"
                       >
                         <Card className="h-full flex flex-col border border-primary/35 bg-card/55 backdrop-blur-md overflow-hidden transition-all duration-300 hover:border-primary/60 hover:shadow-[0_0_30px_-10px_hsl(var(--primary)/0.9)]">
-                          <div className="relative h-24 sm:h-28 overflow-hidden">
+                          <div className="relative h-[7.8rem] sm:h-[9.1rem] overflow-hidden">
                             <img
                               src={product.image}
                               alt={product.title}
@@ -329,12 +400,52 @@ const TiendaPage = () => {
                               {product.description}
                             </p>
                             <p className="mt-1.5 text-[10px] text-muted-foreground line-clamp-1">{product.detail}</p>
+                            {product.imageAttribution && product.imageAttributionUrl && product.licenseUrl && (
+                              <p className="mt-1.5 text-[9px] leading-snug text-muted-foreground/85 line-clamp-2">
+                                Imagen:{" "}
+                                <a
+                                  href={product.imageAttributionUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="underline underline-offset-2 hover:text-primary"
+                                >
+                                  {product.imageAttribution}
+                                </a>{" "}
+                                (
+                                <a
+                                  href={product.licenseUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="underline underline-offset-2 hover:text-primary"
+                                >
+                                  CC BY 4.0
+                                </a>
+                                )
+                              </p>
+                            )}
                             <div className="mt-2">
-                              <span className="inline-block rounded-full border border-primary/45 bg-primary/10 px-2 py-1 text-[10px] sm:text-[11px] font-display font-bold tracking-wide text-primary">
+                              <span
+                                className={`inline-block rounded-full border px-2.5 py-1 text-[10px] sm:text-[11px] font-display font-bold tracking-wide backdrop-blur-md ${
+                                  isFree
+                                    ? "border-emerald-300/55 bg-emerald-500/15 text-emerald-100 shadow-[0_0_18px_-6px_rgba(52,211,153,0.85)]"
+                                    : "border-emerald-400/50 bg-white/10 text-white shadow-[0_0_22px_-8px_rgba(110,231,183,0.9)]"
+                                }`}
+                              >
                                 {product.price}
                               </span>
                             </div>
-                            {usd > 0 && (
+                            {canOpenImmersive && product.actionUrl && (
+                              <Button
+                                type="button"
+                                variant="heroOutline"
+                                size="sm"
+                                className="mt-2 w-full min-h-9 text-[11px] sm:text-xs font-semibold touch-manipulation"
+                                onClick={() => openImmersiveContent(product.actionUrl!, product.title)}
+                              >
+                                {immersiveLabel}
+                              </Button>
+                            )}
+                            {!isUnlocked && usd > 0 && (
                               <StoreProductPayPal
                                 categoryId={selectedCategory.id}
                                 categoryTitle={selectedCategory.title}
@@ -342,6 +453,13 @@ const TiendaPage = () => {
                                 priceUsd={usd}
                                 skinRarity={product.skinRarity}
                                 productImage={product.image}
+                                onPurchaseComplete={() => {
+                                  setSessionPurchases((prev) => {
+                                    const next = new Set(prev);
+                                    next.add(purchaseKey);
+                                    return next;
+                                  });
+                                }}
                               />
                             )}
                           </CardContent>
@@ -359,6 +477,12 @@ const TiendaPage = () => {
                 exit={{ opacity: 0, y: -14 }}
                 transition={{ duration: 0.35 }}
               >
+                <div className="mb-6">
+                  <Button variant="heroOutline" className="w-full sm:w-auto" onClick={() => navigate("/inicio")}>
+                    <ArrowLeft className="h-4 w-4" />
+                    Volver al inicio del perfil
+                  </Button>
+                </div>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -386,7 +510,7 @@ const TiendaPage = () => {
                       className="text-left"
                     >
                       <Card className="h-full border border-primary/30 bg-card/50 backdrop-blur-md overflow-hidden group transition-all duration-300 hover:border-primary/60 hover:shadow-[0_0_35px_-12px_hsl(var(--primary)/0.8)]">
-                        <div className="relative h-40 overflow-hidden">
+                        <div className="relative h-[13rem] overflow-hidden">
                           <img
                             src={item.image}
                             alt={item.title}
@@ -438,7 +562,7 @@ const TiendaPage = () => {
 
       {/* Investors section */}
       <section className="relative px-6 pb-32">
-        <div className="container mx-auto max-w-6xl">
+        <div className="container mx-auto max-w-[93.6rem]">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}

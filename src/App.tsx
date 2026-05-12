@@ -3,8 +3,9 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { ReactNode } from "react";
 import { PayPalScriptProvider } from "@paypal/react-paypal-js";
-import { paypalScriptOptions } from "@/config/payments";
+import { isPayPalConfigured, paypalScriptOptions } from "@/config/payments";
 import GuestRoute from "@/components/auth/GuestRoute";
 import PrivateRoute from "@/components/auth/PrivateRoute";
 import Index from "./pages/Index.tsx";
@@ -34,9 +35,16 @@ import EmisorView from "./pages/EmisorView.tsx";
 import EspectadorView from "./pages/EspectadorView.tsx";
 const queryClient = new QueryClient();
 
+const AppProviders = ({ children }: { children: ReactNode }) =>
+  isPayPalConfigured ? (
+    <PayPalScriptProvider options={paypalScriptOptions}>{children}</PayPalScriptProvider>
+  ) : (
+    <>{children}</>
+  );
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <PayPalScriptProvider options={paypalScriptOptions}>
+    <AppProviders>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -179,7 +187,7 @@ const App = () => (
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
-    </PayPalScriptProvider>
+    </AppProviders>
   </QueryClientProvider>
 );
 

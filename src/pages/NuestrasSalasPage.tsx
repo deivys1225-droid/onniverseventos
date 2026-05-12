@@ -7,12 +7,15 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { supabase } from "@/integrations/supabase/client";
+import { isStreamPlaybackUrl } from "@/lib/audiencePlayback";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
-import { PayPalButtons } from "@paypal/react-paypal-js";
 import { Button } from "@/components/ui/button";
+import PayPalSmartButton from "@/components/PayPalSmartButton";
 import { toast } from "sonner";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { useAuth } from "@/hooks/useAuth";
+import { formatStorePrice, salaVideoPriceUsd } from "@/lib/pricing";
+import { hasVaultPurchase } from "@/lib/vaultItems";
 import {
   loadFriendshipPairStates,
   sendFriendshipRequest,
@@ -79,7 +82,7 @@ type RoomCard = {
   mp4Url?: string;
 };
 
-const FREE_ROOM_IDS = new Set(["hablando-huevadas", "axon-king", "franco-escamilla"]);
+const FREE_ROOM_IDS = new Set(["hablando-huevadas", "axon-king"]);
 
 function isRoomOnline(room: RoomCard, streams: ActiveStreamRow[]): boolean {
   const roomId = room.id.toLowerCase();
@@ -118,6 +121,7 @@ const NuestrasSalasPage = () => {
   const [premiumModalRoom, setPremiumModalRoom] = useState<RoomCard | null>(null);
   const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
   const [friendshipStates, setFriendshipStates] = useState<Map<string, FriendshipPairState>>(new Map());
+  const [sessionPurchases, setSessionPurchases] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     const loadData = async () => {
@@ -162,44 +166,56 @@ const NuestrasSalasPage = () => {
     };
   }, []);
 
-  const creatorRooms: RoomCard[] = [
-    ...podcastStreamers.map((streamer) => ({
-      id: streamer.id,
-      name: streamer.name,
-      image: streamer.avatar,
-      subtitle: streamer.immersiveSalaName,
-      description: streamer.loungeTitle,
-      status: streamer.status === "live" ? "En Vivo" : "Offline",
-      channel: buildAgoraChannel(streamer.id),
-      isPremium: !FREE_ROOM_IDS.has(streamer.id),
-      priceUsd: Number.isFinite(streamer.ticketGrada) ? streamer.ticketGrada : 4.99,
-      mp4Url: SALA_MP4_URL_BY_ID[streamer.id],
-    })),
-    {
-      id: "hablando-huevadas",
-      name: "Hablando Huevadas",
-      image: "/hablando-huevadas.png",
-      subtitle: "Peru",
-      description: "Live Show Oficial",
-      status: "En Vivo",
-      channel: buildAgoraChannel("hablando-huevadas"),
-      isPremium: false,
-      priceUsd: 0,
-      mp4Url: SALA_MP4_URL_BY_ID["hablando-huevadas"],
-    },
-    {
-      id: "michael-jackson",
-      name: "Michael Jackson",
-      image: "/michael-jackson-avatar.png",
-      subtitle: "USA",
-      description: "Show inmersivo y hits eternos",
-      status: "VIP",
-      channel: buildAgoraChannel("michael-jackson"),
-      isPremium: true,
-      priceUsd: 9.99,
-      mp4Url: SALA_MP4_URL_BY_ID["michael-jackson"],
-    },
-  ];
+  const creatorRooms: RoomCard[] = useMemo(() => {
+    const streamerRooms = podcastStreamers.map((streamer) => {
+      const priceUsd = salaVideoPriceUsd(streamer.id, FREE_ROOM_IDS);
+      return {
+        id: streamer.id,
+        name: streamer.name,
+        image: streamer.avatar,
+        subtitle: streamer.immersiveSalaName,
+        description: streamer.loungeTitle,
+        status: streamer.status === "live" ? "En Vivo" : "Offline",
+        channel: buildAgoraChannel(streamer.id),
+        isPremium: priceUsd > 0,
+        priceUsd,
+        mp4Url: SALA_MP4_URL_BY_ID[streamer.id],
+      };
+    });
+    const michaelPriceUsd = salaVideoPriceUsd("michael-jackson", FREE_ROOM_IDS);
+    return [
+      ...streamerRooms,
+      {
+        id: "hablando-huevadas",
+        name: "Hablando Huevadas",
+        image: "/hablando-huevadas.png",
+        subtitle: "Peru",
+        description: "Live Show Oficial",
+        status: "En Vivo",
+        channel: buildAgoraChannel("hablando-huevadas"),
+        isPremium: false,
+        priceUsd: 0,
+        mp4Url: SALA_MP4_URL_BY_ID["hablando-huevadas"],
+      },
+      {
+        id: "michael-jackson",
+        name: "Michael Jackson",
+        image: "/michael-jackson-avatar.png",
+        subtitle: "USA",
+        description: "Show inmersivo y hits eternos",
+        status: "VIP",
+        channel: buildAgoraChannel("michael-jackson"),
+        isPremium: michaelPriceUsd > 0,
+        priceUsd: michaelPriceUsd,
+        mp4Url: SALA_MP4_URL_BY_ID["michael-jackson"],
+      },
+    ];
+  }, []);
+
+  const isRoomUnlocked = (room: RoomCard) =>
+    room.priceUsd === 0 ||
+    sessionPurchases.has(room.id) ||
+    hasVaultPurchase(user?.id, "ticket", room.name);
 
   const communityRooms: RoomCard[] = useMemo(
     () =>
@@ -259,14 +275,19 @@ const NuestrasSalasPage = () => {
     setLoadingRoomId(room.id);
     window.setTimeout(() => {
       const params = new URLSearchParams();
-      const resolvedChannel = activeStream?.stream_url?.trim() || room.channel;
-      const resolvedToken = activeStream?.playback_url?.trim() || "";
+      const streamUrlCandidate = activeStream?.stream_url?.trim() || "";
+      const playbackUrlCandidate = activeStream?.playback_url?.trim() || "";
+      const resolvedChannel = isStreamPlaybackUrl(streamUrlCandidate) ? room.channel : streamUrlCandidate || room.channel;
+      const resolvedToken =
+        playbackUrlCandidate && !isStreamPlaybackUrl(playbackUrlCandidate) ? playbackUrlCandidate : "";
       const resolvedTitle = activeStream?.title?.trim() || room.name;
+      const resolvedStreamUrl = [playbackUrlCandidate, streamUrlCandidate].find((value) => isStreamPlaybackUrl(value)) ?? "";
 
       if (room.mp4Url) params.set("mp4", room.mp4Url);
       params.set("title", resolvedTitle);
       params.set("mode", room.mp4Url && !activeStream?.is_live ? "vod" : "live");
       if (resolvedToken) params.set("token", resolvedToken);
+      if (resolvedStreamUrl) params.set("stream", resolvedStreamUrl);
       const path = `/sala/espectador/${encodeURIComponent(resolvedChannel)}?${params.toString()}`;
       // En Android el WebView solo intercepta cargas reales de URL (selector nativo en MainActivity).
       // navigate() del SPA no dispara shouldOverrideUrlLoading; location.assign sí.
@@ -357,6 +378,7 @@ const NuestrasSalasPage = () => {
               {creatorRooms.map((room, index) => {
                 const linkedStream = getRoomActiveStream(room, activeStreams);
                 const online = Boolean(linkedStream?.is_live);
+                const unlocked = isRoomUnlocked(room);
 
                 return (
                   <motion.div
@@ -366,9 +388,7 @@ const NuestrasSalasPage = () => {
                     viewport={{ once: true, margin: "-60px" }}
                     transition={{ delay: index * 0.06 }}
                   >
-                    <button
-                      type="button"
-                      onClick={() => handleRoomAccess(room, online)}
+                    <article
                       className={`group block w-full rounded-2xl border bg-card/40 p-5 text-left backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 ${
                         online
                           ? "border-amber-300/80 shadow-[0_0_55px_-10px_rgba(250,204,21,0.95)] hover:border-yellow-200/90"
@@ -409,14 +429,49 @@ const NuestrasSalasPage = () => {
                       </span>
                     </div>
                     <p className="mb-1 text-sm text-muted-foreground">{room.description}</p>
-                    <p className="mb-4 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">
-                      {room.isPremium ? `Acceso Premium · ${room.priceUsd.toFixed(2)} USD` : "Acceso Gratis"}
-                    </p>
-                    <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-primary transition group-hover:bg-primary/20 group-hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]">
-                      <Mic2 className="h-4 w-4" />
-                      {linkedStream?.privacy_mode === "privado_ticket" ? "Ver acceso premium" : "Entrar a sala"}
-                    </span>
-                    </button>
+                    <div className="mb-4">
+                      <span
+                        className={`inline-block rounded-full border px-2.5 py-1 text-[10px] font-display font-bold tracking-wide backdrop-blur-md ${
+                          room.priceUsd === 0
+                            ? "border-emerald-300/55 bg-emerald-500/15 text-emerald-100 shadow-[0_0_18px_-6px_rgba(52,211,153,0.85)]"
+                            : "border-emerald-400/50 bg-white/10 text-white shadow-[0_0_22px_-8px_rgba(110,231,183,0.9)]"
+                        }`}
+                      >
+                        {formatStorePrice(room.priceUsd)}
+                      </span>
+                    </div>
+                    {unlocked ? (
+                      <Button
+                        type="button"
+                        variant="heroOutline"
+                        className="w-full min-h-11 gap-2 text-xs font-display font-bold uppercase tracking-wide"
+                        onClick={() => handleRoomAccess(room, online)}
+                      >
+                        <Mic2 className="h-4 w-4" />
+                        {linkedStream?.privacy_mode === "privado_ticket" ? "Ver acceso premium" : "Reproducir Video"}
+                      </Button>
+                    ) : (
+                      <PayPalSmartButton
+                        priceUsd={room.priceUsd}
+                        description={`OnniVers — Sala — ${room.name}`.slice(0, 120)}
+                        eventId={`sala:${room.id}`}
+                        vaultType="ticket"
+                        vaultTitle={room.name}
+                        vaultThumbnailUrl={room.image}
+                        notifySource="sala"
+                        productCategoryId="sala"
+                        productCategoryLabel="Sala"
+                        productTitle={room.name}
+                        onPurchaseComplete={() => {
+                          setSessionPurchases((prev) => {
+                            const next = new Set(prev);
+                            next.add(room.id);
+                            return next;
+                          });
+                        }}
+                      />
+                    )}
+                    </article>
                   </motion.div>
                 );
               })}
@@ -583,30 +638,24 @@ const NuestrasSalasPage = () => {
                 <p className="text-sm font-semibold text-foreground">{premiumModalRoom.name}</p>
                 <p className="text-xs text-amber-200">Total: ${premiumModalRoom.priceUsd.toFixed(2)} USD</p>
               </div>
-              <div className="mt-4 rounded-xl border border-[#ffc439]/70 bg-[#ffc439]/18 p-3 shadow-[0_0_30px_-10px_rgba(255,196,57,0.95)]">
-                <PayPalButtons
-                  style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 48, tagline: false }}
-                  createOrder={(_data, actions) =>
-                    actions.order.create({
-                      intent: "CAPTURE",
-                      purchase_units: [
-                        {
-                          amount: { currency_code: "USD", value: premiumModalRoom.priceUsd.toFixed(2) },
-                          description: `Acceso Premium - ${premiumModalRoom.name}`,
-                        },
-                      ],
-                    })
-                  }
-                  onApprove={async (_data, actions) => {
-                    if (!actions.order) return;
-                    await actions.order.capture();
-                    const selectedRoom = premiumModalRoom;
-                    setPremiumModalRoom(null);
-                    const linkedStream = getRoomActiveStream(selectedRoom, activeStreams);
-                    beginRoomSession(selectedRoom, linkedStream);
-                  }}
-                />
-              </div>
+              <PayPalSmartButton
+                priceUsd={premiumModalRoom.priceUsd}
+                description={`Acceso Premium - ${premiumModalRoom.name}`.slice(0, 120)}
+                eventId={`sala-premium:${premiumModalRoom.id}`}
+                vaultType="ticket"
+                vaultTitle={premiumModalRoom.name}
+                vaultThumbnailUrl={premiumModalRoom.image}
+                notifySource="sala"
+                productCategoryId="sala"
+                productCategoryLabel="Sala Premium"
+                productTitle={premiumModalRoom.name}
+                onPurchaseComplete={() => {
+                  const selectedRoom = premiumModalRoom;
+                  setPremiumModalRoom(null);
+                  const linkedStream = getRoomActiveStream(selectedRoom, activeStreams);
+                  beginRoomSession(selectedRoom, linkedStream);
+                }}
+              />
               <div className="mt-3 flex justify-end">
                 <Button type="button" variant="outline" onClick={() => setPremiumModalRoom(null)}>
                   Cancelar

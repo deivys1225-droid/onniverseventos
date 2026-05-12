@@ -34,6 +34,11 @@ export function listVaultItems(userId: string): VaultItem[] {
   return vault[userId] ?? [];
 }
 
+export function hasVaultPurchase(userId: string | undefined, type: VaultItemType, title: string): boolean {
+  if (!userId) return false;
+  return listVaultItems(userId).some((item) => item.type === type && item.title === title);
+}
+
 export function addVaultItem(
   userId: string,
   item: Omit<VaultItem, "id" | "createdAt"> & { id?: string; createdAt?: string },

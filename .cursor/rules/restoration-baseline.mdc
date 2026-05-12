@@ -1,0 +1,21 @@
+---
+description: Punto de restauración principal — no romper el proyecto ni cambios amplios sin orden explícita
+alwaysApply: true
+---
+
+# Punto de restauración principal (mayo 2026)
+
+El usuario validó el proyecto **funcionando** (dev local, emisión/recepción, flujos críticos). Este estado es la **línea base de restauración** más importante.
+
+## Restaurar en Git
+
+- **Etiqueta:** `restauracion-principal-2026-05-11`
+- **Comando:** `git checkout restauracion-principal-2026-05-11` (o el commit al que apunta la etiqueta)
+
+## Reglas para el agente
+
+- **No** eliminar archivos, módulos o rutas “por limpieza”, ni refactors amplios que puedan dejar pantalla en blanco o romper imports.
+- **No** cambiar de golpe `vite.config.ts`, `index.html`, entrada `src/main.tsx` / `App.tsx`, ni borrar utilidades referenciadas (p. ej. `src/lib/audiencePlayback.ts`).
+- **No** revertir ni reintroducir UI o flujos que el usuario pidió quitar o congelar en sesiones anteriores.
+- Cambios **solo** acotados a lo que el usuario pida **de forma explícita**; si el alcance es grande, **confirmar** antes de tocar la base.
+- Complementa el candado en `streaming-frozen.mdc` (Agora, Android, salas en vivo).
