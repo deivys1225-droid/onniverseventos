@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, PointerLockControls, Stars } from "@react-three/drei";
 import * as THREE from "three";
+import { isMobileCoarseDevice } from "@/lib/webglRendererPrefs";
+import MobileLobbyMovePad, { createMobileMoveInput, type MobileMoveInput } from "@/components/lobby/MobileLobbyMovePad";
 
 const ROOM_SIZE = 20;
 const WALL_HEIGHT = 8;
@@ -659,7 +661,13 @@ function MixedRealityPassthrough({
 }
 
 // ---------- First Person Controller (WASD) ----------
-function FirstPersonController({ enabled }: { enabled: boolean }) {
+function FirstPersonController({
+  enabled,
+  mobileInputRef,
+}: {
+  enabled: boolean;
+  mobileInputRef?: React.MutableRefObject<MobileMoveInput>;
+}) {
   const { camera } = useThree();
   const keys = useRef<Record<string, boolean>>({});
   const velocity = useRef(new THREE.Vector3());
@@ -690,8 +698,13 @@ function FirstPersonController({ enabled }: { enabled: boolean }) {
     if (!enabled) return;
 
     const k = keys.current;
-    const moveForward = (k["KeyW"] ? 1 : 0) - (k["KeyS"] ? 1 : 0);
-    const moveRight = (k["KeyD"] ? 1 : 0) - (k["KeyA"] ? 1 : 0);
+    let moveForward = (k["KeyW"] ? 1 : 0) - (k["KeyS"] ? 1 : 0) + (mobileInputRef?.current.forward ?? 0);
+    let moveRight = (k["KeyD"] ? 1 : 0) - (k["KeyA"] ? 1 : 0) + (mobileInputRef?.current.right ?? 0);
+    const moveMagnitude = Math.hypot(moveForward, moveRight);
+    if (moveMagnitude > 1) {
+      moveForward /= moveMagnitude;
+      moveRight /= moveMagnitude;
+    }
 
     if (moveForward === 0 && moveRight === 0) return;
 
@@ -722,6 +735,8 @@ function FirstPersonController({ enabled }: { enabled: boolean }) {
 
 export default function NeonRoom() {
   const navigate = useNavigate();
+  const isMobileTouch = useMemo(() => isMobileCoarseDevice(), []);
+  const mobileMoveInput = useRef(createMobileMoveInput());
   const [locked, setLocked] = useState(false);
   const [escapeBarVisible, setEscapeBarVisible] = useState(true);
   const [focusedScreen, setFocusedScreen] = useState<number | null>(null);
@@ -732,6 +747,12 @@ export default function NeonRoom() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const focusedScreenRef = useRef<number | null>(null);
   const escapeBarVisibleRef = useRef(true);
+
+  useEffect(() => {
+    if (focusedScreen === null) return;
+    mobileMoveInput.current.forward = 0;
+    mobileMoveInput.current.right = 0;
+  }, [focusedScreen]);
 
   useEffect(() => {
     focusedScreenRef.current = focusedScreen;
@@ -939,7 +960,7 @@ export default function NeonRoom() {
           <LoungeSpotlight />
 
         <EarthMoonAnchor />
-        <FirstPersonController enabled={focusedScreen === null} />
+        <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
 
         {focusedScreen === null && (
           <PointerLockControls
@@ -951,6 +972,11 @@ export default function NeonRoom() {
           />
         )}
       </Canvas>
+
+      <MobileLobbyMovePad
+        enabled={isMobileTouch && focusedScreen === null}
+        inputRef={mobileMoveInput}
+      />
 
       {escapeBarVisible && focusedScreen === null && (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 border-t border-cyan-300/20 bg-gradient-to-t from-black/92 via-black/78 to-black/35 pb-[max(0.85rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-18px_48px_-24px_rgba(34,211,238,0.45)] backdrop-blur-xl">
