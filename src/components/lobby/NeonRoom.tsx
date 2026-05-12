@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -91,7 +91,10 @@ function normalizeLobbyScreenUrl(url: string, index: number): string {
   return trimmed;
 }
 
-function HoloScreenGltfModel({
+const WALL_SCREEN_WIDTH = 8;
+const WALL_SCREEN_HEIGHT = 4.5;
+
+function WallSceneGlbModel({
   url,
   width,
   height,
@@ -111,59 +114,45 @@ function HoloScreenGltfModel({
     const center = box.getCenter(new THREE.Vector3());
     root.position.sub(center);
     const fitScale = Math.min(
-      (width * 0.82) / Math.max(size.x, 1e-6),
-      (height * 0.82) / Math.max(size.y, 1e-6),
-      (width * 0.82) / Math.max(size.z, 1e-6),
+      (width * 0.92) / Math.max(size.x, 1e-6),
+      (height * 0.92) / Math.max(size.y, 1e-6),
+      (width * 0.92) / Math.max(size.z, 1e-6),
     );
     root.scale.setScalar(fitScale);
-    root.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      const materials = Array.isArray(child.material) ? child.material : [child.material];
-      materials.forEach((material) => {
-        if (!material) return;
-        material.side = THREE.DoubleSide;
-        material.needsUpdate = true;
-      });
-    });
     return root;
   }, [scene, url, width, height]);
 
   return <primitive object={model} />;
 }
 
-function HoloScreenGltfViewport({
+function WallSceneGlb({
   url,
-  width,
-  height,
-  screenPointerEvents,
-  onFocus,
+  position,
+  rotation,
 }: {
   url: string;
-  width: number;
-  height: number;
-  screenPointerEvents: "auto" | "none";
-  onFocus: () => void;
+  position: [number, number, number];
+  rotation: [number, number, number];
 }) {
+  const spinRef = useRef<THREE.Group>(null);
+
+  useFrame((_, delta) => {
+    if (!spinRef.current) return;
+    spinRef.current.rotation.y += delta * 0.42;
+  });
+
   return (
-    <group position={[0, 0, 0.02]}>
-      <ambientLight intensity={1.05} />
-      <directionalLight position={[2.5, 3.5, 2]} intensity={1.35} />
-      <hemisphereLight intensity={0.45} color="#dffcff" groundColor="#0a0f18" />
-      <Suspense fallback={null}>
-        <HoloScreenGltfModel key={url} url={url} width={width} height={height} />
-      </Suspense>
-      {screenPointerEvents !== "none" ? (
-        <mesh
-          position={[0, 0, 0.03]}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            onFocus();
-          }}
-        >
-          <planeGeometry args={[width, height]} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
-      ) : null}
+    <group position={position} rotation={rotation}>
+      <group ref={spinRef}>
+        <Suspense fallback={null}>
+          <WallSceneGlbModel
+            key={url}
+            url={url}
+            width={WALL_SCREEN_WIDTH}
+            height={WALL_SCREEN_HEIGHT}
+          />
+        </Suspense>
+      </group>
     </group>
   );
 }
@@ -316,29 +305,27 @@ function HoloScreen({
   const htmlScale = (w / embedWidth) * 36.225;
   const htmlZIndexRange = uiOverlayOpen ? LOBBY_SCREEN_BACKGROUND_Z_INDEX : LOBBY_SCREEN_HTML_Z_INDEX;
   const screenPointerEvents = uiOverlayOpen ? "none" : !interactionMode || focused ? "auto" : "none";
-  const showGlbContent = label === 4 && isGlbSource(embedUrl);
 
   return (
     <group position={position} rotation={rotation}>
-      {!showGlbContent ? (
-        <Html
-          transform
-          position={[0, 0, 0.05]}
-          scale={htmlScale}
-          zIndexRange={htmlZIndexRange}
-          style={{ pointerEvents: screenPointerEvents }}
+      <Html
+        transform
+        position={[0, 0, 0.05]}
+        scale={htmlScale}
+        zIndexRange={htmlZIndexRange}
+        style={{ pointerEvents: screenPointerEvents }}
+      >
+        <div
+          onPointerDownCapture={(event) => {
+            event.stopPropagation();
+            onFocus();
+          }}
+          style={{
+            width: `${embedWidth}px`,
+            background: "#02030a",
+            pointerEvents: screenPointerEvents,
+          }}
         >
-          <div
-            onPointerDownCapture={(event) => {
-              event.stopPropagation();
-              onFocus();
-            }}
-            style={{
-              width: `${embedWidth}px`,
-              background: "#02030a",
-              pointerEvents: screenPointerEvents,
-            }}
-          >
             <iframe
               key={embedUrl}
               src={embedUrl}
@@ -363,15 +350,6 @@ function HoloScreen({
             />
           </div>
         </Html>
-      ) : (
-        <HoloScreenGltfViewport
-          url={embedUrl}
-          width={w}
-          height={h}
-          screenPointerEvents={screenPointerEvents}
-          onFocus={onFocus}
-        />
-      )}
       <Html
         transform
         position={[0, -((h / 2 + 0.35) * 1.1), 0.05]}
@@ -457,9 +435,17 @@ function HoloScreens({
         {...screenProps(3, screenUrls[2], [-half + off, y, 0], [0, Math.PI / 2, 0])}
       />
       {/* Right wall (+X) */}
-      <HoloScreen
-        {...screenProps(4, screenUrls[3], [half - off, y, 0], [0, -Math.PI / 2, 0])}
-      />
+      {isGlbSource(screenUrls[3]) ? (
+        <WallSceneGlb
+          url={screenUrls[3]}
+          position={[half - off, y, 0]}
+          rotation={[0, -Math.PI / 2, 0]}
+        />
+      ) : (
+        <HoloScreen
+          {...screenProps(4, screenUrls[3], [half - off, y, 0], [0, -Math.PI / 2, 0])}
+        />
+      )}
     </>
   );
 }
@@ -891,8 +877,9 @@ export default function NeonRoom() {
   const [escapeBarVisible, setEscapeBarVisible] = useState(true);
   const [focusedScreen, setFocusedScreen] = useState<number | null>(null);
   const [mixedRealityEnabled, setMixedRealityEnabled] = useState(false);
-  const [mixedRealityLoading, setMixedRealityLoading] = useState(false);
+  const [mixedRealityLoading, setMixedRealityLoading] = useState(true);
   const [mixedRealityError, setMixedRealityError] = useState<string | null>(null);
+  const mixedRealityStartInFlightRef = useRef(false);
   const [screenUrls, setScreenUrls] = useState<LobbyScreenUrls>(
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
@@ -1011,21 +998,16 @@ export default function NeonRoom() {
     return () => document.removeEventListener("keydown", onKeyDown, true);
   }, []);
 
-  const toggleMixedReality = async () => {
-    if (mixedRealityLoading) return;
-
-    if (mixedRealityEnabled) {
-      stopCameraStream(cameraVideoRef.current);
-      setMixedRealityEnabled(false);
-      setMixedRealityError(null);
-      return;
-    }
+  const startMixedReality = useCallback(async () => {
+    if (mixedRealityEnabled || mixedRealityStartInFlightRef.current) return;
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setMixedRealityError(MIXED_REALITY_CAMERA_ERROR);
+      setMixedRealityLoading(false);
       return;
     }
 
+    mixedRealityStartInFlightRef.current = true;
     setMixedRealityLoading(true);
     setMixedRealityError(null);
 
@@ -1048,12 +1030,37 @@ export default function NeonRoom() {
       setMixedRealityEnabled(false);
       setMixedRealityError(MIXED_REALITY_CAMERA_ERROR);
     } finally {
+      mixedRealityStartInFlightRef.current = false;
       setMixedRealityLoading(false);
     }
-  };
+  }, [mixedRealityEnabled]);
+
+  const stopMixedReality = useCallback(() => {
+    stopCameraStream(cameraVideoRef.current);
+    setMixedRealityEnabled(false);
+    setMixedRealityError(null);
+    setMixedRealityLoading(false);
+  }, []);
+
+  const toggleMixedReality = useCallback(async () => {
+    if (mixedRealityStartInFlightRef.current) return;
+
+    if (mixedRealityEnabled) {
+      stopMixedReality();
+      return;
+    }
+
+    await startMixedReality();
+  }, [mixedRealityEnabled, startMixedReality, stopMixedReality]);
+
+  useEffect(() => {
+    void startMixedReality();
+  }, [startMixedReality]);
+
+  const mixedRealityActive = mixedRealityEnabled;
 
   return (
-    <div className={`relative h-screen w-screen ${mixedRealityEnabled ? "bg-transparent" : "bg-black"}`}>
+    <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : "bg-black"}`}>
       <video
         ref={cameraVideoRef}
         playsInline
@@ -1132,11 +1139,11 @@ export default function NeonRoom() {
           applyPixelRatioCap(gl);
         }}
       >
-          <MixedRealityScene active={mixedRealityEnabled} />
-          {!mixedRealityEnabled && <color attach="background" args={["#050510"]} />}
+          <MixedRealityScene active={mixedRealityActive} />
+          {!mixedRealityActive && <color attach="background" args={["#050510"]} />}
 
           {/* Background stars (still visible through the holographic window) */}
-          {!mixedRealityEnabled && (
+          {!mixedRealityActive && (
           <Stars
             radius={80}
             depth={50}
@@ -1153,7 +1160,7 @@ export default function NeonRoom() {
           {/* Subtle directional fill for depth on the white walls */}
           <directionalLight position={[5, 8, 5]} intensity={0.4} color="#ffffff" />
 
-          <Room structureVisible={!mixedRealityEnabled} />
+          <Room structureVisible={!mixedRealityActive} />
           <HoloScreens
             focusedScreen={focusedScreen}
             onFocusScreen={focusScreen}
