@@ -877,7 +877,7 @@ export default function NeonRoom() {
   const [escapeBarVisible, setEscapeBarVisible] = useState(true);
   const [focusedScreen, setFocusedScreen] = useState<number | null>(null);
   const [mixedRealityEnabled, setMixedRealityEnabled] = useState(false);
-  const [mixedRealityLoading, setMixedRealityLoading] = useState(true);
+  const [mixedRealityLoading, setMixedRealityLoading] = useState(false);
   const [mixedRealityError, setMixedRealityError] = useState<string | null>(null);
   const mixedRealityStartInFlightRef = useRef(false);
   const [screenUrls, setScreenUrls] = useState<LobbyScreenUrls>(
@@ -1052,10 +1052,6 @@ export default function NeonRoom() {
 
     await startMixedReality();
   }, [mixedRealityEnabled, startMixedReality, stopMixedReality]);
-
-  useEffect(() => {
-    void startMixedReality();
-  }, [startMixedReality]);
 
   const mixedRealityActive = mixedRealityEnabled;
 
