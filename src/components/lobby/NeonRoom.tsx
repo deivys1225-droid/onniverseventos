@@ -15,6 +15,7 @@ const WALL_HEIGHT = 8;
 const PLAYER_HEIGHT = 3.045;
 const PLAYER_RADIUS = 0.4;
 const MOVE_SPEED = 4.5;
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const WALL_COLOR = "#EAECEE";
 
@@ -702,6 +703,8 @@ function FirstPersonController({
   useFrame((_, delta) => {
     if (!enabled) return;
 
+    camera.up.set(0, 1, 0);
+
     const k = keys.current;
     let moveForward = (k["KeyW"] ? 1 : 0) - (k["KeyS"] ? 1 : 0) + (mobileInputRef?.current.forward ?? 0);
     let moveRight = (k["KeyD"] ? 1 : 0) - (k["KeyA"] ? 1 : 0) + (mobileInputRef?.current.right ?? 0);
@@ -717,7 +720,7 @@ function FirstPersonController({
     forward.current.y = 0;
     forward.current.normalize();
 
-    right.current.crossVectors(forward.current, camera.up).normalize();
+    right.current.crossVectors(forward.current, WORLD_UP).normalize();
 
     velocity.current
       .copy(forward.current)
@@ -759,13 +762,14 @@ function MobileTouchLook({ enabled }: { enabled: boolean }) {
 
     const applyDelta = (dx: number, dy: number) => {
       if (dx === 0 && dy === 0) return;
+      camera.rotation.order = "YXZ";
       camera.rotation.y -= dx * MOBILE_TOUCH_LOOK_SENSITIVITY;
-      camera.rotation.x -= dy * MOBILE_TOUCH_LOOK_SENSITIVITY;
       camera.rotation.x = THREE.MathUtils.clamp(
-        camera.rotation.x,
-        -Math.PI / 2 + 0.05,
-        Math.PI / 2 - 0.05,
+        camera.rotation.x - dy * MOBILE_TOUCH_LOOK_SENSITIVITY,
+        -1.35,
+        1.35,
       );
+      camera.up.set(0, 1, 0);
     };
 
     const endPointer = (event: PointerEvent) => {
@@ -848,6 +852,7 @@ export default function NeonRoom() {
   }, []);
 
   const requestMovementLock = () => {
+    if (isMobileTouch) return;
     window.requestAnimationFrame(() => {
       const canvas = canvasRef.current;
       if (!canvas || focusedScreenRef.current !== null) return;
@@ -1050,7 +1055,7 @@ export default function NeonRoom() {
         <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
         <MobileTouchLook enabled={isMobileTouch && focusedScreen === null} />
 
-        {focusedScreen === null && (
+        {focusedScreen === null && !isMobileTouch && (
           <PointerLockControls
             onLock={() => {
               setLocked(true);
