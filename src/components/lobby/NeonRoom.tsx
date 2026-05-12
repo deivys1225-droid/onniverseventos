@@ -28,7 +28,7 @@ const LOBBY_SCREEN_4_CLOUD_MODEL_URL =
   "https://res.cloudinary.com/dfsabdxup/image/upload/v1778502197/el_corazon_dbhvfn.glb";
 
 const WALL_SCREEN_EMBEDS = [
-  "https://onnivers.com",
+  "https://www.google.com",
   "https://web.whatsapp.com/",
   "https://www.youtube.com/embed/kJQP7kiw5Fk",
   LOBBY_SCREEN_4_CLOUD_MODEL_URL,
@@ -51,6 +51,9 @@ function readStoredLobbyScreenUrls(): LobbyScreenUrls | null {
       return null;
     }
     const urls = [...parsed] as LobbyScreenUrls;
+    if (urls[0] === "https://onnivers.com") {
+      urls[0] = "https://www.google.com";
+    }
     if (urls[3] === "https://www.youtube.com/embed/RgKAFK5djSk") {
       urls[3] = LOBBY_SCREEN_4_CLOUD_MODEL_URL;
     }
