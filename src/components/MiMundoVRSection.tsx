@@ -18,7 +18,9 @@ import { MessageCircleMore, UsersRound } from "lucide-react";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
 import { useAuth } from "@/hooks/useAuth";
-import { LOBBY_OPEN_TRANSITION_MS, openLobbyImmersiveWithTransition } from "@/lib/lobbyImmersive";
+import { useNavigate } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
+import { LOBBY_IMMERSIVE_PATH, LOBBY_OPEN_TRANSITION_MS, openLobbyImmersiveOnAndroid } from "@/lib/lobbyImmersive";
 import SocialMenu from "@/components/SocialMenu";
 
 /** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
@@ -436,6 +438,7 @@ const MiMundoVRSection = ({
   profileAvatarUrl,
   onProfilePersist,
 }: MiMundoVRSectionProps) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -509,7 +512,13 @@ const MiMundoVRSection = ({
   const handleLobbyOpen = () => {
     if (lobbyOpening || vrStereoActive) return;
     setLobbyOpening(true);
-    openLobbyImmersiveWithTransition();
+    window.setTimeout(() => {
+      if (Capacitor.getPlatform() === "android") {
+        openLobbyImmersiveOnAndroid();
+        return;
+      }
+      navigate(LOBBY_IMMERSIVE_PATH);
+    }, LOBBY_OPEN_TRANSITION_MS);
   };
 
   return (

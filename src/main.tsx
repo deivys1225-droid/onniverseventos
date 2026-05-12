@@ -87,6 +87,9 @@ function MirrorSbsRoot() {
             return null;
           }
         }
+        if (u.protocol === "onniver:" && u.hostname === "open-lobby") {
+          return "/lobby-inmersivo";
+        }
       } catch {
         return null;
       }

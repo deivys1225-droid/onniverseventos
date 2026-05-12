@@ -42,7 +42,7 @@ public class MainActivity extends BridgeActivity {
 
   /** URL de entrada oficial al abrir la app. */
   private static final String INITIAL_WEB_URL = "https://onnivers.com";
-  private static final String LOBBY_IMMERSIVE_URL = INITIAL_WEB_URL + "/lobby-inmersivo/index.html";
+  private static final String LOBBY_IMMERSIVE_URL = INITIAL_WEB_URL + "/lobby-inmersivo";
 
   /** Destinos del reproductor de audiencia (botones 360 / VR / MT desde JS {@code AndroidBridge}). */
   private static final String AUDIENCE_GO_360_URL = "https://onnivers.com/go/360";

@@ -17,6 +17,7 @@ import PodcastRoomPage from "./pages/PodcastRoomPage.tsx";
 import TeatroHub from "./pages/TeatroHub.tsx";
 import SalaTeatro from "./pages/SalaTeatro.tsx";
 import LobbyGlobalPage from "./pages/LobbyGlobalPage.tsx";
+import LobbyImmersivePage from "./pages/LobbyImmersivePage.tsx";
 import EventosPage from "./pages/EventosPage.tsx";
 import RedSocialInmersivaPage from "./pages/RedSocialInmersivaPage.tsx";
 import InicioPage from "./pages/InicioPage.tsx";
@@ -81,6 +82,14 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <InicioPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/lobby-inmersivo"
+              element={
+                <PrivateRoute>
+                  <LobbyImmersivePage />
                 </PrivateRoute>
               }
             />
