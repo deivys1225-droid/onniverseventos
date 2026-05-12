@@ -5,10 +5,8 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, PointerLockControls, Stars } from "@react-three/drei";
 import * as THREE from "three";
 import { isMobileCoarseDevice } from "@/lib/webglRendererPrefs";
-import MobileLobbyControls, {
-  createMobileLookInput,
+import MobileLobbyMovePad, {
   createMobileMoveInput,
-  type MobileLookInput,
   type MobileMoveInput,
 } from "@/components/lobby/MobileLobbyMovePad";
 
@@ -665,7 +663,7 @@ function MixedRealityPassthrough({
   );
 }
 
-const MOBILE_LOOK_SPEED = 2.2;
+const MOBILE_TOUCH_LOOK_SENSITIVITY = 0.0045;
 
 // ---------- First Person Controller (WASD) ----------
 function FirstPersonController({
@@ -740,30 +738,76 @@ function FirstPersonController({
   return null;
 }
 
-function MobileFirstPersonLook({
-  enabled,
-  lookInputRef,
-}: {
-  enabled: boolean;
-  lookInputRef?: React.MutableRefObject<MobileLookInput>;
-}) {
-  const { camera } = useThree();
+function MobileTouchLook({ enabled }: { enabled: boolean }) {
+  const { camera, gl } = useThree();
+  const activePointerId = useRef<number | null>(null);
+  const lastPosition = useRef<{ x: number; y: number } | null>(null);
 
-  useFrame((_, delta) => {
-    if (!enabled || !lookInputRef) return;
+  useEffect(() => {
+    if (!enabled) return;
 
-    const yaw = lookInputRef.current.yaw;
-    const pitch = lookInputRef.current.pitch;
-    if (yaw === 0 && pitch === 0) return;
+    const canvas = gl.domElement;
 
-    camera.rotation.y -= yaw * MOBILE_LOOK_SPEED * delta;
-    camera.rotation.x -= pitch * MOBILE_LOOK_SPEED * delta;
-    camera.rotation.x = THREE.MathUtils.clamp(
-      camera.rotation.x,
-      -Math.PI / 2 + 0.05,
-      Math.PI / 2 - 0.05,
-    );
-  });
+    const shouldIgnoreTarget = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return false;
+      return Boolean(
+        target.closest(
+          "[data-lobby-move-pad], [data-lobby-ui], [data-lobby-screen-links], button, a, input, textarea, select, label, [role='button']",
+        ),
+      );
+    };
+
+    const applyDelta = (dx: number, dy: number) => {
+      if (dx === 0 && dy === 0) return;
+      camera.rotation.y -= dx * MOBILE_TOUCH_LOOK_SENSITIVITY;
+      camera.rotation.x -= dy * MOBILE_TOUCH_LOOK_SENSITIVITY;
+      camera.rotation.x = THREE.MathUtils.clamp(
+        camera.rotation.x,
+        -Math.PI / 2 + 0.05,
+        Math.PI / 2 - 0.05,
+      );
+    };
+
+    const endPointer = (event: PointerEvent) => {
+      if (event.pointerId !== activePointerId.current) return;
+      if (canvas.hasPointerCapture(event.pointerId)) {
+        canvas.releasePointerCapture(event.pointerId);
+      }
+      activePointerId.current = null;
+      lastPosition.current = null;
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === "mouse") return;
+      if (activePointerId.current !== null || shouldIgnoreTarget(event.target)) return;
+      activePointerId.current = event.pointerId;
+      lastPosition.current = { x: event.clientX, y: event.clientY };
+      canvas.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerType === "mouse") return;
+      if (event.pointerId !== activePointerId.current || !lastPosition.current) return;
+      const dx = event.clientX - lastPosition.current.x;
+      const dy = event.clientY - lastPosition.current.y;
+      lastPosition.current = { x: event.clientX, y: event.clientY };
+      applyDelta(dx, dy);
+      event.preventDefault();
+    };
+
+    canvas.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", endPointer);
+    document.addEventListener("pointercancel", endPointer);
+
+    return () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", endPointer);
+      document.removeEventListener("pointercancel", endPointer);
+    };
+  }, [camera, enabled, gl]);
 
   return null;
 }
@@ -772,7 +816,6 @@ export default function NeonRoom() {
   const navigate = useNavigate();
   const isMobileTouch = useMemo(() => isMobileCoarseDevice(), []);
   const mobileMoveInput = useRef(createMobileMoveInput());
-  const mobileLookInput = useRef(createMobileLookInput());
   const [locked, setLocked] = useState(false);
   const [escapeBarVisible, setEscapeBarVisible] = useState(true);
   const [focusedScreen, setFocusedScreen] = useState<number | null>(null);
@@ -788,8 +831,6 @@ export default function NeonRoom() {
     if (focusedScreen === null) return;
     mobileMoveInput.current.forward = 0;
     mobileMoveInput.current.right = 0;
-    mobileLookInput.current.yaw = 0;
-    mobileLookInput.current.pitch = 0;
   }, [focusedScreen]);
 
   useEffect(() => {
@@ -962,6 +1003,7 @@ export default function NeonRoom() {
         gl={{ antialias: true, alpha: true }}
         onCreated={({ gl }) => {
           canvasRef.current = gl.domElement;
+          gl.domElement.style.touchAction = "none";
         }}
       >
           <MixedRealityScene active={mixedRealityEnabled} />
@@ -999,12 +1041,9 @@ export default function NeonRoom() {
 
         <EarthMoonAnchor />
         <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
-        <MobileFirstPersonLook
-          enabled={isMobileTouch && focusedScreen === null}
-          lookInputRef={mobileLookInput}
-        />
+        <MobileTouchLook enabled={isMobileTouch && focusedScreen === null} />
 
-        {focusedScreen === null && !isMobileTouch && (
+        {focusedScreen === null && (
           <PointerLockControls
             onLock={() => {
               setLocked(true);
@@ -1015,10 +1054,9 @@ export default function NeonRoom() {
         )}
       </Canvas>
 
-      <MobileLobbyControls
+      <MobileLobbyMovePad
         enabled={isMobileTouch && focusedScreen === null}
-        moveInputRef={mobileMoveInput}
-        lookInputRef={mobileLookInput}
+        inputRef={mobileMoveInput}
       />
 
       {escapeBarVisible && focusedScreen === null && (
@@ -1029,8 +1067,14 @@ export default function NeonRoom() {
               <p className="text-sm font-semibold tracking-wide text-white">Pearl Room</p>
             </div>
             <p className="text-center text-xs text-white/70 sm:flex-1 sm:text-sm">
-              Pulsa <span className="font-mono text-cyan-100/90">ESC</span> otra vez para ocultar esta barra y seguir
-              moviéndote · <span className="font-mono text-cyan-100/90">WASD</span> mover · ratón mirar
+              {isMobileTouch ? (
+                <>Arrastra con el dedo para mirar · toca la escena para usar el ratón · pad izquierdo para moverte</>
+              ) : (
+                <>
+                  Pulsa <span className="font-mono text-cyan-100/90">ESC</span> otra vez para ocultar esta barra y
+                  seguir moviéndote · <span className="font-mono text-cyan-100/90">WASD</span> mover · ratón mirar
+                </>
+              )}
             </p>
             <p className="hidden text-[11px] uppercase tracking-[0.24em] text-cyan-200/55 sm:block">
               Controles en pausa
