@@ -437,7 +437,7 @@ const MiMundoVRSection = ({
   };
 
   return (
-    <section id="mi-mundo-vr" className="relative h-[100dvh] w-full overflow-hidden bg-white">
+    <section id="mi-mundo-vr" className="relative h-[100dvh] w-full overflow-hidden bg-black">
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0">
         <Canvas
@@ -455,7 +455,7 @@ const MiMundoVRSection = ({
           }}
           camera={{ position: cameraPosition, fov: 62, near: 0.1, far: 2000 }}
         >
-          <color attach="background" args={["#ffffff"]} />
+          <color attach="background" args={["#000000"]} />
           {/* VR espejo 2D: sin luces (solo meshBasic + fondo); evita sombras y shading */}
           {!vrStereoActive &&
             (isMobileCoarse ? (
