@@ -82,7 +82,7 @@ type RoomCard = {
   mp4Url?: string;
 };
 
-const FREE_ROOM_IDS = new Set(["hablando-huevadas", "axon-king"]);
+const FREE_ROOM_IDS = new Set(["hablando-huevadas", "axon-king", "luisito-comunica-er", "gopro-gpy"]);
 
 function isRoomOnline(room: RoomCard, streams: ActiveStreamRow[]): boolean {
   const roomId = room.id.toLowerCase();

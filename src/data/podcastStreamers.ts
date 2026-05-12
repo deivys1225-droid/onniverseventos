@@ -45,6 +45,42 @@ export const podcastStreamers: StreamerProfile[] = [
     featuredGames: ["Ajedrez Blitz VR", "TCG Arena Podcast", "Drop Zone Battle"],
   },
   {
+    id: "luisito-comunica-er",
+    name: "Luisito Comunica ER",
+    avatar: "/luisito-comunica-er-avatar.png",
+    immersiveSalaName: "ER",
+    panoramaImage:
+      "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?auto=format&fit=crop&w=4096&q=85",
+    status: "live",
+    streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["luisito-comunica-er"],
+    fallbackVideoId: "ScMzIvxBSi4",
+    loungeTitle: "Aventuras en vivo",
+    loungeDescription:
+      "Historias, viajes y comunidad conectada en una experiencia inmersiva.",
+    ticketGrada: 0,
+    ticketVip: 0,
+    featuredGames: ["Travel Quest VR", "Fan Zone", "Meet & Greet"],
+  },
+  {
+    id: "gopro-gpy",
+    name: "GoPro GP",
+    avatar: "/gopro-gpy-avatar.png",
+    immersiveSalaName: "GoPro 360",
+    panoramaImage:
+      "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=4096&q=85",
+    status: "live",
+    streamType: "platform",
+    salaVideoUrl: SALA_MP4_URL_BY_ID["gopro-gpy"],
+    fallbackVideoId: "ScMzIvxBSi4",
+    loungeTitle: "Action Cam Lounge",
+    loungeDescription:
+      "Recorridos 360, aventura y contenido inmersivo en primera persona.",
+    ticketGrada: 0,
+    ticketVip: 0,
+    featuredGames: ["Action Tour VR", "Fan Zone", "Creator Chat"],
+  },
+  {
     id: "axon-king",
     name: "Silvestre Dangond",
     avatar: "/silvestre-dangon-avatar.png",
@@ -289,24 +325,6 @@ export const podcastStreamers: StreamerProfile[] = [
     featuredGames: ["Hits VR", "Fan Zone", "After Party"],
   },
   {
-    id: "luisito-comunica-er",
-    name: "Luisito Comunica ER",
-    avatar: "/luisito-comunica-er-avatar.png",
-    immersiveSalaName: "ER",
-    panoramaImage:
-      "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?auto=format&fit=crop&w=4096&q=85",
-    status: "live",
-    streamType: "platform",
-    salaVideoUrl: SALA_MP4_URL_BY_ID["luisito-comunica-er"],
-    fallbackVideoId: "ScMzIvxBSi4",
-    loungeTitle: "Aventuras en vivo",
-    loungeDescription:
-      "Historias, viajes y comunidad conectada en una experiencia inmersiva.",
-    ticketGrada: 4.99,
-    ticketVip: 13.99,
-    featuredGames: ["Travel Quest VR", "Fan Zone", "Meet & Greet"],
-  },
-  {
     id: "vr-360",
     name: "VR 360",
     avatar: "/canserbero-360.jpg",
@@ -323,24 +341,6 @@ export const podcastStreamers: StreamerProfile[] = [
     ticketGrada: 3.99,
     ticketVip: 10.99,
     featuredGames: ["Tour 360", "Fan Zone", "Explora VR"],
-  },
-  {
-    id: "gopro-gpy",
-    name: "GoPro GP",
-    avatar: "/gopro-gpy-avatar.png",
-    immersiveSalaName: "GoPro 360",
-    panoramaImage:
-      "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=4096&q=85",
-    status: "live",
-    streamType: "platform",
-    salaVideoUrl: SALA_MP4_URL_BY_ID["gopro-gpy"],
-    fallbackVideoId: "ScMzIvxBSi4",
-    loungeTitle: "Action Cam Lounge",
-    loungeDescription:
-      "Recorridos 360, aventura y contenido inmersivo en primera persona.",
-    ticketGrada: 4.49,
-    ticketVip: 12.49,
-    featuredGames: ["Action Tour VR", "Fan Zone", "Creator Chat"],
   },
   {
     id: "red-bull-f1-er",

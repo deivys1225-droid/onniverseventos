@@ -62,6 +62,20 @@ const bibliotecaHeartProduct: Product = {
   actionLabel: "Ver",
 };
 
+const bibliotecaGeochemicalProduct: Product = {
+  title: "Modelo Geoquímico Interactivo (Holograma 3D)",
+  description:
+    "Explora procesos y estructuras geoquímicas en realidad aumentada. Rótalo y estúdialo como un holograma en tu espacio.",
+  detail: "Modelo 3D interactivo",
+  price: "GRATIS",
+  priceUsd: 0,
+  image:
+    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80",
+  actionUrl:
+    "https://res.cloudinary.com/dfsabdxup/image/upload/v1778502215/modelo_geoquimico_lwbh6v.glb",
+  actionLabel: "Ver",
+};
+
 type DynamicStoreProduct = {
   id: string;
   item_type: "biblioteca" | "cursos";
@@ -282,7 +296,7 @@ const TiendaPage = () => {
       if (category.id === "biblioteca") {
         return {
           ...category,
-          products: [bibliotecaHeartProduct, ...bibliotecaDynamic, ...category.products],
+          products: [bibliotecaHeartProduct, bibliotecaGeochemicalProduct, ...bibliotecaDynamic, ...category.products],
         };
       }
       if (category.id === "cursos") {
