@@ -152,10 +152,23 @@ function WallSceneGlb({
   url,
   position,
   rotation,
+  scaleMultiplier = 1,
 }: {
   url: string;
   position: [number, number, number];
   rotation: [number, number, number];
+  /**
+   * Multiplicador uniforme aplicado DESPUÉS del fit-to-WALL_SCREEN_WIDTH
+   * interno. Default 1 (tamaño completo, como se ve en la pared).
+   *
+   * Cuando movemos el GLB al centro de la sala usamos `0.5` para que no
+   * solape visualmente con las pantallas de las paredes (Y=4, tamaño 8x4.5):
+   * el modelo a tamaño completo ocupaba de Y=-1.75 a Y=6.25 y quedaba justo
+   * en la línea de vista del jugador (Y=3.045) hacia las pantallas. A
+   * la mitad ocupa de Y=0.25 a Y=4.25 y deja la vista de las pantallas
+   * más despejada.
+   */
+  scaleMultiplier?: number;
 }) {
   const spinRef = useRef<THREE.Group>(null);
 
@@ -166,7 +179,7 @@ function WallSceneGlb({
 
   return (
     <group position={position} rotation={rotation}>
-      <group ref={spinRef}>
+      <group ref={spinRef} scale={scaleMultiplier}>
         <Suspense fallback={null}>
           <WallSceneGlbModel
             key={url}
@@ -331,6 +344,8 @@ function HoloScreen({
   height = 4.5,
   frameColor = "#00ffff",
   hideHtml = false,
+  onVideoElementChange,
+  pantalla1VideoElement,
 }: {
   position: [number, number, number];
   rotation: [number, number, number];
@@ -344,16 +359,36 @@ function HoloScreen({
   height?: number;
   frameColor?: string;
   /**
-   * Si es true, omitimos los `<Html transform>` (iframe + caption).
-   * Activado en modo VR estéreo: drei `<Html>` se posiciona vía CSS3D con
-   * UNA sola cámara, así que en stereo aparecería centrado entre ambos
-   * ojos en vez de duplicado. Ocultarlo deja el marco 3D (mesh) limpio en
-   * ambos ojos. Para que el contenido sí aparezca en VR habría que
-   * convertir el iframe a un mesh con `VideoTexture`, lo cual sólo es
-   * viable para fuentes MP4 directas (no para iframes cross-origin como
-   * YouTube/Vimeo debido a CORS).
+   * Si es true, ocultamos los `<Html transform>` con el contenido DOM
+   * (iframe / LobbyScreenOneHub / caption). Activado en modo VR estéreo:
+   * drei `<Html>` se posiciona vía CSS3D con UNA sola cámara, así que en
+   * stereo aparecería centrado entre ambos ojos en vez de duplicado.
+   *
+   * Estrategia de "ocultar":
+   *  - Para `label !== 1` (iframes externos como YouTube): unmount total
+   *    con `{!hideHtml && <Html>}`. Limpio.
+   *  - Para `label === 1` (LobbyScreenOneHub con `<video>` MP4 local):
+   *    el `<Html>` se mantiene MONTADO siempre con `visibility: hidden`
+   *    si hideHtml. Esto evita desmontar el `<video>` y que se pierda la
+   *    reproducción. El mismo elemento `<video>` se proyecta entonces en
+   *    un plano 3D (Pantalla1VideoMesh) vía VideoTexture, que SÍ se
+   *    renderea estéreo automáticamente.
    */
   hideHtml?: boolean;
+  /**
+   * Solo se usa para label === 1: callback que recibe el `<video>`
+   * interno de LobbyScreenOneHub cuando se monta o cambia, para que
+   * NeonRoom pueda exponerlo a Pantalla1VideoMesh.
+   */
+  onVideoElementChange?: (videoElement: HTMLVideoElement | null) => void;
+  /**
+   * Solo se usa para label === 1: el `<video>` element actualmente
+   * activo (provisto por NeonRoom desde el callback de arriba). Cuando
+   * `hideHtml` + este `<video>` están presentes, montamos
+   * Pantalla1VideoMesh para que el contenido del video aparezca en
+   * ambos ojos del stereo rendering.
+   */
+  pantalla1VideoElement?: HTMLVideoElement | null;
 }) {
   const w = width;
   const h = height;
@@ -363,79 +398,112 @@ function HoloScreen({
   const htmlZIndexRange = uiOverlayOpen ? LOBBY_SCREEN_BACKGROUND_Z_INDEX : LOBBY_SCREEN_HTML_Z_INDEX;
   const screenPointerEvents = uiOverlayOpen ? "none" : !interactionMode || focused ? "auto" : "none";
 
+  // Pantalla 1 (LobbyScreenOneHub) requiere keep-alive: si la desmontamos
+  // en VR, perdemos la reproducción del `<video>`. Para los demás labels,
+  // unmount completo en hideHtml es lo correcto (limpia recursos del iframe).
+  const isPantalla1 = label === 1;
+  const renderContentHtml = isPantalla1 || !hideHtml;
+  const renderCaptionHtml = !hideHtml; // El caption no necesita keep-alive.
+
+  // CSS para "ocultar pero mantener montado" en VR: visibility hidden no
+  // tira el video element, opacity 0 evita parpadeos si el browser hace
+  // alguna optimización con visibility.
+  const hiddenStyle = hideHtml
+    ? { visibility: "hidden" as const, opacity: 0, pointerEvents: "none" as const }
+    : null;
+
   return (
     <group position={position} rotation={rotation}>
-      {!hideHtml && (
-        <>
-          <Html
-            transform
-            position={[0, 0, 0.05]}
-            scale={htmlScale}
-            zIndexRange={htmlZIndexRange}
-            style={{ pointerEvents: screenPointerEvents }}
+      {renderContentHtml && (
+        <Html
+          transform
+          position={[0, 0, 0.05]}
+          scale={htmlScale}
+          zIndexRange={htmlZIndexRange}
+          style={
+            hiddenStyle ?? { pointerEvents: screenPointerEvents }
+          }
+        >
+          <div
+            onPointerDownCapture={(event) => {
+              event.stopPropagation();
+              onFocus();
+            }}
+            style={{
+              width: `${embedWidth}px`,
+              background: "#02030a",
+              pointerEvents: screenPointerEvents,
+            }}
           >
-            <div
-              onPointerDownCapture={(event) => {
-                event.stopPropagation();
-                onFocus();
-              }}
-              style={{
-                width: `${embedWidth}px`,
-                background: "#02030a",
-                pointerEvents: screenPointerEvents,
-              }}
-            >
-                {label === 1 ? (
-                  <LobbyScreenOneHub width={embedWidth} height={embedHeight} />
-                ) : (
-                  <iframe
-                    key={embedUrl}
-                    src={embedUrl}
-                    width={embedWidth}
-                    height={embedHeight}
-                    title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                    sandbox={
-                      label === 2
-                        ? "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                        : undefined
-                    }
-                    style={{
-                      border: "0",
-                      display: "block",
-                      width: `${embedWidth}px`,
-                      height: `${embedHeight}px`,
-                      background: "#02030a",
-                      pointerEvents: screenPointerEvents,
-                    }}
-                  />
-                )}
-              </div>
-            </Html>
-          <Html
-            transform
-            position={[0, -((h / 2 + 0.35) * 1.1), 0.05]}
-            scale={htmlScale * 1.575}
-            zIndexRange={htmlZIndexRange}
-            style={{ pointerEvents: "none" }}
+            {isPantalla1 ? (
+              <LobbyScreenOneHub
+                width={embedWidth}
+                height={embedHeight}
+                onVideoElementChange={onVideoElementChange}
+              />
+            ) : (
+              <iframe
+                key={embedUrl}
+                src={embedUrl}
+                width={embedWidth}
+                height={embedHeight}
+                title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                sandbox={
+                  label === 2
+                    ? "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                    : undefined
+                }
+                style={{
+                  border: "0",
+                  display: "block",
+                  width: `${embedWidth}px`,
+                  height: `${embedHeight}px`,
+                  background: "#02030a",
+                  pointerEvents: screenPointerEvents,
+                }}
+              />
+            )}
+          </div>
+        </Html>
+      )}
+      {renderCaptionHtml && (
+        <Html
+          transform
+          position={[0, -((h / 2 + 0.35) * 1.1), 0.05]}
+          scale={htmlScale * 1.575}
+          zIndexRange={htmlZIndexRange}
+          style={{ pointerEvents: "none" }}
+        >
+          <div
+            style={{
+              color: "#020617",
+              fontSize: "86px",
+              fontWeight: 900,
+              lineHeight: 1,
+              textAlign: "center",
+              letterSpacing: "0.02em",
+              textShadow: "0 0 18px rgba(255,255,255,0.65), 0 2px 10px rgba(15,23,42,0.35)",
+              WebkitTextStroke: "2px rgba(255,255,255,0.75)",
+            }}
           >
-            <div
-              style={{
-                color: "#020617",
-                fontSize: "86px",
-                fontWeight: 900,
-                lineHeight: 1,
-                textAlign: "center",
-                letterSpacing: "0.02em",
-                textShadow: "0 0 18px rgba(255,255,255,0.65), 0 2px 10px rgba(15,23,42,0.35)",
-                WebkitTextStroke: "2px rgba(255,255,255,0.75)",
-              }}
-            >
-              {lobbyWallScreenCaption(label)}
-            </div>
-          </Html>
-        </>
+            {lobbyWallScreenCaption(label)}
+          </div>
+        </Html>
+      )}
+      {/*
+        Modo VR: si Pantalla 1 está reproduciendo un `<video>` MP4 local,
+        lo proyectamos en este plano 3D vía VideoTexture. El mesh sí se
+        renderea estéreo (StereoEffect lo dibuja con cameraL y cameraR),
+        así que el video aparece duplicado correctamente en ambos ojos.
+      */}
+      {hideHtml && isPantalla1 && pantalla1VideoElement && (
+        <Pantalla1VideoMesh
+          videoElement={pantalla1VideoElement}
+          width={w * 0.95}
+          height={h * 0.95}
+        />
       )}
       {/* Dark holographic panel so stars/content read on light walls */}
       <mesh position={[0, 0, -0.01]}>
@@ -458,6 +526,61 @@ function HoloScreen({
   );
 }
 
+/**
+ * Plano 3D que reproduce el `<video>` HTML de LobbyScreenOneHub como una
+ * textura WebGL, para que aparezca correctamente en ambos ojos del modo VR
+ * estéreo (StereoEffect renderea cada mesh con cameraL y cameraR
+ * automáticamente; VideoTexture lee del elemento `<video>` cada frame).
+ *
+ * Por qué este componente y no `<Html>`:
+ * - drei `<Html transform>` posiciona el DOM via CSS3D usando UNA sola
+ *   cámara, así que en stereoscopic rendering aparece centrado entre los
+ *   ojos en vez de duplicado.
+ * - Un mesh 3D con `<meshBasicMaterial map={videoTexture} />` lo
+ *   gestiona el pipeline WebGL y se beneficia de las dos rendering passes
+ *   de StereoEffect sin código extra.
+ *
+ * Limitaciones:
+ * - El `<video>` debe estar reproduciendo (o pausado con frame válido)
+ *   para que VideoTexture tenga píxeles. Si está parado en metadata-only,
+ *   se ve negro.
+ * - El audio sigue saliendo por el `<video>` HTML original (no por la
+ *   textura). Eso es correcto: VideoTexture solo captura el frame visual.
+ */
+function Pantalla1VideoMesh({
+  videoElement,
+  width,
+  height,
+}: {
+  videoElement: HTMLVideoElement;
+  width: number;
+  height: number;
+}) {
+  const texture = useMemo(() => {
+    const tex = new THREE.VideoTexture(videoElement);
+    // SRGB para que los colores del video se vean correctos vs el espacio
+    // lineal interno del renderer.
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    return tex;
+  }, [videoElement]);
+
+  useEffect(() => {
+    return () => {
+      // Libera la textura GPU cuando este mesh se desmonta o cambia de video.
+      texture.dispose();
+    };
+  }, [texture]);
+
+  return (
+    <mesh position={[0, 0, 0.04]}>
+      <planeGeometry args={[width, height]} />
+      <meshBasicMaterial map={texture} toneMapped={false} />
+    </mesh>
+  );
+}
+
 // ---------- 4 holographic screens, one centered on each wall ----------
 function HoloScreens({
   focusedScreen,
@@ -465,18 +588,30 @@ function HoloScreens({
   screenUrls,
   screenLinksOpen,
   vrMode = false,
+  onPantalla1VideoElementChange,
+  pantalla1VideoElement,
 }: {
   focusedScreen: number | null;
   onFocusScreen: (label: number) => void;
   screenUrls: LobbyScreenUrls;
   screenLinksOpen: boolean;
   /**
-   * Cuando es true, los `<Html>` con iframe + caption se omiten porque
-   * drei `<Html transform>` no se duplica en stereoscopic rendering
-   * (es DOM posicionado por CSS3D usando una sola cámara). Los meshes
-   * 3D (marco, fondo oscuro, bordes neon) sí se renderean en ambos ojos.
+   * En modo VR estéreo:
+   *  - Las pantallas con iframe (labels 2, 3, 4-url, central) se desmontan
+   *    (drei `<Html transform>` no se duplica en stereoscopic rendering).
+   *  - La pantalla 1 (LobbyScreenOneHub) se mantiene MONTADA invisible
+   *    para no perder la reproducción del `<video>` MP4, y su frame se
+   *    proyecta vía VideoTexture en un mesh 3D que SÍ aparece en ambos ojos.
    */
   vrMode?: boolean;
+  /**
+   * Callback que recibe el `<video>` element interno de LobbyScreenOneHub.
+   * NeonRoom lo guarda en estado para que el mesh Pantalla1VideoMesh
+   * pueda usarlo como fuente de VideoTexture en modo VR.
+   */
+  onPantalla1VideoElementChange?: (videoElement: HTMLVideoElement | null) => void;
+  /** El `<video>` element actualmente activo (provisto por NeonRoom). */
+  pantalla1VideoElement?: HTMLVideoElement | null;
 }) {
   const half = ROOM_SIZE / 2;
   const y = WALL_HEIGHT / 2;
@@ -496,9 +631,11 @@ function HoloScreens({
 
   return (
     <>
-      {/* Back wall (-Z) */}
+      {/* Back wall (-Z) — Pantalla 1: única con keep-alive + VideoTexture en VR. */}
       <HoloScreen
         {...screenProps(1, screenUrls[0], [0, y, -half + off], [0, 0, 0])}
+        onVideoElementChange={onPantalla1VideoElementChange}
+        pantalla1VideoElement={pantalla1VideoElement}
       />
       {/* Front wall (+Z) */}
       <HoloScreen
@@ -508,12 +645,22 @@ function HoloScreens({
       <HoloScreen
         {...screenProps(3, screenUrls[2], [-half + off, y, 0], [0, Math.PI / 2, 0])}
       />
-      {/* Right wall (+X) */}
+      {/*
+        Right wall (+X) — SWAP por pedido del usuario:
+        - Si Pantalla 4 es un GLB (caso default: corazon.glb) → el GLB se
+          mueve al CENTRO elevado [0, 2.25, 0]. La pared derecha queda
+          ocupada por el iframe "Nuestras Salas" (ForcedFloatingVideoScreen
+          posicionado desde NeonRoom).
+        - Si Pantalla 4 es URL iframe (usuario cambió la URL) → no hay
+          swap, vuelve al layout original (HoloScreen normal en pared
+          derecha, iframe "Nuestras Salas" en el centro).
+      */}
       {isGlbSource(screenUrls[3]) ? (
         <WallSceneGlb
           url={screenUrls[3]}
-          position={[half - off, y, 0]}
-          rotation={[0, -Math.PI / 2, 0]}
+          position={[0, 2.25, 0]}
+          rotation={[0, 0, 0]}
+          scaleMultiplier={0.5}
         />
       ) : (
         <HoloScreen
@@ -527,9 +674,19 @@ function HoloScreens({
 function ForcedFloatingVideoScreen({
   screenLinksOpen,
   vrMode = false,
+  position = [0, 2.25, 0],
+  rotation = [0, 0, 0],
 }: {
   screenLinksOpen: boolean;
   vrMode?: boolean;
+  /**
+   * Posición del iframe "Nuestras Salas" en la sala. Por defecto centro
+   * elevado. Cuando Pantalla 4 es un GLB hacemos swap: NeonRoom le pasa la
+   * posición de la pared derecha y el GLB se mueve al centro (ver
+   * HoloScreens).
+   */
+  position?: [number, number, number];
+  rotation?: [number, number, number];
 }) {
   const htmlZIndexRange = screenLinksOpen ? LOBBY_SCREEN_BACKGROUND_Z_INDEX : LOBBY_SCREEN_HTML_Z_INDEX;
 
@@ -540,7 +697,7 @@ function ForcedFloatingVideoScreen({
   if (vrMode) return null;
 
   return (
-    <group position={[0, 2.25, 0]}>
+    <group position={position} rotation={rotation}>
       <Html transform position={[0, 0, 0]} scale={0.5} zIndexRange={htmlZIndexRange}>
         <iframe
           src={CENTER_SCREEN_EMBED_URL}
@@ -975,6 +1132,13 @@ export default function NeonRoom() {
   // HUD se ocultan para no aparecer duplicados en ambos ojos.
   const [vrMode, setVrMode] = useState(false);
   const [vrError, setVrError] = useState<string | null>(null);
+  // Ref vivo al `<video>` de LobbyScreenOneHub: cuando vrMode + video
+  // playing → Pantalla1VideoMesh lo usa como fuente de VideoTexture en
+  // un plano 3D que sí se renderea estéreo. Para iframes externos
+  // (YouTube/Vimeo) no se puede hacer lo mismo: CORS bloquea capturar
+  // su contenido a un canvas.
+  const [pantalla1VideoElement, setPantalla1VideoElement] =
+    useState<HTMLVideoElement | null>(null);
   const [screenUrlDrafts, setScreenUrlDrafts] = useState<LobbyScreenUrls>(
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
@@ -1366,8 +1530,31 @@ export default function NeonRoom() {
             screenUrls={screenUrls}
             screenLinksOpen={screenLinksOpen}
             vrMode={vrMode}
+            onPantalla1VideoElementChange={setPantalla1VideoElement}
+            pantalla1VideoElement={pantalla1VideoElement}
           />
-          <ForcedFloatingVideoScreen screenLinksOpen={screenLinksOpen} vrMode={vrMode} />
+          {/*
+            Swap del iframe central según Pantalla 4:
+            - Si Pantalla 4 es GLB → el iframe "Nuestras Salas" pasa a la
+              pared derecha [ROOM_SIZE/2 - 0.03, WALL_HEIGHT/2, 0] con
+              rotación [0, -PI/2, 0] para mirar al centro.
+            - Si Pantalla 4 es URL iframe (usuario lo cambió) → el iframe
+              vuelve al centro elevado [0, 2.25, 0] (defaults del componente).
+            Cada uno mantiene su escala (scale=0.5 del Html del iframe,
+            WALL_SCREEN_WIDTH del GLB normalizado).
+          */}
+          <ForcedFloatingVideoScreen
+            screenLinksOpen={screenLinksOpen}
+            vrMode={vrMode}
+            position={
+              isGlbSource(screenUrls[3])
+                ? [ROOM_SIZE / 2 - 0.03, WALL_HEIGHT / 2, 0]
+                : [0, 2.25, 0]
+            }
+            rotation={
+              isGlbSource(screenUrls[3]) ? [0, -Math.PI / 2, 0] : [0, 0, 0]
+            }
+          />
           <NeonAccents />
           <LoungeSet />
           <LoungeSpotlight />
