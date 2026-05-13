@@ -32,6 +32,8 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+                <!-- Google VR (Cardboard): expone la app como compatible con Cardboard. -->
+                <category android:name="com.google.intent.category.CARDBOARD" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

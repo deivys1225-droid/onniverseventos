@@ -26,3 +26,7 @@ project(":capacitor-cordova-android-plugins").projectDir =
 include(":capacitor-android")
 project(":capacitor-android").projectDir =
     file("../node_modules/@capacitor/android/capacitor")
+
+include(":capacitor-app")
+project(":capacitor-app").projectDir =
+    file("../node_modules/@capacitor/app/android")

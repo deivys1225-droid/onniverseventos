@@ -42,6 +42,8 @@ dependencies {
     implementation "androidx.documentfile:documentfile:1.0.1"
     implementation "com.google.android.material:material:1.12.0"
     implementation "com.github.pedroSG94.rtmp-rtsp-stream-client-java:rtplibrary:2.4.4"
+    // Google VR SDK (Cardboard) — habilita modo VR estéreo en el WebView/Three.js.
+    implementation 'com.google.vr:sdk-base:1.190.0'
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
@@ -60,7 +62,8 @@ try {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
 
-// Copia siempre capacitor.config.json de la raíz del repo web → assets (así Android Studio sin "npx cap copy" sigue teniendo server.url).
+// Copia siempre capacitor.config.json de la raíz del repo (webDir="dist") a assets/, así
+// Android Studio sin "npx cap copy" mantiene androidScheme y allowNavigation sincronizados.
 def rootCapacitorConfig = file("${rootProject.projectDir}/../capacitor.config.json")
 def assetsCapacitorConfig = file("${projectDir}/src/main/assets/capacitor.config.json")
 

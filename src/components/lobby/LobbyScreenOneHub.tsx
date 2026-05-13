@@ -273,19 +273,6 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
-  /**
-   * Fallback en Android / WebView donde `window.showDirectoryPicker` no existe.
-   * `webkitdirectory` se aplica vía ref porque no es atributo HTML estándar en JSX.
-   * Si el sistema operativo no expone selector de carpetas (algunos Android antiguos),
-   * el mismo input cae a multiselección de archivos — útil de todos modos.
-   */
-  const folderInputRef = useRef<HTMLInputElement | null>(null);
-  const filesInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    folderInputRef.current?.setAttribute("webkitdirectory", "");
-    folderInputRef.current?.setAttribute("directory", "");
-  }, []);
 
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   const [order, setOrder] = useState<number[]>([]);
@@ -339,7 +326,7 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
         // Lectura lazy desde el bridge SAF: solo cargamos en memoria el track que vamos a tocar.
         const bridge = window.AndroidMusic;
         if (!bridge) {
-          setStatus("Bridge nativo no disponible. Toca 'Carpeta' otra vez.");
+          setStatus("Bridge nativo no disponible. Toca Play otra vez.");
           return;
         }
         const b64 = bridge.readMusicFileBase64(item.idx);
@@ -531,45 +518,62 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
   useEffect(() => () => revokeObjectUrl(), [revokeObjectUrl]);
 
   /**
-   * Arma la playlist a partir del `FileList` que devuelve un `<input type=file multiple>`
-   * (con o sin `webkitdirectory`). Llamado tanto desde "Elegir carpeta" como "Elegir archivos".
+   * Selector de carpeta para Android Capacitor (bridge nativo SAF).
+   * Define el callback global ANTES de invocar el bridge — el resultado vuelve por
+   * {@code window[ANDROID_MUSIC_CALLBACK]} (ver MainActivity.dispatchMusicResult).
+   *
+   * Declarado ANTES de {@link onPlay} porque éste lo referencia en sus deps de
+   * useCallback: las `const` están en TDZ hasta su línea de declaración, y si
+   * onPlay se evalúa primero se rompe todo el componente con ReferenceError.
    */
-  const buildPlaylistFromFiles = useCallback(
-    async (files: FileList | null) => {
-      if (!files || files.length === 0) {
+  const pickFolderViaAndroidBridge = useCallback(() => {
+    const bridge = window.AndroidMusic;
+    if (!bridge) return false;
+    setStatus("Pidiendo permiso y abriendo selector de carpeta…");
+    window[ANDROID_MUSIC_CALLBACK] = async (items, error) => {
+      window[ANDROID_MUSIC_CALLBACK] = undefined;
+      if (error === "cancelled") {
         setStatus("");
-        return false;
+        return;
       }
-      const items: PlaylistItem[] = [];
-      for (const f of Array.from(files)) {
-        if (!MEDIA_EXT.test(f.name)) continue;
-        const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
-        items.push({ kind: "blob", name: rel?.trim() || f.name, file: f });
+      if (error || !items || items.length === 0) {
+        setStatus(
+          error === "no-tree" || error === "no-picker"
+            ? "Tu Android no abrió el selector. Toca Play de nuevo."
+            : "Sin archivos MP3/MP4 en la carpeta elegida.",
+        );
+        return;
       }
-      if (!items.length) {
-        setStatus("Sin archivos MP3/MP4 en la selección.");
-        return false;
-      }
-      items.sort((a, b) => a.name.localeCompare(b.name));
-      const shuffled = shuffleOrder(items.length);
-      setPlaylist(items);
+      const playlistItems: PlaylistItem[] = items
+        .map<PlaylistItem>((it) => ({
+          kind: "android" as const,
+          name: it.name,
+          idx: it.idx,
+          mime: it.mime,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      const shuffled = shuffleOrder(playlistItems.length);
+      setPlaylist(playlistItems);
       setOrder(shuffled);
       setOrderPos(0);
       setStatus("");
-      await playItem(items[shuffled[0]]);
+      try {
+        await playItem(playlistItems[shuffled[0]]);
+      } catch (e) {
+        setStatus("Error al iniciar reproducción.");
+        console.warn("AndroidMusic playItem failed", e);
+      }
+    };
+    try {
+      bridge.pickMusicFolder(ANDROID_MUSIC_CALLBACK);
       return true;
-    },
-    [playItem],
-  );
-
-  const onFolderInputChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      e.target.value = ""; // permite re-elegir la misma carpeta y disparar change otra vez
-      await buildPlaylistFromFiles(files);
-    },
-    [buildPlaylistFromFiles],
-  );
+    } catch (e) {
+      window[ANDROID_MUSIC_CALLBACK] = undefined;
+      console.warn("AndroidMusic.pickMusicFolder threw", e);
+      setStatus("Bridge nativo no respondió. Toca Play otra vez.");
+      return false;
+    }
+  }, [playItem]);
 
   const onPlay = useCallback(async () => {
     setStatus("");
@@ -612,78 +616,9 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
         return;
       }
     }
-    // Móvil / web sin bridge: <input webkitdirectory> intenta el selector nativo.
-    if (folderInputRef.current) {
-      folderInputRef.current.click();
-      return;
-    }
-    setStatus("Toca 'Carpeta' para elegir archivos MP3/MP4 del dispositivo.");
+    // Sin bridge ni picker disponibles (navegador móvil web): orientación al usuario.
+    setStatus("Toca Play en un navegador compatible para elegir música del dispositivo.");
   }, [playlist, order, orderPos, playItem, bootstrapFromDirectory, pickFolderViaAndroidBridge]);
-
-  /**
-   * Selector de carpeta para Android Capacitor (bridge nativo SAF).
-   * Define el callback global ANTES de invocar el bridge — el resultado vuelve por
-   * {@code window[ANDROID_MUSIC_CALLBACK]} (ver MainActivity.dispatchMusicResult).
-   */
-  const pickFolderViaAndroidBridge = useCallback(() => {
-    const bridge = window.AndroidMusic;
-    if (!bridge) return false;
-    setStatus("Pidiendo permiso y abriendo selector de carpeta…");
-    window[ANDROID_MUSIC_CALLBACK] = async (items, error) => {
-      window[ANDROID_MUSIC_CALLBACK] = undefined;
-      if (error === "cancelled") {
-        setStatus("");
-        return;
-      }
-      if (error || !items || items.length === 0) {
-        setStatus(
-          error === "no-tree" || error === "no-picker"
-            ? "Tu Android no abrió el selector. Toca 'Archivos' como alternativa."
-            : "Sin archivos MP3/MP4 en la carpeta elegida.",
-        );
-        return;
-      }
-      const playlistItems: PlaylistItem[] = items
-        .map<PlaylistItem>((it) => ({
-          kind: "android" as const,
-          name: it.name,
-          idx: it.idx,
-          mime: it.mime,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-      const shuffled = shuffleOrder(playlistItems.length);
-      setPlaylist(playlistItems);
-      setOrder(shuffled);
-      setOrderPos(0);
-      setStatus("");
-      try {
-        await playItem(playlistItems[shuffled[0]]);
-      } catch (e) {
-        setStatus("Error al iniciar reproducción.");
-        console.warn("AndroidMusic playItem failed", e);
-      }
-    };
-    try {
-      bridge.pickMusicFolder(ANDROID_MUSIC_CALLBACK);
-      return true;
-    } catch (e) {
-      window[ANDROID_MUSIC_CALLBACK] = undefined;
-      console.warn("AndroidMusic.pickMusicFolder threw", e);
-      setStatus("Bridge nativo no respondió. Usa 'Archivos' como alternativa.");
-      return false;
-    }
-  }, [playItem]);
-
-  const onPickFolder = useCallback(() => {
-    setStatus("");
-    if (hasAndroidMusicBridge() && pickFolderViaAndroidBridge()) return;
-    folderInputRef.current?.click();
-  }, [pickFolderViaAndroidBridge]);
-
-  const onPickFiles = useCallback(() => {
-    setStatus("");
-    filesInputRef.current?.click();
-  }, []);
 
   const onPause = useCallback(() => {
     audioRef.current?.pause();
@@ -743,28 +678,6 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
       }}
     >
       <audio ref={audioRef} preload="none" style={{ display: "none" }} />
-      {/*
-        Selector móvil/Android. webkitdirectory se aplica vía ref (no es prop estándar JSX).
-        Si el SO no soporta selector de carpetas, el input recurre a multi-selección de archivos.
-      */}
-      <input
-        ref={folderInputRef}
-        type="file"
-        multiple
-        accept=".mp3,.m4a,.ogg,.wav,.aac,.flac,.mp4,audio/*,video/mp4"
-        onChange={onFolderInputChange}
-        style={{ display: "none" }}
-        aria-hidden
-      />
-      <input
-        ref={filesInputRef}
-        type="file"
-        multiple
-        accept=".mp3,.m4a,.ogg,.wav,.aac,.flac,.mp4,audio/*,video/mp4"
-        onChange={onFolderInputChange}
-        style={{ display: "none" }}
-        aria-hidden
-      />
 
       <div
         style={{
@@ -840,24 +753,6 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
           </button>
           <button type="button" style={btnStyle} onClick={() => void onNext()}>
             Siguiente
-          </button>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <button
-            type="button"
-            style={{ ...btnStyle, fontSize: "14px", padding: "8px 6px" }}
-            onClick={onPickFolder}
-            title="Elegir carpeta del dispositivo (MP3/MP4)"
-          >
-            Carpeta
-          </button>
-          <button
-            type="button"
-            style={{ ...btnStyle, fontSize: "14px", padding: "8px 6px" }}
-            onClick={onPickFiles}
-            title="Elegir archivos del dispositivo (MP3/MP4)"
-          >
-            Archivos
           </button>
         </div>
         {status ? <div style={{ fontSize: "10px", color: "#fca5a5", textAlign: "center" }}>{status}</div> : null}
