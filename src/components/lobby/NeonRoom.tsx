@@ -14,7 +14,6 @@ import MobileLobbyMovePad, {
   type MobileMoveInput,
 } from "@/components/lobby/MobileLobbyMovePad";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
-import { SBS_MIRROR_EVENT } from "@/main";
 
 const ROOM_SIZE = 20;
 const WALL_HEIGHT = 8;
@@ -972,27 +971,6 @@ export default function NeonRoom() {
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
   const [screenLinksOpen, setScreenLinksOpen] = useState(false);
-  // MODO 2D ESPEJO: usa el MirrorSbsRoot que vive en src/main.tsx (raíz del
-  // árbol). El botón "2D" del lobby simplemente despacha el evento global
-  // `SBS_MIRROR_EVENT` y el MirrorSbsRoot enciende html2canvas + dos
-  // <canvas> ojo izquierdo / ojo derecho que muestran exactamente la misma
-  // imagen capturada del DOM. Es la misma técnica probada que ya funcionaba
-  // con el video de Bele.
-  const [mirror2D, setMirror2D] = useState(false);
-  const toggleMirror2D = useCallback(() => {
-    setMirror2D((prev) => {
-      const next = !prev;
-      window.dispatchEvent(new CustomEvent(SBS_MIRROR_EVENT, { detail: next }));
-      return next;
-    });
-  }, []);
-  // Si el usuario sale del lobby con el SBS activo, lo apagamos para no
-  // dejar el MirrorSbsRoot consumiendo CPU con html2canvas en otra ruta.
-  useEffect(() => {
-    return () => {
-      window.dispatchEvent(new CustomEvent(SBS_MIRROR_EVENT, { detail: false }));
-    };
-  }, []);
   const [screenUrlDrafts, setScreenUrlDrafts] = useState<LobbyScreenUrls>(
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
@@ -1435,36 +1413,6 @@ export default function NeonRoom() {
       {locked && focusedScreen === null && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference" />
       )}
-
-      {/*
-        Botón "2D" — toggle del MirrorSbsRoot global (src/main.tsx).
-        Al activarse, MirrorSbsRoot captura el DOM con html2canvas a 24 fps
-        y dibuja la imagen capturada en dos <canvas> ojo izquierdo / ojo
-        derecho. Es la misma técnica que ya estaba funcionando con el video
-        de Bele; el botón solo dispara el evento global SBS_MIRROR_EVENT.
-      */}
-      <button
-        type="button"
-        data-lobby-ui
-        onClick={toggleMirror2D}
-        aria-pressed={mirror2D}
-        aria-label={mirror2D ? "Desactivar modo 2D espejo" : "Activar modo 2D espejo"}
-        className={`pointer-events-auto fixed z-[12001] inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 font-display text-[10px] font-bold tracking-[0.12em] backdrop-blur-md transition ${
-          mirror2D
-            ? "border-amber-300/70 text-amber-100 shadow-[0_0_28px_-4px_rgba(251,191,36,0.95),inset_0_0_18px_-10px_rgba(251,191,36,0.55)] hover:border-amber-200 hover:text-white"
-            : "border-cyan-400/60 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] hover:border-cyan-300 hover:bg-slate-900 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
-        }`}
-        style={{
-          bottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))",
-          right: "calc(max(1rem, env(safe-area-inset-right, 0px)) + 3.5rem)",
-          touchAction: "manipulation",
-          WebkitTapHighlightColor: "rgba(34,211,238,0.5)",
-          userSelect: "none",
-          WebkitUserSelect: "none",
-        }}
-      >
-        2D
-      </button>
     </div>
   );
 }

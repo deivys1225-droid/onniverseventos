@@ -33,35 +33,14 @@ function irAlSelectorNativo() {
 
 window.irAlSelectorNativo = irAlSelectorNativo;
 
-/**
- * Evento global para activar / desactivar el modo SBS-mirror del lobby.
- *
- *   window.dispatchEvent(new CustomEvent("onniverso:set-sbs-mirror", { detail: true }))
- *
- * El MirrorSbsRoot vive en la raíz del árbol (envuelve a <App />), así que
- * cualquier vista (NeonRoom incluido) lo activa con un dispatch sin necesidad
- * de prop drilling ni Context. Lo mismo aplica a salir del modo (`detail: false`).
- *
- * `detail` puede ser `boolean` (set explícito) o `undefined` (toggle).
- */
-export const SBS_MIRROR_EVENT = "onniverso:set-sbs-mirror" as const;
-
 function MirrorSbsRoot() {
-  const [vrMode, setVrMode] = useState(false);
+  // MirrorSbsRoot queda como envoltura inerte (vrMode siempre false).
+  // No hay UI que lo active: el botón "2D" del lobby fue eliminado porque
+  // la captura html2canvas resultaba demasiado lenta y no rendereaba los
+  // iframes/videos del lobby. Si en el futuro se vuelve a necesitar, se
+  // puede reintroducir un toggle externo aquí.
+  const [vrMode] = useState(false);
   const [hasFrame, setHasFrame] = useState(false);
-
-  // Escucha externa: cualquier vista puede activar el SBS-mirror sin importar
-  // dónde esté en el árbol. Esto es lo que hace que el botón "2D" del lobby
-  // pueda encender la captura html2canvas + dos canvases espejo definidos
-  // más abajo.
-  useEffect(() => {
-    const onToggle = (event: Event) => {
-      const detail = (event as CustomEvent<boolean | undefined>).detail;
-      setVrMode((prev) => (typeof detail === "boolean" ? detail : !prev));
-    };
-    window.addEventListener(SBS_MIRROR_EVENT, onToggle);
-    return () => window.removeEventListener(SBS_MIRROR_EVENT, onToggle);
-  }, []);
   const sourceHostRef = useRef<HTMLDivElement | null>(null);
   const masterCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const leftEyeCanvasRef = useRef<HTMLCanvasElement | null>(null);
