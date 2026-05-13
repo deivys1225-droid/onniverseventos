@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -14,7 +14,7 @@ import MobileLobbyMovePad, {
   type MobileMoveInput,
 } from "@/components/lobby/MobileLobbyMovePad";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
-import { Mirror2DRenderer } from "@/components/lobby/Mirror2DRenderer";
+import { SBS_MIRROR_EVENT } from "@/main";
 
 const ROOM_SIZE = 20;
 const WALL_HEIGHT = 8;
@@ -340,7 +340,6 @@ function HoloScreen({
   width = 8,
   height = 4.5,
   frameColor = "#00ffff",
-  mirror2D = false,
 }: {
   position: [number, number, number];
   rotation: [number, number, number];
@@ -353,17 +352,6 @@ function HoloScreen({
   width?: number;
   height?: number;
   frameColor?: string;
-  /**
-   * En modo "2D espejo" duplicamos el contenido del `<Html transform>`
-   * en dos columnas internas con `transform: scaleX(0.5)`. Así cada
-   * mitad del viewport (cortada por el scissor split del WebGL) ve su
-   * propia copia del iframe alineada con el marco cyan duplicado.
-   *
-   * Excepción: la Pantalla 1 (LobbyScreenOneHub) NO se duplica porque
-   * dos instancias chocarían con el `<audio>` y los blob URLs del
-   * reproductor de música; queda solo una copia centrada.
-   */
-  mirror2D?: boolean;
 }) {
   const w = width;
   const h = height;
@@ -374,87 +362,6 @@ function HoloScreen({
   const screenPointerEvents = uiOverlayOpen ? "none" : !interactionMode || focused ? "auto" : "none";
 
   const isPantalla1 = label === 1;
-
-  const renderScreenInner = (instance: number) => isPantalla1 ? (
-    <LobbyScreenOneHub
-      key={`hub-${instance}`}
-      width={embedWidth}
-      height={embedHeight}
-    />
-  ) : (
-    <iframe
-      key={`${embedUrl}-${instance}`}
-      src={embedUrl}
-      width={embedWidth}
-      height={embedHeight}
-      title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-      allowFullScreen
-      sandbox={
-        label === 2
-          ? "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-          : undefined
-      }
-      style={{
-        border: "0",
-        display: "block",
-        width: `${embedWidth}px`,
-        height: `${embedHeight}px`,
-        background: "#02030a",
-        pointerEvents: screenPointerEvents,
-      }}
-    />
-  );
-
-  /**
-   * Doble columna scaleX(0.5) para mirror2D. Cada columna mide
-   * embedWidth/2 px y contiene una instancia "comprimida" al 50%
-   * horizontalmente del contenido original (embedWidth ancho). El
-   * total sigue siendo embedWidth, así el `<Html transform>` no
-   * cambia de tamaño 3D ni la posición del marco cyan en el WebGL.
-   */
-  const renderDoubleColumn = () => (
-    <div style={{ display: "flex", width: `${embedWidth}px`, height: `${embedHeight}px` }}>
-      {[0, 1].map((idx) => (
-        <div
-          key={idx}
-          style={{
-            width: `${embedWidth / 2}px`,
-            height: `${embedHeight}px`,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              width: `${embedWidth}px`,
-              height: `${embedHeight}px`,
-              transform: "scaleX(0.5)",
-              transformOrigin: "top left",
-            }}
-          >
-            {renderScreenInner(idx)}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const captionInner = (
-    <div
-      style={{
-        color: "#020617",
-        fontSize: "86px",
-        fontWeight: 900,
-        lineHeight: 1,
-        textAlign: "center",
-        letterSpacing: "0.02em",
-        textShadow: "0 0 18px rgba(255,255,255,0.65), 0 2px 10px rgba(15,23,42,0.35)",
-        WebkitTextStroke: "2px rgba(255,255,255,0.75)",
-      }}
-    >
-      {lobbyWallScreenCaption(label)}
-    </div>
-  );
 
   return (
     <group position={position} rotation={rotation}>
@@ -476,7 +383,35 @@ function HoloScreen({
             pointerEvents: screenPointerEvents,
           }}
         >
-          {mirror2D && !isPantalla1 ? renderDoubleColumn() : renderScreenInner(0)}
+          {isPantalla1 ? (
+            <LobbyScreenOneHub
+              width={embedWidth}
+              height={embedHeight}
+            />
+          ) : (
+            <iframe
+              key={embedUrl}
+              src={embedUrl}
+              width={embedWidth}
+              height={embedHeight}
+              title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              sandbox={
+                label === 2
+                  ? "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                  : undefined
+              }
+              style={{
+                border: "0",
+                display: "block",
+                width: `${embedWidth}px`,
+                height: `${embedHeight}px`,
+                background: "#02030a",
+                pointerEvents: screenPointerEvents,
+              }}
+            />
+          )}
         </div>
       </Html>
       <Html
@@ -486,28 +421,20 @@ function HoloScreen({
         zIndexRange={htmlZIndexRange}
         style={{ pointerEvents: "none" }}
       >
-        {mirror2D ? (
-          <div style={{ display: "flex", width: `${embedWidth}px` }}>
-            {[0, 1].map((idx) => (
-              <div
-                key={idx}
-                style={{ width: `${embedWidth / 2}px`, overflow: "hidden" }}
-              >
-                <div
-                  style={{
-                    width: `${embedWidth}px`,
-                    transform: "scaleX(0.5)",
-                    transformOrigin: "top left",
-                  }}
-                >
-                  {captionInner}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          captionInner
-        )}
+        <div
+          style={{
+            color: "#020617",
+            fontSize: "86px",
+            fontWeight: 900,
+            lineHeight: 1,
+            textAlign: "center",
+            letterSpacing: "0.02em",
+            textShadow: "0 0 18px rgba(255,255,255,0.65), 0 2px 10px rgba(15,23,42,0.35)",
+            WebkitTextStroke: "2px rgba(255,255,255,0.75)",
+          }}
+        >
+          {lobbyWallScreenCaption(label)}
+        </div>
       </Html>
       {/* Dark holographic panel so stars/content read on light walls */}
       <mesh position={[0, 0, -0.01]}>
@@ -536,13 +463,11 @@ function HoloScreens({
   onFocusScreen,
   screenUrls,
   screenLinksOpen,
-  mirror2D = false,
 }: {
   focusedScreen: number | null;
   onFocusScreen: (label: number) => void;
   screenUrls: LobbyScreenUrls;
   screenLinksOpen: boolean;
-  mirror2D?: boolean;
 }) {
   const half = ROOM_SIZE / 2;
   const y = WALL_HEIGHT / 2;
@@ -556,7 +481,6 @@ function HoloScreens({
     focused: focusedScreen === label,
     interactionMode,
     uiOverlayOpen: screenLinksOpen,
-    mirror2D,
     onFocus: () => onFocusScreen(label),
   });
 
@@ -604,7 +528,6 @@ function ForcedFloatingVideoScreen({
   screenLinksOpen,
   position = [0, 2.25, 0],
   rotation = [0, 0, 0],
-  mirror2D = false,
 }: {
   screenLinksOpen: boolean;
   /**
@@ -615,62 +538,26 @@ function ForcedFloatingVideoScreen({
    */
   position?: [number, number, number];
   rotation?: [number, number, number];
-  /** Igual que en HoloScreen: en 2D espejo doblamos el iframe lado a lado. */
-  mirror2D?: boolean;
 }) {
   const htmlZIndexRange = screenLinksOpen ? LOBBY_SCREEN_BACKGROUND_Z_INDEX : LOBBY_SCREEN_HTML_Z_INDEX;
-  const iframeWidth = 1024;
-  const iframeHeight = 576;
-  const pointerStyle = screenLinksOpen ? "none" : "auto";
-
-  const renderIframe = (instance: number) => (
-    <iframe
-      key={`center-${instance}`}
-      src={CENTER_SCREEN_EMBED_URL}
-      width={iframeWidth}
-      height={iframeHeight}
-      title="Nuestras Salas"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-      allowFullScreen
-      style={{
-        border: "0",
-        display: "block",
-        background: "#02030a",
-        pointerEvents: pointerStyle,
-      }}
-    />
-  );
 
   return (
     <group position={position} rotation={rotation}>
       <Html transform position={[0, 0, 0]} scale={0.5} zIndexRange={htmlZIndexRange}>
-        {mirror2D ? (
-          <div style={{ display: "flex", width: `${iframeWidth}px`, height: `${iframeHeight}px` }}>
-            {[0, 1].map((idx) => (
-              <div
-                key={idx}
-                style={{
-                  width: `${iframeWidth / 2}px`,
-                  height: `${iframeHeight}px`,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    width: `${iframeWidth}px`,
-                    height: `${iframeHeight}px`,
-                    transform: "scaleX(0.5)",
-                    transformOrigin: "top left",
-                  }}
-                >
-                  {renderIframe(idx)}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          renderIframe(0)
-        )}
+        <iframe
+          src={CENTER_SCREEN_EMBED_URL}
+          width={1024}
+          height={576}
+          title="Nuestras Salas"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          style={{
+            border: "0",
+            display: "block",
+            background: "#02030a",
+            pointerEvents: screenLinksOpen ? "none" : "auto",
+          }}
+        />
       </Html>
     </group>
   );
@@ -1085,13 +972,27 @@ export default function NeonRoom() {
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
   const [screenLinksOpen, setScreenLinksOpen] = useState(false);
-  // MODO 2D ESPEJO: cuando es true, Mirror2DRenderer toma el render-loop
-  // de R3F y dibuja la escena duplicada lado a lado (mismas cámaras, mismo
-  // aspect ratio en cada mitad). Los HUD overlays se recortan a la mitad
-  // izquierda con clip-path para que "los controles solo queden de un lado",
-  // como pidió el usuario. El botón "2D" mismo queda fuera del clip para
-  // poder salir del modo.
+  // MODO 2D ESPEJO: usa el MirrorSbsRoot que vive en src/main.tsx (raíz del
+  // árbol). El botón "2D" del lobby simplemente despacha el evento global
+  // `SBS_MIRROR_EVENT` y el MirrorSbsRoot enciende html2canvas + dos
+  // <canvas> ojo izquierdo / ojo derecho que muestran exactamente la misma
+  // imagen capturada del DOM. Es la misma técnica probada que ya funcionaba
+  // con el video de Bele.
   const [mirror2D, setMirror2D] = useState(false);
+  const toggleMirror2D = useCallback(() => {
+    setMirror2D((prev) => {
+      const next = !prev;
+      window.dispatchEvent(new CustomEvent(SBS_MIRROR_EVENT, { detail: next }));
+      return next;
+    });
+  }, []);
+  // Si el usuario sale del lobby con el SBS activo, lo apagamos para no
+  // dejar el MirrorSbsRoot consumiendo CPU con html2canvas en otra ruta.
+  useEffect(() => {
+    return () => {
+      window.dispatchEvent(new CustomEvent(SBS_MIRROR_EVENT, { detail: false }));
+    };
+  }, []);
   const [screenUrlDrafts, setScreenUrlDrafts] = useState<LobbyScreenUrls>(
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
@@ -1286,14 +1187,6 @@ export default function NeonRoom() {
 
   const mixedRealityActive = mixedRealityEnabled;
 
-  // Recorte aplicado a TODOS los overlays HUD en modo 2D-espejo: deja
-  // visible solo la mitad IZQUIERDA del viewport. Lo que quede a la derecha
-  // se oculta. El botón "2D" mismo NO usa este estilo para seguir siendo
-  // clickeable.
-  const hudClipStyle: CSSProperties | undefined = mirror2D
-    ? { clipPath: "inset(0 50% 0 0)" }
-    : undefined;
-
   return (
     <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : "bg-black"}`}>
       <video
@@ -1332,7 +1225,6 @@ export default function NeonRoom() {
         style={{
           top: "max(1rem, env(safe-area-inset-top))",
           left: "max(1rem, env(safe-area-inset-left))",
-          ...hudClipStyle,
         }}
       >
         <ArrowLeft className="h-5 w-5" aria-hidden />
@@ -1351,7 +1243,6 @@ export default function NeonRoom() {
         style={{
           top: "max(1rem, env(safe-area-inset-top))",
           right: "max(1rem, env(safe-area-inset-right))",
-          ...hudClipStyle,
         }}
       >
         RM
@@ -1361,7 +1252,6 @@ export default function NeonRoom() {
           className="pointer-events-none fixed right-4 top-20 z-20 max-w-[min(92vw,18rem)] rounded-xl border border-rose-300/35 bg-black/75 px-3 py-2 text-xs text-rose-100 backdrop-blur-md"
           style={{
             top: "max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem))",
-            ...hudClipStyle,
           }}
           role="alert"
         >
@@ -1379,7 +1269,6 @@ export default function NeonRoom() {
           applyPixelRatioCap(gl);
         }}
       >
-          {mirror2D && <Mirror2DRenderer />}
           <MixedRealityScene active={mixedRealityActive} />
           {!mixedRealityActive && <color attach="background" args={["#050510"]} />}
 
@@ -1407,7 +1296,6 @@ export default function NeonRoom() {
             onFocusScreen={focusScreen}
             screenUrls={screenUrls}
             screenLinksOpen={screenLinksOpen}
-            mirror2D={mirror2D}
           />
           {/*
             Swap del iframe central según Pantalla 4:
@@ -1421,7 +1309,6 @@ export default function NeonRoom() {
           */}
           <ForcedFloatingVideoScreen
             screenLinksOpen={screenLinksOpen}
-            mirror2D={mirror2D}
             position={
               isGlbSource(screenUrls[3])
                 ? [ROOM_SIZE / 2 - 0.03, WALL_HEIGHT / 2, 0]
@@ -1456,10 +1343,7 @@ export default function NeonRoom() {
       />
 
       {focusedScreen === null && (
-        <div
-          className="pointer-events-none fixed bottom-0 right-0 z-[12000] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]"
-          style={hudClipStyle}
-        >
+        <div className="pointer-events-none fixed bottom-0 right-0 z-[12000] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
           {!screenLinksOpen ? (
             <button
               type="button"
@@ -1549,22 +1433,20 @@ export default function NeonRoom() {
       */}
 
       {locked && focusedScreen === null && (
-        <div
-          className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference"
-          style={hudClipStyle}
-        />
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference" />
       )}
 
       {/*
-        Botón "2D" — toggle del modo espejo (split lateral idéntico, sin
-        stereo). SIEMPRE visible (no se le aplica hudClipStyle) para que el
-        usuario pueda salir del modo. Posicionado a la izquierda del botón
-        URLs en la misma fila inferior, lado derecho.
+        Botón "2D" — toggle del MirrorSbsRoot global (src/main.tsx).
+        Al activarse, MirrorSbsRoot captura el DOM con html2canvas a 24 fps
+        y dibuja la imagen capturada en dos <canvas> ojo izquierdo / ojo
+        derecho. Es la misma técnica que ya estaba funcionando con el video
+        de Bele; el botón solo dispara el evento global SBS_MIRROR_EVENT.
       */}
       <button
         type="button"
         data-lobby-ui
-        onClick={() => setMirror2D((prev) => !prev)}
+        onClick={toggleMirror2D}
         aria-pressed={mirror2D}
         aria-label={mirror2D ? "Desactivar modo 2D espejo" : "Activar modo 2D espejo"}
         className={`pointer-events-auto fixed z-[12001] inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 font-display text-[10px] font-bold tracking-[0.12em] backdrop-blur-md transition ${
