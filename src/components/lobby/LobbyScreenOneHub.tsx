@@ -632,7 +632,10 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
   }, [playItem]);
 
   const onPlay = useCallback(async () => {
-    setStatus("");
+    // Eco visible inmediato: confirma que el click del boton llego al handler.
+    // Si no aparece este texto en cyan abajo del reproductor al tocar Play en mobile,
+    // es señal de que el toque se está perdiendo antes de React (pointerEvents/<Html>).
+    setStatus("Buscando música…");
     if (playlist.length > 0 && order.length > 0) {
       const item = playlist[order[orderPos % order.length]];
       await playItem(item);
@@ -724,6 +727,12 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
     cursor: "pointer",
     boxShadow: "0 0 16px rgba(34,211,238,0.4), inset 0 0 16px rgba(34,211,238,0.06)",
     textTransform: "uppercase",
+    // En WebView Android los <button> heredan touch-action del canvas Three.js y a veces
+    // los taps se "comen" antes de disparar onClick. manipulation = pan + zoom sin doble-tap.
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "rgba(34,211,238,0.5)",
+    WebkitUserSelect: "none",
+    userSelect: "none",
   };
 
   return (
