@@ -6,6 +6,15 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <!--
+      Sensores de movimiento (giroscopio + acelerómetro) para el modo VR
+      estéreo manual del lobby (ManualStereoRenderer en src/components/lobby/VrSession.tsx).
+      `required="false"` deja entrar al APK aunque el dispositivo no los
+      tenga (en ese caso el modo VR sigue mostrando split-screen pero la
+      cámara no se moverá con la cabeza).
+    -->
+    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -72,6 +81,15 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Ajustes de sesión de audio típicos cuando el WebKit pide AUDIO_CAPTURE junto al micrófono -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!--
+      Android 12+ (API 31): sin este permiso los sensores de movimiento
+      (acelerómetro/giroscopio) están limitados a 200 Hz. Para que el
+      head-tracking del modo VR estéreo (Cardboard) sea fluido (60 Hz
+      objetivo), pedimos la tasa alta. Es un permiso "normal" (no requiere
+      runtime request, Android lo concede al instalar el APK).
+    -->
+    <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
 
     <!--
       Reproductor del Lobby (Pantalla 1) — selector de carpeta de MP3/MP4 en el dispositivo.

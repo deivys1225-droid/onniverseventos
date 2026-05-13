@@ -14,7 +14,10 @@ import MobileLobbyMovePad, {
   type MobileMoveInput,
 } from "@/components/lobby/MobileLobbyMovePad";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
-import { VrSession } from "@/components/lobby/VrSession";
+import {
+  ManualStereoRenderer,
+  VrToggleButton,
+} from "@/components/lobby/VrSession";
 
 const ROOM_SIZE = 20;
 const WALL_HEIGHT = 8;
@@ -930,6 +933,11 @@ export default function NeonRoom() {
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
   const [screenLinksOpen, setScreenLinksOpen] = useState(false);
+  // VR estereo manual: cuando vrMode es true, ManualStereoRenderer toma el
+  // control del render-loop de R3F (split-screen + gyro) y los overlays
+  // HUD se ocultan para no aparecer duplicados en ambos ojos.
+  const [vrMode, setVrMode] = useState(false);
+  const [vrError, setVrError] = useState<string | null>(null);
   const [screenUrlDrafts, setScreenUrlDrafts] = useState<LobbyScreenUrls>(
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
@@ -1122,6 +1130,82 @@ export default function NeonRoom() {
     await startMixedReality();
   }, [mixedRealityEnabled, startMixedReality, stopMixedReality]);
 
+  /**
+   * Entra al modo VR estéreo manual.
+   *
+   * Secuencia:
+   *  1. iOS 13+ Safari requiere `DeviceOrientationEvent.requestPermission()`
+   *     desde un user gesture (este click cuenta). Android WebView NO
+   *     requiere permiso para sensores de movimiento (las uses-permission
+   *     HIGH_SAMPLING_RATE_SENSORS y los <uses-feature> en
+   *     AndroidManifest.xml son opcionales pero recomendados).
+   *  2. Pantalla completa best-effort (Capacitor 8 expone Fullscreen API
+   *     vía BridgeWebChromeClient.onShowCustomView).
+   *  3. Bloqueo de orientación a landscape best-effort (algunos WebViews
+   *     ignoran ScreenOrientation.lock; no es bloqueante).
+   *  4. setVrMode(true) → ManualStereoRenderer se monta dentro del Canvas.
+   */
+  const enterVrMode = useCallback(async () => {
+    setVrError(null);
+
+    type IosDeviceOrientationEvent = typeof DeviceOrientationEvent & {
+      requestPermission?: () => Promise<"granted" | "denied">;
+    };
+    const Doe =
+      typeof DeviceOrientationEvent !== "undefined"
+        ? (DeviceOrientationEvent as IosDeviceOrientationEvent)
+        : null;
+    if (Doe?.requestPermission) {
+      try {
+        const result = await Doe.requestPermission();
+        if (result !== "granted") {
+          setVrError(
+            "Permiso de orientación denegado. Para usar VR, autoriza el acceso al giroscopio.",
+          );
+          return;
+        }
+      } catch {
+        // Si requestPermission falla por timing (fuera de user gesture en
+        // navegadores raros), seguimos: en Android+WebView no se requiere
+        // permiso y los eventos llegan igual. Si no llegan, la escena se ve
+        // estática en estéreo y el usuario puede salir con SALIR VR.
+      }
+    }
+
+    try {
+      const root = canvasRef.current?.parentElement ?? document.documentElement;
+      if (root.requestFullscreen) await root.requestFullscreen();
+    } catch {
+      /* fullscreen denegado o no soportado: seguimos en viewport normal. */
+    }
+
+    try {
+      const orientation = window.screen?.orientation as
+        | (ScreenOrientation & { lock?: (o: string) => Promise<void> })
+        | undefined;
+      if (orientation?.lock) await orientation.lock("landscape");
+    } catch {
+      /* lock denegado / no soportado: el usuario debe rotar manualmente. */
+    }
+
+    setVrMode(true);
+  }, []);
+
+  const exitVrMode = useCallback(() => {
+    setVrMode(false);
+    setVrError(null);
+    try {
+      if (document.fullscreenElement) void document.exitFullscreen();
+    } catch {
+      /* sin fullscreen activo: nada que cerrar. */
+    }
+    try {
+      window.screen?.orientation?.unlock?.();
+    } catch {
+      /* sin lock previo: ignorable. */
+    }
+  }, []);
+
   const mixedRealityActive = mixedRealityEnabled;
 
   return (
@@ -1153,45 +1237,49 @@ export default function NeonRoom() {
               }
         }
       />
-      <button
-        type="button"
-        data-lobby-ui
-        onClick={() => navigate("/")}
-        aria-label="Volver al perfil"
-        className="pointer-events-auto fixed left-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/60 bg-slate-950/95 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:border-cyan-300 hover:bg-slate-900 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
-        style={{
-          top: "max(1rem, env(safe-area-inset-top))",
-          left: "max(1rem, env(safe-area-inset-left))",
-        }}
-      >
-        <ArrowLeft className="h-5 w-5" aria-hidden />
-      </button>
-      <button
-        type="button"
-        data-lobby-ui
-        onClick={() => void toggleMixedReality()}
-        disabled={mixedRealityLoading}
-        aria-label={mixedRealityEnabled ? "Desactivar modo realidad mixta" : "Activar modo realidad mixta"}
-        className={`pointer-events-auto fixed right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 font-display text-xs font-bold tracking-[0.18em] shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:bg-slate-900 hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)] disabled:cursor-wait disabled:opacity-70 ${
-          mixedRealityEnabled
-            ? "border-violet-400/70 text-violet-200 hover:border-violet-300 hover:text-white"
-            : "border-cyan-400/60 text-cyan-200 hover:border-cyan-300 hover:text-white"
-        }`}
-        style={{
-          top: "max(1rem, env(safe-area-inset-top))",
-          right: "max(1rem, env(safe-area-inset-right))",
-        }}
-      >
-        RM
-      </button>
-      {mixedRealityError && (
-        <p
-          className="pointer-events-none fixed right-4 top-20 z-20 max-w-[min(92vw,18rem)] rounded-xl border border-rose-300/35 bg-black/75 px-3 py-2 text-xs text-rose-100 backdrop-blur-md"
-          style={{ top: "max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem))" }}
-          role="alert"
-        >
-          {mixedRealityError}
-        </p>
+      {!vrMode && (
+        <>
+          <button
+            type="button"
+            data-lobby-ui
+            onClick={() => navigate("/")}
+            aria-label="Volver al perfil"
+            className="pointer-events-auto fixed left-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/60 bg-slate-950/95 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:border-cyan-300 hover:bg-slate-900 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
+            style={{
+              top: "max(1rem, env(safe-area-inset-top))",
+              left: "max(1rem, env(safe-area-inset-left))",
+            }}
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden />
+          </button>
+          <button
+            type="button"
+            data-lobby-ui
+            onClick={() => void toggleMixedReality()}
+            disabled={mixedRealityLoading}
+            aria-label={mixedRealityEnabled ? "Desactivar modo realidad mixta" : "Activar modo realidad mixta"}
+            className={`pointer-events-auto fixed right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 font-display text-xs font-bold tracking-[0.18em] shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:bg-slate-900 hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)] disabled:cursor-wait disabled:opacity-70 ${
+              mixedRealityEnabled
+                ? "border-violet-400/70 text-violet-200 hover:border-violet-300 hover:text-white"
+                : "border-cyan-400/60 text-cyan-200 hover:border-cyan-300 hover:text-white"
+            }`}
+            style={{
+              top: "max(1rem, env(safe-area-inset-top))",
+              right: "max(1rem, env(safe-area-inset-right))",
+            }}
+          >
+            RM
+          </button>
+          {mixedRealityError && (
+            <p
+              className="pointer-events-none fixed right-4 top-20 z-20 max-w-[min(92vw,18rem)] rounded-xl border border-rose-300/35 bg-black/75 px-3 py-2 text-xs text-rose-100 backdrop-blur-md"
+              style={{ top: "max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem))" }}
+              role="alert"
+            >
+              {mixedRealityError}
+            </p>
+          )}
+        </>
       )}
       <Canvas
         className="relative z-10"
@@ -1205,13 +1293,14 @@ export default function NeonRoom() {
         }}
       >
           {/*
-            WebXR / Cardboard: habilita gl.xr e inyecta el botón "ENTER VR"
-            si navigator.xr soporta sesión inmersiva. En APK Capacitor,
-            `webxr-polyfill` (cargado en main.tsx) emula la API usando el
-            giroscopio. En PC sin headset el botón no aparece y los
-            controles ratón/teclado/WASD funcionan exactamente igual.
+            VR estéreo manual (sin depender de navigator.xr ni del polyfill
+            de Cardboard). Cuando `vrMode` está activo, ManualStereoRenderer
+            toma el render-loop de R3F y dibuja la escena en dos ojos
+            (split-screen) usando StereoEffect + gyro inline. Fuera de modo
+            VR no se monta y R3F renderea mono normal con los controles
+            PC/touch sin cambios.
           */}
-          <VrSession />
+          {vrMode && <ManualStereoRenderer />}
           <MixedRealityScene active={mixedRealityActive} />
           {!mixedRealityActive && <color attach="background" args={["#050510"]} />}
 
@@ -1246,10 +1335,15 @@ export default function NeonRoom() {
           <LoungeSpotlight />
 
         <EarthMoonAnchor />
+        {/* FirstPersonController (WASD + joystick mobile) sigue activo en
+            modo VR: el usuario puede caminar por el lobby mientras mira
+            alrededor con el gyro. */}
         <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
-        <MobileTouchLook enabled={isMobileTouch && focusedScreen === null} />
+        {/* En modo VR el gyro reemplaza tanto el touch-look como el
+            pointer-lock del PC para que no peleen por la rotación. */}
+        <MobileTouchLook enabled={isMobileTouch && focusedScreen === null && !vrMode} />
 
-        {focusedScreen === null && !isMobileTouch && (
+        {focusedScreen === null && !isMobileTouch && !vrMode && (
           <PointerLockControls
             onLock={() => {
               setLocked(true);
@@ -1265,7 +1359,7 @@ export default function NeonRoom() {
         inputRef={mobileMoveInput}
       />
 
-      {focusedScreen === null && (
+      {!vrMode && focusedScreen === null && (
         <div className="pointer-events-none fixed bottom-0 right-0 z-[12000] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
           {!screenLinksOpen ? (
             <button
@@ -1355,9 +1449,23 @@ export default function NeonRoom() {
         siguen ahí pero ahora son no-ops visuales).
       */}
 
-      {locked && focusedScreen === null && (
+      {!vrMode && locked && focusedScreen === null && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference" />
       )}
+
+      {/*
+        Botón "ENTRAR VR" / "SALIR VR" SIEMPRE visible. Vive fuera del Canvas
+        para no interferir con el render-loop de R3F. Su `onEnter` pide
+        permiso de orientación (iOS), pantalla completa y landscape; su
+        `onExit` revierte todo. En modo VR se oculta automáticamente todo
+        el HUD para no aparecer duplicado en ambos ojos.
+      */}
+      <VrToggleButton
+        vrMode={vrMode}
+        onEnter={() => void enterVrMode()}
+        onExit={exitVrMode}
+        errorMessage={vrError ?? undefined}
+      />
     </div>
   );
 }
