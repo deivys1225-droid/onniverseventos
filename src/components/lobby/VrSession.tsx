@@ -40,18 +40,36 @@ export function VrSession() {
       .then((supported: boolean) => {
         if (cancelled || !supported) return;
         const btn = VRButton.createButton(gl);
-        // Posición fija sobre la esquina inferior derecha del lobby. El botón
-        // que `three` genera es un <button> con estilos en línea (color blanco
-        // + borde) que reutilizamos tal cual para no inflar CSS.
+        // Posición: esquina inferior-IZQUIERDA del lobby. El joystick mobile
+        // (`MobileLobbyMovePad`) vive en bottom-left pero más arriba (con
+        // pb-[6.5rem]), así que pegado al borde inferior no choca.
+        // env(safe-area-inset-*) evita que se corte en iPhone con notch.
         btn.style.position = "fixed";
-        btn.style.bottom = "24px";
-        btn.style.right = "24px";
-        btn.style.left = "auto";
+        btn.style.bottom = "calc(20px + env(safe-area-inset-bottom, 0px))";
+        btn.style.left = "calc(20px + env(safe-area-inset-left, 0px))";
+        btn.style.right = "auto";
+        btn.style.top = "auto";
         btn.style.zIndex = "60";
+        // Paleta neon-cyan del lobby (mismo tono que el botón "atrás" del HUD
+        // y el joystick: cyan-400/cyan-300 sobre slate-950 con glow exterior).
+        btn.style.padding = "12px 22px";
         btn.style.borderRadius = "999px";
-        btn.style.fontFamily = "system-ui, sans-serif";
+        btn.style.fontFamily = "system-ui, -apple-system, sans-serif";
+        btn.style.fontSize = "13px";
         btn.style.fontWeight = "700";
-        btn.style.letterSpacing = "0.05em";
+        btn.style.letterSpacing = "0.12em";
+        btn.style.color = "#67e8f9";
+        btn.style.background = "rgba(2, 6, 23, 0.92)";
+        btn.style.border = "1px solid rgba(34, 211, 238, 0.6)";
+        btn.style.boxShadow =
+          "0 0 28px -4px rgba(34, 211, 238, 0.95), inset 0 0 18px -10px rgba(34, 211, 238, 0.55)";
+        btn.style.backdropFilter = "blur(8px)";
+        // `-webkit-backdrop-filter` no esta tipado en CSSStyleDeclaration;
+        // usamos setProperty para evitar `as any` y mantener type-safety.
+        btn.style.setProperty("-webkit-backdrop-filter", "blur(8px)");
+        btn.style.cursor = "pointer";
+        btn.style.transition =
+          "color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease";
         document.body.appendChild(btn);
         attached = btn;
       })
