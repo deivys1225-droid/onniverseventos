@@ -15,8 +15,11 @@ import {
   isMobileCoarseDevice,
 } from "@/lib/webglRendererPrefs";
 
-const LOBBY_PANORAMA =
-  "https://images.unsplash.com/photo-1478760329108-5c3e1527712f?auto=format&fit=crop&w=4096&q=85";
+/**
+ * Panorama del Salón / Lobby servido offline-first desde /public/assets/textures/salon/.
+ * Root-relativo para Capacitor WebView (`androidScheme: "https"`).
+ */
+const LOBBY_PANORAMA = "/assets/textures/salon/lobby_panorama_4096.jpg";
 
 function LobbySceneContent({
   embedUrl,

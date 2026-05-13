@@ -23,18 +23,22 @@ import { Capacitor } from "@capacitor/core";
 import { LOBBY_IMMERSIVE_PATH, LOBBY_OPEN_TRANSITION_MS, openLobbyImmersiveOnAndroid } from "@/lib/lobbyImmersive";
 import SocialMenu from "@/components/SocialMenu";
 
-/** Texturas Tierra alta resolucion (three.js, estilo vista espacial tipo Artemis); radio sin cambios. */
-const PLANETS = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets";
-const EARTH_DAY_4K = `${PLANETS}/earth_day_4096.jpg`;
-const EARTH_NORMAL = `${PLANETS}/earth_normal_2048.jpg`;
-const EARTH_SPECULAR = `${PLANETS}/earth_specular_2048.jpg`;
-const EARTH_CLOUDS = `${PLANETS}/earth_clouds_1024.png`;
+/**
+ * Texturas Tierra alta resolucion (offline-first, copiadas a /public/assets/textures/earth/).
+ * Rutas root-relativas para que Capacitor WebView (`androidScheme: "https"`) las resuelva
+ * desde `https://localhost/assets/...` sin depender de CDN externo.
+ */
+const EARTH_TEXTURES_BASE = "/assets/textures/earth";
+const EARTH_DAY_4K = `${EARTH_TEXTURES_BASE}/earth_day_4096.jpg`;
+const EARTH_NORMAL = `${EARTH_TEXTURES_BASE}/earth_normal_2048.jpg`;
+const EARTH_SPECULAR = `${EARTH_TEXTURES_BASE}/earth_specular_2048.jpg`;
+const EARTH_CLOUDS = `${EARTH_TEXTURES_BASE}/earth_clouds_1024.png`;
 
 /** Tierra y luna al 50% del tamano anterior. */
 const CENTRAL_SPHERE_RADIUS = 0.925;
 
-/** Luna: textura ligera + parametros de orbita. */
-const MOON_TEXTURE_URL = `${PLANETS}/moon_1024.jpg`;
+/** Luna: textura local ligera + parametros de orbita. */
+const MOON_TEXTURE_URL = "/assets/textures/moon/moon_1024.jpg";
 const MOON_RADIUS = CENTRAL_SPHERE_RADIUS * 0.27;
 const MOON_ORBIT_RADIUS = CENTRAL_SPHERE_RADIUS * 1.95;
 const MOON_ORBIT_SPEED = 0.22;

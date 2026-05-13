@@ -3,7 +3,6 @@ import OnniVersoLogo from "@/components/branding/OnniVersoLogo";
 import { LogIn, LogOut, Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -11,12 +10,12 @@ const APP_APK_DOWNLOAD_URL =
   "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
 
 const Navbar = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     toast.success("Sesión cerrada");
     navigate("/inicio-2");
   };
@@ -54,7 +53,10 @@ const Navbar = () => {
         {user ? (
           <div className="hidden md:flex items-center gap-3">
             <span className="text-xs text-muted-foreground hidden sm:inline truncate max-w-[140px]">
-              {user.email}
+              {user.email
+                ?? (typeof user.user_metadata?.full_name === "string"
+                  ? user.user_metadata.full_name
+                  : "Modo local")}
             </span>
             <Button variant="heroOutline" size="sm" onClick={handleLogout} className="gap-1.5">
               <LogOut className="w-3.5 h-3.5" />

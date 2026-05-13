@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { compressProfileImage } from "@/lib/compressProfileImage";
 import { upsertProfile, uploadAvatar } from "@/lib/profile";
+import { isLocalUser } from "@/lib/localAuth";
 import { toast } from "sonner";
 
 function getProfileSaveErrorMessage(error: unknown): string {
@@ -38,6 +39,14 @@ const InicioPage = () => {
 
   const handleProfilePersist = async (payload: ProfileCardConfirmPayload) => {
     if (!user) return;
+
+    // Usuario local (offline-first): no hay servidor donde subir. El nombre ya quedó
+    // guardado por ProfileCard en `localStorage[onniverso.profile.name]`. Confirmamos.
+    if (isLocalUser(user)) {
+      toast.success("Guardado en este dispositivo");
+      return;
+    }
+
     try {
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         throw new Error("offline");

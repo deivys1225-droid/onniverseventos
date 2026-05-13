@@ -5,29 +5,47 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>OnniVers · Tu Realidad Evolucionada</title>
-  <meta property="og:title" content="OnniVers · Tu Realidad Evolucionada">
-  <meta name="twitter:title" content="OnniVers · Tu Realidad Evolucionada">
   <meta name="description" content="OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.">
-  <meta property="og:description" content="OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.">
-  <meta name="twitter:description" content="OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.">
+  <!-- Offline-first: solo recursos locales en el boot. Los meta tags de SEO (canonical, og:url, og:image, twitter:image, JSON-LD)
+       se inyectan en runtime SOLO para el host web (Vercel/onniverso.com), no para el WebView de Capacitor. -->
   <link rel="icon" type="image/png" href="/imagenes/favicon.png">
-  <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1d94b8d3-a40e-486f-9a73-003565e81a3f/id-preview-676ce54a--f04f180f-f560-4141-92a0-01ce326012b6.lovable.app-1776217388219.png">
-  <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1d94b8d3-a40e-486f-9a73-003565e81a3f/id-preview-676ce54a--f04f180f-f560-4141-92a0-01ce326012b6.lovable.app-1776217388219.png">
-  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:title" content="OnniVers · Tu Realidad Evolucionada">
+  <meta property="og:description" content="OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://onniverso.com/">
   <meta property="og:locale" content="es_ES">
   <meta property="og:site_name" content="OnniVers">
-  <link rel="canonical" href="https://onniverso.com/">
-  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-  <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"WebSite","name":"OnniVers","url":"https://onniverso.com/","description":"OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.","inLanguage":"es"}
-  </script>
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="OnniVers · Tu Realidad Evolucionada">
+  <meta name="twitter:description" content="OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.">
 </head>
 
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
+  <script>
+    (function injectSeoForWebHost(){
+      try {
+        var host = (window.location && window.location.hostname || "").toLowerCase();
+        if (host !== "onniverso.com" && host !== "www.onniverso.com") return;
+        var canonical = document.createElement("link");
+        canonical.rel = "canonical";
+        canonical.href = "https://onniverso.com/";
+        document.head.appendChild(canonical);
+        var ogUrl = document.createElement("meta");
+        ogUrl.setAttribute("property", "og:url");
+        ogUrl.content = "https://onniverso.com/";
+        document.head.appendChild(ogUrl);
+        var robots = document.createElement("meta");
+        robots.name = "robots";
+        robots.content = "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
+        document.head.appendChild(robots);
+        var ld = document.createElement("script");
+        ld.type = "application/ld+json";
+        ld.textContent = '{"@context":"https://schema.org","@type":"WebSite","name":"OnniVers","url":"https://onniverso.com/","description":"OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.","inLanguage":"es"}';
+        document.head.appendChild(ld);
+      } catch (_) { /* offline / restricted host: no SEO injection */ }
+    })();
+  </script>
 </body>
 
 </html>

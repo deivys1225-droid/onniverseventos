@@ -58,7 +58,7 @@ const bibliotecaHeartProduct: Product = {
   imageAttribution: "neshallads / Wikimedia Commons",
   imageAttributionUrl: "https://commons.wikimedia.org/wiki/File:3D_model_of_a_human_heart.stl",
   licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
-  actionUrl: "https://res.cloudinary.com/dfsabdxup/image/upload/v1778502197/el_corazon_dbhvfn.glb",
+  actionUrl: "/assets/models/corazon.glb",
   actionLabel: "Ver",
 };
 

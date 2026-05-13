@@ -4,16 +4,19 @@ import path from "path";
 
 function paypalSdkHeadPlugin(mode: string, env: Record<string, string>): Plugin {
   const environment = env.VITE_PAYPAL_ENVIRONMENT === "production" ? "production" : "sandbox";
-  const clientId =
-    (env.VITE_PAYPAL_CLIENT_ID ?? "").trim() || (environment === "sandbox" ? "test" : "");
+  // Offline-first / Capacitor: NO inyectar el SDK de PayPal en <head> si no hay un client-id real.
+  // El fallback antiguo ("test") forzaba una petición eager a sandbox.paypal.com en cada arranque,
+  // lo cual rompía el boot sin red. `PayPalScriptProvider` ya carga el SDK *lazy* cuando el usuario
+  // entra a una pantalla con botones PayPal, así que el preload solo aporta en builds con PayPal real.
+  const envClientId = (env.VITE_PAYPAL_CLIENT_ID ?? "").trim();
   const sdkHost =
     environment === "sandbox" ? "https://www.sandbox.paypal.com" : "https://www.paypal.com";
 
   return {
     name: "paypal-sdk-head",
     transformIndexHtml(html) {
-      if (!clientId) return html;
-      const sdkUrl = `${sdkHost}/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture&components=buttons`;
+      if (!envClientId) return html;
+      const sdkUrl = `${sdkHost}/sdk/js?client-id=${encodeURIComponent(envClientId)}&currency=USD&intent=capture&components=buttons`;
       return html.replace(
         "</head>",
         `  <script defer src="${sdkUrl}" data-sdk-integration-source="react-paypal-js"></script>\n</head>`,

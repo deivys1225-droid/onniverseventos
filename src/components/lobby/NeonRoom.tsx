@@ -25,8 +25,12 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const WALL_COLOR = "#EAECEE";
 const LOBBY_SCREEN_HTML_Z_INDEX: [number, number] = [10000, 0];
 const LOBBY_SCREEN_BACKGROUND_Z_INDEX: [number, number] = [40, 0];
-const LOBBY_SCREEN_4_CLOUD_MODEL_URL =
-  "https://res.cloudinary.com/dfsabdxup/image/upload/v1778502197/el_corazon_dbhvfn.glb";
+/**
+ * Modelo "El Corazón" servido offline-first desde /public/assets/models/.
+ * Root-relativo para que Capacitor WebView (`androidScheme: "https"`) lo cargue
+ * desde `https://localhost/assets/...` sin red.
+ */
+const LOBBY_SCREEN_4_CLOUD_MODEL_URL = "/assets/models/corazon.glb";
 
 const WALL_SCREEN_EMBEDS = [
   "about:blank",
@@ -56,6 +60,13 @@ function readStoredLobbyScreenUrls(): LobbyScreenUrls | null {
       urls[0] = "about:blank";
     }
     if (urls[3] === "https://www.youtube.com/embed/RgKAFK5djSk") {
+      urls[3] = LOBBY_SCREEN_4_CLOUD_MODEL_URL;
+    }
+    // Migración offline-first: cualquier URL del Cloudinary anterior pasa al .glb local.
+    if (
+      urls[3] ===
+      "https://res.cloudinary.com/dfsabdxup/image/upload/v1778502197/el_corazon_dbhvfn.glb"
+    ) {
       urls[3] = LOBBY_SCREEN_4_CLOUD_MODEL_URL;
     }
     return urls;
@@ -995,6 +1006,29 @@ export default function NeonRoom() {
       useGLTF.preload(screenFourUrl);
     }
   }, [screenUrls]);
+
+  // Mobile/desktop: tap fuera del iframe enfocado (sobre el canvas 3D) deshace el foco
+  // y vuelve a habilitar el pad/touch-look o el pointer-lock. En el iframe drei `<Html>`
+  // se monta como hermano del canvas, asi que los toques sobre la pantalla enfocada NO
+  // llegan a este listener — solo los que caen en la zona 3D.
+  useEffect(() => {
+    if (focusedScreen === null) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onCanvasPointerDownOutside = () => {
+      setFocusedScreen(null);
+      setEscapeBarVisible(true);
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+    };
+
+    canvas.addEventListener("pointerdown", onCanvasPointerDownOutside);
+    return () => {
+      canvas.removeEventListener("pointerdown", onCanvasPointerDownOutside);
+    };
+  }, [focusedScreen]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
