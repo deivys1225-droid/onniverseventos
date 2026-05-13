@@ -5,7 +5,9 @@ import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.util.Base64;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.webkit.PermissionRequest;
@@ -16,18 +18,27 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
 import androidx.core.splashscreen.SplashScreen;
+import androidx.documentfile.provider.DocumentFile;
 
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebChromeClient;
 import com.google.android.material.button.MaterialButton;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -74,6 +85,24 @@ public class MainActivity extends BridgeActivity {
   /** Permisos de Android lanzados junto con {@link #pendingWebkitPermissionRequest} */
   private String[] pendingAndroidPermissionNames;
   private String pendingSceneAfterNavigation;
+
+  // ----- Lobby Pantalla 1 — reproductor MP3/MP4 desde carpeta del dispositivo (SAF) -----
+  /** Límite defensivo para no inflar memoria al recorrer carpetas enormes. */
+  private static final int MAX_MUSIC_FILES = 2000;
+  /** Lanzador del selector de carpeta nativo ({@link Intent#ACTION_OPEN_DOCUMENT_TREE}). */
+  private ActivityResultLauncher<Intent> musicFolderPickerLauncher;
+  /**
+   * Pre-prompt opcional de permisos de medios (Android 13+: READ_MEDIA_AUDIO/VIDEO; pre-13:
+   * READ_EXTERNAL_STORAGE). SAF no los exige, pero respondemos al pedido del usuario
+   * "que pida permiso" mostrando el diálogo antes del picker.
+   */
+  private ActivityResultLauncher<String[]> musicPermissionLauncher;
+  /** Nombre del callback JS ({@code window[name]}) al que devolver los items o el error. */
+  private String pendingMusicFolderCallback;
+  /** URIs SAF de los archivos del último picker (lectura lazy en {@code AndroidMusic.readMusicFileBase64}). */
+  private final List<Uri> pickedMusicUris = Collections.synchronizedList(new ArrayList<>());
+  /** Mime detectado por DocumentFile o por extensión (paralelo a {@link #pickedMusicUris}). */
+  private final List<String> pickedMusicMime = Collections.synchronizedList(new ArrayList<>());
 
   private interface SceneSelectionCallback {
     void onSelected(String sceneKey);
@@ -142,6 +171,18 @@ public class MainActivity extends BridgeActivity {
               setPendingSceneAfterNavigation(scene);
               webView.loadUrl(url);
             });
+
+    // Lobby Pantalla 1 — pre-prompt de permisos: SAF funciona aunque sean denegados;
+    // disparamos el picker en ambos casos para no bloquear UX.
+    musicPermissionLauncher =
+        registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(),
+            grants -> launchMusicFolderPicker());
+
+    musicFolderPickerLauncher =
+        registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            this::onMusicFolderPicked);
 
     SplashScreen.installSplashScreen(this);
     super.onCreate(savedInstanceState);
@@ -214,6 +255,8 @@ public class MainActivity extends BridgeActivity {
     webView.addJavascriptInterface(new AudienceSceneBridge(this, bridge), "AndroidScene");
     webView.addJavascriptInterface(new AndroidBridge(this, bridge), "AndroidBridge");
     webView.addJavascriptInterface(new AndroidJsApi(this), "Android");
+    // Lobby Pantalla 1: reproductor MP3/MP4 desde carpeta del dispositivo (SAF + base64).
+    webView.addJavascriptInterface(new MusicFolderJsApi(this), "AndroidMusic");
 
     attachCasaVideoButton();
   }
@@ -494,6 +537,258 @@ public class MainActivity extends BridgeActivity {
     pendingWebkitPermissionRequest = request;
     pendingAndroidPermissionNames = toRequest;
     webkitMediaPermissionLauncher.launch(toRequest);
+  }
+
+  // -----------------------------------------------------------------------------
+  // Lobby Pantalla 1 — selector de carpeta de música y lectura por archivo.
+  // Aislado del flujo de streaming: no toca AndroidBridge / AndroidScene / Selector.
+  // -----------------------------------------------------------------------------
+
+  /**
+   * Punto de entrada desde JS ({@code window.AndroidMusic.pickMusicFolder("__cb")}).
+   * Pide permisos de medios (Android 13+ granular, pre-13 storage clásico) y luego abre
+   * {@link Intent#ACTION_OPEN_DOCUMENT_TREE}. El permiso real para leer la carpeta lo
+   * concede SAF en el propio selector, no esta llamada — pero respondemos al
+   * requerimiento del usuario ("que pida permiso") mostrando el diálogo del sistema.
+   */
+  private void launchMusicFolderPickerFlow(String callbackName) {
+    pendingMusicFolderCallback = callbackName;
+    String[] perms = collectMissingMediaPermissions();
+    if (perms.length == 0) {
+      launchMusicFolderPicker();
+      return;
+    }
+    try {
+      musicPermissionLauncher.launch(perms);
+    } catch (Exception ignored) {
+      launchMusicFolderPicker();
+    }
+  }
+
+  private String[] collectMissingMediaPermissions() {
+    List<String> list = new ArrayList<>();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      if (ContextCompat.checkSelfPermission(this, "android.permission.READ_MEDIA_AUDIO")
+          != PackageManager.PERMISSION_GRANTED) {
+        list.add("android.permission.READ_MEDIA_AUDIO");
+      }
+      if (ContextCompat.checkSelfPermission(this, "android.permission.READ_MEDIA_VIDEO")
+          != PackageManager.PERMISSION_GRANTED) {
+        list.add("android.permission.READ_MEDIA_VIDEO");
+      }
+    } else {
+      if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+          != PackageManager.PERMISSION_GRANTED) {
+        list.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+      }
+    }
+    return list.toArray(new String[0]);
+  }
+
+  private void launchMusicFolderPicker() {
+    if (pendingMusicFolderCallback == null) return;
+    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+    intent.addFlags(
+        Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+    try {
+      musicFolderPickerLauncher.launch(intent);
+    } catch (Exception ignored) {
+      String cb = pendingMusicFolderCallback;
+      pendingMusicFolderCallback = null;
+      if (cb != null) dispatchMusicResult(cb, "[]", "no-picker");
+    }
+  }
+
+  private void onMusicFolderPicked(ActivityResult result) {
+    String callback = pendingMusicFolderCallback;
+    if (callback == null) return;
+    if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
+      pendingMusicFolderCallback = null;
+      dispatchMusicResult(callback, "[]", "cancelled");
+      return;
+    }
+    Uri tree = result.getData().getData();
+    if (tree == null) {
+      pendingMusicFolderCallback = null;
+      dispatchMusicResult(callback, "[]", "no-tree");
+      return;
+    }
+    try {
+      int flags = result.getData().getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION;
+      getContentResolver().takePersistableUriPermission(tree, flags);
+    } catch (SecurityException ignored) {
+      // El picker concede acceso solo para esta sesión cuando no se persiste — basta para reproducir ahora.
+    }
+    pickedMusicUris.clear();
+    pickedMusicMime.clear();
+    new Thread(
+            () -> {
+              JSONArray arr = walkMediaTree(tree);
+              String json = arr.toString();
+              runOnUiThread(
+                  () -> {
+                    String cb = pendingMusicFolderCallback;
+                    pendingMusicFolderCallback = null;
+                    if (cb != null) dispatchMusicResult(cb, json, null);
+                  });
+            },
+            "MusicFolderWalker")
+        .start();
+  }
+
+  private JSONArray walkMediaTree(Uri tree) {
+    JSONArray out = new JSONArray();
+    DocumentFile root = DocumentFile.fromTreeUri(this, tree);
+    if (root == null || !root.isDirectory()) return out;
+    collectMediaInto(root, "", out);
+    return out;
+  }
+
+  private void collectMediaInto(DocumentFile dir, String prefix, JSONArray out) {
+    if (out.length() >= MAX_MUSIC_FILES) return;
+    DocumentFile[] children;
+    try {
+      children = dir.listFiles();
+    } catch (Exception e) {
+      return;
+    }
+    if (children == null) return;
+    for (DocumentFile child : children) {
+      if (out.length() >= MAX_MUSIC_FILES) break;
+      if (child == null) continue;
+      String name = child.getName();
+      if (name == null || name.isEmpty()) continue;
+      String path = prefix.isEmpty() ? name : prefix + "/" + name;
+      if (child.isDirectory()) {
+        collectMediaInto(child, path, out);
+      } else if (isMusicMediaName(name)) {
+        int idx = pickedMusicUris.size();
+        pickedMusicUris.add(child.getUri());
+        String mime = child.getType();
+        if (mime == null || mime.isEmpty() || "application/octet-stream".equals(mime)) {
+          mime = mimeFromMusicName(name);
+        }
+        pickedMusicMime.add(mime);
+        try {
+          JSONObject o = new JSONObject();
+          o.put("idx", idx);
+          o.put("name", path);
+          o.put("mime", mime);
+          out.put(o);
+        } catch (Exception ignored) {
+          // JSONException prácticamente imposible aquí — el item se descarta y seguimos.
+        }
+      }
+    }
+  }
+
+  private static boolean isMusicMediaName(String name) {
+    String lower = name.toLowerCase(Locale.ROOT);
+    return lower.endsWith(".mp3")
+        || lower.endsWith(".m4a")
+        || lower.endsWith(".ogg")
+        || lower.endsWith(".wav")
+        || lower.endsWith(".aac")
+        || lower.endsWith(".flac")
+        || lower.endsWith(".mp4");
+  }
+
+  private static String mimeFromMusicName(String name) {
+    String lower = name.toLowerCase(Locale.ROOT);
+    if (lower.endsWith(".mp3")) return "audio/mpeg";
+    if (lower.endsWith(".m4a")) return "audio/mp4";
+    if (lower.endsWith(".ogg")) return "audio/ogg";
+    if (lower.endsWith(".wav")) return "audio/wav";
+    if (lower.endsWith(".aac")) return "audio/aac";
+    if (lower.endsWith(".flac")) return "audio/flac";
+    if (lower.endsWith(".mp4")) return "video/mp4";
+    return "application/octet-stream";
+  }
+
+  /**
+   * Envía el resultado del picker al callback global JS con dos argumentos:
+   * {@code (itemsArray, errorOrNull)}. Los items son inyectados como JSON literal en JS.
+   */
+  private void dispatchMusicResult(String callbackName, String jsonResult, String errorOrNull) {
+    Bridge bridge = getBridge();
+    WebView webView = bridge != null ? bridge.getWebView() : null;
+    if (webView == null) return;
+    String escErr =
+        errorOrNull == null
+            ? "null"
+            : "'" + errorOrNull.replace("\\", "\\\\").replace("'", "\\'") + "'";
+    String escCb = callbackName.replace("\\", "\\\\").replace("'", "\\'");
+    String code =
+        "(function(){ try { var cb = window['"
+            + escCb
+            + "']; if (typeof cb === 'function') cb("
+            + jsonResult
+            + ", "
+            + escErr
+            + "); } catch(e) { console.warn('music callback failed', e); } })();";
+    webView.evaluateJavascript(code, null);
+  }
+
+  /**
+   * Bridge JS expuesto como {@code window.AndroidMusic}. Solo lobby Pantalla 1 — los nombres
+   * (Music* / AndroidMusic) están elegidos para no colisionar con {@code AndroidBridge},
+   * {@code AndroidScene} ni {@code Android} (streaming/audiencia).
+   */
+  private static final class MusicFolderJsApi {
+
+    private final MainActivity activity;
+
+    MusicFolderJsApi(MainActivity activity) {
+      this.activity = activity;
+    }
+
+    /**
+     * Pide permisos y abre el selector nativo de carpeta. Al confirmar, JS recibe en
+     * {@code window[callbackName](items, errorOrNull)} un array de {@code {idx, name, mime}}.
+     */
+    @JavascriptInterface
+    public void pickMusicFolder(String callbackName) {
+      if (callbackName == null || callbackName.isEmpty()) return;
+      activity.runOnUiThread(() -> activity.launchMusicFolderPickerFlow(callbackName));
+    }
+
+    /**
+     * Devuelve el archivo {@code idx} (índice obtenido en el último picker) como string base64
+     * sin saltos de línea. JS lo convierte en {@code Blob}/{@code data:} para reproducir sin
+     * depender del servidor local de Capacitor.
+     */
+    @JavascriptInterface
+    public String readMusicFileBase64(int idx) {
+      if (idx < 0 || idx >= activity.pickedMusicUris.size()) return "";
+      Uri uri = activity.pickedMusicUris.get(idx);
+      if (uri == null) return "";
+      try (InputStream in = activity.getContentResolver().openInputStream(uri)) {
+        if (in == null) return "";
+        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        byte[] chunk = new byte[64 * 1024];
+        int n;
+        while ((n = in.read(chunk)) > 0) buf.write(chunk, 0, n);
+        return Base64.encodeToString(buf.toByteArray(), Base64.NO_WRAP);
+      } catch (IOException e) {
+        return "";
+      } catch (SecurityException e) {
+        // La sesión SAF puede haber expirado tras un reinicio sin persistencia — JS pide nueva carpeta.
+        return "";
+      }
+    }
+
+    /** MIME asociado al item; sirve para construir {@code data:audio/mpeg;base64,...}. */
+    @JavascriptInterface
+    public String getMusicMime(int idx) {
+      if (idx < 0 || idx >= activity.pickedMusicMime.size()) return "";
+      String mime = activity.pickedMusicMime.get(idx);
+      return mime != null ? mime : "";
+    }
+
+    @JavascriptInterface
+    public int getMusicCount() {
+      return activity.pickedMusicUris.size();
+    }
   }
 
   private void finishWebKitPermissionPrompt(Map<String, Boolean> result) {

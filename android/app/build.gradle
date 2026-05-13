@@ -38,6 +38,8 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    // Lobby Pantalla 1: recorrido del árbol SAF (ACTION_OPEN_DOCUMENT_TREE) para reproductor MP3/MP4.
+    implementation "androidx.documentfile:documentfile:1.0.1"
     implementation "com.google.android.material:material:1.12.0"
     implementation "com.github.pedroSG94.rtmp-rtsp-stream-client-java:rtplibrary:2.4.4"
     implementation project(':capacitor-android')

@@ -6,10 +6,48 @@ const STORE_KEY = "musicDir";
 
 const MEDIA_EXT = /\.(mp3|m4a|ogg|wav|aac|flac|mp4)$/i;
 
+/**
+ * Item nativo Android: el archivo vive en el dispositivo del usuario; se obtiene vía
+ * el bridge {@code window.AndroidMusic} (SAF + base64). Solo cargamos los bytes en
+ * memoria cuando vamos a reproducir esa canción (lazy), no toda la playlist a la vez.
+ */
+type AndroidMusicItem = { idx: number; name: string; mime: string };
+
 type PlaylistItem =
   | { kind: "file"; name: string; handle: FileSystemFileHandle }
   | { kind: "blob"; name: string; file: File }
-  | { kind: "url"; name: string; url: string };
+  | { kind: "url"; name: string; url: string }
+  | { kind: "android"; name: string; idx: number; mime: string };
+
+declare global {
+  interface Window {
+    AndroidMusic?: {
+      pickMusicFolder(callbackName: string): void;
+      readMusicFileBase64(idx: number): string;
+      getMusicMime(idx: number): string;
+      getMusicCount(): number;
+    };
+    __onniversoMusicFolderPicked?: (
+      items: AndroidMusicItem[] | null,
+      error: string | null,
+    ) => void;
+  }
+}
+
+const ANDROID_MUSIC_CALLBACK = "__onniversoMusicFolderPicked";
+
+function hasAndroidMusicBridge(): boolean {
+  return typeof window !== "undefined" && typeof window.AndroidMusic?.pickMusicFolder === "function";
+}
+
+/** Convierte un base64 sin saltos en {@link Blob} sin pasar por `atob` enorme de una sola vez. */
+function base64ToBlob(b64: string, mime: string): Blob {
+  const byteChars = atob(b64);
+  const len = byteChars.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = byteChars.charCodeAt(i);
+  return new Blob([bytes], { type: mime || "application/octet-stream" });
+}
 
 function isMp4(name: string): boolean {
   return /\.mp4$/i.test(name);
@@ -297,6 +335,22 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
         // Android / fallback: el File proviene de <input type=file webkitdirectory multiple>.
         url = URL.createObjectURL(item.file);
         objectUrlRef.current = url;
+      } else if (item.kind === "android") {
+        // Lectura lazy desde el bridge SAF: solo cargamos en memoria el track que vamos a tocar.
+        const bridge = window.AndroidMusic;
+        if (!bridge) {
+          setStatus("Bridge nativo no disponible. Toca 'Carpeta' otra vez.");
+          return;
+        }
+        const b64 = bridge.readMusicFileBase64(item.idx);
+        if (!b64) {
+          setStatus("No se pudo leer el archivo. Elige la carpeta otra vez.");
+          return;
+        }
+        const mime = bridge.getMusicMime(item.idx) || item.mime || (isMp4(name) ? "video/mp4" : "audio/mpeg");
+        const blob = base64ToBlob(b64, mime);
+        url = URL.createObjectURL(blob);
+        objectUrlRef.current = url;
       } else {
         // Desktop Chrome/Edge con File System Access API.
         const file = await item.handle.getFile();
@@ -532,6 +586,11 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
       await playItem(bundledPlaylist[shuffled[0]]);
       return;
     }
+    // Android Capacitor: bridge nativo SAF → permisos + selector de carpeta del sistema.
+    if (hasAndroidMusicBridge()) {
+      pickFolderViaAndroidBridge();
+      return;
+    }
     // Desktop: File System Access API → carpeta persistente con permisos.
     if (typeof window.showDirectoryPicker === "function") {
       try {
@@ -553,18 +612,73 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
         return;
       }
     }
-    // Móvil / Android WebView: <input webkitdirectory> dispara el selector nativo.
+    // Móvil / web sin bridge: <input webkitdirectory> intenta el selector nativo.
     if (folderInputRef.current) {
       folderInputRef.current.click();
       return;
     }
     setStatus("Toca 'Carpeta' para elegir archivos MP3/MP4 del dispositivo.");
-  }, [playlist, order, orderPos, playItem, bootstrapFromDirectory]);
+  }, [playlist, order, orderPos, playItem, bootstrapFromDirectory, pickFolderViaAndroidBridge]);
+
+  /**
+   * Selector de carpeta para Android Capacitor (bridge nativo SAF).
+   * Define el callback global ANTES de invocar el bridge — el resultado vuelve por
+   * {@code window[ANDROID_MUSIC_CALLBACK]} (ver MainActivity.dispatchMusicResult).
+   */
+  const pickFolderViaAndroidBridge = useCallback(() => {
+    const bridge = window.AndroidMusic;
+    if (!bridge) return false;
+    setStatus("Pidiendo permiso y abriendo selector de carpeta…");
+    window[ANDROID_MUSIC_CALLBACK] = async (items, error) => {
+      window[ANDROID_MUSIC_CALLBACK] = undefined;
+      if (error === "cancelled") {
+        setStatus("");
+        return;
+      }
+      if (error || !items || items.length === 0) {
+        setStatus(
+          error === "no-tree" || error === "no-picker"
+            ? "Tu Android no abrió el selector. Toca 'Archivos' como alternativa."
+            : "Sin archivos MP3/MP4 en la carpeta elegida.",
+        );
+        return;
+      }
+      const playlistItems: PlaylistItem[] = items
+        .map<PlaylistItem>((it) => ({
+          kind: "android" as const,
+          name: it.name,
+          idx: it.idx,
+          mime: it.mime,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      const shuffled = shuffleOrder(playlistItems.length);
+      setPlaylist(playlistItems);
+      setOrder(shuffled);
+      setOrderPos(0);
+      setStatus("");
+      try {
+        await playItem(playlistItems[shuffled[0]]);
+      } catch (e) {
+        setStatus("Error al iniciar reproducción.");
+        console.warn("AndroidMusic playItem failed", e);
+      }
+    };
+    try {
+      bridge.pickMusicFolder(ANDROID_MUSIC_CALLBACK);
+      return true;
+    } catch (e) {
+      window[ANDROID_MUSIC_CALLBACK] = undefined;
+      console.warn("AndroidMusic.pickMusicFolder threw", e);
+      setStatus("Bridge nativo no respondió. Usa 'Archivos' como alternativa.");
+      return false;
+    }
+  }, [playItem]);
 
   const onPickFolder = useCallback(() => {
     setStatus("");
+    if (hasAndroidMusicBridge() && pickFolderViaAndroidBridge()) return;
     folderInputRef.current?.click();
-  }, []);
+  }, [pickFolderViaAndroidBridge]);
 
   const onPickFiles = useCallback(() => {
     setStatus("");

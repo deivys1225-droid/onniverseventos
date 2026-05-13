@@ -70,4 +70,14 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Ajustes de sesión de audio típicos cuando el WebKit pide AUDIO_CAPTURE junto al micrófono -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!--
+      Reproductor del Lobby (Pantalla 1) — selector de carpeta de MP3/MP4 en el dispositivo.
+      Android 13+ (API 33+) usa permisos granulares por tipo de medio:
+    -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- Compatibilidad pre-Android 13: solo declarado hasta API 32 (en 33+ pasa al permiso granular). -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
 </manifest>
