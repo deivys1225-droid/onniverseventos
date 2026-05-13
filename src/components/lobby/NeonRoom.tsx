@@ -13,6 +13,7 @@ import MobileLobbyMovePad, {
   createMobileMoveInput,
   type MobileMoveInput,
 } from "@/components/lobby/MobileLobbyMovePad";
+import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
 
 const ROOM_SIZE = 20;
 const WALL_HEIGHT = 8;
@@ -28,7 +29,7 @@ const LOBBY_SCREEN_4_CLOUD_MODEL_URL =
   "https://res.cloudinary.com/dfsabdxup/image/upload/v1778502197/el_corazon_dbhvfn.glb";
 
 const WALL_SCREEN_EMBEDS = [
-  "https://www.google.com",
+  "about:blank",
   "https://web.whatsapp.com/",
   "https://www.youtube.com/embed/kJQP7kiw5Fk",
   LOBBY_SCREEN_4_CLOUD_MODEL_URL,
@@ -51,8 +52,8 @@ function readStoredLobbyScreenUrls(): LobbyScreenUrls | null {
       return null;
     }
     const urls = [...parsed] as LobbyScreenUrls;
-    if (urls[0] === "https://onnivers.com") {
-      urls[0] = "https://www.google.com";
+    if (urls[0] === "https://onnivers.com" || urls[0] === "https://www.google.com") {
+      urls[0] = "about:blank";
     }
     if (urls[3] === "https://www.youtube.com/embed/RgKAFK5djSk") {
       urls[3] = LOBBY_SCREEN_4_CLOUD_MODEL_URL;
@@ -355,28 +356,32 @@ function HoloScreen({
             pointerEvents: screenPointerEvents,
           }}
         >
-            <iframe
-              key={embedUrl}
-              src={embedUrl}
-              width={embedWidth}
-              height={embedHeight}
-              title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              sandbox={
-                label === 2
-                  ? "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                  : undefined
-              }
-              style={{
-                border: "0",
-                display: "block",
-                width: `${embedWidth}px`,
-                height: `${embedHeight}px`,
-                background: "#02030a",
-                pointerEvents: screenPointerEvents,
-              }}
-            />
+            {label === 1 ? (
+              <LobbyScreenOneHub width={embedWidth} height={embedHeight} />
+            ) : (
+              <iframe
+                key={embedUrl}
+                src={embedUrl}
+                width={embedWidth}
+                height={embedHeight}
+                title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                sandbox={
+                  label === 2
+                    ? "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                    : undefined
+                }
+                style={{
+                  border: "0",
+                  display: "block",
+                  width: `${embedWidth}px`,
+                  height: `${embedHeight}px`,
+                  background: "#02030a",
+                  pointerEvents: screenPointerEvents,
+                }}
+              />
+            )}
           </div>
         </Html>
       <Html
