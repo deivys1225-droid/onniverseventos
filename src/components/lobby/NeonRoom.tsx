@@ -14,6 +14,7 @@ import MobileLobbyMovePad, {
   type MobileMoveInput,
 } from "@/components/lobby/MobileLobbyMovePad";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
+import { VrSession } from "@/components/lobby/VrSession";
 
 const ROOM_SIZE = 20;
 const WALL_HEIGHT = 8;
@@ -1203,6 +1204,13 @@ export default function NeonRoom() {
           applyPixelRatioCap(gl);
         }}
       >
+          {/*
+            WebXR / Cardboard: habilita gl.xr e inyecta el botón "ENTER VR" si
+            navigator.xr soporta sesión inmersiva. Si no hay soporte (PC sin
+            headset, Capacitor WebView sin WebXR), no aparece nada y el lobby
+            queda en mono. Detalles en VrSession.tsx.
+          */}
+          <VrSession />
           <MixedRealityScene active={mixedRealityActive} />
           {!mixedRealityActive && <color attach="background" args={["#050510"]} />}
 
