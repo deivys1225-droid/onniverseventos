@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -14,10 +14,7 @@ import MobileLobbyMovePad, {
   type MobileMoveInput,
 } from "@/components/lobby/MobileLobbyMovePad";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
-import {
-  ManualStereoRenderer,
-  VrToggleButton,
-} from "@/components/lobby/VrSession";
+import { Mirror2DRenderer } from "@/components/lobby/Mirror2DRenderer";
 
 const ROOM_SIZE = 20;
 const WALL_HEIGHT = 8;
@@ -343,9 +340,7 @@ function HoloScreen({
   width = 8,
   height = 4.5,
   frameColor = "#00ffff",
-  hideHtml = false,
-  onVideoElementChange,
-  pantalla1VideoElement,
+  mirror2D = false,
 }: {
   position: [number, number, number];
   rotation: [number, number, number];
@@ -359,36 +354,16 @@ function HoloScreen({
   height?: number;
   frameColor?: string;
   /**
-   * Si es true, ocultamos los `<Html transform>` con el contenido DOM
-   * (iframe / LobbyScreenOneHub / caption). Activado en modo VR estéreo:
-   * drei `<Html>` se posiciona vía CSS3D con UNA sola cámara, así que en
-   * stereo aparecería centrado entre ambos ojos en vez de duplicado.
+   * En modo "2D espejo" duplicamos el contenido del `<Html transform>`
+   * en dos columnas internas con `transform: scaleX(0.5)`. Así cada
+   * mitad del viewport (cortada por el scissor split del WebGL) ve su
+   * propia copia del iframe alineada con el marco cyan duplicado.
    *
-   * Estrategia de "ocultar":
-   *  - Para `label !== 1` (iframes externos como YouTube): unmount total
-   *    con `{!hideHtml && <Html>}`. Limpio.
-   *  - Para `label === 1` (LobbyScreenOneHub con `<video>` MP4 local):
-   *    el `<Html>` se mantiene MONTADO siempre con `visibility: hidden`
-   *    si hideHtml. Esto evita desmontar el `<video>` y que se pierda la
-   *    reproducción. El mismo elemento `<video>` se proyecta entonces en
-   *    un plano 3D (Pantalla1VideoMesh) vía VideoTexture, que SÍ se
-   *    renderea estéreo automáticamente.
+   * Excepción: la Pantalla 1 (LobbyScreenOneHub) NO se duplica porque
+   * dos instancias chocarían con el `<audio>` y los blob URLs del
+   * reproductor de música; queda solo una copia centrada.
    */
-  hideHtml?: boolean;
-  /**
-   * Solo se usa para label === 1: callback que recibe el `<video>`
-   * interno de LobbyScreenOneHub cuando se monta o cambia, para que
-   * NeonRoom pueda exponerlo a Pantalla1VideoMesh.
-   */
-  onVideoElementChange?: (videoElement: HTMLVideoElement | null) => void;
-  /**
-   * Solo se usa para label === 1: el `<video>` element actualmente
-   * activo (provisto por NeonRoom desde el callback de arriba). Cuando
-   * `hideHtml` + este `<video>` están presentes, montamos
-   * Pantalla1VideoMesh para que el contenido del video aparezca en
-   * ambos ojos del stereo rendering.
-   */
-  pantalla1VideoElement?: HTMLVideoElement | null;
+  mirror2D?: boolean;
 }) {
   const w = width;
   const h = height;
@@ -398,113 +373,142 @@ function HoloScreen({
   const htmlZIndexRange = uiOverlayOpen ? LOBBY_SCREEN_BACKGROUND_Z_INDEX : LOBBY_SCREEN_HTML_Z_INDEX;
   const screenPointerEvents = uiOverlayOpen ? "none" : !interactionMode || focused ? "auto" : "none";
 
-  // Pantalla 1 (LobbyScreenOneHub) requiere keep-alive: si la desmontamos
-  // en VR, perdemos la reproducción del `<video>`. Para los demás labels,
-  // unmount completo en hideHtml es lo correcto (limpia recursos del iframe).
   const isPantalla1 = label === 1;
-  const renderContentHtml = isPantalla1 || !hideHtml;
-  const renderCaptionHtml = !hideHtml; // El caption no necesita keep-alive.
 
-  // CSS para "ocultar pero mantener montado" en VR: visibility hidden no
-  // tira el video element, opacity 0 evita parpadeos si el browser hace
-  // alguna optimización con visibility.
-  const hiddenStyle = hideHtml
-    ? { visibility: "hidden" as const, opacity: 0, pointerEvents: "none" as const }
-    : null;
+  const renderScreenInner = (instance: number) => isPantalla1 ? (
+    <LobbyScreenOneHub
+      key={`hub-${instance}`}
+      width={embedWidth}
+      height={embedHeight}
+    />
+  ) : (
+    <iframe
+      key={`${embedUrl}-${instance}`}
+      src={embedUrl}
+      width={embedWidth}
+      height={embedHeight}
+      title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowFullScreen
+      sandbox={
+        label === 2
+          ? "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+          : undefined
+      }
+      style={{
+        border: "0",
+        display: "block",
+        width: `${embedWidth}px`,
+        height: `${embedHeight}px`,
+        background: "#02030a",
+        pointerEvents: screenPointerEvents,
+      }}
+    />
+  );
+
+  /**
+   * Doble columna scaleX(0.5) para mirror2D. Cada columna mide
+   * embedWidth/2 px y contiene una instancia "comprimida" al 50%
+   * horizontalmente del contenido original (embedWidth ancho). El
+   * total sigue siendo embedWidth, así el `<Html transform>` no
+   * cambia de tamaño 3D ni la posición del marco cyan en el WebGL.
+   */
+  const renderDoubleColumn = () => (
+    <div style={{ display: "flex", width: `${embedWidth}px`, height: `${embedHeight}px` }}>
+      {[0, 1].map((idx) => (
+        <div
+          key={idx}
+          style={{
+            width: `${embedWidth / 2}px`,
+            height: `${embedHeight}px`,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${embedWidth}px`,
+              height: `${embedHeight}px`,
+              transform: "scaleX(0.5)",
+              transformOrigin: "top left",
+            }}
+          >
+            {renderScreenInner(idx)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const captionInner = (
+    <div
+      style={{
+        color: "#020617",
+        fontSize: "86px",
+        fontWeight: 900,
+        lineHeight: 1,
+        textAlign: "center",
+        letterSpacing: "0.02em",
+        textShadow: "0 0 18px rgba(255,255,255,0.65), 0 2px 10px rgba(15,23,42,0.35)",
+        WebkitTextStroke: "2px rgba(255,255,255,0.75)",
+      }}
+    >
+      {lobbyWallScreenCaption(label)}
+    </div>
+  );
 
   return (
     <group position={position} rotation={rotation}>
-      {renderContentHtml && (
-        <Html
-          transform
-          position={[0, 0, 0.05]}
-          scale={htmlScale}
-          zIndexRange={htmlZIndexRange}
-          style={
-            hiddenStyle ?? { pointerEvents: screenPointerEvents }
-          }
+      <Html
+        transform
+        position={[0, 0, 0.05]}
+        scale={htmlScale}
+        zIndexRange={htmlZIndexRange}
+        style={{ pointerEvents: screenPointerEvents }}
+      >
+        <div
+          onPointerDownCapture={(event) => {
+            event.stopPropagation();
+            onFocus();
+          }}
+          style={{
+            width: `${embedWidth}px`,
+            background: "#02030a",
+            pointerEvents: screenPointerEvents,
+          }}
         >
-          <div
-            onPointerDownCapture={(event) => {
-              event.stopPropagation();
-              onFocus();
-            }}
-            style={{
-              width: `${embedWidth}px`,
-              background: "#02030a",
-              pointerEvents: screenPointerEvents,
-            }}
-          >
-            {isPantalla1 ? (
-              <LobbyScreenOneHub
-                width={embedWidth}
-                height={embedHeight}
-                onVideoElementChange={onVideoElementChange}
-              />
-            ) : (
-              <iframe
-                key={embedUrl}
-                src={embedUrl}
-                width={embedWidth}
-                height={embedHeight}
-                title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                sandbox={
-                  label === 2
-                    ? "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                    : undefined
-                }
-                style={{
-                  border: "0",
-                  display: "block",
-                  width: `${embedWidth}px`,
-                  height: `${embedHeight}px`,
-                  background: "#02030a",
-                  pointerEvents: screenPointerEvents,
-                }}
-              />
-            )}
+          {mirror2D && !isPantalla1 ? renderDoubleColumn() : renderScreenInner(0)}
+        </div>
+      </Html>
+      <Html
+        transform
+        position={[0, -((h / 2 + 0.35) * 1.1), 0.05]}
+        scale={htmlScale * 1.575}
+        zIndexRange={htmlZIndexRange}
+        style={{ pointerEvents: "none" }}
+      >
+        {mirror2D ? (
+          <div style={{ display: "flex", width: `${embedWidth}px` }}>
+            {[0, 1].map((idx) => (
+              <div
+                key={idx}
+                style={{ width: `${embedWidth / 2}px`, overflow: "hidden" }}
+              >
+                <div
+                  style={{
+                    width: `${embedWidth}px`,
+                    transform: "scaleX(0.5)",
+                    transformOrigin: "top left",
+                  }}
+                >
+                  {captionInner}
+                </div>
+              </div>
+            ))}
           </div>
-        </Html>
-      )}
-      {renderCaptionHtml && (
-        <Html
-          transform
-          position={[0, -((h / 2 + 0.35) * 1.1), 0.05]}
-          scale={htmlScale * 1.575}
-          zIndexRange={htmlZIndexRange}
-          style={{ pointerEvents: "none" }}
-        >
-          <div
-            style={{
-              color: "#020617",
-              fontSize: "86px",
-              fontWeight: 900,
-              lineHeight: 1,
-              textAlign: "center",
-              letterSpacing: "0.02em",
-              textShadow: "0 0 18px rgba(255,255,255,0.65), 0 2px 10px rgba(15,23,42,0.35)",
-              WebkitTextStroke: "2px rgba(255,255,255,0.75)",
-            }}
-          >
-            {lobbyWallScreenCaption(label)}
-          </div>
-        </Html>
-      )}
-      {/*
-        Modo VR: si Pantalla 1 está reproduciendo un `<video>` MP4 local,
-        lo proyectamos en este plano 3D vía VideoTexture. El mesh sí se
-        renderea estéreo (StereoEffect lo dibuja con cameraL y cameraR),
-        así que el video aparece duplicado correctamente en ambos ojos.
-      */}
-      {hideHtml && isPantalla1 && pantalla1VideoElement && (
-        <Pantalla1VideoMesh
-          videoElement={pantalla1VideoElement}
-          width={w * 0.95}
-          height={h * 0.95}
-        />
-      )}
+        ) : (
+          captionInner
+        )}
+      </Html>
       {/* Dark holographic panel so stars/content read on light walls */}
       <mesh position={[0, 0, -0.01]}>
         <planeGeometry args={[w, h]} />
@@ -526,92 +530,19 @@ function HoloScreen({
   );
 }
 
-/**
- * Plano 3D que reproduce el `<video>` HTML de LobbyScreenOneHub como una
- * textura WebGL, para que aparezca correctamente en ambos ojos del modo VR
- * estéreo (StereoEffect renderea cada mesh con cameraL y cameraR
- * automáticamente; VideoTexture lee del elemento `<video>` cada frame).
- *
- * Por qué este componente y no `<Html>`:
- * - drei `<Html transform>` posiciona el DOM via CSS3D usando UNA sola
- *   cámara, así que en stereoscopic rendering aparece centrado entre los
- *   ojos en vez de duplicado.
- * - Un mesh 3D con `<meshBasicMaterial map={videoTexture} />` lo
- *   gestiona el pipeline WebGL y se beneficia de las dos rendering passes
- *   de StereoEffect sin código extra.
- *
- * Limitaciones:
- * - El `<video>` debe estar reproduciendo (o pausado con frame válido)
- *   para que VideoTexture tenga píxeles. Si está parado en metadata-only,
- *   se ve negro.
- * - El audio sigue saliendo por el `<video>` HTML original (no por la
- *   textura). Eso es correcto: VideoTexture solo captura el frame visual.
- */
-function Pantalla1VideoMesh({
-  videoElement,
-  width,
-  height,
-}: {
-  videoElement: HTMLVideoElement;
-  width: number;
-  height: number;
-}) {
-  const texture = useMemo(() => {
-    const tex = new THREE.VideoTexture(videoElement);
-    // SRGB para que los colores del video se vean correctos vs el espacio
-    // lineal interno del renderer.
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.minFilter = THREE.LinearFilter;
-    tex.magFilter = THREE.LinearFilter;
-    return tex;
-  }, [videoElement]);
-
-  useEffect(() => {
-    return () => {
-      // Libera la textura GPU cuando este mesh se desmonta o cambia de video.
-      texture.dispose();
-    };
-  }, [texture]);
-
-  return (
-    <mesh position={[0, 0, 0.04]}>
-      <planeGeometry args={[width, height]} />
-      <meshBasicMaterial map={texture} toneMapped={false} />
-    </mesh>
-  );
-}
-
 // ---------- 4 holographic screens, one centered on each wall ----------
 function HoloScreens({
   focusedScreen,
   onFocusScreen,
   screenUrls,
   screenLinksOpen,
-  vrMode = false,
-  onPantalla1VideoElementChange,
-  pantalla1VideoElement,
+  mirror2D = false,
 }: {
   focusedScreen: number | null;
   onFocusScreen: (label: number) => void;
   screenUrls: LobbyScreenUrls;
   screenLinksOpen: boolean;
-  /**
-   * En modo VR estéreo:
-   *  - Las pantallas con iframe (labels 2, 3, 4-url, central) se desmontan
-   *    (drei `<Html transform>` no se duplica en stereoscopic rendering).
-   *  - La pantalla 1 (LobbyScreenOneHub) se mantiene MONTADA invisible
-   *    para no perder la reproducción del `<video>` MP4, y su frame se
-   *    proyecta vía VideoTexture en un mesh 3D que SÍ aparece en ambos ojos.
-   */
-  vrMode?: boolean;
-  /**
-   * Callback que recibe el `<video>` element interno de LobbyScreenOneHub.
-   * NeonRoom lo guarda en estado para que el mesh Pantalla1VideoMesh
-   * pueda usarlo como fuente de VideoTexture en modo VR.
-   */
-  onPantalla1VideoElementChange?: (videoElement: HTMLVideoElement | null) => void;
-  /** El `<video>` element actualmente activo (provisto por NeonRoom). */
-  pantalla1VideoElement?: HTMLVideoElement | null;
+  mirror2D?: boolean;
 }) {
   const half = ROOM_SIZE / 2;
   const y = WALL_HEIGHT / 2;
@@ -625,17 +556,15 @@ function HoloScreens({
     focused: focusedScreen === label,
     interactionMode,
     uiOverlayOpen: screenLinksOpen,
-    hideHtml: vrMode,
+    mirror2D,
     onFocus: () => onFocusScreen(label),
   });
 
   return (
     <>
-      {/* Back wall (-Z) — Pantalla 1: única con keep-alive + VideoTexture en VR. */}
+      {/* Back wall (-Z) */}
       <HoloScreen
         {...screenProps(1, screenUrls[0], [0, y, -half + off], [0, 0, 0])}
-        onVideoElementChange={onPantalla1VideoElementChange}
-        pantalla1VideoElement={pantalla1VideoElement}
       />
       {/* Front wall (+Z) */}
       <HoloScreen
@@ -673,12 +602,11 @@ function HoloScreens({
 
 function ForcedFloatingVideoScreen({
   screenLinksOpen,
-  vrMode = false,
   position = [0, 2.25, 0],
   rotation = [0, 0, 0],
+  mirror2D = false,
 }: {
   screenLinksOpen: boolean;
-  vrMode?: boolean;
   /**
    * Posición del iframe "Nuestras Salas" en la sala. Por defecto centro
    * elevado. Cuando Pantalla 4 es un GLB hacemos swap: NeonRoom le pasa la
@@ -687,32 +615,62 @@ function ForcedFloatingVideoScreen({
    */
   position?: [number, number, number];
   rotation?: [number, number, number];
+  /** Igual que en HoloScreen: en 2D espejo doblamos el iframe lado a lado. */
+  mirror2D?: boolean;
 }) {
   const htmlZIndexRange = screenLinksOpen ? LOBBY_SCREEN_BACKGROUND_Z_INDEX : LOBBY_SCREEN_HTML_Z_INDEX;
+  const iframeWidth = 1024;
+  const iframeHeight = 576;
+  const pointerStyle = screenLinksOpen ? "none" : "auto";
 
-  // En modo VR estéreo no renderizamos el `<Html transform>` (drei posiciona
-  // el iframe con CSS3D usando una sola cámara, así que aparecería centrado
-  // entre ambos ojos en vez de duplicado). El usuario no ve la pantalla
-  // central flotante mientras está en VR; en modo normal vuelve a aparecer.
-  if (vrMode) return null;
+  const renderIframe = (instance: number) => (
+    <iframe
+      key={`center-${instance}`}
+      src={CENTER_SCREEN_EMBED_URL}
+      width={iframeWidth}
+      height={iframeHeight}
+      title="Nuestras Salas"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowFullScreen
+      style={{
+        border: "0",
+        display: "block",
+        background: "#02030a",
+        pointerEvents: pointerStyle,
+      }}
+    />
+  );
 
   return (
     <group position={position} rotation={rotation}>
       <Html transform position={[0, 0, 0]} scale={0.5} zIndexRange={htmlZIndexRange}>
-        <iframe
-          src={CENTER_SCREEN_EMBED_URL}
-          width={1024}
-          height={576}
-          title="Nuestras Salas"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-          style={{
-            border: "0",
-            display: "block",
-            background: "#02030a",
-            pointerEvents: screenLinksOpen ? "none" : "auto",
-          }}
-        />
+        {mirror2D ? (
+          <div style={{ display: "flex", width: `${iframeWidth}px`, height: `${iframeHeight}px` }}>
+            {[0, 1].map((idx) => (
+              <div
+                key={idx}
+                style={{
+                  width: `${iframeWidth / 2}px`,
+                  height: `${iframeHeight}px`,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${iframeWidth}px`,
+                    height: `${iframeHeight}px`,
+                    transform: "scaleX(0.5)",
+                    transformOrigin: "top left",
+                  }}
+                >
+                  {renderIframe(idx)}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          renderIframe(0)
+        )}
       </Html>
     </group>
   );
@@ -1127,18 +1085,13 @@ export default function NeonRoom() {
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
   const [screenLinksOpen, setScreenLinksOpen] = useState(false);
-  // VR estereo manual: cuando vrMode es true, ManualStereoRenderer toma el
-  // control del render-loop de R3F (split-screen + gyro) y los overlays
-  // HUD se ocultan para no aparecer duplicados en ambos ojos.
-  const [vrMode, setVrMode] = useState(false);
-  const [vrError, setVrError] = useState<string | null>(null);
-  // Ref vivo al `<video>` de LobbyScreenOneHub: cuando vrMode + video
-  // playing → Pantalla1VideoMesh lo usa como fuente de VideoTexture en
-  // un plano 3D que sí se renderea estéreo. Para iframes externos
-  // (YouTube/Vimeo) no se puede hacer lo mismo: CORS bloquea capturar
-  // su contenido a un canvas.
-  const [pantalla1VideoElement, setPantalla1VideoElement] =
-    useState<HTMLVideoElement | null>(null);
+  // MODO 2D ESPEJO: cuando es true, Mirror2DRenderer toma el render-loop
+  // de R3F y dibuja la escena duplicada lado a lado (mismas cámaras, mismo
+  // aspect ratio en cada mitad). Los HUD overlays se recortan a la mitad
+  // izquierda con clip-path para que "los controles solo queden de un lado",
+  // como pidió el usuario. El botón "2D" mismo queda fuera del clip para
+  // poder salir del modo.
+  const [mirror2D, setMirror2D] = useState(false);
   const [screenUrlDrafts, setScreenUrlDrafts] = useState<LobbyScreenUrls>(
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
@@ -1331,83 +1284,15 @@ export default function NeonRoom() {
     await startMixedReality();
   }, [mixedRealityEnabled, startMixedReality, stopMixedReality]);
 
-  /**
-   * Entra al modo VR estéreo manual.
-   *
-   * Secuencia:
-   *  1. iOS 13+ Safari requiere `DeviceOrientationEvent.requestPermission()`
-   *     desde un user gesture (este click cuenta). Android WebView NO
-   *     requiere permiso para sensores de movimiento (las uses-permission
-   *     HIGH_SAMPLING_RATE_SENSORS y los <uses-feature> en
-   *     AndroidManifest.xml son opcionales pero recomendados).
-   *  2. Pantalla completa best-effort (Capacitor 8 expone Fullscreen API
-   *     vía BridgeWebChromeClient.onShowCustomView).
-   *  3. Bloqueo de orientación a landscape best-effort (algunos WebViews
-   *     ignoran ScreenOrientation.lock; no es bloqueante).
-   *  4. setVrMode(true) → ManualStereoRenderer se monta dentro del Canvas.
-   */
-  const enterVrMode = useCallback(async () => {
-    setVrError(null);
-
-    type IosDeviceOrientationEvent = typeof DeviceOrientationEvent & {
-      requestPermission?: () => Promise<"granted" | "denied">;
-    };
-    const Doe =
-      typeof DeviceOrientationEvent !== "undefined"
-        ? (DeviceOrientationEvent as IosDeviceOrientationEvent)
-        : null;
-    if (Doe?.requestPermission) {
-      try {
-        const result = await Doe.requestPermission();
-        if (result !== "granted") {
-          setVrError(
-            "Permiso de orientación denegado. Para usar VR, autoriza el acceso al giroscopio.",
-          );
-          return;
-        }
-      } catch {
-        // Si requestPermission falla por timing (fuera de user gesture en
-        // navegadores raros), seguimos: en Android+WebView no se requiere
-        // permiso y los eventos llegan igual. Si no llegan, la escena se ve
-        // estática en estéreo y el usuario puede salir con SALIR VR.
-      }
-    }
-
-    try {
-      const root = canvasRef.current?.parentElement ?? document.documentElement;
-      if (root.requestFullscreen) await root.requestFullscreen();
-    } catch {
-      /* fullscreen denegado o no soportado: seguimos en viewport normal. */
-    }
-
-    try {
-      const orientation = window.screen?.orientation as
-        | (ScreenOrientation & { lock?: (o: string) => Promise<void> })
-        | undefined;
-      if (orientation?.lock) await orientation.lock("landscape");
-    } catch {
-      /* lock denegado / no soportado: el usuario debe rotar manualmente. */
-    }
-
-    setVrMode(true);
-  }, []);
-
-  const exitVrMode = useCallback(() => {
-    setVrMode(false);
-    setVrError(null);
-    try {
-      if (document.fullscreenElement) void document.exitFullscreen();
-    } catch {
-      /* sin fullscreen activo: nada que cerrar. */
-    }
-    try {
-      window.screen?.orientation?.unlock?.();
-    } catch {
-      /* sin lock previo: ignorable. */
-    }
-  }, []);
-
   const mixedRealityActive = mixedRealityEnabled;
+
+  // Recorte aplicado a TODOS los overlays HUD en modo 2D-espejo: deja
+  // visible solo la mitad IZQUIERDA del viewport. Lo que quede a la derecha
+  // se oculta. El botón "2D" mismo NO usa este estilo para seguir siendo
+  // clickeable.
+  const hudClipStyle: CSSProperties | undefined = mirror2D
+    ? { clipPath: "inset(0 50% 0 0)" }
+    : undefined;
 
   return (
     <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : "bg-black"}`}>
@@ -1438,49 +1323,50 @@ export default function NeonRoom() {
               }
         }
       />
-      {!vrMode && (
-        <>
-          <button
-            type="button"
-            data-lobby-ui
-            onClick={() => navigate("/")}
-            aria-label="Volver al perfil"
-            className="pointer-events-auto fixed left-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/60 bg-slate-950/95 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:border-cyan-300 hover:bg-slate-900 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
-            style={{
-              top: "max(1rem, env(safe-area-inset-top))",
-              left: "max(1rem, env(safe-area-inset-left))",
-            }}
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden />
-          </button>
-          <button
-            type="button"
-            data-lobby-ui
-            onClick={() => void toggleMixedReality()}
-            disabled={mixedRealityLoading}
-            aria-label={mixedRealityEnabled ? "Desactivar modo realidad mixta" : "Activar modo realidad mixta"}
-            className={`pointer-events-auto fixed right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 font-display text-xs font-bold tracking-[0.18em] shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:bg-slate-900 hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)] disabled:cursor-wait disabled:opacity-70 ${
-              mixedRealityEnabled
-                ? "border-violet-400/70 text-violet-200 hover:border-violet-300 hover:text-white"
-                : "border-cyan-400/60 text-cyan-200 hover:border-cyan-300 hover:text-white"
-            }`}
-            style={{
-              top: "max(1rem, env(safe-area-inset-top))",
-              right: "max(1rem, env(safe-area-inset-right))",
-            }}
-          >
-            RM
-          </button>
-          {mixedRealityError && (
-            <p
-              className="pointer-events-none fixed right-4 top-20 z-20 max-w-[min(92vw,18rem)] rounded-xl border border-rose-300/35 bg-black/75 px-3 py-2 text-xs text-rose-100 backdrop-blur-md"
-              style={{ top: "max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem))" }}
-              role="alert"
-            >
-              {mixedRealityError}
-            </p>
-          )}
-        </>
+      <button
+        type="button"
+        data-lobby-ui
+        onClick={() => navigate("/")}
+        aria-label="Volver al perfil"
+        className="pointer-events-auto fixed left-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/60 bg-slate-950/95 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:border-cyan-300 hover:bg-slate-900 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
+        style={{
+          top: "max(1rem, env(safe-area-inset-top))",
+          left: "max(1rem, env(safe-area-inset-left))",
+          ...hudClipStyle,
+        }}
+      >
+        <ArrowLeft className="h-5 w-5" aria-hidden />
+      </button>
+      <button
+        type="button"
+        data-lobby-ui
+        onClick={() => void toggleMixedReality()}
+        disabled={mixedRealityLoading}
+        aria-label={mixedRealityEnabled ? "Desactivar modo realidad mixta" : "Activar modo realidad mixta"}
+        className={`pointer-events-auto fixed right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 font-display text-xs font-bold tracking-[0.18em] shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:bg-slate-900 hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)] disabled:cursor-wait disabled:opacity-70 ${
+          mixedRealityEnabled
+            ? "border-violet-400/70 text-violet-200 hover:border-violet-300 hover:text-white"
+            : "border-cyan-400/60 text-cyan-200 hover:border-cyan-300 hover:text-white"
+        }`}
+        style={{
+          top: "max(1rem, env(safe-area-inset-top))",
+          right: "max(1rem, env(safe-area-inset-right))",
+          ...hudClipStyle,
+        }}
+      >
+        RM
+      </button>
+      {mixedRealityError && (
+        <p
+          className="pointer-events-none fixed right-4 top-20 z-20 max-w-[min(92vw,18rem)] rounded-xl border border-rose-300/35 bg-black/75 px-3 py-2 text-xs text-rose-100 backdrop-blur-md"
+          style={{
+            top: "max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem))",
+            ...hudClipStyle,
+          }}
+          role="alert"
+        >
+          {mixedRealityError}
+        </p>
       )}
       <Canvas
         className="relative z-10"
@@ -1493,15 +1379,7 @@ export default function NeonRoom() {
           applyPixelRatioCap(gl);
         }}
       >
-          {/*
-            VR estéreo manual (sin depender de navigator.xr ni del polyfill
-            de Cardboard). Cuando `vrMode` está activo, ManualStereoRenderer
-            toma el render-loop de R3F y dibuja la escena en dos ojos
-            (split-screen) usando StereoEffect + gyro inline. Fuera de modo
-            VR no se monta y R3F renderea mono normal con los controles
-            PC/touch sin cambios.
-          */}
-          {vrMode && <ManualStereoRenderer />}
+          {mirror2D && <Mirror2DRenderer />}
           <MixedRealityScene active={mixedRealityActive} />
           {!mixedRealityActive && <color attach="background" args={["#050510"]} />}
 
@@ -1529,9 +1407,7 @@ export default function NeonRoom() {
             onFocusScreen={focusScreen}
             screenUrls={screenUrls}
             screenLinksOpen={screenLinksOpen}
-            vrMode={vrMode}
-            onPantalla1VideoElementChange={setPantalla1VideoElement}
-            pantalla1VideoElement={pantalla1VideoElement}
+            mirror2D={mirror2D}
           />
           {/*
             Swap del iframe central según Pantalla 4:
@@ -1545,7 +1421,7 @@ export default function NeonRoom() {
           */}
           <ForcedFloatingVideoScreen
             screenLinksOpen={screenLinksOpen}
-            vrMode={vrMode}
+            mirror2D={mirror2D}
             position={
               isGlbSource(screenUrls[3])
                 ? [ROOM_SIZE / 2 - 0.03, WALL_HEIGHT / 2, 0]
@@ -1560,15 +1436,10 @@ export default function NeonRoom() {
           <LoungeSpotlight />
 
         <EarthMoonAnchor />
-        {/* FirstPersonController (WASD + joystick mobile) sigue activo en
-            modo VR: el usuario puede caminar por el lobby mientras mira
-            alrededor con el gyro. */}
         <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
-        {/* En modo VR el gyro reemplaza tanto el touch-look como el
-            pointer-lock del PC para que no peleen por la rotación. */}
-        <MobileTouchLook enabled={isMobileTouch && focusedScreen === null && !vrMode} />
+        <MobileTouchLook enabled={isMobileTouch && focusedScreen === null} />
 
-        {focusedScreen === null && !isMobileTouch && !vrMode && (
+        {focusedScreen === null && !isMobileTouch && (
           <PointerLockControls
             onLock={() => {
               setLocked(true);
@@ -1584,8 +1455,11 @@ export default function NeonRoom() {
         inputRef={mobileMoveInput}
       />
 
-      {!vrMode && focusedScreen === null && (
-        <div className="pointer-events-none fixed bottom-0 right-0 z-[12000] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
+      {focusedScreen === null && (
+        <div
+          className="pointer-events-none fixed bottom-0 right-0 z-[12000] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]"
+          style={hudClipStyle}
+        >
           {!screenLinksOpen ? (
             <button
               type="button"
@@ -1674,23 +1548,41 @@ export default function NeonRoom() {
         siguen ahí pero ahora son no-ops visuales).
       */}
 
-      {!vrMode && locked && focusedScreen === null && (
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference" />
+      {locked && focusedScreen === null && (
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference"
+          style={hudClipStyle}
+        />
       )}
 
       {/*
-        Botón "ENTRAR VR" / "SALIR VR" SIEMPRE visible. Vive fuera del Canvas
-        para no interferir con el render-loop de R3F. Su `onEnter` pide
-        permiso de orientación (iOS), pantalla completa y landscape; su
-        `onExit` revierte todo. En modo VR se oculta automáticamente todo
-        el HUD para no aparecer duplicado en ambos ojos.
+        Botón "2D" — toggle del modo espejo (split lateral idéntico, sin
+        stereo). SIEMPRE visible (no se le aplica hudClipStyle) para que el
+        usuario pueda salir del modo. Posicionado a la izquierda del botón
+        URLs en la misma fila inferior, lado derecho.
       */}
-      <VrToggleButton
-        vrMode={vrMode}
-        onEnter={() => void enterVrMode()}
-        onExit={exitVrMode}
-        errorMessage={vrError ?? undefined}
-      />
+      <button
+        type="button"
+        data-lobby-ui
+        onClick={() => setMirror2D((prev) => !prev)}
+        aria-pressed={mirror2D}
+        aria-label={mirror2D ? "Desactivar modo 2D espejo" : "Activar modo 2D espejo"}
+        className={`pointer-events-auto fixed z-[12001] inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 font-display text-[10px] font-bold tracking-[0.12em] backdrop-blur-md transition ${
+          mirror2D
+            ? "border-amber-300/70 text-amber-100 shadow-[0_0_28px_-4px_rgba(251,191,36,0.95),inset_0_0_18px_-10px_rgba(251,191,36,0.55)] hover:border-amber-200 hover:text-white"
+            : "border-cyan-400/60 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] hover:border-cyan-300 hover:bg-slate-900 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
+        }`}
+        style={{
+          bottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))",
+          right: "calc(max(1rem, env(safe-area-inset-right, 0px)) + 3.5rem)",
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "rgba(34,211,238,0.5)",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+        }}
+      >
+        2D
+      </button>
     </div>
   );
 }

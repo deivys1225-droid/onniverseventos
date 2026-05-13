@@ -139,14 +139,6 @@ const bundledPlaylist: PlaylistItem[] = Object.entries(bundledModules).map(([pat
 type HubProps = {
   width: number;
   height: number;
-  /**
-   * Callback invocado cuando el `<video>` interno se monta o desmonta.
-   * Usado por NeonRoom para crear un `VideoTexture` sobre el mismo
-   * elemento `<video>` y proyectarlo en un mesh 3D (Pantalla1VideoMesh)
-   * que SÍ se renderea estéreo cuando vrMode está activo. Las pantallas
-   * con iframes externos (YouTube) no pueden replicar esto por CORS.
-   */
-  onVideoElementChange?: (videoElement: HTMLVideoElement | null) => void;
 };
 
 function cpuStateColor(state: string | null): string {
@@ -280,27 +272,10 @@ function indicatorWrap(icon: ReactNode, label: string) {
 export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({
   width,
   height,
-  onVideoElementChange,
 }: HubProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
-
-  /**
-   * Callback ref para el `<video>`: mantiene `videoRef.current` actualizado
-   * (igual que useRef) Y avisa a `onVideoElementChange` cuando el elemento
-   * se monta (recibe el HTMLVideoElement) o desmonta (recibe null). Esto
-   * permite que NeonRoom, fuera del árbol de este componente, conozca el
-   * `<video>` activo y lo use como fuente de `VideoTexture` para el modo
-   * VR estéreo.
-   */
-  const handleVideoRef = useCallback(
-    (element: HTMLVideoElement | null) => {
-      videoRef.current = element;
-      onVideoElementChange?.(element);
-    },
-    [onVideoElementChange],
-  );
   /**
    * Input oculto (sin botón visible) usado como último fallback en navegadores
    * móviles web (Chrome Android, Safari iOS) donde no hay bridge nativo
@@ -806,7 +781,7 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({
         }}
       >
         <video
-          ref={handleVideoRef}
+          ref={videoRef}
           playsInline
           preload="metadata"
           muted={muted}
