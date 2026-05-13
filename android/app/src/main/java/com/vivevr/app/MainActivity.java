@@ -39,9 +39,19 @@ import java.util.Map;
  */
 public class MainActivity extends BridgeActivity {
 
-  /** URL de entrada oficial al abrir la app. */
+  /**
+   * Base remota usada SOLO por el flujo de streaming/audiencia (resolvePlaybackUrl,
+   * AUDIENCE_GO_*). El arranque y la navegación interna NO la usan: el WebView de
+   * Capacitor sirve la app desde {@code https://localhost/} (assets/public/) para que
+   * la app abra sin internet.
+   */
   private static final String INITIAL_WEB_URL = "https://onnivers.com";
-  private static final String LOBBY_IMMERSIVE_URL = INITIAL_WEB_URL + "/lobby-inmersivo";
+  /**
+   * Lobby inmersivo local — apunta a la copia empaquetada en assets/public/. Capacitor
+   * con androidScheme="https" sirve la app desde localhost; el path lo maneja React
+   * Router al cargar index.html.
+   */
+  private static final String LOBBY_IMMERSIVE_URL = "https://localhost/lobby-inmersivo";
 
   /** Destinos del reproductor de audiencia (botones 360 / VR / MT desde JS {@code AndroidBridge}). */
   private static final String AUDIENCE_GO_360_URL = "https://onnivers.com/go/360";
@@ -196,7 +206,10 @@ public class MainActivity extends BridgeActivity {
 
     WebSettings settings = webView.getSettings();
     settings.setMediaPlaybackRequiresUserGesture(false);
-    webView.loadUrl(INITIAL_WEB_URL);
+    // OFFLINE-FIRST: NO forzar carga de la URL remota al boot. super.load() arriba ya cargó
+    // el index.html local desde assets/public/ vía Capacitor. La línea anterior
+    // (webView.loadUrl("https://onnivers.com")) hacía que la app dependiera de internet en
+    // cada arranque y mostrara ERR_INTERNET_DISCONNECTED sin red.
 
     webView.addJavascriptInterface(new AudienceSceneBridge(this, bridge), "AndroidScene");
     webView.addJavascriptInterface(new AndroidBridge(this, bridge), "AndroidBridge");
