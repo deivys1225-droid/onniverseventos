@@ -330,6 +330,7 @@ function HoloScreen({
   width = 8,
   height = 4.5,
   frameColor = "#00ffff",
+  hideHtml = false,
 }: {
   position: [number, number, number];
   rotation: [number, number, number];
@@ -342,6 +343,17 @@ function HoloScreen({
   width?: number;
   height?: number;
   frameColor?: string;
+  /**
+   * Si es true, omitimos los `<Html transform>` (iframe + caption).
+   * Activado en modo VR estéreo: drei `<Html>` se posiciona vía CSS3D con
+   * UNA sola cámara, así que en stereo aparecería centrado entre ambos
+   * ojos en vez de duplicado. Ocultarlo deja el marco 3D (mesh) limpio en
+   * ambos ojos. Para que el contenido sí aparezca en VR habría que
+   * convertir el iframe a un mesh con `VideoTexture`, lo cual sólo es
+   * viable para fuentes MP4 directas (no para iframes cross-origin como
+   * YouTube/Vimeo debido a CORS).
+   */
+  hideHtml?: boolean;
 }) {
   const w = width;
   const h = height;
@@ -353,74 +365,78 @@ function HoloScreen({
 
   return (
     <group position={position} rotation={rotation}>
-      <Html
-        transform
-        position={[0, 0, 0.05]}
-        scale={htmlScale}
-        zIndexRange={htmlZIndexRange}
-        style={{ pointerEvents: screenPointerEvents }}
-      >
-        <div
-          onPointerDownCapture={(event) => {
-            event.stopPropagation();
-            onFocus();
-          }}
-          style={{
-            width: `${embedWidth}px`,
-            background: "#02030a",
-            pointerEvents: screenPointerEvents,
-          }}
-        >
-            {label === 1 ? (
-              <LobbyScreenOneHub width={embedWidth} height={embedHeight} />
-            ) : (
-              <iframe
-                key={embedUrl}
-                src={embedUrl}
-                width={embedWidth}
-                height={embedHeight}
-                title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                sandbox={
-                  label === 2
-                    ? "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                    : undefined
-                }
-                style={{
-                  border: "0",
-                  display: "block",
-                  width: `${embedWidth}px`,
-                  height: `${embedHeight}px`,
-                  background: "#02030a",
-                  pointerEvents: screenPointerEvents,
-                }}
-              />
-            )}
-          </div>
-        </Html>
-      <Html
-        transform
-        position={[0, -((h / 2 + 0.35) * 1.1), 0.05]}
-        scale={htmlScale * 1.575}
-        zIndexRange={htmlZIndexRange}
-        style={{ pointerEvents: "none" }}
-      >
-        <div
-          style={{
-            color: "#020617",
-            fontSize: "86px",
-            fontWeight: 900,
-            lineHeight: 1,
-            textAlign: "center",
-            letterSpacing: "0.02em",
-            textShadow: "0 0 18px rgba(255,255,255,0.65), 0 2px 10px rgba(15,23,42,0.35)",
-            WebkitTextStroke: "2px rgba(255,255,255,0.75)",
-          }}
-        >
-          {lobbyWallScreenCaption(label)}
-        </div>
-      </Html>
+      {!hideHtml && (
+        <>
+          <Html
+            transform
+            position={[0, 0, 0.05]}
+            scale={htmlScale}
+            zIndexRange={htmlZIndexRange}
+            style={{ pointerEvents: screenPointerEvents }}
+          >
+            <div
+              onPointerDownCapture={(event) => {
+                event.stopPropagation();
+                onFocus();
+              }}
+              style={{
+                width: `${embedWidth}px`,
+                background: "#02030a",
+                pointerEvents: screenPointerEvents,
+              }}
+            >
+                {label === 1 ? (
+                  <LobbyScreenOneHub width={embedWidth} height={embedHeight} />
+                ) : (
+                  <iframe
+                    key={embedUrl}
+                    src={embedUrl}
+                    width={embedWidth}
+                    height={embedHeight}
+                    title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    sandbox={
+                      label === 2
+                        ? "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                        : undefined
+                    }
+                    style={{
+                      border: "0",
+                      display: "block",
+                      width: `${embedWidth}px`,
+                      height: `${embedHeight}px`,
+                      background: "#02030a",
+                      pointerEvents: screenPointerEvents,
+                    }}
+                  />
+                )}
+              </div>
+            </Html>
+          <Html
+            transform
+            position={[0, -((h / 2 + 0.35) * 1.1), 0.05]}
+            scale={htmlScale * 1.575}
+            zIndexRange={htmlZIndexRange}
+            style={{ pointerEvents: "none" }}
+          >
+            <div
+              style={{
+                color: "#020617",
+                fontSize: "86px",
+                fontWeight: 900,
+                lineHeight: 1,
+                textAlign: "center",
+                letterSpacing: "0.02em",
+                textShadow: "0 0 18px rgba(255,255,255,0.65), 0 2px 10px rgba(15,23,42,0.35)",
+                WebkitTextStroke: "2px rgba(255,255,255,0.75)",
+              }}
+            >
+              {lobbyWallScreenCaption(label)}
+            </div>
+          </Html>
+        </>
+      )}
       {/* Dark holographic panel so stars/content read on light walls */}
       <mesh position={[0, 0, -0.01]}>
         <planeGeometry args={[w, h]} />
@@ -448,11 +464,19 @@ function HoloScreens({
   onFocusScreen,
   screenUrls,
   screenLinksOpen,
+  vrMode = false,
 }: {
   focusedScreen: number | null;
   onFocusScreen: (label: number) => void;
   screenUrls: LobbyScreenUrls;
   screenLinksOpen: boolean;
+  /**
+   * Cuando es true, los `<Html>` con iframe + caption se omiten porque
+   * drei `<Html transform>` no se duplica en stereoscopic rendering
+   * (es DOM posicionado por CSS3D usando una sola cámara). Los meshes
+   * 3D (marco, fondo oscuro, bordes neon) sí se renderean en ambos ojos.
+   */
+  vrMode?: boolean;
 }) {
   const half = ROOM_SIZE / 2;
   const y = WALL_HEIGHT / 2;
@@ -466,6 +490,7 @@ function HoloScreens({
     focused: focusedScreen === label,
     interactionMode,
     uiOverlayOpen: screenLinksOpen,
+    hideHtml: vrMode,
     onFocus: () => onFocusScreen(label),
   });
 
@@ -499,8 +524,20 @@ function HoloScreens({
   );
 }
 
-function ForcedFloatingVideoScreen({ screenLinksOpen }: { screenLinksOpen: boolean }) {
+function ForcedFloatingVideoScreen({
+  screenLinksOpen,
+  vrMode = false,
+}: {
+  screenLinksOpen: boolean;
+  vrMode?: boolean;
+}) {
   const htmlZIndexRange = screenLinksOpen ? LOBBY_SCREEN_BACKGROUND_Z_INDEX : LOBBY_SCREEN_HTML_Z_INDEX;
+
+  // En modo VR estéreo no renderizamos el `<Html transform>` (drei posiciona
+  // el iframe con CSS3D usando una sola cámara, así que aparecería centrado
+  // entre ambos ojos en vez de duplicado). El usuario no ve la pantalla
+  // central flotante mientras está en VR; en modo normal vuelve a aparecer.
+  if (vrMode) return null;
 
   return (
     <group position={[0, 2.25, 0]}>
@@ -1328,8 +1365,9 @@ export default function NeonRoom() {
             onFocusScreen={focusScreen}
             screenUrls={screenUrls}
             screenLinksOpen={screenLinksOpen}
+            vrMode={vrMode}
           />
-          <ForcedFloatingVideoScreen screenLinksOpen={screenLinksOpen} />
+          <ForcedFloatingVideoScreen screenLinksOpen={screenLinksOpen} vrMode={vrMode} />
           <NeonAccents />
           <LoungeSet />
           <LoungeSpotlight />
