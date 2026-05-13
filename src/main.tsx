@@ -5,6 +5,38 @@ import html2canvas from "html2canvas";
 import App from "./App.tsx";
 import "./index.css";
 
+/**
+ * WebXR polyfill (lazy + condicional).
+ *
+ * Solo se descarga e instala si el runtime NO expone `navigator.xr` (caso
+ * típico del WebView de Capacitor en muchos celulares Android: el motor
+ * Chromium del System WebView todavía no expone WebXR aunque Chrome
+ * standalone del mismo equipo sí lo haga). En esos casos, el polyfill de
+ * Google emula la API usando `DeviceOrientationEvent` (giroscopio) y
+ * `requestFullscreen()`, permitiendo entrar al modo Cardboard estéreo
+ * desde dentro del APK.
+ *
+ * En navegadores que YA exponen `navigator.xr` (Chrome Android moderno,
+ * Quest browser, etc.), el polyfill no se descarga: cero coste extra de
+ * bundle para usuarios que no lo necesitan.
+ */
+function ensureWebXrPolyfill(): Promise<void> {
+  if (typeof navigator === "undefined") return Promise.resolve();
+  if (navigator.xr) return Promise.resolve();
+  return import("webxr-polyfill")
+    .then(({ default: WebXRPolyfill }) => {
+      // `cardboard: true` habilita el fallback estereoscópico con
+      // tracking por giroscopio para celulares sin headset dedicado.
+      new WebXRPolyfill({ cardboard: true });
+    })
+    .catch((err) => {
+      // Si falla el load (offline + sin cache), el lobby queda en mono
+      // pero el resto de la app sigue funcionando con sus controles
+      // PC/teclado/WASD intactos.
+      console.warn("[webxr-polyfill] no se pudo cargar:", err);
+    });
+}
+
 declare global {
   interface Window {
     /** Solo Android: llama {@code AndroidBridge.abrirMiSelectorNativo()} (sin cargar página). */
@@ -377,4 +409,10 @@ function MirrorSbsRoot() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<MirrorSbsRoot />);
+// Esperamos al polyfill antes de montar React para que el lobby (cuando
+// el usuario llegue ahí) ya encuentre `navigator.xr` listo. En la práctica
+// son ~50–80 ms en Capacitor WebView (chunk separado, ~30 KB gzipped) y
+// 0 ms en navegadores con XR nativo (no se descarga).
+void ensureWebXrPolyfill().then(() => {
+  createRoot(document.getElementById("root")!).render(<MirrorSbsRoot />);
+});

@@ -3,26 +3,34 @@ import { useThree } from "@react-three/fiber";
 import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
 
 /**
- * WebXR mínimo para el lobby Three.js (`@react-three/fiber`).
+ * WebXR para el lobby Three.js (`@react-three/fiber`).
  *
- * Cero dependencias nuevas: usa lo que ya viene en `three` (`VRButton`).
+ * Cero deps NPM directas para el botón: usa `THREE.VRButton` que ya viene en
+ * el paquete `three` instalado.
  *
- * Flujo:
- * 1. Habilita `gl.xr.enabled = true` para que el WebGLRenderer tenga el módulo
- *    XR listo (es no-op mientras no haya sesión activa).
- * 2. Pregunta a `navigator.xr` si soporta sesión `immersive-vr`.
- *    - Si NO (PC sin headset, Capacitor WebView sin WebXR habilitado, iOS Safari
- *      sin polyfill): no se crea el botón y el lobby queda en mono normal.
- *    - Si SÍ (Chrome Android con Cardboard, Quest, etc.): inyecta el botón
- *      "ENTER VR" que crea `VRButton.createButton(gl)`. El botón es un
- *      `<button>` fixed-positioned que `three` administra (estilos + estado).
- * 3. Al pulsar ENTER VR, `three` pide la sesión XR; R3F 8.x detecta
+ * Para hacer que funcione DENTRO del APK de Capacitor (donde el WebView de
+ * Android NO expone `navigator.xr` nativamente en muchas versiones de Android
+ * System WebView), `src/main.tsx` carga `webxr-polyfill` de forma lazy *solo*
+ * cuando detecta ausencia de XR nativo. El polyfill instala `navigator.xr` y
+ * emula sesiones inmersivas usando `DeviceOrientationEvent` (giroscopio del
+ * teléfono) + `requestFullscreen()` + render estéreo split-screen. En
+ * navegadores con XR nativo (Chrome Android moderno) el polyfill no se
+ * descarga y se usa la API nativa.
+ *
+ * Flujo en runtime:
+ * 1. `gl.xr.enabled = true` (no-op mientras no haya sesión).
+ * 2. `navigator.xr.isSessionSupported("immersive-vr")` ahora responde true
+ *    tanto en Chrome Android nativo como en APK con polyfill.
+ * 3. Si responde true, inyectamos `THREE.VRButton` estilado con la paleta
+ *    cyan-400 / cyan-300 / slate-950 del HUD (mismo tono que el botón
+ *    "atrás" en top-left y el joystick mobile).
+ * 4. Al pulsar el botón, three.js arranca la sesión XR. R3F 8.x detecta
  *    `gl.xr.isPresenting === true` y conmuta su frameloop a
- *    `gl.setAnimationLoop(...)` que el sistema WebXR controla. La escena pasa
- *    automáticamente a stereoscopic split-screen y head-tracking.
- *
- * Importante: NO requiere Google VR SDK nativo (deprecado, artefacto 404 en
- * Maven). El SDK era para apps OpenGL nativas, irrelevante en WebView/R3F.
+ *    `gl.setAnimationLoop(...)` que el sistema WebXR controla, pasando la
+ *    escena a stereoscopic split-screen + head-tracking.
+ * 5. Los controles PC (`PointerLockControls`, `FirstPersonController` WASD,
+ *    `MobileTouchLook`) siguen activos en modo normal; al entrar a VR el
+ *    head-tracking los sustituye temporalmente y al salir vuelven solos.
  */
 export function VrSession() {
   const { gl } = useThree();
@@ -74,7 +82,7 @@ export function VrSession() {
         attached = btn;
       })
       .catch(() => {
-        /* WebView sin WebXR o permiso denegado — silencio: el botón no aparece. */
+        /* WebView sin WebXR ni polyfill (improbable) o permiso denegado. */
       });
 
     return () => {

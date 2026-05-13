@@ -1205,10 +1205,11 @@ export default function NeonRoom() {
         }}
       >
           {/*
-            WebXR / Cardboard: habilita gl.xr e inyecta el botón "ENTER VR" si
-            navigator.xr soporta sesión inmersiva. Si no hay soporte (PC sin
-            headset, Capacitor WebView sin WebXR), no aparece nada y el lobby
-            queda en mono. Detalles en VrSession.tsx.
+            WebXR / Cardboard: habilita gl.xr e inyecta el botón "ENTER VR"
+            si navigator.xr soporta sesión inmersiva. En APK Capacitor,
+            `webxr-polyfill` (cargado en main.tsx) emula la API usando el
+            giroscopio. En PC sin headset el botón no aparece y los
+            controles ratón/teclado/WASD funcionan exactamente igual.
           */}
           <VrSession />
           <MixedRealityScene active={mixedRealityActive} />
@@ -1346,31 +1347,13 @@ export default function NeonRoom() {
         </div>
       )}
 
-      {escapeBarVisible && focusedScreen === null && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 border-t border-cyan-300/20 bg-gradient-to-t from-black/92 via-black/78 to-black/35 pb-[max(0.85rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-18px_48px_-24px_rgba(34,211,238,0.45)] backdrop-blur-xl">
-          <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-2 px-4 sm:flex-row sm:justify-between sm:gap-6">
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.95)]" aria-hidden />
-              <p className="text-sm font-semibold tracking-wide text-white">Pearl Room</p>
-            </div>
-            <p className="text-center text-xs text-white/70 sm:flex-1 sm:text-sm">
-              {isMobileTouch ? (
-                <>
-                  Arrastra con el dedo para mirar ? toca la escena para usar el rat?n ? pad izquierdo para moverte
-                </>
-              ) : (
-                <>
-                  Pulsa <span className="font-mono text-cyan-100/90">ESC</span> otra vez para ocultar esta barra y
-                  seguir movi?ndote ? <span className="font-mono text-cyan-100/90">WASD</span> mover ? rat?n mirar
-                </>
-              )}
-            </p>
-            <p className="hidden text-[11px] uppercase tracking-[0.24em] text-cyan-200/55 sm:block">
-              Controles en pausa
-            </p>
-          </div>
-        </div>
-      )}
+      {/*
+        Barra de avisos inferior ("Pearl Room · WASD mover · ratón mirar")
+        eliminada por pedido del usuario: estorbaba visualmente en PC y
+        mobile. El state `escapeBarVisible` se conserva por compatibilidad
+        con el resto de la lógica del lobby (los `setEscapeBarVisible(...)`
+        siguen ahí pero ahora son no-ops visuales).
+      */}
 
       {locked && focusedScreen === null && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference" />
