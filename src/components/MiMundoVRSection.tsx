@@ -1,6 +1,6 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
 import { DeviceOrientationControls, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import {
@@ -39,6 +39,10 @@ const MOON_RADIUS = CENTRAL_SPHERE_RADIUS * 0.27;
 const MOON_ORBIT_RADIUS = CENTRAL_SPHERE_RADIUS * 1.95;
 const MOON_ORBIT_SPEED = 0.22;
 const EARTH_ROTATION_SPEED = 0.08;
+/** Tap corto sobre la Tierra (Android): WebView entrega la URL al nativo; no usar en arrastre de órbita. */
+const ONNIVER_LOCATION_DEEP_LINK = "onniver://abrir-selector-directo";
+const EARTH_TAP_MAX_MOVE_PX = 14;
+const EARTH_TAP_MAX_MS = 650;
 const MI_MUNDO_CAMERA_VIEW_STORAGE_KEY = "onniverso.mi_mundo.camera_view";
 const PROFILE_NAME_STORAGE_KEY = "onniverso.profile.name";
 function readStoredProfileName(): string | undefined {
@@ -180,6 +184,66 @@ function specularToRoughnessTexture(specular: THREE.Texture): THREE.CanvasTextur
   return tex;
 }
 
+function useEarthTapPointerDown(
+  vrStereo: boolean,
+  onOpenLobby: (() => void) | undefined,
+) {
+  const activePointerEndRef = useRef<((ev: PointerEvent) => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      const h = activePointerEndRef.current;
+      if (h) {
+        window.removeEventListener("pointerup", h);
+        window.removeEventListener("pointercancel", h);
+        activePointerEndRef.current = null;
+      }
+    };
+  }, []);
+
+  return useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      if (vrStereo) return;
+      if (Capacitor.getPlatform() !== "android" && !onOpenLobby) return;
+
+      const prev = activePointerEndRef.current;
+      if (prev) {
+        window.removeEventListener("pointerup", prev);
+        window.removeEventListener("pointercancel", prev);
+        activePointerEndRef.current = null;
+      }
+
+      const native = event.nativeEvent;
+      const pointerId = native.pointerId;
+      const x0 = native.clientX;
+      const y0 = native.clientY;
+      const t0 = performance.now();
+
+      const onPointerEnd = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
+        window.removeEventListener("pointerup", onPointerEnd);
+        window.removeEventListener("pointercancel", onPointerEnd);
+        activePointerEndRef.current = null;
+
+        const dist = Math.hypot(ev.clientX - x0, ev.clientY - y0);
+        const dt = performance.now() - t0;
+        if (dist > EARTH_TAP_MAX_MOVE_PX || dt > EARTH_TAP_MAX_MS) return;
+
+        if (Capacitor.getPlatform() === "android") {
+          window.location.href = ONNIVER_LOCATION_DEEP_LINK;
+          return;
+        }
+        onOpenLobby?.();
+      };
+
+      activePointerEndRef.current = onPointerEnd;
+      window.addEventListener("pointerup", onPointerEnd);
+      window.addEventListener("pointercancel", onPointerEnd);
+    },
+    [vrStereo, onOpenLobby],
+  );
+}
+
 /** Planeta Tierra central: texturas/material; posicion, radio y orbita intactos. */
 function CentralEarth({
   simpleGpu,
@@ -194,6 +258,7 @@ function CentralEarth({
 }) {
   const earthRef = useRef<THREE.Group>(null);
   const earthScale = useRef(1);
+  const onEarthSurfacePointerDown = useEarthTapPointerDown(vrStereo, onOpenLobby);
   const [dayMap, normalMap, specularMap, cloudsMap] = useLoader(THREE.TextureLoader, [
     EARTH_DAY_4K,
     EARTH_NORMAL,
@@ -232,22 +297,16 @@ function CentralEarth({
     earthRef.current.scale.setScalar(earthScale.current);
   });
 
-  const openLobbyFromPlanet = (event: { stopPropagation: () => void }) => {
-    if (!onOpenLobby) return;
-    event.stopPropagation();
-    onOpenLobby();
-  };
-
   const seg = useMemo(() => getAdaptiveSphereSegments(vrStereo), [vrStereo]);
 
   if (simpleGpu) {
     return (
       <group ref={earthRef} key={`earth-s-${seg}`}>
-        <mesh renderOrder={0} onPointerDown={openLobbyFromPlanet}>
+        <mesh renderOrder={0} onPointerDown={onEarthSurfacePointerDown}>
           <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
           <meshBasicMaterial map={dayMap} toneMapped />
         </mesh>
-        <mesh renderOrder={1} scale={1.0018}>
+        <mesh renderOrder={1} scale={1.0018} onPointerDown={onEarthSurfacePointerDown}>
           <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
           <meshBasicMaterial map={cloudsMap} transparent opacity={0.92} depthWrite={false} toneMapped />
         </mesh>
@@ -268,7 +327,7 @@ function CentralEarth({
 
   return (
     <group ref={earthRef} key={`earth-hd-${seg}`}>
-      <mesh renderOrder={0} onPointerDown={openLobbyFromPlanet}>
+      <mesh renderOrder={0} onPointerDown={onEarthSurfacePointerDown}>
         <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
         <meshStandardMaterial
           map={dayMap}
@@ -281,7 +340,7 @@ function CentralEarth({
           toneMapped
         />
       </mesh>
-      <mesh renderOrder={1} scale={1.0018}>
+      <mesh renderOrder={1} scale={1.0018} onPointerDown={onEarthSurfacePointerDown}>
         <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
         <meshStandardMaterial
           map={cloudsMap}

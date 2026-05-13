@@ -16,7 +16,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
@@ -76,8 +75,8 @@ public class MainActivity extends BridgeActivity {
   }
 
   /**
-   * Abre {@link SelectorActivity} y, al elegir escena, carga la URL de reproducción en el WebView
-   * (misma secuencia que antes con {@code loadUrl} + diálogo).
+   * Abre {@link SelectorActivity} (sin lista de modos): confirma la escena preferida y carga la URL
+   * de reproducción en el WebView (MP4 o /go/*).
    */
   private void openAudienceSelector(String preferredScene, String playbackUrl) {
     runOnUiThread(
@@ -208,7 +207,7 @@ public class MainActivity extends BridgeActivity {
 
   /**
    * Puente Web → nativo: la sala de audiencia llama {@code AndroidScene.openSceneSelector(preferred)}
-   * para mostrar el selector de escenas en UI Android (AlertDialog) y devolver la elección al JS.
+   * y se aplica la escena preferida al JS sin diálogo de modos.
    */
   private static final class AudienceSceneBridge {
 
@@ -228,25 +227,10 @@ public class MainActivity extends BridgeActivity {
             if (webView == null) {
               return;
             }
-            final String[] keys = new String[] {"split", "immersive", "mix"};
-            final String[] labels =
-                new String[] {
-                  "Pantalla dividida",
-                  "Escena inmersiva (360°)",
-                  "Escena mixta",
-                };
             activity.showSceneSelector(
                 webView,
                 preferredScene,
-                selectedScene -> {
-                  for (int i = 0; i < keys.length; i++) {
-                    if (keys[i].equals(selectedScene)) {
-                      dispatchSceneToJs(keys[i]);
-                      return;
-                    }
-                  }
-                  dispatchSceneToJs("split");
-                });
+                this::dispatchSceneToJs);
           });
     }
 
@@ -267,7 +251,7 @@ public class MainActivity extends BridgeActivity {
   /**
    * Puente Web → nativo para los botones 360°, VR y MT del reproductor:
    * abren {@link SelectorActivity}; al confirmar escena se carga la URL (MP4 de sala o /go/*) en el WebView.
-   * {@code AndroidBridge.abrirMiSelectorNativo()} sigue usando {@link AlertDialog} (solo selector, sin reproducción).
+   * {@code AndroidBridge.abrirMiSelectorNativo()} aplica la escena preferida en JS sin lista de modos.
    */
   private static final class AndroidBridge {
 
@@ -279,7 +263,7 @@ public class MainActivity extends BridgeActivity {
       this.bridge = bridge;
     }
 
-    /** Solo UI nativa: AlertDialog “Selector de escena”; al elegir se despacha a JS como {@link AudienceSceneBridge}. Sin {@code loadUrl}. */
+    /** Aplica la escena preferida en JS sin lista de modos. Sin {@code loadUrl}. */
     @JavascriptInterface
     public void abrirMiSelectorNativo() {
       activity.runOnUiThread(
@@ -348,31 +332,17 @@ public class MainActivity extends BridgeActivity {
   }
 
   private void showSceneSelector(WebView webView, String preferredScene, SceneSelectionCallback callback) {
-    final String[] keys = new String[] {"split", "immersive", "mix"};
-    final String[] labels =
-        new String[] {
-          "Pantalla dividida",
-          "Escena inmersiva (360°)",
-          "Escena mixta",
-        };
-    int checkedItem = 0;
-    if ("immersive".equals(preferredScene)) {
-      checkedItem = 1;
-    } else if ("mix".equals(preferredScene)) {
-      checkedItem = 2;
-    }
+    callback.onSelected(normalizeSceneKey(preferredScene));
+  }
 
-    new AlertDialog.Builder(this)
-        .setTitle("Selector de escena")
-        .setSingleChoiceItems(
-            labels,
-            checkedItem,
-            (dialog, which) -> {
-              callback.onSelected(keys[which]);
-              dialog.dismiss();
-            })
-        .setNegativeButton(android.R.string.cancel, null)
-        .show();
+  private static String normalizeSceneKey(String preferred) {
+    if (preferred == null || preferred.isEmpty()) {
+      return "split";
+    }
+    if ("immersive".equals(preferred) || "mix".equals(preferred) || "split".equals(preferred)) {
+      return preferred;
+    }
+    return "split";
   }
 
   private void dispatchSceneToJs(WebView webView, String scene) {

@@ -1,14 +1,18 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 const DB_NAME = "onniverso.lobby.screen1.audio";
 const STORE = "handles";
 const STORE_KEY = "musicDir";
 
-const AUDIO_EXT = /\.(mp3|m4a|ogg|wav|aac|flac)$/i;
+const MEDIA_EXT = /\.(mp3|m4a|ogg|wav|aac|flac|mp4)$/i;
 
 type PlaylistItem =
   | { kind: "file"; name: string; handle: FileSystemFileHandle }
   | { kind: "url"; name: string; url: string };
+
+function isMp4(name: string): boolean {
+  return /\.mp4$/i.test(name);
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -53,13 +57,13 @@ async function verifyDirReadPermission(dir: FileSystemDirectoryHandle): Promise<
   return false;
 }
 
-async function collectAudioFiles(root: FileSystemDirectoryHandle): Promise<PlaylistItem[]> {
+async function collectMediaFiles(root: FileSystemDirectoryHandle): Promise<PlaylistItem[]> {
   const out: PlaylistItem[] = [];
 
   async function walk(dir: FileSystemDirectoryHandle, prefix: string) {
     for await (const [name, entry] of dir.entries()) {
       const path = prefix ? `${prefix}/${name}` : name;
-      if (entry.kind === "file" && AUDIO_EXT.test(name)) {
+      if (entry.kind === "file" && MEDIA_EXT.test(name)) {
         out.push({ kind: "file", name: path, handle: entry as FileSystemFileHandle });
       } else if (entry.kind === "directory") {
         await walk(entry as FileSystemDirectoryHandle, path);
@@ -81,7 +85,7 @@ function shuffleOrder(length: number): number[] {
   return arr;
 }
 
-const bundledModules = import.meta.glob("../../assets/lobby-screen1/*.{mp3,ogg,wav,m4a}", {
+const bundledModules = import.meta.glob("../../assets/lobby-screen1/*.{mp3,ogg,wav,m4a,mp4}", {
   eager: true,
   query: "?url",
   import: "default",
@@ -98,11 +102,83 @@ type HubProps = {
   height: number;
 };
 
+function cpuStateColor(state: string | null): string {
+  switch (state) {
+    case "critical":
+      return "#f87171";
+    case "serious":
+      return "#fb923c";
+    case "fair":
+      return "#fbbf24";
+    case "nominal":
+      return "#22d3ee";
+    default:
+      return "#94a3b8";
+  }
+}
+
+function NeonCpuIcon({ state }: { state: string | null }) {
+  const stroke = cpuStateColor(state);
+  return (
+    <svg width="52" height="44" viewBox="0 0 28 24" aria-hidden style={{ filter: `drop-shadow(0 0 4px ${stroke}88)` }}>
+      <rect x="5" y="4" width="18" height="14" rx="2" fill="none" stroke={stroke} strokeWidth="1.5" />
+      <path d="M9 8h10M9 11h7M9 14h10" stroke={stroke} strokeWidth="1.1" strokeLinecap="round" />
+      <path d="M14 1v3M14 20v3M1 11h3M24 11h3" stroke={stroke} strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function NeonDiskIcon({ stroke }: { stroke: string }) {
+  return (
+    <svg width="52" height="44" viewBox="0 0 28 24" aria-hidden style={{ filter: `drop-shadow(0 0 4px ${stroke}88)` }}>
+      <ellipse cx="14" cy="18" rx="9" ry="3" fill="none" stroke={stroke} strokeWidth="1.3" />
+      <path d="M5 18V8c0-2 4-3.5 9-3.5s9 1.5 9 3.5v10" fill="none" stroke={stroke} strokeWidth="1.3" />
+      <ellipse cx="14" cy="8" rx="9" ry="3" fill="none" stroke={stroke} strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+function NeonSpeakerIcon({ muted }: { muted: boolean }) {
+  const stroke = muted ? "#f87171" : "#22d3ee";
+  return (
+    <svg width="52" height="44" viewBox="0 0 28 24" aria-hidden style={{ filter: `drop-shadow(0 0 4px ${stroke}88)` }}>
+      <path d="M4 9v6h4l5 4V5L8 9H4z" fill="none" stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+      {!muted ? (
+        <>
+          <path d="M15 8c2 2 2 6 0 8" fill="none" stroke={stroke} strokeWidth="1.3" strokeLinecap="round" />
+          <path d="M17 5c3.5 3.5 3.5 10.5 0 14" fill="none" stroke={stroke} strokeWidth="1.3" strokeLinecap="round" />
+        </>
+      ) : (
+        <path d="M15 7l9 10M24 7l-9 10" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" />
+      )}
+    </svg>
+  );
+}
+
+function NeonVibrateIcon({ active }: { active: boolean }) {
+  const stroke = active ? "#a78bfa" : "#475569";
+  return (
+    <svg width="52" height="44" viewBox="0 0 28 24" aria-hidden style={{ filter: active ? `drop-shadow(0 0 4px ${stroke}88)` : "none" }}>
+      <rect x="11" y="3" width="6" height="18" rx="1.5" fill="none" stroke={stroke} strokeWidth="1.4" />
+      <path d="M7 7v2M7 12v2M7 17v2M21 7v2M21 12v2M21 17v2" stroke={stroke} strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function NeonFpsIcon({ stroke }: { stroke: string }) {
+  return (
+    <svg width="52" height="44" viewBox="0 0 28 24" aria-hidden style={{ filter: `drop-shadow(0 0 4px ${stroke}88)` }}>
+      <rect x="3" y="4" width="22" height="16" rx="2" fill="none" stroke={stroke} strokeWidth="1.3" />
+      <path d="M7 17l4-10 4 8 4-8" fill="none" stroke={stroke} strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function NeonBatteryIcon({ level }: { level: number | null }) {
   const pct = level == null ? null : Math.round(level * 100);
-  const fillH = pct == null ? 18 : Math.max(4, Math.round((pct / 100) * 28));
+  const fillH = pct == null ? 16 : Math.max(3, Math.round((pct / 100) * 24));
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden style={{ filter: "drop-shadow(0 0 5px rgba(34,211,238,0.85))" }}>
+    <svg width="60" height="60" viewBox="0 0 40 40" aria-hidden style={{ filter: "drop-shadow(0 0 5px rgba(34,211,238,0.85))" }}>
       <rect x="4" y="10" width="28" height="20" rx="3" fill="none" stroke="#22d3ee" strokeWidth="2" />
       <rect x="32" y="15" width="3" height="10" rx="1" fill="#22d3ee" />
       <rect x="8" y={30 - fillH} width="20" height={fillH} rx="2" fill="#22d3ee" opacity="0.9" />
@@ -113,7 +189,7 @@ function NeonBatteryIcon({ level }: { level: number | null }) {
 function NeonWifiIcon({ online, quality }: { online: boolean; quality: string }) {
   const stroke = online ? "#22d3ee" : "#64748b";
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden style={{ filter: online ? "drop-shadow(0 0 5px rgba(34,211,238,0.8))" : "none" }}>
+    <svg width="60" height="60" viewBox="0 0 40 40" aria-hidden style={{ filter: online ? "drop-shadow(0 0 5px rgba(34,211,238,0.8))" : "none" }}>
       {!online ? (
         <>
           <path d="M6 32 L32 8" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round" />
@@ -143,19 +219,37 @@ function NeonWifiIcon({ online, quality }: { online: boolean; quality: string })
   );
 }
 
+function indicatorWrap(icon: ReactNode, label: string) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, minWidth: "68px" }}>
+      {icon}
+      <span style={{ fontSize: "14px", color: "#a5f3fc", fontWeight: 700, letterSpacing: "0.02em", textAlign: "center", lineHeight: 1.1 }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height }: HubProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
 
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   const [order, setOrder] = useState<number[]>([]);
   const [orderPos, setOrderPos] = useState(0);
   const [status, setStatus] = useState("");
+  const [playingVideo, setPlayingVideo] = useState(false);
+  const [muted, setMuted] = useState(false);
 
   const [clock, setClock] = useState(() => new Date());
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
   const [online, setOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   const [netQuality, setNetQuality] = useState<string>("unknown");
+
+  const [cpuPressure, setCpuPressure] = useState<string | null>(null);
+  const [diskFreePct, setDiskFreePct] = useState<number | null>(null);
+  const [fps, setFps] = useState(0);
 
   const halfH = Math.floor(height / 2);
 
@@ -171,29 +265,61 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
     }
   }, []);
 
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.muted = muted;
+    if (videoRef.current) videoRef.current.muted = muted;
+  }, [muted, playingVideo]);
+
   const playItem = useCallback(
     async (item: PlaylistItem) => {
-      const el = audioRef.current;
-      if (!el) return;
       revokeObjectUrl();
+      const name = item.name;
+      const asVideo = isMp4(name);
+
+      let url: string;
       if (item.kind === "url") {
-        el.src = item.url;
+        url = item.url;
       } else {
         const file = await item.handle.getFile();
-        const url = URL.createObjectURL(file);
+        url = URL.createObjectURL(file);
         objectUrlRef.current = url;
-        el.src = url;
       }
-      await el.play();
+
+      audioRef.current?.pause();
+      if (audioRef.current) {
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load();
+      }
+      videoRef.current?.pause();
+      if (videoRef.current) {
+        videoRef.current.removeAttribute("src");
+        videoRef.current.load();
+      }
+
+      if (asVideo) {
+        const v = videoRef.current;
+        if (!v) return;
+        v.src = url;
+        v.muted = muted;
+        setPlayingVideo(true);
+        await v.play();
+      } else {
+        setPlayingVideo(false);
+        const a = audioRef.current;
+        if (!a) return;
+        a.src = url;
+        a.muted = muted;
+        await a.play();
+      }
     },
-    [revokeObjectUrl],
+    [muted, revokeObjectUrl],
   );
 
   const bootstrapFromDirectory = useCallback(
     async (dir: FileSystemDirectoryHandle) => {
       const ok = await verifyDirReadPermission(dir);
       if (!ok) return false;
-      const list = await collectAudioFiles(dir);
+      const list = await collectMediaFiles(dir);
       if (!list.length) return false;
       await saveDirectoryHandle(dir);
       const shuffled = shuffleOrder(list.length);
@@ -211,7 +337,7 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
     if (!dir) return;
     const ok = await verifyDirReadPermission(dir);
     if (!ok) return;
-    const list = await collectAudioFiles(dir);
+    const list = await collectMediaFiles(dir);
     if (!list.length) return;
     const shuffled = shuffleOrder(list.length);
     setPlaylist(list);
@@ -266,6 +392,69 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
     };
   }, []);
 
+  useEffect(() => {
+    let obs: { disconnect: () => void } | null = null;
+    const w = window as unknown as {
+      PressureObserver?: new (cb: (records: ReadonlyArray<{ state: string }>) => void, opts?: { sampleInterval?: number }) => {
+        observe: (source: "cpu") => void;
+        disconnect: () => void;
+      };
+    };
+    if (w.PressureObserver) {
+      try {
+        const o = new w.PressureObserver(
+          (records) => {
+            const s = records[0]?.state;
+            if (s) setCpuPressure(s);
+          },
+          { sampleInterval: 1500 },
+        );
+        void o.observe("cpu");
+        obs = o;
+      } catch {
+        setCpuPressure(null);
+      }
+    }
+    return () => obs?.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const est = await navigator.storage?.estimate?.();
+        if (cancelled || !est?.quota) return;
+        const free = 1 - est.usage / est.quota;
+        setDiskFreePct(Math.round(Math.max(0, Math.min(1, free)) * 100));
+      } catch {
+        setDiskFreePct(null);
+      }
+    };
+    void tick();
+    const id = window.setInterval(tick, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, []);
+
+  useEffect(() => {
+    let frames = 0;
+    let last = performance.now();
+    let raf = 0;
+    const loop = (t: number) => {
+      frames++;
+      if (t - last >= 1000) {
+        setFps(frames);
+        frames = 0;
+        last = t;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   useEffect(() => () => revokeObjectUrl(), [revokeObjectUrl]);
 
   const onPlay = useCallback(async () => {
@@ -287,7 +476,7 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
       try {
         const dir = await window.showDirectoryPicker();
         const ok = await bootstrapFromDirectory(dir);
-        if (!ok) setStatus("Sin archivos de audio en la carpeta.");
+        if (!ok) setStatus("Sin archivos MP3/MP4 en la carpeta.");
       } catch {
         setStatus("");
       }
@@ -295,18 +484,19 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
     }
     const dir = await loadStoredDirectoryHandle();
     if (dir) {
-      const list = await collectAudioFiles(dir);
+      const list = await collectMediaFiles(dir);
       const canRead = await verifyDirReadPermission(dir);
       if (canRead && list.length > 0) {
         await bootstrapFromDirectory(dir);
         return;
       }
     }
-    setStatus("Añade archivos .mp3 en src/assets/lobby-screen1/ o abre en Chrome/Edge.");
+    setStatus("Añade MP3/MP4 en src/assets/lobby-screen1/ o abre en Chrome/Edge.");
   }, [playlist, order, orderPos, playItem, bootstrapFromDirectory]);
 
   const onPause = useCallback(() => {
     audioRef.current?.pause();
+    videoRef.current?.pause();
   }, []);
 
   const onNext = useCallback(async () => {
@@ -328,12 +518,15 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
   );
 
   const batteryPct = batteryLevel == null ? "—" : `${Math.round(batteryLevel * 100)}%`;
+  const diskLabel = diskFreePct == null ? "—" : `${diskFreePct}%`;
+  const cpuLabel = cpuPressure ? cpuPressure.toUpperCase() : "CPU";
+  const vibrateHint = typeof navigator.vibrate === "function";
 
   const btnStyle: CSSProperties = {
     flex: 1,
     minWidth: 0,
-    padding: "12px 8px",
-    fontSize: "20px",
+    padding: "10px 6px",
+    fontSize: "18px",
     fontWeight: 800,
     letterSpacing: "0.05em",
     borderRadius: "12px",
@@ -359,6 +552,7 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
       }}
     >
       <audio ref={audioRef} preload="none" style={{ display: "none" }} />
+
       <div
         style={{
           height: halfH,
@@ -366,26 +560,65 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
           borderBottom: "1px solid rgba(34,211,238,0.35)",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
-          padding: "8px 12px",
-          gap: 8,
+          padding: "6px 10px",
+          gap: 6,
+          minHeight: 0,
         }}
       >
+        <video
+          ref={videoRef}
+          playsInline
+          preload="metadata"
+          muted={muted}
+          style={{
+            flex: playingVideo ? 1 : 0,
+            width: "100%",
+            minHeight: playingVideo ? 40 : 0,
+            maxHeight: playingVideo ? "100%" : 0,
+            opacity: playingVideo ? 1 : 0,
+            pointerEvents: playingVideo ? "auto" : "none",
+            objectFit: "contain",
+            background: "#000",
+            borderRadius: "8px",
+            border: playingVideo ? "1px solid rgba(34,211,238,0.35)" : "none",
+            transition: "opacity 0.15s ease",
+          }}
+        />
+
+        {!playingVideo ? (
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              borderRadius: "8px",
+              border: "1px dashed rgba(34,211,238,0.2)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "11px",
+              color: "#64748b",
+            }}
+          >
+            MP3 · audio · MP4 = video
+          </div>
+        ) : null}
+
         <div
           style={{
-            fontSize: "12px",
+            fontSize: "11px",
             color: "#7dd3fc",
             textAlign: "center",
-            lineHeight: 1.3,
+            lineHeight: 1.25,
             textShadow: "0 0 6px rgba(34,211,238,0.45)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
-          {currentItem ? currentItem.name : "Play · primera pista o orden aleatorio"}
+          {currentItem ? currentItem.name : "Play · MP3 o MP4 · orden aleatorio"}
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           <button type="button" style={btnStyle} onClick={() => void onPlay()}>
             Play
           </button>
@@ -398,6 +631,7 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
         </div>
         {status ? <div style={{ fontSize: "10px", color: "#fca5a5", textAlign: "center" }}>{status}</div> : null}
       </div>
+
       <div
         style={{
           height: height - halfH,
@@ -405,33 +639,53 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "6px 12px",
-          gap: 10,
+          padding: "4px 6px",
+          gap: 4,
+          flexWrap: "nowrap",
+          minHeight: 0,
         }}
       >
         <div
           style={{
-            fontSize: "min(7.5vw, 38px)",
+            fontSize: "min(6.5vw, 30px)",
             fontWeight: 800,
             fontVariantNumeric: "tabular-nums",
             color: "#ecfeff",
             textShadow: "0 0 10px rgba(34,211,238,0.85), 0 0 24px rgba(34,211,238,0.35)",
             letterSpacing: "0.03em",
+            flexShrink: 0,
           }}
         >
           {timeLabel}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-            <NeonBatteryIcon level={batteryLevel} />
-            <span style={{ fontSize: "11px", color: "#a5f3fc", fontWeight: 700 }}>{batteryPct}</span>
+
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "flex-end",
+            justifyContent: "flex-end",
+            gap: "4px 6px",
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          {indicatorWrap(<NeonCpuIcon state={cpuPressure} />, cpuLabel)}
+          <button
+            type="button"
+            title={muted ? "Activar sonido" : "Silenciar"}
+            onClick={() => setMuted((m) => !m)}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          >
+            {indicatorWrap(<NeonSpeakerIcon muted={muted} />, muted ? "Silencio" : "Sonido")}
+          </button>
+          <div title={vibrateHint ? "navigator.vibrate disponible" : "Vibración del sistema no accesible en web"}>
+            {indicatorWrap(<NeonVibrateIcon active={vibrateHint} />, vibrateHint ? "Vibra" : "—")}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-            <NeonWifiIcon online={online} quality={netQuality} />
-            <span style={{ fontSize: "10px", color: online ? "#6ee7b7" : "#fca5a5", fontWeight: 700 }}>
-              {online ? "En línea" : "Sin red"}
-            </span>
-          </div>
+          {indicatorWrap(<NeonDiskIcon stroke="#22d3ee" />, diskLabel)}
+          {indicatorWrap(<NeonFpsIcon stroke="#34d399" />, `${fps}`)}
+          {indicatorWrap(<NeonBatteryIcon level={batteryLevel} />, batteryPct)}
+          {indicatorWrap(<NeonWifiIcon online={online} quality={netQuality} />, online ? "Wi‑Fi" : "Off")}
         </div>
       </div>
     </div>
