@@ -273,6 +273,20 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
+  /**
+   * Input oculto (sin botón visible) usado como último fallback en navegadores
+   * móviles web (Chrome Android, Safari iOS) donde no hay bridge nativo
+   * AndroidMusic ni `window.showDirectoryPicker`. `webkitdirectory` se aplica
+   * vía ref porque no es atributo HTML estándar y rolldown/tsx lo rechaza en
+   * el JSX. Cuando el SO no expone selector de carpetas, el mismo input cae a
+   * multiselección de archivos — útil de todos modos.
+   */
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    folderInputRef.current?.setAttribute("webkitdirectory", "");
+    folderInputRef.current?.setAttribute("directory", "");
+  }, []);
 
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   const [order, setOrder] = useState<number[]>([]);
@@ -518,6 +532,48 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
   useEffect(() => () => revokeObjectUrl(), [revokeObjectUrl]);
 
   /**
+   * Arma playlist desde el `FileList` del input oculto (fallback navegador móvil
+   * web sin bridge AndroidMusic ni showDirectoryPicker). Cada archivo se vuelve
+   * un PlaylistItem `kind: "blob"` que en playItem se convierte a object URL.
+   */
+  const buildPlaylistFromFiles = useCallback(
+    async (files: FileList | null) => {
+      if (!files || files.length === 0) {
+        setStatus("");
+        return false;
+      }
+      const items: PlaylistItem[] = [];
+      for (const f of Array.from(files)) {
+        if (!MEDIA_EXT.test(f.name)) continue;
+        const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
+        items.push({ kind: "blob", name: rel?.trim() || f.name, file: f });
+      }
+      if (!items.length) {
+        setStatus("Sin archivos MP3/MP4 en la selección.");
+        return false;
+      }
+      items.sort((a, b) => a.name.localeCompare(b.name));
+      const shuffled = shuffleOrder(items.length);
+      setPlaylist(items);
+      setOrder(shuffled);
+      setOrderPos(0);
+      setStatus("");
+      await playItem(items[shuffled[0]]);
+      return true;
+    },
+    [playItem],
+  );
+
+  const onFolderInputChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      e.target.value = ""; // permite re-elegir la misma carpeta y disparar change otra vez
+      await buildPlaylistFromFiles(files);
+    },
+    [buildPlaylistFromFiles],
+  );
+
+  /**
    * Selector de carpeta para Android Capacitor (bridge nativo SAF).
    * Define el callback global ANTES de invocar el bridge — el resultado vuelve por
    * {@code window[ANDROID_MUSIC_CALLBACK]} (ver MainActivity.dispatchMusicResult).
@@ -616,8 +672,14 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
         return;
       }
     }
-    // Sin bridge ni picker disponibles (navegador móvil web): orientación al usuario.
-    setStatus("Toca Play en un navegador compatible para elegir música del dispositivo.");
+    // Último fallback (navegador móvil web sin bridge ni File System Access):
+    // disparamos un <input type="file" webkitdirectory multiple> programáticamente.
+    // El usuario ve el selector nativo del SO con sus carpetas / archivos de música.
+    if (folderInputRef.current) {
+      folderInputRef.current.click();
+      return;
+    }
+    setStatus("Tu navegador no soporta selector de archivos. Abre la app desde el APK.");
   }, [playlist, order, orderPos, playItem, bootstrapFromDirectory, pickFolderViaAndroidBridge]);
 
   const onPause = useCallback(() => {
@@ -678,6 +740,21 @@ export const LobbyScreenOneHub = memo(function LobbyScreenOneHub({ width, height
       }}
     >
       <audio ref={audioRef} preload="none" style={{ display: "none" }} />
+      {/*
+        Selector oculto disparado por Play como último fallback en navegadores
+        móviles web (Chrome Android / Safari iOS). webkitdirectory se aplica vía
+        ref porque no es prop estándar JSX; si el SO no soporta selector de
+        carpetas, el mismo input cae a multi-selección de archivos.
+      */}
+      <input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        accept=".mp3,.m4a,.ogg,.wav,.aac,.flac,.mp4,audio/*,video/mp4"
+        onChange={onFolderInputChange}
+        style={{ display: "none" }}
+        aria-hidden
+      />
 
       <div
         style={{
