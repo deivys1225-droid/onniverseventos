@@ -97,6 +97,10 @@ function normalizeLobbyScreenUrl(url: string, index: number): string {
 const WALL_SCREEN_WIDTH = 8;
 const WALL_SCREEN_HEIGHT = 4.5;
 
+function lobbyWallScreenCaption(label: number): string {
+  return label === 4 ? "3D" : String(label);
+}
+
 function WallSceneGlbModel({
   url,
   width,
@@ -156,6 +160,28 @@ function WallSceneGlb({
           />
         </Suspense>
       </group>
+      <Html
+        transform
+        position={[0, -((WALL_SCREEN_HEIGHT / 2 + 0.35) * 1.1), 0.05]}
+        scale={((WALL_SCREEN_WIDTH / 800) * 36.225) * 1.575}
+        zIndexRange={LOBBY_SCREEN_HTML_Z_INDEX}
+        style={{ pointerEvents: "none" }}
+      >
+        <div
+          style={{
+            color: "#020617",
+            fontSize: "86px",
+            fontWeight: 900,
+            lineHeight: 1,
+            textAlign: "center",
+            letterSpacing: "0.02em",
+            textShadow: "0 0 18px rgba(255,255,255,0.65), 0 2px 10px rgba(15,23,42,0.35)",
+            WebkitTextStroke: "2px rgba(255,255,255,0.75)",
+          }}
+        >
+          3D
+        </div>
+      </Html>
     </group>
   );
 }
@@ -334,7 +360,7 @@ function HoloScreen({
               src={embedUrl}
               width={embedWidth}
               height={embedHeight}
-              title={`Pantalla ${label}`}
+              title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
               sandbox={
@@ -372,7 +398,7 @@ function HoloScreen({
             WebkitTextStroke: "2px rgba(255,255,255,0.75)",
           }}
         >
-          {label}
+          {lobbyWallScreenCaption(label)}
         </div>
       </Html>
       {/* Dark holographic panel so stars/content read on light walls */}
@@ -1231,7 +1257,7 @@ export default function NeonRoom() {
                 {screenUrlDrafts.map((url, index) => (
                   <label key={index} className="block space-y-0.5">
                     <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-cyan-200/90">
-                      Pantalla {index + 1}
+                      {index === 3 ? "3D" : `Pantalla ${index + 1}`}
                     </span>
                     <input
                       type="url"
