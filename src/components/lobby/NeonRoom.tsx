@@ -180,25 +180,15 @@ function LobbyScreen2SocialDecor({
           </svg>
         </div>
         <div style={{ ...tile, background: "linear-gradient(145deg, #0f0f0f 0%, #1c1c1c 100%)" }}>
-          <svg viewBox="0 0 24 24" width={32} height={32} aria-hidden>
-            <path
-              fill="#25F4EE"
-              d="M15.2 3h2.8v2.1c.8-.2 1.6-.3 2.4-.3V5c-.8.1-1.6.3-2.3.6v1.8c.7-.3 1.4-.5 2.2-.6v2.1c-1.2.2-2.3.7-3.2 1.4v7.4c0 2.1-1.7 3.8-3.8 3.8H8.9c-2.1 0-3.8-1.7-3.8-3.8v-.1c1.1.6 2.4 1 3.8 1 2.8 0 5.2-1.9 5.9-4.5V6.5c-.9-.7-2-1.1-3.2-1.4V3.1c1.3.3 2.5.9 3.6 1.8V3z"
-            />
-            <path
-              fill="#FE2C55"
-              d="M15.2 6.5v7.4c-.7 2.6-3.1 4.5-5.9 4.5-1.4 0-2.7-.4-3.8-1v.1c0 2.1 1.7 3.8 3.8 3.8h4.6c2.1 0 3.8-1.7 3.8-3.8V8.5c-.9-.7-2-1.2-3.2-1.5v2.1c.8 1.1 2.1 1.8 3.5 1.8V9.1c-.8-.1-1.6-.3-2.3-.6z"
-            />
-            <path
-              fill="#fff"
-              d="M12.1 8.4c-2.1 0-3.8 1.7-3.8 3.8v4.9h2.2v-4.9c0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6v4.9h2.2v-4.9c0-2.1-1.7-3.8-3.8-3.8z"
-            />
+          <svg viewBox="0 0 24 24" width={30} height={30} aria-hidden>
+            <circle cx="10.2" cy="12" r="3.6" fill="#25F4EE" />
+            <circle cx="14.2" cy="11.2" r="3.6" fill="#FE2C55" opacity="0.92" />
+            <circle cx="12.2" cy="12.4" r="2.1" fill="#fff" opacity="0.12" />
           </svg>
         </div>
-        <div style={{ ...tile, background: "linear-gradient(180deg, #FF0000 0%, #cc0000 100%)" }}>
+        <div style={{ ...tile, background: "linear-gradient(180deg, #FF0000 0%, #c80000 100%)" }}>
           <svg viewBox="0 0 24 24" width={30} height={30} aria-hidden>
-            <rect x="3" y="5" width="18" height="14" rx="3.5" fill="#fff" opacity="0.95" />
-            <path fill="#FF0000" d="M10 8.5l6.5 3.5-6.5 3.5z" />
+            <path fill="#fff" d="M9.8 7.4v9.2L17.8 12 9.8 7.4z" />
           </svg>
         </div>
       </div>
