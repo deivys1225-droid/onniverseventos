@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 
 /**
- * True when `document.body` has `vr-mode-active` (mirror VR layout).
+ * True cuando `document.body` tiene la clase `vr-mode-active` (reservado;
+ * el modo espejo SBS ya no se usa en la app).
  */
 export function useVrModeActive(): boolean {
   const [active, setActive] = useState(false);
