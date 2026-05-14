@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -31,10 +31,17 @@ const LOBBY_SCREEN_HTML_Z_INDEX: [number, number] = [10000, 0];
  */
 const LOBBY_SCREEN_4_CLOUD_MODEL_URL = "/assets/models/corazon.glb";
 
+/**
+ * Google Maps embebido (`output=embed`) — suele verse bien en iframe en web y en el WebView de Capacitor.
+ * Pantallas 2 y 3 del lobby usan la misma URL por defecto.
+ */
+const LOBBY_GOOGLE_MAPS_EMBED =
+  "https://www.google.com/maps?q=Bogot%C3%A1,+Colombia&hl=es&z=12&output=embed";
+
 const WALL_SCREEN_EMBEDS = [
   "about:blank",
-  "https://web.whatsapp.com/",
-  "https://www.youtube.com/embed/kJQP7kiw5Fk",
+  LOBBY_GOOGLE_MAPS_EMBED,
+  LOBBY_GOOGLE_MAPS_EMBED,
   LOBBY_SCREEN_4_CLOUD_MODEL_URL,
 ] as const;
 
@@ -61,6 +68,15 @@ function readStoredLobbyScreenUrls(): LobbyScreenUrls | null {
     if (urls[3] === "https://www.youtube.com/embed/RgKAFK5djSk") {
       urls[3] = LOBBY_SCREEN_4_CLOUD_MODEL_URL;
     }
+    if (urls[2] === "about:blank") {
+      urls[2] = LOBBY_GOOGLE_MAPS_EMBED;
+    }
+    if (urls[1] === "about:blank") {
+      urls[1] = LOBBY_GOOGLE_MAPS_EMBED;
+    }
+    if (urls[1].includes("tiktok.com")) {
+      urls[1] = LOBBY_GOOGLE_MAPS_EMBED;
+    }
     // Migración offline-first: cualquier URL del Cloudinary anterior pasa al .glb local.
     if (
       urls[3] ===
@@ -71,14 +87,6 @@ function readStoredLobbyScreenUrls(): LobbyScreenUrls | null {
     return urls;
   } catch {
     return null;
-  }
-}
-
-function persistLobbyScreenUrls(urls: LobbyScreenUrls) {
-  try {
-    localStorage.setItem(LOBBY_SCREEN_URLS_STORAGE_KEY, JSON.stringify(urls));
-  } catch {
-    /* ignore */
   }
 }
 
@@ -101,7 +109,101 @@ const WALL_SCREEN_WIDTH = 8;
 const WALL_SCREEN_HEIGHT = 4.5;
 
 function lobbyWallScreenCaption(label: number): string {
-  return label === 4 ? "3D" : String(label);
+  return String(label);
+}
+
+/** Cuatro “iconos app” decorativos encima de la pantalla 2 (Facebook, Instagram, TikTok, YouTube). */
+function LobbyScreen2SocialDecor({
+  htmlScale,
+  htmlZIndexRange,
+  h,
+}: {
+  htmlScale: number;
+  htmlZIndexRange: [number, number];
+  h: number;
+}) {
+  const tile: CSSProperties = {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    boxShadow:
+      "0 12px 28px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.14), inset 0 -2px 0 rgba(0,0,0,0.2)",
+  };
+
+  return (
+    <Html
+      transform
+      position={[0, h / 2 + 0.46, 0.11]}
+      center
+      scale={htmlScale * 0.168}
+      zIndexRange={htmlZIndexRange}
+      style={{ pointerEvents: "none" }}
+    >
+      <div
+        role="presentation"
+        aria-hidden
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+          padding: "10px 14px",
+          borderRadius: 20,
+          background: "linear-gradient(155deg, rgba(15,23,42,0.94) 0%, rgba(2,6,23,0.9) 100%)",
+          border: "1px solid rgba(34,211,238,0.32)",
+          boxShadow: "0 0 40px -8px rgba(34,211,238,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+        }}
+      >
+        <div style={{ ...tile, background: "linear-gradient(180deg, #0866FF 0%, #044bd9 100%)" }}>
+          <svg viewBox="0 0 24 24" width={30} height={30} aria-hidden>
+            <path
+              fill="#fff"
+              d="M13.5 22v-9.2h3.1l.5-3.6H13.5V7.3c0-1 .3-1.7 1.7-1.7h1.9V2.2c-.3 0-1.5-.1-2.9-.1-2.9 0-4.9 1.8-4.9 5v2.8H6.5v3.6h3.8V22h3.2z"
+            />
+          </svg>
+        </div>
+        <div
+          style={{
+            ...tile,
+            background:
+              "radial-gradient(circle at 32% 110%, #fdf497 0%, #fdf497 6%, #fd5949 42%, #d6249f 58%, #285aeb 92%)",
+          }}
+        >
+          <svg viewBox="0 0 24 24" width={30} height={30} aria-hidden>
+            <rect x="3" y="3" width="18" height="18" rx="5" fill="rgba(255,255,255,0.22)" />
+            <circle cx="12" cy="12" r="4.2" fill="none" stroke="#fff" strokeWidth="1.65" />
+            <circle cx="17.2" cy="6.8" r="1.35" fill="#fff" />
+          </svg>
+        </div>
+        <div style={{ ...tile, background: "linear-gradient(145deg, #0f0f0f 0%, #1c1c1c 100%)" }}>
+          <svg viewBox="0 0 24 24" width={32} height={32} aria-hidden>
+            <path
+              fill="#25F4EE"
+              d="M15.2 3h2.8v2.1c.8-.2 1.6-.3 2.4-.3V5c-.8.1-1.6.3-2.3.6v1.8c.7-.3 1.4-.5 2.2-.6v2.1c-1.2.2-2.3.7-3.2 1.4v7.4c0 2.1-1.7 3.8-3.8 3.8H8.9c-2.1 0-3.8-1.7-3.8-3.8v-.1c1.1.6 2.4 1 3.8 1 2.8 0 5.2-1.9 5.9-4.5V6.5c-.9-.7-2-1.1-3.2-1.4V3.1c1.3.3 2.5.9 3.6 1.8V3z"
+            />
+            <path
+              fill="#FE2C55"
+              d="M15.2 6.5v7.4c-.7 2.6-3.1 4.5-5.9 4.5-1.4 0-2.7-.4-3.8-1v.1c0 2.1 1.7 3.8 3.8 3.8h4.6c2.1 0 3.8-1.7 3.8-3.8V8.5c-.9-.7-2-1.2-3.2-1.5v2.1c.8 1.1 2.1 1.8 3.5 1.8V9.1c-.8-.1-1.6-.3-2.3-.6z"
+            />
+            <path
+              fill="#fff"
+              d="M12.1 8.4c-2.1 0-3.8 1.7-3.8 3.8v4.9h2.2v-4.9c0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6v4.9h2.2v-4.9c0-2.1-1.7-3.8-3.8-3.8z"
+            />
+          </svg>
+        </div>
+        <div style={{ ...tile, background: "linear-gradient(180deg, #FF0000 0%, #cc0000 100%)" }}>
+          <svg viewBox="0 0 24 24" width={30} height={30} aria-hidden>
+            <rect x="3" y="5" width="18" height="14" rx="3.5" fill="#fff" opacity="0.95" />
+            <path fill="#FF0000" d="M10 8.5l6.5 3.5-6.5 3.5z" />
+          </svg>
+        </div>
+      </div>
+    </Html>
+  );
 }
 
 function WallSceneGlbModel({
@@ -153,7 +255,7 @@ function WallSceneGlb({
    * el modelo a tamaño completo ocupaba de Y=-1.75 a Y=6.25 y quedaba justo
    * en la línea de vista del jugador (Y=3.045) hacia las pantallas. A
    * la mitad ocupa de Y=0.25 a Y=4.25 y deja la vista de las pantallas
-   * más despejada.
+   * más despejada. En el centro de la sala se coloca un poco más bajo (Y≈1.88).
    */
   scaleMultiplier?: number;
 }) {
@@ -176,28 +278,6 @@ function WallSceneGlb({
           />
         </Suspense>
       </group>
-      <Html
-        transform
-        position={[0, -((WALL_SCREEN_HEIGHT / 2 + 0.35) * 1.1), 0.05]}
-        scale={((WALL_SCREEN_WIDTH / 800) * 36.225) * 1.575}
-        zIndexRange={LOBBY_SCREEN_HTML_Z_INDEX}
-        style={{ pointerEvents: "none" }}
-      >
-        <div
-          style={{
-            color: "#020617",
-            fontSize: "86px",
-            fontWeight: 900,
-            lineHeight: 1,
-            textAlign: "center",
-            letterSpacing: "0.02em",
-            textShadow: "0 0 18px rgba(255,255,255,0.65), 0 2px 10px rgba(15,23,42,0.35)",
-            WebkitTextStroke: "2px rgba(255,255,255,0.75)",
-          }}
-        >
-          3D
-        </div>
-      </Html>
     </group>
   );
 }
@@ -382,14 +462,15 @@ function HoloScreen({
               src={embedUrl}
               width={embedWidth}
               height={embedHeight}
-              title={label === 4 ? "Zona 3D (GLB / GLTF)" : `Pantalla ${label}`}
+              title={
+                label === 4
+                  ? "Zona GLB / GLTF"
+                  : embedUrl.includes("google.com/maps")
+                    ? "Google Maps"
+                    : `Pantalla ${label}`
+              }
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
-              sandbox={
-                label === 2
-                  ? "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                  : undefined
-              }
               style={{
                 border: "0",
                 display: "block",
@@ -402,6 +483,9 @@ function HoloScreen({
           )}
         </div>
       </Html>
+      {label === 2 && (
+        <LobbyScreen2SocialDecor htmlScale={htmlScale} htmlZIndexRange={htmlZIndexRange} h={h} />
+      )}
       <Html
         transform
         position={[0, -((h / 2 + 0.35) * 1.1), 0.05]}
@@ -484,19 +568,15 @@ function HoloScreens({
         {...screenProps(3, screenUrls[2], [-half + off, y, 0], [0, Math.PI / 2, 0])}
       />
       {/*
-        Right wall (+X) — SWAP por pedido del usuario:
-        - Si Pantalla 4 es un GLB (caso default: corazon.glb) → el GLB se
-          mueve al CENTRO elevado [0, 2.25, 0]. La pared derecha queda
-          ocupada por el iframe "Nuestras Salas" (ForcedFloatingVideoScreen
-          posicionado desde NeonRoom).
-        - Si Pantalla 4 es URL iframe (usuario cambió la URL) → no hay
-          swap, vuelve al layout original (HoloScreen normal en pared
-          derecha, iframe "Nuestras Salas" en el centro).
+        Right wall (+X) — swap cuando Pantalla 4 es GLB (default corazon.glb):
+        el GLB va al centro (Y≈1.88); el iframe onnivers.com/nuestras-salas pasa
+        a la pared derecha. Si Pantalla 4 es URL iframe, el GLB no aplica y el
+        iframe vuelve al centro elevado (sin número en pared, solo esta ventana).
       */}
       {isGlbSource(screenUrls[3]) ? (
         <WallSceneGlb
           url={screenUrls[3]}
-          position={[0, 2.25, 0]}
+          position={[0, 1.88, 0]}
           rotation={[0, 0, 0]}
           scaleMultiplier={0.5}
         />
@@ -509,16 +589,11 @@ function HoloScreens({
   );
 }
 
+/** Iframe fijo a onnivers.com (sin leyenda numérica en la pared, solo esta ventana). */
 function ForcedFloatingVideoScreen({
   position = [0, 2.25, 0],
   rotation = [0, 0, 0],
 }: {
-  /**
-   * Posición del iframe "Nuestras Salas" en la sala. Por defecto centro
-   * elevado. Cuando Pantalla 4 es un GLB hacemos swap: NeonRoom le pasa la
-   * posición de la pared derecha y el GLB se mueve al centro (ver
-   * HoloScreens).
-   */
   position?: [number, number, number];
   rotation?: [number, number, number];
 }) {
@@ -529,7 +604,7 @@ function ForcedFloatingVideoScreen({
           src={CENTER_SCREEN_EMBED_URL}
           width={1024}
           height={576}
-          title="Nuestras Salas"
+          title="onnivers.com — Nuestras salas"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
           style={{
@@ -877,7 +952,7 @@ function MobileTouchLook({ enabled }: { enabled: boolean }) {
       if (!(target instanceof Element)) return false;
       return Boolean(
         target.closest(
-          "[data-lobby-move-pad], [data-lobby-ui], [data-lobby-screen-links], button, a, input, textarea, select, label, [role='button']",
+          "[data-lobby-move-pad], [data-lobby-ui], button, a, input, textarea, select, label, [role='button']",
         ),
       );
     };
@@ -1239,16 +1314,6 @@ export default function NeonRoom() {
             onFocusScreen={focusScreen}
             screenUrls={screenUrls}
           />
-          {/*
-            Swap del iframe central según Pantalla 4:
-            - Si Pantalla 4 es GLB → el iframe "Nuestras Salas" pasa a la
-              pared derecha [ROOM_SIZE/2 - 0.03, WALL_HEIGHT/2, 0] con
-              rotación [0, -PI/2, 0] para mirar al centro.
-            - Si Pantalla 4 es URL iframe (usuario lo cambió) → el iframe
-              vuelve al centro elevado [0, 2.25, 0] (defaults del componente).
-            Cada uno mantiene su escala (scale=0.5 del Html del iframe,
-            WALL_SCREEN_WIDTH del GLB normalizado).
-          */}
           <ForcedFloatingVideoScreen
             position={
               isGlbSource(screenUrls[3])
