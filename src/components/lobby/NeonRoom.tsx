@@ -1,4 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -24,6 +25,15 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const WALL_COLOR = "#EAECEE";
 const LOBBY_SCREEN_HTML_Z_INDEX: [number, number] = [10000, 0];
+
+function lobbyAndroidUsesNativePantalla2WebView(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    Capacitor.getPlatform() === "android" &&
+    typeof window.Android?.showLobbyPantalla2WebView === "function" &&
+    typeof window.Android?.hideLobbyPantalla2WebView === "function"
+  );
+}
 /**
  * Modelo "El Corazón" servido offline-first desde /public/assets/models/.
  * Root-relativo para que Capacitor WebView (`androidScheme: "https"`) lo cargue
@@ -112,34 +122,45 @@ function lobbyWallScreenCaption(label: number): string {
   return String(label);
 }
 
-/** Cuatro “iconos app” decorativos encima de la pantalla 2 (Facebook, Instagram, TikTok, YouTube). */
+/** Cuatro iconos en cuadrícula 2×2 a la derecha del panel de la pantalla 2 (cada uno ~¼ del bloque). */
 function LobbyScreen2SocialDecor({
   htmlScale,
   htmlZIndexRange,
-  h,
+  w,
+  embedHeight,
 }: {
   htmlScale: number;
   htmlZIndexRange: [number, number];
-  h: number;
+  w: number;
+  embedHeight: number;
 }) {
-  const tile: CSSProperties = {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+  const captionScale = htmlScale * 1.575;
+  const gapPx = 11;
+  const padPx = 10;
+  const gridW = Math.round(Math.min(420, Math.round(embedHeight * 0.95) + 40) * 0.5);
+  const gridH = Math.round(Math.min(Math.round(embedHeight * 1.02), 480) * 0.5);
+
+  const cell: CSSProperties = {
+    borderRadius: 12,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    flexShrink: 0,
+    minWidth: 0,
+    minHeight: 0,
+    width: "100%",
+    height: "100%",
     boxShadow:
-      "0 12px 28px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.14), inset 0 -2px 0 rgba(0,0,0,0.2)",
+      "0 8px 18px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.2), inset 0 -2px 0 rgba(0,0,0,0.2)",
   };
+
+  const iconSize = Math.min(48, Math.floor((gridW - padPx * 2 - gapPx) / 2) - 9);
 
   return (
     <Html
       transform
-      position={[0, h / 2 + 0.46, 0.11]}
+      position={[w / 2 + 2.1 * 1.15, 0, 0.12]}
       center
-      scale={htmlScale * 0.168}
+      scale={captionScale}
       zIndexRange={htmlZIndexRange}
       style={{ pointerEvents: "none" }}
     >
@@ -147,19 +168,22 @@ function LobbyScreen2SocialDecor({
         role="presentation"
         aria-hidden
         style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12,
-          padding: "10px 14px",
-          borderRadius: 20,
-          background: "linear-gradient(155deg, rgba(15,23,42,0.94) 0%, rgba(2,6,23,0.9) 100%)",
-          border: "1px solid rgba(34,211,238,0.32)",
-          boxShadow: "0 0 40px -8px rgba(34,211,238,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gridTemplateRows: "1fr 1fr",
+          width: gridW,
+          height: gridH,
+          gap: gapPx,
+          padding: padPx,
+          boxSizing: "border-box",
+          background: "rgba(2,6,23,0.35)",
+          borderRadius: 14,
+          border: "1px solid rgba(34,211,238,0.22)",
+          boxShadow: "0 0 24px -8px rgba(34,211,238,0.25)",
         }}
       >
-        <div style={{ ...tile, background: "linear-gradient(180deg, #0866FF 0%, #044bd9 100%)" }}>
-          <svg viewBox="0 0 24 24" width={30} height={30} aria-hidden>
+        <div style={{ ...cell, background: "linear-gradient(180deg, #0866FF 0%, #044bd9 100%)" }}>
+          <svg viewBox="0 0 24 24" width={iconSize} height={iconSize} aria-hidden>
             <path
               fill="#fff"
               d="M13.5 22v-9.2h3.1l.5-3.6H13.5V7.3c0-1 .3-1.7 1.7-1.7h1.9V2.2c-.3 0-1.5-.1-2.9-.1-2.9 0-4.9 1.8-4.9 5v2.8H6.5v3.6h3.8V22h3.2z"
@@ -168,26 +192,26 @@ function LobbyScreen2SocialDecor({
         </div>
         <div
           style={{
-            ...tile,
+            ...cell,
             background:
               "radial-gradient(circle at 32% 110%, #fdf497 0%, #fdf497 6%, #fd5949 42%, #d6249f 58%, #285aeb 92%)",
           }}
         >
-          <svg viewBox="0 0 24 24" width={30} height={30} aria-hidden>
+          <svg viewBox="0 0 24 24" width={iconSize} height={iconSize} aria-hidden>
             <rect x="3" y="3" width="18" height="18" rx="5" fill="rgba(255,255,255,0.22)" />
             <circle cx="12" cy="12" r="4.2" fill="none" stroke="#fff" strokeWidth="1.65" />
             <circle cx="17.2" cy="6.8" r="1.35" fill="#fff" />
           </svg>
         </div>
-        <div style={{ ...tile, background: "linear-gradient(145deg, #0f0f0f 0%, #1c1c1c 100%)" }}>
-          <svg viewBox="0 0 24 24" width={30} height={30} aria-hidden>
+        <div style={{ ...cell, background: "linear-gradient(145deg, #0f0f0f 0%, #1c1c1c 100%)" }}>
+          <svg viewBox="0 0 24 24" width={iconSize} height={iconSize} aria-hidden>
             <circle cx="10.2" cy="12" r="3.6" fill="#25F4EE" />
             <circle cx="14.2" cy="11.2" r="3.6" fill="#FE2C55" opacity="0.92" />
             <circle cx="12.2" cy="12.4" r="2.1" fill="#fff" opacity="0.12" />
           </svg>
         </div>
-        <div style={{ ...tile, background: "linear-gradient(180deg, #FF0000 0%, #c80000 100%)" }}>
-          <svg viewBox="0 0 24 24" width={30} height={30} aria-hidden>
+        <div style={{ ...cell, background: "linear-gradient(180deg, #FF0000 0%, #c80000 100%)" }}>
+          <svg viewBox="0 0 24 24" width={iconSize} height={iconSize} aria-hidden>
             <path fill="#fff" d="M9.8 7.4v9.2L17.8 12 9.8 7.4z" />
           </svg>
         </div>
@@ -420,6 +444,8 @@ function HoloScreen({
   const screenPointerEvents = !interactionMode || focused ? "auto" : "none";
 
   const isPantalla1 = label === 1;
+  const useNativeTikTokWebViewForP2 =
+    !isPantalla1 && label === 2 && lobbyAndroidUsesNativePantalla2WebView();
 
   return (
     <group position={position} rotation={rotation}>
@@ -445,6 +471,16 @@ function HoloScreen({
             <LobbyScreenOneHub
               width={embedWidth}
               height={embedHeight}
+            />
+          ) : useNativeTikTokWebViewForP2 && focused ? (
+            <div
+              style={{
+                width: `${embedWidth}px`,
+                height: `${embedHeight}px`,
+                background: "#02030a",
+                pointerEvents: screenPointerEvents,
+              }}
+              aria-hidden
             />
           ) : (
             <iframe
@@ -474,7 +510,12 @@ function HoloScreen({
         </div>
       </Html>
       {label === 2 && (
-        <LobbyScreen2SocialDecor htmlScale={htmlScale} htmlZIndexRange={htmlZIndexRange} h={h} />
+        <LobbyScreen2SocialDecor
+          htmlScale={htmlScale}
+          htmlZIndexRange={htmlZIndexRange}
+          w={w}
+          embedHeight={embedHeight}
+        />
       )}
       <Html
         transform
@@ -1030,6 +1071,26 @@ export default function NeonRoom() {
 
   useEffect(() => {
     focusedScreenRef.current = focusedScreen;
+  }, [focusedScreen]);
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== "android") return;
+    const bridge = window.Android;
+    if (
+      bridge == null ||
+      typeof bridge.showLobbyPantalla2WebView !== "function" ||
+      typeof bridge.hideLobbyPantalla2WebView !== "function"
+    ) {
+      return;
+    }
+    if (focusedScreen === 2) {
+      bridge.showLobbyPantalla2WebView();
+    } else {
+      bridge.hideLobbyPantalla2WebView();
+    }
+    return () => {
+      bridge.hideLobbyPantalla2WebView();
+    };
   }, [focusedScreen]);
 
   useEffect(() => {

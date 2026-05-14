@@ -18,6 +18,9 @@ declare global {
     Android?: {
       onArClick(url?: string): void;
       openLobby?(): void;
+      /** Solo lobby Pantalla 2 (TikTok en WebView nativo). */
+      showLobbyPantalla2WebView?(): void;
+      hideLobbyPantalla2WebView?(): void;
     };
   }
 }

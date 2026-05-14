@@ -9,9 +9,11 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Base64;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.PermissionRequest;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -64,6 +66,15 @@ public class MainActivity extends BridgeActivity {
    */
   private static final String LOBBY_IMMERSIVE_URL = "https://localhost/lobby-inmersivo";
 
+  /**
+   * Lobby Pantalla 2 — WebView nativo aparte del Bridge (Capacitor): TikTok suele fallar o quedar
+   * en negro dentro del iframe 3D; aquí forzamos UA móvil iOS, hardware layer y WebChromeClient.
+   */
+  private static final String LOBBY_PANTALLA2_TIKTOK_URL = "https://www.tiktok.com/foryou";
+
+  private static final String LOBBY_PANTALLA2_UA =
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
+
   /** Destinos del reproductor de audiencia (botones 360 / VR / MT desde JS {@code AndroidBridge}). */
   private static final String AUDIENCE_GO_360_URL = "https://onnivers.com/go/360";
   private static final String AUDIENCE_GO_VR_URL = "https://onnivers.com/go/vr";
@@ -85,6 +96,11 @@ public class MainActivity extends BridgeActivity {
   /** Permisos de Android lanzados junto con {@link #pendingWebkitPermissionRequest} */
   private String[] pendingAndroidPermissionNames;
   private String pendingSceneAfterNavigation;
+
+  /** WebView exclusivo Pantalla 2 (TikTok); no afecta al WebView principal de Capacitor. */
+  private WebView lobbyPantalla2WebView;
+
+  private boolean lobbyPantalla2WebViewUrlLoaded;
 
   // ----- Lobby Pantalla 1 — reproductor MP3/MP4 desde carpeta del dispositivo (SAF) -----
   /** Límite defensivo para no inflar memoria al recorrer carpetas enormes. */
@@ -186,6 +202,12 @@ public class MainActivity extends BridgeActivity {
 
     SplashScreen.installSplashScreen(this);
     super.onCreate(savedInstanceState);
+  }
+
+  @Override
+  public void onDestroy() {
+    destroyLobbyPantalla2WebViewIfPresent();
+    super.onDestroy();
   }
 
   /**
@@ -385,6 +407,20 @@ public class MainActivity extends BridgeActivity {
     public void openLobby() {
       activity.runOnUiThread(() -> activity.openLobbyImmersive(null));
     }
+
+    /**
+     * Lobby Pantalla 2 — muestra el WebView nativo con TikTok (solo Android). El Web oculta el
+     * iframe duplicado mientras está enfocado.
+     */
+    @JavascriptInterface
+    public void showLobbyPantalla2WebView() {
+      activity.runOnUiThread(() -> activity.attachAndShowLobbyPantalla2WebView());
+    }
+
+    @JavascriptInterface
+    public void hideLobbyPantalla2WebView() {
+      activity.runOnUiThread(() -> activity.hideLobbyPantalla2WebViewInternal());
+    }
   }
 
   private void showSceneSelector(WebView webView, String preferredScene, SceneSelectionCallback callback) {
@@ -430,6 +466,88 @@ public class MainActivity extends BridgeActivity {
     if (target != null) {
       target.loadUrl(LOBBY_IMMERSIVE_URL);
     }
+  }
+
+  /**
+   * Crea una sola vez el WebView de Pantalla 2 (TikTok) y lo añade encima del contenido.
+   * Debe ejecutarse en el hilo UI.
+   */
+  private void ensureLobbyPantalla2WebViewCreated() {
+    if (lobbyPantalla2WebView != null) {
+      return;
+    }
+    ViewGroup content = findViewById(android.R.id.content);
+    if (content == null) {
+      return;
+    }
+    if (content.findViewWithTag("lobby_pantalla2_wv") != null) {
+      return;
+    }
+
+    WebView wv = new WebView(this);
+    wv.setTag("lobby_pantalla2_wv");
+    float density = getResources().getDisplayMetrics().density;
+    int topMargin = (int) (72f * density);
+
+    FrameLayout.LayoutParams lp =
+        new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+    lp.topMargin = topMargin;
+    wv.setLayoutParams(lp);
+    wv.setVisibility(View.GONE);
+    wv.setElevation(80f);
+    wv.setBackgroundColor(0xff02030a);
+
+    WebSettings settings = wv.getSettings();
+    settings.setJavaScriptEnabled(true);
+    settings.setDomStorageEnabled(true);
+    settings.setMediaPlaybackRequiresUserGesture(false);
+    settings.setUserAgentString(LOBBY_PANTALLA2_UA);
+
+    wv.setWebChromeClient(
+        new WebChromeClient() {
+          @Override
+          public void onPermissionRequest(final PermissionRequest request) {
+            MainActivity.this.runOnUiThread(() -> handleWebKitMediaPermission(request));
+          }
+        });
+    wv.setWebViewClient(new WebViewClient());
+    wv.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+    lobbyPantalla2WebView = wv;
+    content.addView(wv);
+  }
+
+  private void attachAndShowLobbyPantalla2WebView() {
+    ensureLobbyPantalla2WebViewCreated();
+    if (lobbyPantalla2WebView == null) {
+      return;
+    }
+    if (!lobbyPantalla2WebViewUrlLoaded) {
+      lobbyPantalla2WebView.loadUrl(LOBBY_PANTALLA2_TIKTOK_URL);
+      lobbyPantalla2WebViewUrlLoaded = true;
+    }
+    lobbyPantalla2WebView.setVisibility(View.VISIBLE);
+    lobbyPantalla2WebView.bringToFront();
+  }
+
+  private void hideLobbyPantalla2WebViewInternal() {
+    if (lobbyPantalla2WebView != null) {
+      lobbyPantalla2WebView.setVisibility(View.GONE);
+    }
+  }
+
+  private void destroyLobbyPantalla2WebViewIfPresent() {
+    if (lobbyPantalla2WebView == null) {
+      return;
+    }
+    ViewGroup parent = (ViewGroup) lobbyPantalla2WebView.getParent();
+    if (parent != null) {
+      parent.removeView(lobbyPantalla2WebView);
+    }
+    lobbyPantalla2WebView.destroy();
+    lobbyPantalla2WebView = null;
+    lobbyPantalla2WebViewUrlLoaded = false;
   }
 
   private boolean isPlaybackTarget(Uri uri) {
