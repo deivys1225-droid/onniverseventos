@@ -24,7 +24,6 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const WALL_COLOR = "#EAECEE";
 const LOBBY_SCREEN_HTML_Z_INDEX: [number, number] = [10000, 0];
-const LOBBY_SCREEN_BACKGROUND_Z_INDEX: [number, number] = [40, 0];
 /**
  * Modelo "El Corazón" servido offline-first desde /public/assets/models/.
  * Root-relativo para que Capacitor WebView (`androidScheme: "https"`) lo cargue
@@ -96,14 +95,6 @@ function isGlbSource(url: string): boolean {
     const normalized = trimmed.toLowerCase().split("?")[0]?.split("#")[0] ?? "";
     return normalized.endsWith(".glb") || normalized.endsWith(".gltf");
   }
-}
-
-function normalizeLobbyScreenUrl(url: string, index: number): string {
-  const trimmed = url.trim();
-  if (!trimmed) return WALL_SCREEN_EMBEDS[index];
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  if (trimmed.startsWith("//")) return `https:${trimmed}`;
-  return trimmed;
 }
 
 const WALL_SCREEN_WIDTH = 8;
@@ -335,7 +326,6 @@ function HoloScreen({
   focused,
   interactionMode,
   onFocus,
-  uiOverlayOpen = false,
   width = 8,
   height = 4.5,
   frameColor = "#00ffff",
@@ -347,7 +337,6 @@ function HoloScreen({
   focused: boolean;
   interactionMode: boolean;
   onFocus: () => void;
-  uiOverlayOpen?: boolean;
   width?: number;
   height?: number;
   frameColor?: string;
@@ -357,8 +346,8 @@ function HoloScreen({
   const embedWidth = 800;
   const embedHeight = Math.round((embedWidth * h) / w);
   const htmlScale = (w / embedWidth) * 36.225;
-  const htmlZIndexRange = uiOverlayOpen ? LOBBY_SCREEN_BACKGROUND_Z_INDEX : LOBBY_SCREEN_HTML_Z_INDEX;
-  const screenPointerEvents = uiOverlayOpen ? "none" : !interactionMode || focused ? "auto" : "none";
+  const htmlZIndexRange = LOBBY_SCREEN_HTML_Z_INDEX;
+  const screenPointerEvents = !interactionMode || focused ? "auto" : "none";
 
   const isPantalla1 = label === 1;
 
@@ -461,12 +450,10 @@ function HoloScreens({
   focusedScreen,
   onFocusScreen,
   screenUrls,
-  screenLinksOpen,
 }: {
   focusedScreen: number | null;
   onFocusScreen: (label: number) => void;
   screenUrls: LobbyScreenUrls;
-  screenLinksOpen: boolean;
 }) {
   const half = ROOM_SIZE / 2;
   const y = WALL_HEIGHT / 2;
@@ -479,7 +466,6 @@ function HoloScreens({
     label,
     focused: focusedScreen === label,
     interactionMode,
-    uiOverlayOpen: screenLinksOpen,
     onFocus: () => onFocusScreen(label),
   });
 
@@ -524,11 +510,9 @@ function HoloScreens({
 }
 
 function ForcedFloatingVideoScreen({
-  screenLinksOpen,
   position = [0, 2.25, 0],
   rotation = [0, 0, 0],
 }: {
-  screenLinksOpen: boolean;
   /**
    * Posición del iframe "Nuestras Salas" en la sala. Por defecto centro
    * elevado. Cuando Pantalla 4 es un GLB hacemos swap: NeonRoom le pasa la
@@ -538,11 +522,9 @@ function ForcedFloatingVideoScreen({
   position?: [number, number, number];
   rotation?: [number, number, number];
 }) {
-  const htmlZIndexRange = screenLinksOpen ? LOBBY_SCREEN_BACKGROUND_Z_INDEX : LOBBY_SCREEN_HTML_Z_INDEX;
-
   return (
     <group position={position} rotation={rotation}>
-      <Html transform position={[0, 0, 0]} scale={0.5} zIndexRange={htmlZIndexRange}>
+      <Html transform position={[0, 0, 0]} scale={0.5} zIndexRange={LOBBY_SCREEN_HTML_Z_INDEX}>
         <iframe
           src={CENTER_SCREEN_EMBED_URL}
           width={1024}
@@ -554,7 +536,7 @@ function ForcedFloatingVideoScreen({
             border: "0",
             display: "block",
             background: "#02030a",
-            pointerEvents: screenLinksOpen ? "none" : "auto",
+            pointerEvents: "auto",
           }}
         />
       </Html>
@@ -967,11 +949,7 @@ export default function NeonRoom() {
   const [mixedRealityLoading, setMixedRealityLoading] = useState(false);
   const [mixedRealityError, setMixedRealityError] = useState<string | null>(null);
   const mixedRealityStartInFlightRef = useRef(false);
-  const [screenUrls, setScreenUrls] = useState<LobbyScreenUrls>(
-    () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
-  );
-  const [screenLinksOpen, setScreenLinksOpen] = useState(false);
-  const [screenUrlDrafts, setScreenUrlDrafts] = useState<LobbyScreenUrls>(
+  const [screenUrls] = useState<LobbyScreenUrls>(
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
@@ -1027,19 +1005,6 @@ export default function NeonRoom() {
     setFocusedScreen(label);
     setEscapeBarVisible(false);
     setLocked(false);
-  };
-
-  const openScreenLinksPanel = () => {
-    setScreenUrlDrafts(screenUrls);
-    setScreenLinksOpen(true);
-  };
-
-  const applyScreenLinks = () => {
-    const next = screenUrlDrafts.map((url, index) => normalizeLobbyScreenUrl(url, index)) as LobbyScreenUrls;
-    setScreenUrls(next);
-    setScreenUrlDrafts(next);
-    persistLobbyScreenUrls(next);
-    setScreenLinksOpen(false);
   };
 
   useEffect(() => {
@@ -1273,7 +1238,6 @@ export default function NeonRoom() {
             focusedScreen={focusedScreen}
             onFocusScreen={focusScreen}
             screenUrls={screenUrls}
-            screenLinksOpen={screenLinksOpen}
           />
           {/*
             Swap del iframe central según Pantalla 4:
@@ -1286,7 +1250,6 @@ export default function NeonRoom() {
             WALL_SCREEN_WIDTH del GLB normalizado).
           */}
           <ForcedFloatingVideoScreen
-            screenLinksOpen={screenLinksOpen}
             position={
               isGlbSource(screenUrls[3])
                 ? [ROOM_SIZE / 2 - 0.03, WALL_HEIGHT / 2, 0]
@@ -1319,88 +1282,6 @@ export default function NeonRoom() {
         enabled={isMobileTouch && focusedScreen === null}
         inputRef={mobileMoveInput}
       />
-
-      {focusedScreen === null && (
-        <div className="pointer-events-none fixed bottom-0 right-0 z-[12000] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
-          {!screenLinksOpen ? (
-            <button
-              type="button"
-              data-lobby-ui
-              onClick={openScreenLinksPanel}
-              aria-label="Configurar URLs de las pantallas"
-              className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/60 bg-slate-950/95 font-display text-[10px] font-bold tracking-[0.12em] text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:border-cyan-300 hover:bg-slate-900 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
-            >
-              URLs
-            </button>
-          ) : (
-            <div
-              data-lobby-screen-links
-              data-lobby-ui
-              className="pointer-events-auto w-[min(84vw,15.5rem)] rounded-[1.35rem] border-2 border-cyan-300/55 bg-slate-950/95 p-2.5 shadow-[0_14px_34px_-16px_rgba(34,211,238,0.95),inset_0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-xl"
-            >
-              <div className="mb-2 flex items-center gap-2">
-                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-cyan-200/70 bg-gradient-to-br from-cyan-400/25 via-slate-900 to-slate-950 shadow-[0_0_16px_-4px_rgba(34,211,238,0.95)]">
-                  <span className="h-3.5 w-3.5 rounded-full border border-cyan-100/70 bg-cyan-200/80 shadow-[0_0_10px_rgba(34,211,238,0.9)]" />
-                  <span className="pointer-events-none absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-white/80" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-display text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-100">URLs</p>
-                  <p className="truncate text-[9px] text-cyan-100/55">Sticker de pantallas</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setScreenLinksOpen(false)}
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-cyan-400/40 text-sm text-cyan-100 transition hover:bg-cyan-500/10"
-                  aria-label="Cerrar configuracion de pantallas"
-                >
-                  ?
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {screenUrlDrafts.map((url, index) => (
-                  <label key={index} className="block space-y-0.5">
-                    <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-cyan-200/90">
-                      {index === 3 ? "3D" : `Pantalla ${index + 1}`}
-                    </span>
-                    <input
-                      type="url"
-                      value={url}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setScreenUrlDrafts((current) => {
-                          const next = [...current] as LobbyScreenUrls;
-                          next[index] = value;
-                          return next;
-                        });
-                      }}
-                      placeholder={index === 3 ? "https://.../modelo.glb" : "https://"}
-                      className="h-7 w-full rounded-lg border border-cyan-400/35 bg-black/40 px-2 text-[11px] text-cyan-50 outline-none transition placeholder:text-cyan-100/35 focus:border-cyan-300"
-                    />
-                  </label>
-                ))}
-              </div>
-              <div className="mt-2 flex justify-end gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setScreenUrlDrafts(defaultLobbyScreenUrls());
-                  }}
-                  className="rounded-full border border-cyan-400/35 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] text-cyan-100 transition hover:bg-cyan-500/10"
-                >
-                  Restaurar
-                </button>
-                <button
-                  type="button"
-                  onClick={applyScreenLinks}
-                  className="rounded-full border border-cyan-400/60 bg-cyan-500/15 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] text-cyan-50 transition hover:bg-cyan-500/25"
-                >
-                  Aplicar
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/*
         Barra de avisos inferior ("Pearl Room · WASD mover · ratón mirar")
