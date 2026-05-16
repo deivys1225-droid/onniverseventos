@@ -20,6 +20,41 @@
 </head>
 
 <body>
+  <script>
+    (function blockVercelToolbar() {
+      var BLOCK = "vercel.live";
+      function sweep() {
+        try {
+          document
+            .querySelectorAll(
+              'script[src*="' + BLOCK + '"], iframe[src*="' + BLOCK + '"], link[href*="' + BLOCK + '"]',
+            )
+            .forEach(function (node) {
+              node.remove();
+            });
+          document.querySelectorAll("button, [role='button']").forEach(function (el) {
+            var label = (el.textContent || "").trim();
+            if (label !== "Interaction Timing" && label.indexOf("Interaction Timing") !== 0) return;
+            var host = el;
+            for (var i = 0; i < 10 && host.parentElement; i++) {
+              host = host.parentElement;
+              var pos = window.getComputedStyle(host).position;
+              if (pos === "fixed" || pos === "sticky" || host.id === "vercel-toolbar") {
+                host.remove();
+                return;
+              }
+            }
+            el.remove();
+          });
+        } catch (_) {}
+      }
+      sweep();
+      new MutationObserver(sweep).observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+      });
+    })();
+  </script>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
   <script>

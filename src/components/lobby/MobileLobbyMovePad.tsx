@@ -98,11 +98,10 @@ export default function MobileLobbyMovePad({ enabled, inputRef }: MobileLobbyMov
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
-        className="pointer-events-auto relative h-28 w-28 touch-none rounded-full border border-cyan-300/35 bg-black/45 shadow-[0_0_28px_-8px_rgba(34,211,238,0.75)] backdrop-blur-md"
+        className="pointer-events-auto relative h-28 w-28 touch-none rounded-full border border-transparent bg-transparent shadow-none"
       >
-        <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_38%,rgba(34,211,238,0.16),transparent_62%)]" />
         <div
-          className="absolute left-1/2 top-1/2 h-12 w-12 rounded-full border border-cyan-200/45 bg-cyan-400/15 shadow-[0_0_18px_-6px_rgba(34,211,238,0.9)]"
+          className="absolute left-1/2 top-1/2 h-12 w-12 rounded-full border border-transparent bg-transparent opacity-0"
           style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }}
         />
       </div>

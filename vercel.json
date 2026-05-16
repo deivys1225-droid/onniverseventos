@@ -1,6 +1,9 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "env": {
+    "VERCEL_PREVIEW_FEEDBACK_ENABLED": "0"
+  },
   "headers": [
     {
       "source": "/assets/:path*",

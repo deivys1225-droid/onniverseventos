@@ -67,8 +67,8 @@ public class MainActivity extends BridgeActivity {
   private static final String LOBBY_IMMERSIVE_URL = "https://localhost/lobby-inmersivo";
 
   /**
-   * Lobby Pantalla 2 — WebView nativo aparte del Bridge (Capacitor): TikTok suele fallar o quedar
-   * en negro dentro del iframe 3D; aquí forzamos UA móvil iOS, hardware layer y WebChromeClient.
+   * Lobby Pantalla 2 — WebView nativo solo si el embed es TikTok (ver NeonRoom). Con Google Maps
+   * se usa el iframe 3D; esta URL solo aplica cuando JS activa el overlay nativo para TikTok.
    */
   private static final String LOBBY_PANTALLA2_TIKTOK_URL = "https://www.tiktok.com/foryou";
 

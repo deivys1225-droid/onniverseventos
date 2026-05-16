@@ -22,6 +22,18 @@ export function isMobileCoarseDevice(): boolean {
   return false;
 }
 
+/** Ratón USB/Bluetooth en teléfono o tablet — `(pointer: fine)`. */
+export function hasFinePointerInput(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(pointer: fine)").matches;
+}
+
+/** PC: pointer-lock. Móvil con ratón: igual que PC; solo táctil: arrastre en canvas. */
+export function lobbyUsesPointerLockControls(): boolean {
+  if (!isMobileCoarseDevice()) return true;
+  return hasFinePointerInput();
+}
+
 export function applyPixelRatioCap(gl: WebGLRenderer): void {
   gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_WEBGL_PIXEL_RATIO));
 }
