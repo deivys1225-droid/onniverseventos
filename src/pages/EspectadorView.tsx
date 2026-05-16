@@ -265,10 +265,10 @@ const EspectadorView = () => {
         />
       </div>
 
-      <main className="relative z-10 px-4 pb-10 pt-24 md:px-6">
-        <section className="mx-auto max-w-6xl space-y-4">
-          <div className="rounded-2xl border border-cyan-300/35 bg-card/35 p-3 shadow-[0_0_50px_-18px_rgba(34,211,238,0.9)] backdrop-blur-xl md:p-4">
-            <div className="mx-auto w-[91%] max-w-full">
+      <main className="relative z-10 px-3 pb-10 pt-24 md:px-4">
+        <section className="mx-auto w-full max-w-[94rem] space-y-4">
+          <div className="rounded-2xl border border-cyan-300/35 bg-card/35 p-2 shadow-[0_0_50px_-18px_rgba(34,211,238,0.9)] backdrop-blur-xl md:p-3">
+            <div className="w-full">
               {useVodMode ? (
                 <video
                   src={fallbackMp4}
