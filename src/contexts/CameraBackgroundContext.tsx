@@ -9,7 +9,6 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Camera } from "lucide-react";
-import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { shouldOfferMobileCameraBackground } from "@/lib/deviceDetection";
 
@@ -119,11 +118,9 @@ export function CameraToggleButton({ className }: { className?: string }) {
 }
 
 export function CameraBackgroundProvider({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation();
   const [cameraBgActive, setCameraBgActive] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const isMegaCinePage = pathname === "/mega-cine";
 
   useEffect(() => {
     document.documentElement.classList.toggle("camera-bg-active", cameraBgActive);
@@ -206,7 +203,7 @@ export function CameraBackgroundProvider({ children }: { children: ReactNode }) 
     <CameraBackgroundContext.Provider
       value={{ cameraBgActive, cameraStream, toggleCameraBackground }}
     >
-      {cameraBgActive && cameraStream && !isMegaCinePage ? (
+      {cameraBgActive && cameraStream ? (
         <video
           ref={videoRef}
           autoPlay

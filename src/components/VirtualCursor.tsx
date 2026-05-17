@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 /**
- * Cursor virtual global (toda la web) para WebView Android / proyección.
+ * Cursor virtual solo en lobby inmersivo (WebView Android / proyección).
  * No intercepta clics: pointer-events: none.
  */
 export default function VirtualCursor() {

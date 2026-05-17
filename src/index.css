@@ -98,18 +98,13 @@
     background-image: none !important;
   }
 
-  html.camera-bg-active [data-mega-cine-page],
-  html.camera-bg-active [data-mega-cine-scene] {
-    background-color: transparent !important;
-  }
-
   [data-camera-page-root] {
     width: 100%;
     max-width: 100%;
     overflow-x: clip;
   }
 
-  /* Cursor virtual (el nativo oculto); el canvas 3D de inicio conserva interacción normal */
+  /* Cursor virtual en lobby (el nativo oculto) */
   body.virtual-cursor-active,
   body.virtual-cursor-active *:not(canvas) {
     cursor: none !important;

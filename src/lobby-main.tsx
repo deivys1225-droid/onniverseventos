@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import NeonRoom from "@/components/lobby/NeonRoom";
+import VirtualCursor from "@/components/VirtualCursor";
 import "./index.css";
 
 const rootElement = document.getElementById("root");
@@ -15,7 +16,15 @@ createRoot(rootElement).render(
   <StrictMode>
     <BrowserRouter basename={basename}>
       <Routes>
-        <Route path="/*" element={<NeonRoom />} />
+        <Route
+          path="/*"
+          element={
+            <>
+              <VirtualCursor />
+              <NeonRoom />
+            </>
+          }
+        />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

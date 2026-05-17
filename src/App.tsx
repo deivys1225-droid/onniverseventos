@@ -32,11 +32,8 @@ import WelcomeUniversePage from "./pages/WelcomeUniversePage.tsx";
 import RegisterPage from "./pages/RegisterPage.tsx";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
 import PcScenePage from "./pages/PcScenePage.tsx";
-import TripleCinemaPage from "./pages/TripleCinemaPage.tsx";
 import EmisorView from "./pages/EmisorView.tsx";
 import EspectadorView from "./pages/EspectadorView.tsx";
-import MegaCineNativeFab from "@/components/MegaCineNativeFab";
-import VirtualCursor from "@/components/VirtualCursor";
 import { CameraBackgroundProvider } from "@/contexts/CameraBackgroundContext";
 const queryClient = new QueryClient();
 
@@ -55,8 +52,6 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <CameraBackgroundProvider>
-          <VirtualCursor />
-          <MegaCineNativeFab />
           <Routes>
             <Route
               path="/"
@@ -107,14 +102,6 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <PcScenePage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/mega-cine"
-              element={
-                <PrivateRoute>
-                  <TripleCinemaPage />
                 </PrivateRoute>
               }
             />
