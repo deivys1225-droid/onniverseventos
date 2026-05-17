@@ -51,9 +51,12 @@ function readStoredProfileName(): string | undefined {
   }
 }
 /** Desplazamiento vertical del planeta (~20% hacia abajo en pantalla). */
-const EARTH_VERTICAL_OFFSET = -CENTRAL_SPHERE_RADIUS * 2.88;
-const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 0, 5.8];
-const DEFAULT_ORBIT_TARGET: [number, number, number] = [0, EARTH_VERTICAL_OFFSET, 0];
+const EARTH_VERTICAL_OFFSET_DESKTOP = -CENTRAL_SPHERE_RADIUS * 2.88;
+const EARTH_VERTICAL_OFFSET_MOBILE = -CENTRAL_SPHERE_RADIUS * 2.35;
+const DEFAULT_CAMERA_POSITION_DESKTOP: [number, number, number] = [0, 0, 5.8];
+const DEFAULT_CAMERA_POSITION_MOBILE: [number, number, number] = [0, 0.05, 6.4];
+const DEFAULT_FOV_DESKTOP = 62;
+const DEFAULT_FOV_MOBILE = 48;
 const HOME_PROMO_BG_URL = "/onnivers-home-bg.png";
 
 type StoredCameraView = {
@@ -257,6 +260,23 @@ function DeviceGyroController({ enabled }: { enabled: boolean }) {
 }
 
 /** Stereo VR / capture mode: DPR 1, sin tone mapping tipo ACES (menos trabajo por frame). */
+/** Evita Tierra ovalada/churro cuando el canvas cambia de proporción (móvil vertical). */
+function PerspectiveCameraAspectSync() {
+  const { camera, size, invalidate } = useThree();
+
+  useEffect(() => {
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    const aspect = size.width / Math.max(size.height, 1);
+    if (Math.abs(camera.aspect - aspect) > 0.0005) {
+      camera.aspect = aspect;
+      camera.updateProjectionMatrix();
+      invalidate();
+    }
+  }, [camera, size.width, size.height, invalidate]);
+
+  return null;
+}
+
 function VrStereoPerfSync({ active }: { active: boolean }) {
   const { gl, invalidate } = useThree();
   const savedTone = useRef<{ tm: THREE.ToneMapping; exp: number } | null>(null);
@@ -319,8 +339,14 @@ const MiMundoVRSection = ({
   const roomMode = useMemo(() => getRoomMode(environmentId), [environmentId]);
 
   const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
-  const cameraPosition = storedCameraView?.position ?? DEFAULT_CAMERA_POSITION;
-  const orbitTarget = storedCameraView?.target ?? DEFAULT_ORBIT_TARGET;
+  const earthVerticalOffset = isMobileCoarse ? EARTH_VERTICAL_OFFSET_MOBILE : EARTH_VERTICAL_OFFSET_DESKTOP;
+  const defaultCameraPosition = isMobileCoarse ? DEFAULT_CAMERA_POSITION_MOBILE : DEFAULT_CAMERA_POSITION_DESKTOP;
+  const defaultOrbitTarget: [number, number, number] = [0, earthVerticalOffset, 0];
+  const cameraFov = isMobileCoarse ? DEFAULT_FOV_MOBILE : DEFAULT_FOV_DESKTOP;
+  const cameraPosition =
+    storedCameraView?.position && !isMobileCoarse ? storedCameraView.position : defaultCameraPosition;
+  const orbitTarget =
+    storedCameraView?.target && !isMobileCoarse ? storedCameraView.target : defaultOrbitTarget;
 
   const onProfileConfirm = async (payload: ProfileCardConfirmPayload) => {
     try {
@@ -384,6 +410,7 @@ const MiMundoVRSection = ({
       <div className="absolute inset-0 z-[1] overflow-hidden">
         <div className="absolute inset-0 h-full w-full overflow-hidden">
         <Canvas
+          className="block h-full w-full touch-none"
           dpr={vrStereoActive ? VR_STEREO_PIXEL_RATIO : [1, MAX_WEBGL_PIXEL_RATIO]}
           gl={{
             antialias: vrStereoActive ? false : !isMobileCoarse,
@@ -393,12 +420,14 @@ const MiMundoVRSection = ({
             toneMappingExposure: 0.96,
           }}
           frameloop="always"
+          resize={{ scroll: false, debounce: { scroll: 0, resize: 0 } }}
           onCreated={({ gl }) => {
             applyPixelRatioCap(gl);
             if (!vrStereoActive) gl.setClearColor(0x000000, 0);
           }}
-          camera={{ position: cameraPosition, fov: 62, near: 0.1, far: 2000 }}
+          camera={{ position: cameraPosition, fov: cameraFov, near: 0.1, far: 2000 }}
         >
+          <PerspectiveCameraAspectSync />
           {vrStereoActive && <color attach="background" args={["#000000"]} />}
           {/* VR espejo 2D: sin luces (solo meshBasic + fondo); evita sombras y shading */}
           {!vrStereoActive &&
@@ -419,7 +448,7 @@ const MiMundoVRSection = ({
               </>
             ))}
 
-          <group position={[0, EARTH_VERTICAL_OFFSET, 0]}>
+          <group position={[0, earthVerticalOffset, 0]}>
             <Suspense fallback={null}>
               <CentralEarth simpleGpu={isMobileCoarse || vrStereoActive} vrStereo={vrStereoActive} />
             </Suspense>
