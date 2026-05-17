@@ -1,5 +1,4 @@
-﻿import CinemaScreenOnePhone from "@/components/CinemaScreenOnePhone";
-import CinemaScreenThreeWebsite from "@/components/CinemaScreenThreeWebsite";
+﻿import CinemaScreenThreeWebsite from "@/components/CinemaScreenThreeWebsite";
 import CinemaScreenTwoEvents from "@/components/CinemaScreenTwoEvents";
 import MegaCineCameraLayer from "@/components/MegaCineCameraLayer";
 import { useCameraBackground } from "@/contexts/CameraBackgroundContext";
@@ -13,11 +12,10 @@ import {
 } from "@/config/megaCineScreenSizes";
 import { cn } from "@/lib/utils";
 
-/** Sala Mega Cine: fondo 2D fijo + 3 pantallas negras (sin WebGL). */
+/** Sala Mega Cine: pantallas 2 y 3 apiladas (pantalla 1 oculta). */
 const SCREENS = [
-  { id: 1, title: "Pantalla 1", phone: true, events: false, website: false },
-  { id: 2, title: "Pantalla 2", phone: false, events: true, website: false },
-  { id: 3, title: "Pantalla 3", phone: false, events: false, website: true },
+  { id: 2, title: "Pantalla 2", events: true, website: false },
+  { id: 3, title: "Pantalla 3", events: false, website: true },
 ] as const;
 
 /** Recorte: mitad derecha de la escena (200% ancho + desplazamiento). */
@@ -46,8 +44,8 @@ function MegaCineScene() {
         aria-hidden
       />
 
-      <div className="relative z-10 flex h-full w-full min-w-[min(100%,1200px)] flex-col items-center justify-center px-3 pb-28 pt-6 sm:px-6 md:px-10">
-        <div className="grid w-full max-w-[1200px] grid-cols-1 items-end justify-items-center gap-6 md:grid-cols-3 md:gap-5 lg:gap-8">
+      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-3 pb-28 pt-6 sm:px-6 md:px-10">
+        <div className="flex w-full max-w-[min(100%,460px)] flex-col items-center gap-5 sm:gap-6">
           {SCREENS.map((screen) => (
             <article
               key={screen.id}
@@ -59,25 +57,10 @@ function MegaCineScene() {
               <div className="rounded-sm border-[3px] border-[#1a1a1a] bg-[#050505] p-1 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.45),0_0_0_1px_rgba(0,0,0,0.15)]">
                 <div
                   data-cinema-screen={screen.id}
-                  className={cn(
-                    "relative w-full overflow-hidden rounded-[2px] bg-black",
-                    screen.phone ? "aspect-[4/3] min-h-[220px] sm:min-h-[260px]" : "aspect-video",
-                  )}
-                  role={screen.phone || screen.website ? undefined : "img"}
+                  className="relative aspect-video w-full overflow-hidden rounded-[2px] bg-black"
                   aria-label={screen.title}
                 >
-                  {screen.phone ? (
-                    <CinemaScreenOnePhone />
-                  ) : screen.events ? (
-                    <CinemaScreenTwoEvents />
-                  ) : screen.website ? (
-                    <CinemaScreenThreeWebsite />
-                  ) : (
-                    <>
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#0d0d0d] via-black to-[#141414]" />
-                      <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-white/[0.06] to-transparent" />
-                    </>
-                  )}
+                  {screen.events ? <CinemaScreenTwoEvents /> : <CinemaScreenThreeWebsite />}
                 </div>
               </div>
               <p className="mt-2 text-center font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
