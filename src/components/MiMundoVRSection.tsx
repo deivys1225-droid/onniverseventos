@@ -369,14 +369,14 @@ const MiMundoVRSection = ({
   return (
     <section
       id="mi-mundo-vr"
-      className={`relative h-full w-full overflow-hidden ${cameraBgActive ? "bg-transparent" : "bg-black"}`}
+      className={`relative h-full w-full max-w-[100dvw] overflow-x-hidden overflow-y-hidden ${cameraBgActive ? "bg-transparent" : "bg-black"}`}
     >
       {!vrStereoActive && !cameraBgActive && (
         <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
           <img
             src={HOME_PROMO_BG_URL}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover object-center"
+            className="absolute inset-0 h-full w-full max-w-full object-cover object-center"
             draggable={false}
             decoding="async"
           />
@@ -449,8 +449,8 @@ const MiMundoVRSection = ({
         </div>
       </div>
       {!vrStereoActive && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
-          <div className="pointer-events-auto origin-center scale-[0.63] -translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-3 sm:px-4">
+          <div className="pointer-events-auto origin-center scale-[0.52] -translate-y-[clamp(2.25rem,12vh,7.5rem)] sm:scale-[0.58] sm:-translate-y-[clamp(3rem,15vh,9rem)] md:scale-[0.63] md:-translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
             <ProfileCard
               initialName={cardDisplayName}
               initialAvatarSrc={cardAvatarSrc}
@@ -464,7 +464,7 @@ const MiMundoVRSection = ({
       {!vrStereoActive && (
         <>
           <HomeNavCards />
-          <div className="pointer-events-none fixed bottom-4 left-4 z-[60] flex flex-col items-start gap-2 pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]">
+          <div className="pointer-events-none fixed top-20 right-4 z-[60] flex flex-col items-end gap-2 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)]">
             <button
               type="button"
               onClick={() => setSocialMenuOpen((prev) => !prev)}
@@ -480,7 +480,7 @@ const MiMundoVRSection = ({
             <SocialMenu userId={user.id} open={socialMenuOpen} onClose={() => setSocialMenuOpen(false)} />
           )}
           {!user && socialMenuOpen && (
-            <div className="pointer-events-auto fixed bottom-20 left-4 z-[70] rounded-xl border border-cyan-300/35 bg-card/90 px-3 py-2 text-xs text-cyan-100 backdrop-blur-xl">
+            <div className="pointer-events-auto fixed top-32 right-4 z-[70] max-w-[min(92vw,280px)] rounded-xl border border-cyan-300/35 bg-card/90 px-3 py-2 text-xs text-cyan-100 backdrop-blur-xl">
               <MessageCircleMore className="mr-1 inline h-3.5 w-3.5" />
               Inicia sesion para usar Social.
             </div>

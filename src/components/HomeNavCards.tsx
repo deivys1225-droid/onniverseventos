@@ -1,4 +1,4 @@
-﻿import { motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -13,11 +13,11 @@ const HOME_NAV_CARDS: HomeNavCardItem[] = [
   { label: "ViveVR", description: "Experiencias inmersivas", path: "/inicio-2", image: "/onni-ecosystem-metaverse.png" },
   { label: "Salas", description: "Shows y comunidad", path: "/nuestras-salas", image: "/eventos-inmersivos.jpeg" },
   { label: "Tienda", description: "Cursos y contenido", path: "/tienda", image: "/compras-inmersivas.jpeg" },
-  { label: "Quiénes somos", description: "OnniVers · Tikes", path: "/quienes-somos", image: "/accesibilidad-universal.jpeg" },
+  { label: "Qui?nes somos", description: "OnniVers ? Tikes", path: "/quienes-somos", image: "/accesibilidad-universal.jpeg" },
 ];
 
 const CARD_CLASS =
-  "flex h-[4.9rem] w-full min-w-0 flex-col overflow-hidden rounded-lg border border-border/50 bg-card/40 shadow-[0_0_20px_-10px_hsl(var(--primary)/0.4)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/45";
+  "flex h-[4.15rem] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-lg border border-border/50 bg-card/40 shadow-[0_0_20px_-10px_hsl(var(--primary)/0.4)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/45 md:h-[4.9rem]";
 
 function HomeNavCard({ item, index }: { item: HomeNavCardItem; index: number }) {
   return (
@@ -74,22 +74,37 @@ function CardRow({
 
 export default function HomeNavCards({ className }: { className?: string }) {
   return (
-    <div
-      className={cn(
-        "pointer-events-none absolute inset-0 z-20 scale-[1.012]",
-        className,
-      )}
-    >
-      <CardRow
-        items={LEFT_CARDS}
-        side="left"
-        className="absolute top-1/2 w-[min(42vw,9.5rem)] -translate-y-1/2"
-      />
-      <CardRow
-        items={RIGHT_CARDS}
-        side="right"
-        className="absolute top-1/2 w-[min(42vw,9.5rem)] -translate-y-1/2"
-      />
-    </div>
+    <>
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 bottom-0 z-20 max-w-full overflow-hidden px-3 pb-[max(4.75rem,calc(env(safe-area-inset-bottom)+3.5rem))] md:hidden",
+          className,
+        )}
+      >
+        <div className="pointer-events-auto mx-auto grid w-full max-w-sm grid-cols-2 gap-2">
+          {HOME_NAV_CARDS.map((item, index) => (
+            <HomeNavCard key={item.path} item={item} index={index} />
+          ))}
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 z-20 hidden max-w-full overflow-hidden md:block md:scale-[1.012]",
+          className,
+        )}
+      >
+        <CardRow
+          items={LEFT_CARDS}
+          side="left"
+          className="absolute top-1/2 w-[min(42vw,9.5rem)] -translate-y-1/2"
+        />
+        <CardRow
+          items={RIGHT_CARDS}
+          side="right"
+          className="absolute top-1/2 w-[min(42vw,9.5rem)] -translate-y-1/2"
+        />
+      </div>
+    </>
   );
 }

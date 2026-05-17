@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Camera } from "lucide-react";
 import { toast } from "sonner";
+import { shouldOfferMobileCameraBackground } from "@/lib/deviceDetection";
 
 type CameraBackgroundContextValue = {
   cameraBgActive: boolean;
@@ -16,6 +17,46 @@ type CameraBackgroundContextValue = {
 };
 
 const CameraBackgroundContext = createContext<CameraBackgroundContextValue | null>(null);
+
+type CameraPermissionState = "granted" | "prompt" | "denied" | "unsupported";
+
+async function queryCameraPermission(): Promise<CameraPermissionState> {
+  if (typeof navigator === "undefined" || !navigator.permissions?.query) {
+    return "unsupported";
+  }
+  try {
+    const result = await navigator.permissions.query({ name: "camera" as PermissionName });
+    if (result.state === "granted") return "granted";
+    if (result.state === "denied") return "denied";
+    return "prompt";
+  } catch {
+    return "unsupported";
+  }
+}
+
+function getCameraErrorMessage(error: unknown): string {
+  if (error instanceof DOMException) {
+    switch (error.name) {
+      case "NotAllowedError":
+      case "PermissionDeniedError":
+        return "Permiso de cámara denegado. En el navegador del celular, abre el menú (candado o ⋮) y permite el acceso a la cámara.";
+      case "NotFoundError":
+      case "DevicesNotFoundError":
+        return "No se encontró una cámara en este dispositivo.";
+      case "NotReadableError":
+      case "TrackStartError":
+        return "La cámara está en uso por otra aplicación. Ciérrala e inténtalo de nuevo.";
+      case "SecurityError":
+        return "La cámara requiere una conexión segura (HTTPS).";
+      case "OverconstrainedError":
+        return "No se pudo iniciar la cámara con la configuración solicitada.";
+      default:
+        break;
+    }
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return "No se pudo activar la cámara. Revisa los permisos en Ajustes del celular.";
+}
 
 export function useCameraBackground(): CameraBackgroundContextValue {
   const ctx = useContext(CameraBackgroundContext);
@@ -27,6 +68,13 @@ export function useCameraBackground(): CameraBackgroundContextValue {
 
 export function CameraToggleButton({ className }: { className?: string }) {
   const { cameraBgActive, toggleCameraBackground } = useCameraBackground();
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    setVisible(shouldOfferMobileCameraBackground());
+  }, []);
+
+  if (!visible) return null;
 
   return (
     <div
@@ -88,10 +136,23 @@ export function CameraBackgroundProvider({ children }: { children: ReactNode }) 
   }, []);
 
   const startCameraBackground = useCallback(async () => {
+    if (!shouldOfferMobileCameraBackground()) {
+      toast.error("La cámara de fondo solo está disponible en el celular.");
+      return;
+    }
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       toast.error("La cámara no está disponible en este dispositivo.");
       return;
     }
+
+    const permission = await queryCameraPermission();
+    if (permission === "denied") {
+      toast.error(
+        "Permiso de cámara bloqueado. En Ajustes del celular o del navegador, permite el acceso a la cámara para este sitio.",
+      );
+      return;
+    }
+
     try {
       setCameraStream((prev) => {
         prev?.getTracks().forEach((track) => track.stop());
@@ -109,18 +170,21 @@ export function CameraBackgroundProvider({ children }: { children: ReactNode }) 
       setCameraStream(stream);
       setCameraBgActive(true);
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "No se pudo activar la cámara. Revisa los permisos del navegador.",
-      );
+      toast.error(getCameraErrorMessage(error));
     }
   }, []);
 
   const toggleCameraBackground = useCallback(() => {
+    if (!shouldOfferMobileCameraBackground()) return;
     if (cameraBgActive) stopCameraBackground();
     else void startCameraBackground();
   }, [cameraBgActive, startCameraBackground, stopCameraBackground]);
+
+  useEffect(() => {
+    if (!shouldOfferMobileCameraBackground() && cameraBgActive) {
+      stopCameraBackground();
+    }
+  }, [cameraBgActive, stopCameraBackground]);
 
   return (
     <CameraBackgroundContext.Provider value={{ cameraBgActive, toggleCameraBackground }}>

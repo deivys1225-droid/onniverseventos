@@ -344,7 +344,7 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
   const showSearchResults = searchQuery.trim().length >= 2;
 
   return (
-    <div className="pointer-events-auto fixed bottom-20 left-4 z-[70] flex h-[min(72dvh,560px)] w-[min(94vw,780px)] flex-col overflow-hidden rounded-2xl border border-cyan-300/30 bg-card/70 shadow-[0_0_55px_-18px_rgba(34,211,238,0.85)] backdrop-blur-2xl">
+    <div className="pointer-events-auto fixed top-32 right-4 z-[70] flex h-[min(calc(100dvh-9rem),560px)] w-[min(calc(100vw-2rem),780px)] flex-col overflow-hidden rounded-2xl border border-cyan-300/30 bg-card/70 shadow-[0_0_55px_-18px_rgba(34,211,238,0.85)] backdrop-blur-2xl">
       <div className="border-b border-white/10 px-3 py-3 sm:px-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <p className="font-display text-sm font-bold uppercase tracking-[0.16em] text-white">Messenger</p>
