@@ -150,7 +150,7 @@ function SplitMegaCineView() {
         </div>
 
         <div className="relative h-full w-1/2 shrink-0 overflow-hidden border-l-2 border-cyan-500/50">
-          <motion.div ref={masterRef} className={RIGHT_HALF_CLIP_CLASS}>
+          <div ref={masterRef} className={RIGHT_HALF_CLIP_CLASS}>
             <MegaCineScene />
           </div>
         </div>

@@ -1,12 +1,17 @@
 import { getShuffledEventSalaVideos } from "@/data/eventSalaVideos";
+import { useMegaCineSplit } from "@/contexts/MegaCineSplitContext";
 import { SkipBack, SkipForward } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export default function CinemaScreenTwoEvents() {
-  const playlist = useMemo(() => getShuffledEventSalaVideos(), []);
+  const split = useMegaCineSplit();
+  const localPlaylist = useMemo(() => getShuffledEventSalaVideos(), []);
+  const playlist = split?.eventsPlaylist ?? localPlaylist;
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const [index, setIndex] = useState(0);
+  const [localIndex, setLocalIndex] = useState(0);
+  const index = split?.eventsIndex ?? localIndex;
+  const setIndex = split?.setEventsIndex ?? setLocalIndex;
   const [status, setStatus] = useState("");
 
   const loadIndex = useCallback(
@@ -29,8 +34,9 @@ export default function CinemaScreenTwoEvents() {
   );
 
   useEffect(() => {
-    if (playlist.length > 0) loadIndex(0, false);
-  }, [loadIndex, playlist.length]);
+    if (playlist.length === 0) return;
+    loadIndex(index, false);
+  }, [index, loadIndex, playlist.length]);
 
   const onPrevious = useCallback(() => {
     if (playlist.length === 0) return;
