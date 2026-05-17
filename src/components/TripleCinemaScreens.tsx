@@ -18,8 +18,7 @@ const SCREENS = [
   { id: 3, title: "Pantalla 3", events: false, website: true },
 ] as const;
 
-/** Recorte: mitad derecha de la escena (200% ancho + desplazamiento). */
-const RIGHT_HALF_CLIP_CLASS = "h-full w-[200%] min-w-[200%] max-w-none -ml-[100%]";
+const SPLIT_PANEL_SCENE_CLASS = "relative z-10 h-full w-full max-w-[min(100%,460px)]";
 
 function MegaCineScene() {
   const { cameraBgActive } = useCameraBackground();
@@ -130,20 +129,20 @@ function SplitMegaCineView() {
   return (
     <MegaCineSplitProvider>
       <div className="absolute inset-0 flex">
-        <div className="relative h-full w-1/2 shrink-0 overflow-hidden">
-          <MegaCineCameraLayer clipClassName={RIGHT_HALF_CLIP_CLASS} />
+        <div className="relative flex h-full w-1/2 shrink-0 items-center justify-center overflow-hidden">
+          <MegaCineCameraLayer />
           <div
             ref={mirrorRef}
-            className={cn("pointer-events-none relative z-10 select-none", RIGHT_HALF_CLIP_CLASS)}
+            className={cn("pointer-events-none select-none", SPLIT_PANEL_SCENE_CLASS)}
             aria-hidden
           >
             <MegaCineScene />
           </div>
         </div>
 
-        <div className="relative h-full w-1/2 shrink-0 overflow-hidden border-l-2 border-cyan-500/50">
-          <MegaCineCameraLayer clipClassName={RIGHT_HALF_CLIP_CLASS} />
-          <div ref={masterRef} className={cn("relative z-10", RIGHT_HALF_CLIP_CLASS)}>
+        <div className="relative flex h-full w-1/2 shrink-0 items-center justify-center overflow-hidden border-l-2 border-cyan-500/50">
+          <MegaCineCameraLayer />
+          <div ref={masterRef} className={SPLIT_PANEL_SCENE_CLASS}>
             <MegaCineScene />
           </div>
         </div>
