@@ -63,8 +63,21 @@
     @apply border-border;
   }
 
+  html {
+    overflow-x: clip;
+    max-width: 100%;
+  }
+
   body {
     @apply bg-background text-foreground font-body antialiased;
+    overflow-x: clip;
+    max-width: 100%;
+    position: relative;
+  }
+
+  #root {
+    overflow-x: clip;
+    max-width: 100%;
   }
 
   html.camera-bg-active body {

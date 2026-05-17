@@ -80,7 +80,7 @@ export function CameraToggleButton({ className }: { className?: string }) {
     <div
       className={
         className ??
-        "pointer-events-none fixed bottom-4 right-4 z-[80] pb-[env(safe-area-inset-bottom,0px)] pr-[env(safe-area-inset-right,0px)]"
+        "pointer-events-none fixed bottom-3 right-3 z-[80] max-w-full pb-[max(0.75rem,env(safe-area-inset-bottom))] pr-[max(0.75rem,env(safe-area-inset-right))]"
       }
     >
       <button
@@ -198,7 +198,7 @@ export function CameraBackgroundProvider({ children }: { children: ReactNode }) 
           className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover object-center"
         />
       ) : null}
-      <div className="relative z-10">{children}</div>
+      <div className="relative z-10 max-w-full overflow-x-clip">{children}</div>
     </CameraBackgroundContext.Provider>
   );
 }

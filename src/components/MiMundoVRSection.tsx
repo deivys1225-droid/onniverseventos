@@ -368,7 +368,7 @@ const MiMundoVRSection = ({
   return (
     <section
       id="mi-mundo-vr"
-      className={`relative h-full w-full max-w-[100dvw] overflow-x-hidden overflow-y-hidden ${cameraBgActive ? "bg-transparent" : "bg-black"}`}
+      className={`relative h-full w-full max-w-full overflow-x-clip overflow-y-hidden ${cameraBgActive ? "bg-transparent" : "bg-black"}`}
     >
       {!vrStereoActive && !cameraBgActive && (
         <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
@@ -448,8 +448,8 @@ const MiMundoVRSection = ({
         </div>
       </div>
       {!vrStereoActive && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-3 sm:px-4">
-          <div className="pointer-events-auto origin-center scale-[0.63] -translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
+        <div className="pointer-events-none absolute inset-x-0 top-16 bottom-0 z-10 flex items-center justify-center overflow-hidden px-3 sm:px-4">
+          <div className="pointer-events-auto w-full max-w-[min(calc(100vw-1.5rem),240px)] origin-center -translate-y-[clamp(1.75rem,9vh,5rem)] sm:max-w-[min(calc(100vw-2rem),260px)] sm:-translate-y-[clamp(2.5rem,12vh,7rem)] md:max-w-[280px] md:scale-[0.63] md:-translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
             <ProfileCard
               initialName={cardDisplayName}
               initialAvatarSrc={cardAvatarSrc}

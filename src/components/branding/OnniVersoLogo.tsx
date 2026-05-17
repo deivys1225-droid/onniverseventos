@@ -15,7 +15,7 @@ const OnniVersoLogo = ({ className = "", iconSize = 28 }: OnniVersoLogoProps) =>
   const gradId = `onni-grad-${rid}`;
 
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`} role="img" aria-label={BRAND_IMAGE_ALT}>
+    <span className={`inline-flex min-w-0 items-center gap-1.5 sm:gap-2 ${className}`} role="img" aria-label={BRAND_IMAGE_ALT}>
       <svg
         width={iconSize}
         height={iconSize}
@@ -34,7 +34,7 @@ const OnniVersoLogo = ({ className = "", iconSize = 28 }: OnniVersoLogoProps) =>
         <ellipse cx="24" cy="24" rx="21" ry="10" fill="none" stroke={`url(#${gradId})`} strokeWidth="1.4" opacity="0.65" />
         <circle cx="24" cy="24" r="7" fill="hsl(190 90% 52% / 0.25)" stroke={`url(#${gradId})`} strokeWidth="1.5" />
       </svg>
-      <span aria-hidden className="font-headline text-lg font-semibold tracking-[0.14em] text-foreground md:text-xl md:tracking-[0.16em]">
+      <span aria-hidden className="truncate font-headline text-base font-semibold tracking-[0.12em] text-foreground sm:text-lg sm:tracking-[0.14em] md:text-xl md:tracking-[0.16em]">
         Onni<span className="font-bold tracking-[0.22em] text-primary">Vers</span>
       </span>
     </span>

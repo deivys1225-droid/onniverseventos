@@ -100,7 +100,7 @@ const ProfileCard = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "w-[min(92vw,280px)] select-none rounded-2xl border border-border/50 bg-card/40 p-5 shadow-[0_0_40px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl transition-all duration-500",
+        "w-full max-w-[min(calc(100vw-1.5rem),240px)] select-none rounded-2xl border border-border/50 bg-card/40 p-4 shadow-[0_0_40px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl transition-all duration-500 sm:max-w-[min(calc(100vw-2rem),260px)] sm:p-5 md:max-w-[280px]",
         "hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-[0_0_45px_-10px_hsl(var(--primary)/0.5)]",
         className,
       )}
