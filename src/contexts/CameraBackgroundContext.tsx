@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { Camera } from "lucide-react";
 import { toast } from "sonner";
 import { shouldOfferMobileCameraBackground } from "@/lib/deviceDetection";
@@ -68,19 +69,28 @@ export function useCameraBackground(): CameraBackgroundContextValue {
 
 export function CameraToggleButton({ className }: { className?: string }) {
   const { cameraBgActive, toggleCameraBackground } = useCameraBackground();
-  const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [offerCamera, setOfferCamera] = useState(false);
 
   useEffect(() => {
-    setVisible(shouldOfferMobileCameraBackground());
+    setMounted(true);
+    const sync = () => setOfferCamera(shouldOfferMobileCameraBackground());
+    sync();
+    window.addEventListener("resize", sync);
+    window.addEventListener("orientationchange", sync);
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("orientationchange", sync);
+    };
   }, []);
 
-  if (!visible) return null;
+  if (!mounted || !offerCamera) return null;
 
-  return (
+  const button = (
     <div
       className={
         className ??
-        "pointer-events-none fixed bottom-3 right-3 z-[80] max-w-full pb-[max(0.75rem,env(safe-area-inset-bottom))] pr-[max(0.75rem,env(safe-area-inset-right))]"
+        "pointer-events-none fixed bottom-4 right-4 z-[100] pb-[env(safe-area-inset-bottom,0px)] pr-[env(safe-area-inset-right,0px)]"
       }
     >
       <button
@@ -102,6 +112,8 @@ export function CameraToggleButton({ className }: { className?: string }) {
       </button>
     </div>
   );
+
+  return createPortal(button, document.body);
 }
 
 export function CameraBackgroundProvider({ children }: { children: ReactNode }) {

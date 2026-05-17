@@ -502,7 +502,6 @@ const MiMundoVRSection = ({
               <UsersRound className="h-5 w-5" />
             </button>
           </div>
-          <CameraToggleButton />
           {user && (
             <SocialMenu userId={user.id} open={socialMenuOpen} onClose={() => setSocialMenuOpen(false)} />
           )}
@@ -514,6 +513,7 @@ const MiMundoVRSection = ({
           )}
         </>
       )}
+      <CameraToggleButton />
     </section>
   );
 };
