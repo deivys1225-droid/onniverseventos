@@ -371,20 +371,11 @@ const MiMundoVRSection = ({
       className={`relative h-full w-full max-w-full overflow-x-clip overflow-y-hidden ${cameraBgActive ? "bg-transparent" : "bg-black"}`}
     >
       {!vrStereoActive && !cameraBgActive && (
-        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-black" aria-hidden>
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
           <img
             src={HOME_PROMO_BG_URL}
             alt=""
-            className="absolute inset-x-0 top-0 h-[42svh] w-full object-cover object-[center_0%] max-md:block md:hidden"
-            draggable={false}
-            decoding="async"
-          />
-          <div className="absolute inset-x-0 top-[34svh] z-[1] h-20 bg-gradient-to-b from-transparent to-black max-md:block md:hidden" />
-          <div className="absolute inset-x-0 bottom-0 top-[42svh] z-[1] bg-black max-md:block md:hidden" />
-          <img
-            src={HOME_PROMO_BG_URL}
-            alt=""
-            className="absolute inset-0 hidden h-full w-full object-cover object-center md:block"
+            className="absolute inset-0 h-full w-full object-fill object-center md:object-cover"
             draggable={false}
             decoding="async"
           />
