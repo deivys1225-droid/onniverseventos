@@ -6,6 +6,10 @@ import { MegaCineSplitProvider } from "@/contexts/MegaCineSplitContext";
 import { Columns2, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
+import {
+  MEGA_CINE_SCREEN_BASE_MAX_PX,
+  MEGA_CINE_SCREEN_TWO_MAX_PX,
+} from "@/config/megaCineScreenSizes";
 import { cn } from "@/lib/utils";
 
 /** Sala Mega Cine: fondo 2D fijo + 3 pantallas negras (sin WebGL). */
@@ -46,7 +50,10 @@ function MegaCineScene() {
           {SCREENS.map((screen) => (
             <article
               key={screen.id}
-              className="relative z-10 w-full max-w-[min(100%,340px)]"
+              className="relative z-10 w-full"
+              style={{
+                maxWidth: `min(100%, ${screen.events ? MEGA_CINE_SCREEN_TWO_MAX_PX : MEGA_CINE_SCREEN_BASE_MAX_PX}px)`,
+              }}
             >
               <div className="rounded-sm border-[3px] border-[#1a1a1a] bg-[#050505] p-1 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.45),0_0_0_1px_rgba(0,0,0,0.15)]">
                 <div
