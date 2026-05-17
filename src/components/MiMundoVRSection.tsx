@@ -18,7 +18,6 @@ import { CameraToggleButton, useCameraBackground } from "@/contexts/CameraBackgr
 import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
 import { useAuth } from "@/hooks/useAuth";
-import HomeNavCards from "@/components/HomeNavCards";
 import SocialMenu from "@/components/SocialMenu";
 
 /**
@@ -463,7 +462,6 @@ const MiMundoVRSection = ({
       )}
       {!vrStereoActive && (
         <>
-          <HomeNavCards />
           <div className="pointer-events-none fixed top-20 right-4 z-[60] flex flex-col items-end gap-2 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)]">
             <button
               type="button"
