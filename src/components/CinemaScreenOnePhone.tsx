@@ -70,6 +70,7 @@ function AppTile({ label, icon, className, onClick }: AppTileProps) {
   );
 }
 
+
 export default function CinemaScreenOnePhone() {
   const folderInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);

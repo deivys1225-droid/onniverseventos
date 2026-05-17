@@ -98,6 +98,11 @@
     background-image: none !important;
   }
 
+  html.camera-bg-active [data-mega-cine-page],
+  html.camera-bg-active [data-mega-cine-scene] {
+    background-color: transparent !important;
+  }
+
   [data-camera-page-root] {
     width: 100%;
     max-width: 100%;
