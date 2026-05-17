@@ -1,35 +1,19 @@
-import { Capacitor } from "@capacitor/core";
 import { Clapperboard } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { isMobileUserAgent } from "@/lib/deviceDetection";
 
-/**
- * Botón Mega Cine siempre visible en app nativa / móvil (portal a body).
- * En inicio queda debajo del chat; en otras rutas, arriba a la derecha.
- */
+/** Botón Mega Cine flotante (portal a body). Visible en web y app. */
 export default function MegaCineNativeFab() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
-  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const sync = () => {
-      setVisible(Capacitor.isNativePlatform() || isMobileUserAgent());
-    };
-    sync();
-    window.addEventListener("resize", sync);
-    window.addEventListener("orientationchange", sync);
-    return () => {
-      window.removeEventListener("resize", sync);
-      window.removeEventListener("orientationchange", sync);
-    };
   }, []);
 
-  if (!mounted || !visible || location.pathname === "/mega-cine") {
+  if (!mounted || location.pathname === "/mega-cine") {
     return null;
   }
 
