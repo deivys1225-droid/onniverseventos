@@ -32,6 +32,7 @@ import WelcomeUniversePage from "./pages/WelcomeUniversePage.tsx";
 import RegisterPage from "./pages/RegisterPage.tsx";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
 import PcScenePage from "./pages/PcScenePage.tsx";
+import TripleCinemaPage from "./pages/TripleCinemaPage.tsx";
 import EmisorView from "./pages/EmisorView.tsx";
 import EspectadorView from "./pages/EspectadorView.tsx";
 import { CameraBackgroundProvider } from "@/contexts/CameraBackgroundContext";
@@ -102,6 +103,14 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <PcScenePage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/mega-cine"
+              element={
+                <PrivateRoute>
+                  <TripleCinemaPage />
                 </PrivateRoute>
               }
             />
