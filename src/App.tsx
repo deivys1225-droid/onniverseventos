@@ -35,6 +35,7 @@ import PcScenePage from "./pages/PcScenePage.tsx";
 import TripleCinemaPage from "./pages/TripleCinemaPage.tsx";
 import EmisorView from "./pages/EmisorView.tsx";
 import EspectadorView from "./pages/EspectadorView.tsx";
+import MegaCineNativeFab from "@/components/MegaCineNativeFab";
 import { CameraBackgroundProvider } from "@/contexts/CameraBackgroundContext";
 const queryClient = new QueryClient();
 
@@ -53,6 +54,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <CameraBackgroundProvider>
+          <MegaCineNativeFab />
           <Routes>
             <Route
               path="/"
