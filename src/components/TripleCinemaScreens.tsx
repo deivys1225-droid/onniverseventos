@@ -9,6 +9,7 @@ import type { RefObject } from "react";
 import {
   MEGA_CINE_SCREEN_BASE_MAX_PX,
   MEGA_CINE_SCREEN_TWO_MAX_PX,
+  MEGA_CINE_STACK_MAX_PX,
 } from "@/config/megaCineScreenSizes";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,9 @@ const SCREENS = [
   { id: 3, title: "Pantalla 3", events: false, website: true },
 ] as const;
 
-const SPLIT_PANEL_SCENE_CLASS = "relative z-10 h-full w-full max-w-[min(100%,460px)]";
+const SPLIT_PANEL_SCENE_STYLE = {
+  maxWidth: `min(100%, ${MEGA_CINE_STACK_MAX_PX}px)`,
+} as const;
 
 function MegaCineScene() {
   const { cameraBgActive } = useCameraBackground();
@@ -44,7 +47,10 @@ function MegaCineScene() {
       />
 
       <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-3 pb-28 pt-6 sm:px-6 md:px-10">
-        <div className="flex w-full max-w-[min(100%,460px)] flex-col items-center gap-5 sm:gap-6">
+        <div
+          className="flex w-full flex-col items-center gap-5 sm:gap-6"
+          style={{ maxWidth: `min(100%, ${MEGA_CINE_STACK_MAX_PX}px)` }}
+        >
           {SCREENS.map((screen) => (
             <article
               key={screen.id}
@@ -133,7 +139,8 @@ function SplitMegaCineView() {
           <MegaCineCameraLayer />
           <div
             ref={mirrorRef}
-            className={cn("pointer-events-none select-none", SPLIT_PANEL_SCENE_CLASS)}
+            className="pointer-events-none relative z-10 h-full w-full select-none"
+            style={SPLIT_PANEL_SCENE_STYLE}
             aria-hidden
           >
             <MegaCineScene />
@@ -142,7 +149,7 @@ function SplitMegaCineView() {
 
         <div className="relative flex h-full w-1/2 shrink-0 items-center justify-center overflow-hidden border-l-2 border-cyan-500/50">
           <MegaCineCameraLayer />
-          <div ref={masterRef} className={SPLIT_PANEL_SCENE_CLASS}>
+          <div ref={masterRef} className="relative z-10 h-full w-full" style={SPLIT_PANEL_SCENE_STYLE}>
             <MegaCineScene />
           </div>
         </div>
