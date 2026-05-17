@@ -462,7 +462,7 @@ const MiMundoVRSection = ({
       )}
       {!vrStereoActive && (
         <>
-          <div className="pointer-events-none fixed top-20 right-4 z-[60] flex flex-col items-end gap-2 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)]">
+          <div className="pointer-events-none fixed top-[4.25rem] right-3 z-[60] flex flex-col items-end gap-2 pr-[max(0.75rem,env(safe-area-inset-right))]">
             <button
               type="button"
               onClick={() => setSocialMenuOpen((prev) => !prev)}
