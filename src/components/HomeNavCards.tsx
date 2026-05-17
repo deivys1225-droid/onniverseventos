@@ -87,12 +87,12 @@ export default function HomeNavCards({ className }: { className?: string }) {
       <CardRow
         items={LEFT_CARDS}
         side="left"
-        className="absolute top-1/2 w-[min(17.5vw,4.1rem)] -translate-y-1/2 sm:w-[min(22vw,5.25rem)] md:w-[min(42vw,9.5rem)]"
+        className="absolute top-[57%] w-[min(17.5vw,4.1rem)] -translate-y-1/2 sm:w-[min(22vw,5.25rem)] md:w-[min(42vw,9.5rem)]"
       />
       <CardRow
         items={RIGHT_CARDS}
         side="right"
-        className="absolute top-1/2 w-[min(17.5vw,4.1rem)] -translate-y-1/2 sm:w-[min(22vw,5.25rem)] md:w-[min(42vw,9.5rem)]"
+        className="absolute top-[57%] w-[min(17.5vw,4.1rem)] -translate-y-1/2 sm:w-[min(22vw,5.25rem)] md:w-[min(42vw,9.5rem)]"
       />
     </div>
   );

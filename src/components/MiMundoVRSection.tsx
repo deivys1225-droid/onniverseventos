@@ -19,6 +19,7 @@ import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
 import { useAuth } from "@/hooks/useAuth";
 import SocialMenu from "@/components/SocialMenu";
+import HomeNavCards from "@/components/HomeNavCards";
 
 /**
  * Texturas Tierra alta resolucion (offline-first, copiadas a /public/assets/textures/earth/).
@@ -40,7 +41,7 @@ const MOON_RADIUS = CENTRAL_SPHERE_RADIUS * 0.27;
 const MOON_ORBIT_RADIUS = CENTRAL_SPHERE_RADIUS * 1.95;
 const MOON_ORBIT_SPEED = 0.22;
 const EARTH_ROTATION_SPEED = 0.08;
-const MI_MUNDO_CAMERA_VIEW_STORAGE_KEY = "onniverso.mi_mundo.camera_view";
+const MI_MUNDO_CAMERA_VIEW_STORAGE_KEY = "onniverso.mi_mundo.camera_view.v5";
 const PROFILE_NAME_STORAGE_KEY = "onniverso.profile.name";
 function readStoredProfileName(): string | undefined {
   try {
@@ -50,10 +51,13 @@ function readStoredProfileName(): string | undefined {
     return undefined;
   }
 }
-/** Desplazamiento vertical del planeta (~20% hacia abajo en pantalla). */
-const EARTH_VERTICAL_OFFSET_DESKTOP = -CENTRAL_SPHERE_RADIUS * 2.88;
-const EARTH_VERTICAL_OFFSET_MOBILE = -CENTRAL_SPHERE_RADIUS * 2.35;
-const DEFAULT_CAMERA_POSITION_DESKTOP: [number, number, number] = [0, 0, 5.8];
+/** Desplazamiento vertical del planeta (centro bajo la tarjeta de perfil). */
+const EARTH_VERTICAL_OFFSET_DESKTOP = -CENTRAL_SPHERE_RADIUS * 6.42;
+const EARTH_VERTICAL_OFFSET_MOBILE = -CENTRAL_SPHERE_RADIUS * 5.17;
+/** Apunta la cámara por encima del centro de la Tierra para que se vea más abajo en pantalla. */
+const ORBIT_TARGET_LIFT_DESKTOP = 1.75;
+const ORBIT_TARGET_LIFT_MOBILE = 0.92;
+const DEFAULT_CAMERA_POSITION_DESKTOP: [number, number, number] = [0, -0.53, 6.85];
 const DEFAULT_CAMERA_POSITION_MOBILE: [number, number, number] = [0, 0.05, 6.4];
 const DEFAULT_FOV_DESKTOP = 62;
 const DEFAULT_FOV_MOBILE = 48;
@@ -63,30 +67,6 @@ type StoredCameraView = {
   position: [number, number, number];
   target: [number, number, number];
 };
-
-function readStoredCameraView(): StoredCameraView | null {
-  try {
-    const raw = localStorage.getItem(MI_MUNDO_CAMERA_VIEW_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StoredCameraView>;
-    if (
-      !Array.isArray(parsed.position) ||
-      parsed.position.length !== 3 ||
-      !Array.isArray(parsed.target) ||
-      parsed.target.length !== 3
-    ) {
-      return null;
-    }
-    const nums = [...parsed.position, ...parsed.target];
-    if (!nums.every((value) => Number.isFinite(value))) return null;
-    return {
-      position: parsed.position as [number, number, number],
-      target: parsed.target as [number, number, number],
-    };
-  } catch {
-    return null;
-  }
-}
 
 function OrbitingMoon({ simpleGpu, vrStereo }: { simpleGpu: boolean; vrStereo: boolean }) {
   const pivotRef = useRef<THREE.Group>(null);
@@ -323,10 +303,6 @@ const MiMundoVRSection = ({
   const { cameraBgActive } = useCameraBackground();
   const vrStereoActive = useVrModeActive();
   const environmentId = useMemo<MiMundoEnvironmentId>(() => "lobby", []);
-  const storedCameraView = useMemo(
-    () => (typeof window === "undefined" ? null : readStoredCameraView()),
-    [],
-  );
   const storedProfileName = useMemo(
     () => (typeof window === "undefined" ? undefined : readStoredProfileName()),
     [],
@@ -340,13 +316,12 @@ const MiMundoVRSection = ({
 
   const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
   const earthVerticalOffset = isMobileCoarse ? EARTH_VERTICAL_OFFSET_MOBILE : EARTH_VERTICAL_OFFSET_DESKTOP;
+  const orbitTargetLift = isMobileCoarse ? ORBIT_TARGET_LIFT_MOBILE : ORBIT_TARGET_LIFT_DESKTOP;
   const defaultCameraPosition = isMobileCoarse ? DEFAULT_CAMERA_POSITION_MOBILE : DEFAULT_CAMERA_POSITION_DESKTOP;
-  const defaultOrbitTarget: [number, number, number] = [0, earthVerticalOffset, 0];
+  const defaultOrbitTarget: [number, number, number] = [0, earthVerticalOffset + orbitTargetLift, 0];
   const cameraFov = isMobileCoarse ? DEFAULT_FOV_MOBILE : DEFAULT_FOV_DESKTOP;
-  const cameraPosition =
-    storedCameraView?.position && !isMobileCoarse ? storedCameraView.position : defaultCameraPosition;
-  const orbitTarget =
-    storedCameraView?.target && !isMobileCoarse ? storedCameraView.target : defaultOrbitTarget;
+  const orbitTarget = defaultOrbitTarget;
+  const cameraPosition = defaultCameraPosition;
 
   const onProfileConfirm = async (payload: ProfileCardConfirmPayload) => {
     try {
@@ -371,7 +346,7 @@ const MiMundoVRSection = ({
     const target = controlsTarget.target;
     const payload: StoredCameraView = {
       position: [camera.position.x, camera.position.y, camera.position.z],
-      target: [target.x, target.y, target.z],
+      target: [target.x, earthVerticalOffset + orbitTargetLift, target.z],
     };
     localStorage.setItem(MI_MUNDO_CAMERA_VIEW_STORAGE_KEY, JSON.stringify(payload));
   };
@@ -477,8 +452,8 @@ const MiMundoVRSection = ({
         </div>
       </div>
       {!vrStereoActive && (
-        <div className="pointer-events-none absolute inset-x-0 top-[3.75rem] z-10 flex justify-center overflow-hidden px-3 md:inset-x-0 md:top-16 md:bottom-0 md:items-center md:px-4">
-          <div className="pointer-events-auto w-[76%] max-w-[168px] shrink-0 origin-top max-md:mx-auto sm:max-w-[200px] md:w-full md:max-w-[280px] md:origin-center md:scale-[0.63] md:-translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
+          <div className="pointer-events-auto w-full max-w-[min(92vw,280px)] origin-center scale-[0.605] -translate-y-[clamp(2.5rem,14vh,6.5rem)] md:-translate-y-[clamp(5.2rem,25vh,13.5rem)]">
             <ProfileCard
               initialName={cardDisplayName}
               initialAvatarSrc={cardAvatarSrc}
@@ -489,6 +464,7 @@ const MiMundoVRSection = ({
           </div>
         </div>
       )}
+      {!vrStereoActive && <HomeNavCards />}
       {!vrStereoActive && (
         <>
           <div className="pointer-events-none fixed top-[4.25rem] right-3 z-[60] flex flex-col items-end gap-2 pr-[max(0.75rem,env(safe-area-inset-right))]">
