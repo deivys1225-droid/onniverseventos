@@ -1,26 +1,19 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, PointerLockControls, Stars, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import {
   applyPixelRatioCap,
-  hasFinePointerInput,
   isMobileCoarseDevice,
-  lobbyUsesPointerLockControls,
   MAX_WEBGL_PIXEL_RATIO,
 } from "@/lib/webglRendererPrefs";
-import LobbyMouseButtonControls, {
-  createMouseMoveInput,
-  type MouseMoveInput,
-} from "@/components/lobby/LobbyMouseControls";
 import MobileLobbyMovePad, {
   createMobileMoveInput,
   type MobileMoveInput,
 } from "@/components/lobby/MobileLobbyMovePad";
-import LobbyDecorEarthMoon from "@/components/lobby/LobbyDecorEarthMoon";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
 
 const ROOM_SIZE = 20;
@@ -72,15 +65,6 @@ function defaultLobbyScreenUrls(): LobbyScreenUrls {
 
 function readStoredLobbyScreenUrls(): LobbyScreenUrls | null {
   try {
-    // localhost:5173 (editor / npm run dev) no comparte datos con onnivers.com ni con la APK.
-    // Ignoramos URLs viejas guardadas en dev para que el preview use los mismos defaults que el código.
-    if (import.meta.env.DEV && typeof window !== "undefined") {
-      const host = window.location.hostname.toLowerCase();
-      if (host === "localhost" || host === "127.0.0.1") {
-        return null;
-      }
-    }
-
     const raw = localStorage.getItem(LOBBY_SCREEN_URLS_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
@@ -100,18 +84,8 @@ function readStoredLobbyScreenUrls(): LobbyScreenUrls | null {
     if (urls[1] === "about:blank") {
       urls[1] = LOBBY_GOOGLE_MAPS_EMBED;
     }
-    if (urls[1].includes("tiktok.com") || urls[1].includes("youtube.com")) {
+    if (urls[1].includes("tiktok.com")) {
       urls[1] = LOBBY_GOOGLE_MAPS_EMBED;
-    }
-    if (urls[2].includes("tiktok.com") || urls[2].includes("youtube.com")) {
-      urls[2] = LOBBY_GOOGLE_MAPS_EMBED;
-    }
-    // Pantallas 2 y 3: misma URL de mapa (evita “aquí un mapa, allá otro” por localStorage viejo).
-    if (urls[1].includes("google.com/maps") || urls[2].includes("google.com/maps")) {
-      const sharedMap =
-        urls[1].includes("google.com/maps") ? urls[1] : urls[2].includes("google.com/maps") ? urls[2] : LOBBY_GOOGLE_MAPS_EMBED;
-      urls[1] = sharedMap;
-      urls[2] = sharedMap;
     }
     // Migración offline-first: cualquier URL del Cloudinary anterior pasa al .glb local.
     if (
@@ -471,10 +445,7 @@ function HoloScreen({
 
   const isPantalla1 = label === 1;
   const useNativeTikTokWebViewForP2 =
-    !isPantalla1 &&
-    label === 2 &&
-    embedUrl.includes("tiktok.com") &&
-    lobbyAndroidUsesNativePantalla2WebView();
+    !isPantalla1 && label === 2 && lobbyAndroidUsesNativePantalla2WebView();
 
   return (
     <group position={position} rotation={rotation}>
@@ -483,18 +454,17 @@ function HoloScreen({
         position={[0, 0, 0.05]}
         scale={htmlScale}
         zIndexRange={htmlZIndexRange}
-        style={{ pointerEvents: "auto" }}
+        style={{ pointerEvents: screenPointerEvents }}
       >
         <div
-          data-lobby-screen
-          onDoubleClick={(event) => {
+          onPointerDownCapture={(event) => {
             event.stopPropagation();
             onFocus();
           }}
           style={{
             width: `${embedWidth}px`,
             background: "#02030a",
-            pointerEvents: "auto",
+            pointerEvents: screenPointerEvents,
           }}
         >
           {isPantalla1 ? (
@@ -629,14 +599,17 @@ function HoloScreens({
         {...screenProps(3, screenUrls[2], [-half + off, y, 0], [0, Math.PI / 2, 0])}
       />
       {/*
-        Pantalla 4: si es .glb (p. ej. corazón), va a la pared derecha; el centro
-        de la sala lo ocupa Tierra+Luna decorativas (LobbyDecorEarthMoon).
+        Right wall (+X) — swap cuando Pantalla 4 es GLB (default corazon.glb):
+        el GLB va al centro (Y≈1.88); el iframe onnivers.com/nuestras-salas pasa
+        a la pared derecha. Si Pantalla 4 es URL iframe, el GLB no aplica y el
+        iframe vuelve al centro elevado (sin número en pared, solo esta ventana).
       */}
       {isGlbSource(screenUrls[3]) ? (
         <WallSceneGlb
           url={screenUrls[3]}
-          position={[half - off, y, 0]}
-          rotation={[0, -Math.PI / 2, 0]}
+          position={[0, 1.88, 0]}
+          rotation={[0, 0, 0]}
+          scaleMultiplier={0.5}
         />
       ) : (
         <HoloScreen
@@ -839,6 +812,67 @@ function NeonAccents() {
   );
 }
 
+// ---------- Earth + Moon attached to the camera ----------
+function EarthMoonAnchor() {
+  const { camera } = useThree();
+  const groupRef = useRef<THREE.Group>(null!);
+  const moonPivotRef = useRef<THREE.Group>(null!);
+
+  useEffect(() => {
+    const group = groupRef.current;
+    if (!group) return;
+    camera.add(group);
+    return () => {
+      camera.remove(group);
+    };
+  }, [camera]);
+
+  useFrame((_, delta) => {
+    if (moonPivotRef.current) {
+      moonPivotRef.current.rotation.y += delta * 0.8;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[0, 0, -5]}>
+      {/* Earth */}
+      <mesh>
+        <sphereGeometry args={[0.7, 48, 48]} />
+        <meshStandardMaterial
+          color="#1e6fff"
+          roughness={0.55}
+          metalness={0.15}
+          emissive="#0a2a6b"
+          emissiveIntensity={0.4}
+        />
+      </mesh>
+
+      {/* Soft halo to keep Earth readable against bright walls */}
+      <mesh>
+        <sphereGeometry args={[0.78, 32, 32]} />
+        <meshBasicMaterial color="#3aa0ff" transparent opacity={0.12} />
+      </mesh>
+
+      {/* Key light at the Earth */}
+      <pointLight color="#ffffff" intensity={3.2} distance={9} decay={2} />
+
+      {/* Moon orbiting */}
+      <group ref={moonPivotRef}>
+        <mesh position={[1.6, 0.2, 0]}>
+          <sphereGeometry args={[0.18, 32, 32]} />
+          <meshStandardMaterial
+            color="#ffffff"
+            roughness={0.9}
+            metalness={0}
+            emissive="#bcd4ff"
+            emissiveIntensity={0.15}
+          />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
 function MixedRealityScene({ active }: { active: boolean }) {
   const { gl, scene } = useThree();
 
@@ -859,17 +893,14 @@ function MixedRealityScene({ active }: { active: boolean }) {
 }
 
 const MOBILE_TOUCH_LOOK_SENSITIVITY = 0.0045;
-const MOBILE_MOUSE_LOOK_SENSITIVITY = 0.0032;
 
 // ---------- First Person Controller (WASD) ----------
 function FirstPersonController({
   enabled,
   mobileInputRef,
-  mouseInputRef,
 }: {
   enabled: boolean;
   mobileInputRef?: React.MutableRefObject<MobileMoveInput>;
-  mouseInputRef?: React.MutableRefObject<MouseMoveInput>;
 }) {
   const { camera } = useThree();
   const keys = useRef<Record<string, boolean>>({});
@@ -895,8 +926,7 @@ function FirstPersonController({
   useEffect(() => {
     if (enabled) return;
     keys.current = {};
-    if (mouseInputRef) mouseInputRef.current.forward = 0;
-  }, [enabled, mouseInputRef]);
+  }, [enabled]);
 
   useFrame((_, delta) => {
     if (!enabled) return;
@@ -904,11 +934,7 @@ function FirstPersonController({
     camera.up.set(0, 1, 0);
 
     const k = keys.current;
-    let moveForward =
-      (k["KeyW"] ? 1 : 0) -
-      (k["KeyS"] ? 1 : 0) +
-      (mobileInputRef?.current.forward ?? 0) +
-      (mouseInputRef?.current.forward ?? 0);
+    let moveForward = (k["KeyW"] ? 1 : 0) - (k["KeyS"] ? 1 : 0) + (mobileInputRef?.current.forward ?? 0);
     let moveRight = (k["KeyD"] ? 1 : 0) - (k["KeyA"] ? 1 : 0) + (mobileInputRef?.current.right ?? 0);
     const moveMagnitude = Math.hypot(moveForward, moveRight);
     if (moveMagnitude > 1) {
@@ -962,15 +988,12 @@ function MobileTouchLook({ enabled }: { enabled: boolean }) {
       );
     };
 
-    const applyDelta = (dx: number, dy: number, pointerType: string) => {
+    const applyDelta = (dx: number, dy: number) => {
       if (dx === 0 && dy === 0) return;
-      if (document.pointerLockElement === canvas) return;
-      const sens =
-        pointerType === "mouse" ? MOBILE_MOUSE_LOOK_SENSITIVITY : MOBILE_TOUCH_LOOK_SENSITIVITY;
       camera.rotation.order = "YXZ";
-      camera.rotation.y -= dx * sens;
+      camera.rotation.y -= dx * MOBILE_TOUCH_LOOK_SENSITIVITY;
       camera.rotation.x = THREE.MathUtils.clamp(
-        camera.rotation.x - dy * sens,
+        camera.rotation.x - dy * MOBILE_TOUCH_LOOK_SENSITIVITY,
         -1.35,
         1.35,
       );
@@ -996,11 +1019,12 @@ function MobileTouchLook({ enabled }: { enabled: boolean }) {
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerType === "mouse") return;
       if (event.pointerId !== activePointerId.current || !lastPosition.current) return;
       const dx = event.clientX - lastPosition.current.x;
       const dy = event.clientY - lastPosition.current.y;
       lastPosition.current = { x: event.clientX, y: event.clientY };
-      applyDelta(dx, dy, event.pointerType);
+      applyDelta(dx, dy);
       event.preventDefault();
     };
 
@@ -1023,23 +1047,7 @@ function MobileTouchLook({ enabled }: { enabled: boolean }) {
 export default function NeonRoom() {
   const navigate = useNavigate();
   const isMobileTouch = useMemo(() => isMobileCoarseDevice(), []);
-  const [finePointer, setFinePointer] = useState(() => hasFinePointerInput());
-  const lobbyPointerLock = useMemo(
-    () => lobbyUsesPointerLockControls() || finePointer,
-    [finePointer],
-  );
   const mobileMoveInput = useRef(createMobileMoveInput());
-  const mouseMoveInput = useRef(createMouseMoveInput());
-  const lobbyMouseControls = lobbyPointerLock || !isMobileTouch;
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(pointer: fine)");
-    const sync = () => setFinePointer(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
   const [locked, setLocked] = useState(false);
   const [escapeBarVisible, setEscapeBarVisible] = useState(true);
   const [focusedScreen, setFocusedScreen] = useState<number | null>(null);
@@ -1059,7 +1067,6 @@ export default function NeonRoom() {
     if (focusedScreen === null) return;
     mobileMoveInput.current.forward = 0;
     mobileMoveInput.current.right = 0;
-    mouseMoveInput.current.forward = 0;
   }, [focusedScreen]);
 
   useEffect(() => {
@@ -1108,39 +1115,14 @@ export default function NeonRoom() {
     return () => window.removeEventListener("resize", syncCamera);
   }, [mixedRealityEnabled]);
 
-  const requestMovementLock = useCallback(() => {
-    if (!lobbyPointerLock) return;
+  const requestMovementLock = () => {
+    if (isMobileTouch) return;
     window.requestAnimationFrame(() => {
       const canvas = canvasRef.current;
       if (!canvas || focusedScreenRef.current !== null) return;
       void canvas.requestPointerLock?.();
     });
-  }, [lobbyPointerLock]);
-
-  const handleLobbyEscape = useCallback(() => {
-    if (focusedScreenRef.current !== null) {
-      setFocusedScreen(null);
-      setEscapeBarVisible(true);
-      if (document.pointerLockElement) {
-        document.exitPointerLock();
-      }
-      return;
-    }
-
-    if (document.pointerLockElement) {
-      setEscapeBarVisible(true);
-      document.exitPointerLock();
-      return;
-    }
-
-    if (escapeBarVisibleRef.current) {
-      setEscapeBarVisible(false);
-      requestMovementLock();
-      return;
-    }
-
-    setEscapeBarVisible(true);
-  }, [requestMovementLock]);
+  };
 
   const focusScreen = (label: number) => {
     if (document.pointerLockElement) {
@@ -1184,13 +1166,38 @@ export default function NeonRoom() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+
+      if (focusedScreenRef.current !== null) {
+        event.preventDefault();
+        setFocusedScreen(null);
+        setEscapeBarVisible(true);
+        if (document.pointerLockElement) {
+          document.exitPointerLock();
+        }
+        return;
+      }
+
+      if (document.pointerLockElement) {
+        event.preventDefault();
+        setEscapeBarVisible(true);
+        document.exitPointerLock();
+        return;
+      }
+
+      if (escapeBarVisibleRef.current) {
+        event.preventDefault();
+        setEscapeBarVisible(false);
+        requestMovementLock();
+        return;
+      }
+
       event.preventDefault();
-      handleLobbyEscape();
+      setEscapeBarVisible(true);
     };
 
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [handleLobbyEscape]);
+  }, []);
 
   const startMixedReality = useCallback(async () => {
     if (mixedRealityEnabled || mixedRealityStartInFlightRef.current) return;
@@ -1297,7 +1304,7 @@ export default function NeonRoom() {
         onClick={() => void toggleMixedReality()}
         disabled={mixedRealityLoading}
         aria-label={mixedRealityEnabled ? "Desactivar modo realidad mixta" : "Activar modo realidad mixta"}
-        className={`pointer-events-auto fixed right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:bg-slate-900 hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)] disabled:cursor-wait disabled:opacity-70 ${
+        className={`pointer-events-auto fixed right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 font-display text-xs font-bold tracking-[0.18em] shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:bg-slate-900 hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)] disabled:cursor-wait disabled:opacity-70 ${
           mixedRealityEnabled
             ? "border-violet-400/70 text-violet-200 hover:border-violet-300 hover:text-white"
             : "border-cyan-400/60 text-cyan-200 hover:border-cyan-300 hover:text-white"
@@ -1307,7 +1314,7 @@ export default function NeonRoom() {
           right: "max(1rem, env(safe-area-inset-right))",
         }}
       >
-        <Camera className="h-5 w-5" aria-hidden />
+        RM
       </button>
       {mixedRealityError && (
         <p
@@ -1372,18 +1379,11 @@ export default function NeonRoom() {
           <LoungeSet />
           <LoungeSpotlight />
 
-          <Suspense fallback={null}>
-            <LobbyDecorEarthMoon position={[0, 1.88, 0]} />
-          </Suspense>
-
-        <FirstPersonController
-          enabled={focusedScreen === null}
-          mobileInputRef={mobileMoveInput}
-          mouseInputRef={mouseMoveInput}
-        />
+        <EarthMoonAnchor />
+        <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
         <MobileTouchLook enabled={isMobileTouch && focusedScreen === null} />
 
-        {focusedScreen === null && lobbyPointerLock && (
+        {focusedScreen === null && !isMobileTouch && (
           <PointerLockControls
             onLock={() => {
               setLocked(true);
@@ -1393,13 +1393,6 @@ export default function NeonRoom() {
           />
         )}
       </Canvas>
-
-      <LobbyMouseButtonControls
-        enabled={lobbyMouseControls}
-        movementEnabled={focusedScreen === null}
-        inputRef={mouseMoveInput}
-        onEscape={handleLobbyEscape}
-      />
 
       <MobileLobbyMovePad
         enabled={isMobileTouch && focusedScreen === null}
