@@ -11,6 +11,7 @@ const APP_APK_DOWNLOAD_URL =
 
 const NAV_ITEMS = [
   { label: "VIVEVR", path: "/inicio-2" },
+  { label: "MEGA CINE", path: "/mega-cine" },
   { label: "SALAS", path: "/nuestras-salas" },
   { label: "TIENDA", path: "/tienda" },
   { label: "QUIENES SOMOS", path: "/quienes-somos" },
