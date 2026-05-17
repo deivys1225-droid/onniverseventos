@@ -69,15 +69,13 @@ const InicioPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="fixed inset-0 overflow-hidden overscroll-none bg-black" data-camera-page-root>
       <Navbar />
-      <main className="pt-16">
-        <MiMundoVRSection
-          profileDisplayName={displayName}
-          profileAvatarUrl={profile?.avatar_url}
-          onProfilePersist={handleProfilePersist}
-        />
-      </main>
+      <MiMundoVRSection
+        profileDisplayName={displayName}
+        profileAvatarUrl={profile?.avatar_url}
+        onProfilePersist={handleProfilePersist}
+      />
     </div>
   );
 };

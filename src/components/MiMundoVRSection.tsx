@@ -1,6 +1,5 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { DeviceOrientationControls, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import {
@@ -15,12 +14,11 @@ import {
   isMobileCoarseDevice,
 } from "@/lib/webglRendererPrefs";
 import { MessageCircleMore, UsersRound } from "lucide-react";
+import { CameraToggleButton, useCameraBackground } from "@/contexts/CameraBackgroundContext";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
-import { Capacitor } from "@capacitor/core";
-import { LOBBY_IMMERSIVE_PATH, LOBBY_OPEN_TRANSITION_MS, openLobbyImmersiveOnAndroid } from "@/lib/lobbyImmersive";
+import HomeNavCards from "@/components/HomeNavCards";
 import SocialMenu from "@/components/SocialMenu";
 
 /**
@@ -43,10 +41,6 @@ const MOON_RADIUS = CENTRAL_SPHERE_RADIUS * 0.27;
 const MOON_ORBIT_RADIUS = CENTRAL_SPHERE_RADIUS * 1.95;
 const MOON_ORBIT_SPEED = 0.22;
 const EARTH_ROTATION_SPEED = 0.08;
-/** Tap corto sobre la Tierra (Android): WebView entrega la URL al nativo; no usar en arrastre de órbita. */
-const ONNIVER_LOCATION_DEEP_LINK = "onniver://abrir-selector-directo";
-const EARTH_TAP_MAX_MOVE_PX = 14;
-const EARTH_TAP_MAX_MS = 650;
 const MI_MUNDO_CAMERA_VIEW_STORAGE_KEY = "onniverso.mi_mundo.camera_view";
 const PROFILE_NAME_STORAGE_KEY = "onniverso.profile.name";
 function readStoredProfileName(): string | undefined {
@@ -57,30 +51,16 @@ function readStoredProfileName(): string | undefined {
     return undefined;
   }
 }
+/** Desplazamiento vertical del planeta (~20% hacia abajo en pantalla). */
+const EARTH_VERTICAL_OFFSET = -CENTRAL_SPHERE_RADIUS * 2.88;
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 0, 5.8];
-const DEFAULT_ORBIT_TARGET: [number, number, number] = [0, 0, 0];
+const DEFAULT_ORBIT_TARGET: [number, number, number] = [0, EARTH_VERTICAL_OFFSET, 0];
+const HOME_PROMO_BG_URL = "/onnivers-home-bg.png";
 
 type StoredCameraView = {
   position: [number, number, number];
   target: [number, number, number];
 };
-
-function createVideoTexture(url: string) {
-  if (typeof document === "undefined") return { video: null, texture: null as THREE.VideoTexture | null };
-  const video = document.createElement("video");
-  video.src = url;
-  video.crossOrigin = "anonymous";
-  video.loop = true;
-  video.muted = true;
-  video.autoplay = true;
-  video.playsInline = true;
-  video.preload = "auto";
-  const texture = new THREE.VideoTexture(video);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  return { video, texture };
-}
 
 function readStoredCameraView(): StoredCameraView | null {
   try {
@@ -106,21 +86,9 @@ function readStoredCameraView(): StoredCameraView | null {
   }
 }
 
-function OrbitingMoon({
-  simpleGpu,
-  vrStereo,
-  onOpenLobby,
-  openingLobby,
-}: {
-  simpleGpu: boolean;
-  vrStereo: boolean;
-  onOpenLobby?: () => void;
-  openingLobby?: boolean;
-}) {
+function OrbitingMoon({ simpleGpu, vrStereo }: { simpleGpu: boolean; vrStereo: boolean }) {
   const pivotRef = useRef<THREE.Group>(null);
-  const moonRef = useRef<THREE.Mesh>(null);
   const moonTexture = useLoader(THREE.TextureLoader, MOON_TEXTURE_URL);
-  const moonScale = useRef(1);
 
   const moonSeg = useMemo(() => getAdaptiveSphereSegments(vrStereo), [vrStereo]);
 
@@ -133,24 +101,11 @@ function OrbitingMoon({
     if (pivotRef.current) {
       pivotRef.current.rotation.y += delta * MOON_ORBIT_SPEED;
     }
-    if (!moonRef.current) return;
-    const targetScale = openingLobby ? 1.12 : 1;
-    moonScale.current = THREE.MathUtils.damp(moonScale.current, targetScale, 10, delta);
-    moonRef.current.scale.setScalar(moonScale.current);
   });
 
   return (
     <group ref={pivotRef} rotation={[0.18, 0, 0]}>
-      <mesh
-        ref={moonRef}
-        position={[MOON_ORBIT_RADIUS, -0.45, 0]}
-        key={`moon-${moonSeg}`}
-        onPointerDown={(event) => {
-          if (!onOpenLobby) return;
-          event.stopPropagation();
-          onOpenLobby();
-        }}
-      >
+      <mesh position={[MOON_ORBIT_RADIUS, -0.45, 0]} key={`moon-${moonSeg}`}>
         <sphereGeometry args={[MOON_RADIUS, moonSeg, moonSeg]} />
         <meshBasicMaterial map={moonTexture} toneMapped transparent opacity={1} />
       </mesh>
@@ -188,81 +143,9 @@ function specularToRoughnessTexture(specular: THREE.Texture): THREE.CanvasTextur
   return tex;
 }
 
-function useEarthTapPointerDown(
-  vrStereo: boolean,
-  onOpenLobby: (() => void) | undefined,
-) {
-  const activePointerEndRef = useRef<((ev: PointerEvent) => void) | null>(null);
-
-  useEffect(() => {
-    return () => {
-      const h = activePointerEndRef.current;
-      if (h) {
-        window.removeEventListener("pointerup", h);
-        window.removeEventListener("pointercancel", h);
-        activePointerEndRef.current = null;
-      }
-    };
-  }, []);
-
-  return useCallback(
-    (event: ThreeEvent<PointerEvent>) => {
-      if (vrStereo) return;
-      if (Capacitor.getPlatform() !== "android" && !onOpenLobby) return;
-
-      const prev = activePointerEndRef.current;
-      if (prev) {
-        window.removeEventListener("pointerup", prev);
-        window.removeEventListener("pointercancel", prev);
-        activePointerEndRef.current = null;
-      }
-
-      const native = event.nativeEvent;
-      const pointerId = native.pointerId;
-      const x0 = native.clientX;
-      const y0 = native.clientY;
-      const t0 = performance.now();
-
-      const onPointerEnd = (ev: PointerEvent) => {
-        if (ev.pointerId !== pointerId) return;
-        window.removeEventListener("pointerup", onPointerEnd);
-        window.removeEventListener("pointercancel", onPointerEnd);
-        activePointerEndRef.current = null;
-
-        const dist = Math.hypot(ev.clientX - x0, ev.clientY - y0);
-        const dt = performance.now() - t0;
-        if (dist > EARTH_TAP_MAX_MOVE_PX || dt > EARTH_TAP_MAX_MS) return;
-
-        if (Capacitor.getPlatform() === "android") {
-          window.location.href = ONNIVER_LOCATION_DEEP_LINK;
-          return;
-        }
-        onOpenLobby?.();
-      };
-
-      activePointerEndRef.current = onPointerEnd;
-      window.addEventListener("pointerup", onPointerEnd);
-      window.addEventListener("pointercancel", onPointerEnd);
-    },
-    [vrStereo, onOpenLobby],
-  );
-}
-
-/** Planeta Tierra central: texturas/material; posicion, radio y orbita intactos. */
-function CentralEarth({
-  simpleGpu,
-  vrStereo,
-  onOpenLobby,
-  openingLobby,
-}: {
-  simpleGpu: boolean;
-  vrStereo: boolean;
-  onOpenLobby?: () => void;
-  openingLobby?: boolean;
-}) {
+/** Planeta Tierra central: solo visual (sin interacción de lobby). */
+function CentralEarth({ simpleGpu, vrStereo }: { simpleGpu: boolean; vrStereo: boolean }) {
   const earthRef = useRef<THREE.Group>(null);
-  const earthScale = useRef(1);
-  const onEarthSurfacePointerDown = useEarthTapPointerDown(vrStereo, onOpenLobby);
   const [dayMap, normalMap, specularMap, cloudsMap] = useLoader(THREE.TextureLoader, [
     EARTH_DAY_4K,
     EARTH_NORMAL,
@@ -296,9 +179,6 @@ function CentralEarth({
   useFrame((_, delta) => {
     if (!earthRef.current) return;
     earthRef.current.rotation.y += delta * EARTH_ROTATION_SPEED;
-    const targetScale = openingLobby ? 1.08 : 1;
-    earthScale.current = THREE.MathUtils.damp(earthScale.current, targetScale, 10, delta);
-    earthRef.current.scale.setScalar(earthScale.current);
   });
 
   const seg = useMemo(() => getAdaptiveSphereSegments(vrStereo), [vrStereo]);
@@ -306,11 +186,11 @@ function CentralEarth({
   if (simpleGpu) {
     return (
       <group ref={earthRef} key={`earth-s-${seg}`}>
-        <mesh renderOrder={0} onPointerDown={onEarthSurfacePointerDown}>
+        <mesh renderOrder={0}>
           <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
           <meshBasicMaterial map={dayMap} toneMapped />
         </mesh>
-        <mesh renderOrder={1} scale={1.0018} onPointerDown={onEarthSurfacePointerDown}>
+        <mesh renderOrder={1} scale={1.0018}>
           <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
           <meshBasicMaterial map={cloudsMap} transparent opacity={0.92} depthWrite={false} toneMapped />
         </mesh>
@@ -331,7 +211,7 @@ function CentralEarth({
 
   return (
     <group ref={earthRef} key={`earth-hd-${seg}`}>
-      <mesh renderOrder={0} onPointerDown={onEarthSurfacePointerDown}>
+      <mesh renderOrder={0}>
         <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
         <meshStandardMaterial
           map={dayMap}
@@ -344,7 +224,7 @@ function CentralEarth({
           toneMapped
         />
       </mesh>
-      <mesh renderOrder={1} scale={1.0018} onPointerDown={onEarthSurfacePointerDown}>
+      <mesh renderOrder={1} scale={1.0018}>
         <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
         <meshStandardMaterial
           map={cloudsMap}
@@ -417,12 +297,11 @@ const MiMundoVRSection = ({
   profileAvatarUrl,
   onProfilePersist,
 }: MiMundoVRSectionProps) => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
-  const [lobbyOpening, setLobbyOpening] = useState(false);
+  const { cameraBgActive } = useCameraBackground();
   const vrStereoActive = useVrModeActive();
   const environmentId = useMemo<MiMundoEnvironmentId>(() => "lobby", []);
   const storedCameraView = useMemo(
@@ -487,27 +366,29 @@ const MiMundoVRSection = ({
     setGyroEnabled(true);
   };
 
-  const handleLobbyOpen = () => {
-    if (lobbyOpening || vrStereoActive) return;
-    setLobbyOpening(true);
-    window.setTimeout(() => {
-      if (Capacitor.getPlatform() === "android") {
-        openLobbyImmersiveOnAndroid();
-        return;
-      }
-      navigate(LOBBY_IMMERSIVE_PATH);
-    }, LOBBY_OPEN_TRANSITION_MS);
-  };
-
   return (
-    <section id="mi-mundo-vr" className="relative h-[100dvh] w-full overflow-hidden bg-black">
-      <div className="absolute inset-0 z-0">
+    <section
+      id="mi-mundo-vr"
+      className={`relative h-full w-full overflow-hidden ${cameraBgActive ? "bg-transparent" : "bg-black"}`}
+    >
+      {!vrStereoActive && !cameraBgActive && (
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+          <img
+            src={HOME_PROMO_BG_URL}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-center"
+            draggable={false}
+            decoding="async"
+          />
+        </div>
+      )}
+      <div className="absolute inset-0 z-[1]">
         <div className="absolute inset-0">
         <Canvas
           dpr={vrStereoActive ? VR_STEREO_PIXEL_RATIO : [1, MAX_WEBGL_PIXEL_RATIO]}
           gl={{
             antialias: vrStereoActive ? false : !isMobileCoarse,
-            alpha: false,
+            alpha: !vrStereoActive,
             powerPreference: "high-performance",
             toneMapping: THREE.ACESFilmicToneMapping,
             toneMappingExposure: 0.96,
@@ -515,10 +396,11 @@ const MiMundoVRSection = ({
           frameloop="always"
           onCreated={({ gl }) => {
             applyPixelRatioCap(gl);
+            if (!vrStereoActive) gl.setClearColor(0x000000, 0);
           }}
           camera={{ position: cameraPosition, fov: 62, near: 0.1, far: 2000 }}
         >
-          <color attach="background" args={["#000000"]} />
+          {vrStereoActive && <color attach="background" args={["#000000"]} />}
           {/* VR espejo 2D: sin luces (solo meshBasic + fondo); evita sombras y shading */}
           {!vrStereoActive &&
             (isMobileCoarse ? (
@@ -538,22 +420,14 @@ const MiMundoVRSection = ({
               </>
             ))}
 
-          <Suspense fallback={null}>
-            <CentralEarth
-              simpleGpu={isMobileCoarse || vrStereoActive}
-              vrStereo={vrStereoActive}
-              onOpenLobby={vrStereoActive ? undefined : handleLobbyOpen}
-              openingLobby={lobbyOpening}
-            />
-          </Suspense>
-          <Suspense fallback={null}>
-            <OrbitingMoon
-              simpleGpu={isMobileCoarse || vrStereoActive}
-              vrStereo={vrStereoActive}
-              onOpenLobby={vrStereoActive ? undefined : handleLobbyOpen}
-              openingLobby={lobbyOpening}
-            />
-          </Suspense>
+          <group position={[0, EARTH_VERTICAL_OFFSET, 0]}>
+            <Suspense fallback={null}>
+              <CentralEarth simpleGpu={isMobileCoarse || vrStereoActive} vrStereo={vrStereoActive} />
+            </Suspense>
+            <Suspense fallback={null}>
+              <OrbitingMoon simpleGpu={isMobileCoarse || vrStereoActive} vrStereo={vrStereoActive} />
+            </Suspense>
+          </group>
 
           <OrbitControls
             makeDefault
@@ -576,7 +450,7 @@ const MiMundoVRSection = ({
       </div>
       {!vrStereoActive && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
-          <div className="pointer-events-auto origin-center scale-[0.63] -translate-y-[clamp(7rem,34vh,20rem)]">
+          <div className="pointer-events-auto origin-center scale-[0.63] -translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
             <ProfileCard
               initialName={cardDisplayName}
               initialAvatarSrc={cardAvatarSrc}
@@ -589,18 +463,7 @@ const MiMundoVRSection = ({
       )}
       {!vrStereoActive && (
         <>
-          <AnimatePresence>
-            {lobbyOpening ? (
-              <motion.div
-                key="lobby-opening"
-                className="pointer-events-none fixed inset-0 z-[55] bg-black/35 backdrop-blur-[2px]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: LOBBY_OPEN_TRANSITION_MS / 1000, ease: "easeOut" }}
-              />
-            ) : null}
-          </AnimatePresence>
+          <HomeNavCards />
           <div className="pointer-events-none fixed bottom-4 left-4 z-[60] flex flex-col items-start gap-2 pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]">
             <button
               type="button"
@@ -612,6 +475,7 @@ const MiMundoVRSection = ({
               <UsersRound className="h-5 w-5" />
             </button>
           </div>
+          <CameraToggleButton />
           {user && (
             <SocialMenu userId={user.id} open={socialMenuOpen} onClose={() => setSocialMenuOpen(false)} />
           )}
