@@ -83,92 +83,79 @@ function MegaCineScene() {
   );
 }
 
-type CaptureCapableElement = HTMLElement & {
-  captureStream?: (frameRate?: number) => MediaStream;
-};
+function syncMediaElement(src: HTMLMediaElement, dst: HTMLMediaElement) {
+  dst.muted = true;
+  if (src.src && dst.src !== src.src) dst.src = src.src;
+  if (Math.abs(dst.currentTime - src.currentTime) > 0.12) {
+    try {
+      dst.currentTime = src.currentTime;
+    } catch {
+      /* ignore */
+    }
+  }
+  if (src.paused !== dst.paused) {
+    if (src.paused) dst.pause();
+    else void dst.play().catch(() => undefined);
+  }
+}
 
-/** Espejo en vivo: copia los píxeles del panel derecho (sin segunda carga de red). */
-function useLivePanelMirror(
-  sourceRef: RefObject<HTMLDivElement | null>,
-  mirrorVideoRef: RefObject<HTMLVideoElement | null>,
+/** Izquierda sigue al panel derecho (maestro). */
+function useMirrorFollowMaster(
+  masterRef: RefObject<HTMLDivElement | null>,
+  mirrorRef: RefObject<HTMLDivElement | null>,
 ) {
-  const [mirrorReady, setMirrorReady] = useState(false);
-
   useEffect(() => {
-    const source = sourceRef.current as CaptureCapableElement | null;
-    const mirrorVideo = mirrorVideoRef.current;
-    if (!source || !mirrorVideo) return;
+    const sync = () => {
+      const master = masterRef.current;
+      const mirror = mirrorRef.current;
+      if (!master || !mirror) return;
 
-    let stream: MediaStream | null = null;
-    let cancelled = false;
+      SCREENS.forEach((screen) => {
+        const srcRoot = master.querySelector(`[data-cinema-screen="${screen.id}"]`);
+        const dstRoot = mirror.querySelector(`[data-cinema-screen="${screen.id}"]`);
+        if (!srcRoot || !dstRoot) return;
 
-    const attach = async () => {
-      if (typeof source.captureStream !== "function") {
-        setMirrorReady(false);
-        return;
-      }
-
-      try {
-        stream = source.captureStream(30);
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        mirrorVideo.srcObject = stream;
-        mirrorVideo.muted = true;
-        await mirrorVideo.play();
-        setMirrorReady(true);
-      } catch {
-        setMirrorReady(false);
-      }
+        const srcMedias = srcRoot.querySelectorAll<HTMLMediaElement>("video, audio");
+        const dstMedias = dstRoot.querySelectorAll<HTMLMediaElement>("video, audio");
+        srcMedias.forEach((src, i) => {
+          const dst = dstMedias[i];
+          if (dst) syncMediaElement(src, dst);
+        });
+      });
     };
 
-    void attach();
-
-    return () => {
-      cancelled = true;
-      stream?.getTracks().forEach((t) => t.stop());
-      mirrorVideo.srcObject = null;
-      setMirrorReady(false);
-    };
-  }, [mirrorVideoRef, sourceRef]);
-
-  return mirrorReady;
+    sync();
+    const id = window.setInterval(sync, 50);
+    return () => window.clearInterval(id);
+  }, [masterRef, mirrorRef]);
 }
 
 function SplitMegaCineView() {
   const masterRef = useRef<HTMLDivElement>(null);
-  const mirrorVideoRef = useRef<HTMLVideoElement>(null);
-  const mirrorReady = useLivePanelMirror(masterRef, mirrorVideoRef);
+  const mirrorRef = useRef<HTMLDivElement>(null);
+
+  useMirrorFollowMaster(masterRef, mirrorRef);
 
   return (
-    <div className="absolute inset-0 flex">
-      {/* Izquierda: reflejo en vivo del panel derecho (un solo render, sin red extra) */}
-      <div className="relative h-full w-1/2 shrink-0 overflow-hidden bg-[#f2f0ec]">
-        <video
-          ref={mirrorVideoRef}
-          className={cn(
-            "pointer-events-none absolute inset-0 h-full w-full object-cover object-center",
-            !mirrorReady && "opacity-0",
-          )}
-          playsInline
-          muted
-          aria-hidden
-        />
-        {!mirrorReady && (
-          <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-[10px] text-slate-500">
-            Preparando reflejo…
-          </p>
-        )}
-      </div>
+    <MegaCineSplitProvider>
+      <div className="absolute inset-0 flex">
+        <div className="relative h-full w-1/2 shrink-0 overflow-hidden">
+          <div
+            ref={mirrorRef}
+            className={cn("pointer-events-none select-none", RIGHT_HALF_CLIP_CLASS)}
+            aria-hidden
+          >
+            <MegaCineScene />
+          </div>
+        </div>
 
-      {/* Derecha: original única (interactiva) */}
-      <div className="relative h-full w-1/2 shrink-0 overflow-hidden border-l-2 border-cyan-500/50">
-        <div ref={masterRef} className={RIGHT_HALF_CLIP_CLASS}>
-          <MegaCineScene />
+        <div className="relative h-full w-1/2 shrink-0 overflow-hidden border-l-2 border-cyan-500/50">
+          <motion.div ref={masterRef} className={RIGHT_HALF_CLIP_CLASS}>
+            <MegaCineScene />
+          </div>
         </div>
       </div>
-    </div>
+    </MegaCineSplitProvider>
   );
 }
 
