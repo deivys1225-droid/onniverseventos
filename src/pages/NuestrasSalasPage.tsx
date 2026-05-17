@@ -349,7 +349,7 @@ const NuestrasSalasPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background" data-camera-page-root>
+    <div className="relative min-h-screen overflow-x-hidden overflow-y-auto bg-background" data-camera-page-root>
       <Navbar />
 
       <div className="pointer-events-none fixed inset-0" data-camera-decorative-bg>

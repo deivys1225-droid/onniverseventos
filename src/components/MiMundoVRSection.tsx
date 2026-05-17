@@ -450,7 +450,7 @@ const MiMundoVRSection = ({
       </div>
       {!vrStereoActive && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-3 sm:px-4">
-          <div className="pointer-events-auto origin-center scale-[0.52] -translate-y-[clamp(2.25rem,12vh,7.5rem)] sm:scale-[0.58] sm:-translate-y-[clamp(3rem,15vh,9rem)] md:scale-[0.63] md:-translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
+          <div className="pointer-events-auto origin-center scale-[0.63] -translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
             <ProfileCard
               initialName={cardDisplayName}
               initialAvatarSrc={cardAvatarSrc}

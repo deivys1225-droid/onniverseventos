@@ -334,7 +334,7 @@ const TiendaPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden" data-camera-page-root>
+    <div className="min-h-screen bg-background relative overflow-x-hidden overflow-y-auto" data-camera-page-root>
       <Navbar />
 
       {/* Immersive background layers */}
@@ -359,7 +359,7 @@ const TiendaPage = () => {
       </div>
 
       {/* Categorías — mismo patrón de tarjetas que Educación */}
-      <section className="relative z-20 px-6 pt-20 pb-28 overflow-hidden">
+      <section className="relative z-20 px-6 pt-20 pb-28 overflow-x-hidden">
         <div
           className="absolute inset-0 -z-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none"
           data-camera-page-section
