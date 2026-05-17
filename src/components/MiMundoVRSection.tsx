@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
-import { DeviceOrientationControls, OrbitControls } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import {
   getRoomMode,
@@ -42,7 +42,6 @@ const MOON_RADIUS = CENTRAL_SPHERE_RADIUS * 0.27;
 const MOON_ORBIT_RADIUS = CENTRAL_SPHERE_RADIUS * 1.95;
 const MOON_ORBIT_SPEED = 0.22;
 const EARTH_ROTATION_SPEED = 0.08;
-const MI_MUNDO_CAMERA_VIEW_STORAGE_KEY = "onniverso.mi_mundo.camera_view.v5";
 const PROFILE_NAME_STORAGE_KEY = "onniverso.profile.name";
 function readStoredProfileName(): string | undefined {
   try {
@@ -52,10 +51,9 @@ function readStoredProfileName(): string | undefined {
     return undefined;
   }
 }
-/** Desplazamiento vertical del planeta (centro bajo la tarjeta de perfil). */
+/** Tierra bajo la tarjeta de perfil (posición acordada). */
 const EARTH_VERTICAL_OFFSET_DESKTOP = -CENTRAL_SPHERE_RADIUS * 6.42;
 const EARTH_VERTICAL_OFFSET_MOBILE = -CENTRAL_SPHERE_RADIUS * 5.17;
-/** Apunta la cámara por encima del centro de la Tierra para que se vea más abajo en pantalla. */
 const ORBIT_TARGET_LIFT_DESKTOP = 1.75;
 const ORBIT_TARGET_LIFT_MOBILE = 0.92;
 const DEFAULT_CAMERA_POSITION_DESKTOP: [number, number, number] = [0, -0.53, 6.85];
@@ -63,11 +61,6 @@ const DEFAULT_CAMERA_POSITION_MOBILE: [number, number, number] = [0, 0.05, 6.4];
 const DEFAULT_FOV_DESKTOP = 62;
 const DEFAULT_FOV_MOBILE = 48;
 const HOME_PROMO_BG_URL = "/onnivers-home-bg.png";
-
-type StoredCameraView = {
-  position: [number, number, number];
-  target: [number, number, number];
-};
 
 function OrbitingMoon({ simpleGpu, vrStereo }: { simpleGpu: boolean; vrStereo: boolean }) {
   const pivotRef = useRef<THREE.Group>(null);
@@ -235,11 +228,6 @@ function CentralEarth({ simpleGpu, vrStereo }: { simpleGpu: boolean; vrStereo: b
   );
 }
 
-function DeviceGyroController({ enabled }: { enabled: boolean }) {
-  if (!enabled) return null;
-  return <DeviceOrientationControls />;
-}
-
 /** Stereo VR / capture mode: DPR 1, sin tone mapping tipo ACES (menos trabajo por frame). */
 /** Evita Tierra ovalada/churro cuando el canvas cambia de proporción (móvil vertical). */
 function PerspectiveCameraAspectSync() {
@@ -298,7 +286,6 @@ const MiMundoVRSection = ({
   onProfilePersist,
 }: MiMundoVRSectionProps) => {
   const { user } = useAuth();
-  const [gyroEnabled, setGyroEnabled] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const { cameraBgActive } = useCameraBackground();
@@ -318,11 +305,12 @@ const MiMundoVRSection = ({
   const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
   const earthVerticalOffset = isMobileCoarse ? EARTH_VERTICAL_OFFSET_MOBILE : EARTH_VERTICAL_OFFSET_DESKTOP;
   const orbitTargetLift = isMobileCoarse ? ORBIT_TARGET_LIFT_MOBILE : ORBIT_TARGET_LIFT_DESKTOP;
-  const defaultCameraPosition = isMobileCoarse ? DEFAULT_CAMERA_POSITION_MOBILE : DEFAULT_CAMERA_POSITION_DESKTOP;
-  const defaultOrbitTarget: [number, number, number] = [0, earthVerticalOffset + orbitTargetLift, 0];
+  const cameraPosition = isMobileCoarse ? DEFAULT_CAMERA_POSITION_MOBILE : DEFAULT_CAMERA_POSITION_DESKTOP;
   const cameraFov = isMobileCoarse ? DEFAULT_FOV_MOBILE : DEFAULT_FOV_DESKTOP;
-  const orbitTarget = defaultOrbitTarget;
-  const cameraPosition = defaultCameraPosition;
+  const orbitTarget = useMemo<[number, number, number]>(
+    () => [0, earthVerticalOffset + orbitTargetLift, 0],
+    [earthVerticalOffset, orbitTargetLift],
+  );
 
   const onProfileConfirm = async (payload: ProfileCardConfirmPayload) => {
     try {
@@ -337,34 +325,6 @@ const MiMundoVRSection = ({
     } finally {
       setProfileSaving(false);
     }
-  };
-
-  const onOrbitEnd = (event: { target?: { object?: THREE.Camera; target?: THREE.Vector3 } }) => {
-    if (typeof window === "undefined") return;
-    const controlsTarget = event.target;
-    if (!controlsTarget?.object || !controlsTarget?.target) return;
-    const camera = controlsTarget.object;
-    const target = controlsTarget.target;
-    const payload: StoredCameraView = {
-      position: [camera.position.x, camera.position.y, camera.position.z],
-      target: [target.x, earthVerticalOffset + orbitTargetLift, target.z],
-    };
-    localStorage.setItem(MI_MUNDO_CAMERA_VIEW_STORAGE_KEY, JSON.stringify(payload));
-  };
-
-  const enableGyroscope = async () => {
-    if (typeof window === "undefined") return;
-
-    const maybeDeviceOrientation = window.DeviceOrientationEvent as
-      | (typeof DeviceOrientationEvent & { requestPermission?: () => Promise<"granted" | "denied"> })
-      | undefined;
-
-    if (maybeDeviceOrientation?.requestPermission) {
-      const permission = await maybeDeviceOrientation.requestPermission();
-      if (permission !== "granted") return;
-    }
-
-    setGyroEnabled(true);
   };
 
   return (
@@ -435,7 +395,7 @@ const MiMundoVRSection = ({
 
           <OrbitControls
             makeDefault
-            enabled={!vrStereoActive && !gyroEnabled}
+            enabled={!vrStereoActive}
             target={orbitTarget}
             enablePan={false}
             enableDamping
@@ -445,9 +405,7 @@ const MiMundoVRSection = ({
             maxDistance={12}
             minPolarAngle={0.02}
             maxPolarAngle={Math.PI - 0.02}
-            onEnd={onOrbitEnd}
           />
-          <DeviceGyroController enabled={!vrStereoActive && gyroEnabled} />
           <VrStereoPerfSync active={vrStereoActive} />
         </Canvas>
         </div>

@@ -8,7 +8,9 @@ import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import {
   MEGA_CINE_SCREEN_BASE_MAX_PX,
+  MEGA_CINE_SCREEN_STACK_GAP_MM,
   MEGA_CINE_SCREEN_TWO_MAX_PX,
+  MEGA_CINE_SCREEN_TWO_OFFSET_TOP_MM,
   MEGA_CINE_STACK_MAX_PX,
 } from "@/config/megaCineScreenSizes";
 import { cn } from "@/lib/utils";
@@ -46,10 +48,13 @@ function MegaCineScene() {
         aria-hidden
       />
 
-      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-3 pb-28 pt-6 sm:px-6 md:px-10">
+      <div className="relative z-10 flex h-full w-full flex-col items-center justify-start px-3 pb-28 pt-6 sm:px-6 md:px-10">
         <div
-          className="flex w-full flex-col items-center gap-5 sm:gap-6"
-          style={{ maxWidth: `min(100%, ${MEGA_CINE_STACK_MAX_PX}px)` }}
+          className="flex w-full flex-col items-center"
+          style={{
+            maxWidth: `min(100%, ${MEGA_CINE_STACK_MAX_PX}px)`,
+            gap: `${MEGA_CINE_SCREEN_STACK_GAP_MM}mm`,
+          }}
         >
           {SCREENS.map((screen) => (
             <article
@@ -57,6 +62,9 @@ function MegaCineScene() {
               className="relative z-10 w-full"
               style={{
                 maxWidth: `min(100%, ${screen.events ? MEGA_CINE_SCREEN_TWO_MAX_PX : MEGA_CINE_SCREEN_BASE_MAX_PX}px)`,
+                ...(screen.id === 2
+                  ? { marginTop: `${MEGA_CINE_SCREEN_TWO_OFFSET_TOP_MM}mm` }
+                  : {}),
               }}
             >
               <div className="rounded-sm border-[3px] border-[#1a1a1a] bg-[#050505] p-1 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.45),0_0_0_1px_rgba(0,0,0,0.15)]">
@@ -68,10 +76,16 @@ function MegaCineScene() {
                   {screen.events ? <CinemaScreenTwoEvents /> : <CinemaScreenThreeWebsite />}
                 </div>
               </div>
-              <p className="mt-2 text-center font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                {screen.title}
-              </p>
+              <p className="sr-only">{screen.title}</p>
             </article>
+          ))}
+        </div>
+        <div
+          className="mt-1.5 flex w-full justify-center gap-8 font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"
+          style={{ maxWidth: `min(100%, ${MEGA_CINE_STACK_MAX_PX}px)` }}
+        >
+          {SCREENS.map((screen) => (
+            <span key={screen.id}>{screen.title}</span>
           ))}
         </div>
       </div>

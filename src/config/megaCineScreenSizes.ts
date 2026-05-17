@@ -17,3 +17,9 @@ export const MEGA_CINE_SCREEN_TWO_MAX_PX = Math.round(
 
 /** Ancho máximo de la columna apilada (pantallas 2 + 3). */
 export const MEGA_CINE_STACK_MAX_PX = Math.round(460 * MEGA_CINE_LAYOUT_SCALE);
+
+/** Separación entre Pantalla 2 y Pantalla 3. */
+export const MEGA_CINE_SCREEN_STACK_GAP_MM = 5;
+
+/** Desplazamiento hacia abajo de Pantalla 2 en la sala. */
+export const MEGA_CINE_SCREEN_TWO_OFFSET_TOP_MM = 14;
