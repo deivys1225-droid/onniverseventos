@@ -371,15 +371,23 @@ const MiMundoVRSection = ({
       className={`relative h-full w-full max-w-full overflow-x-clip overflow-y-hidden ${cameraBgActive ? "bg-transparent" : "bg-black"}`}
     >
       {!vrStereoActive && !cameraBgActive && (
-        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-black" aria-hidden>
           <img
             src={HOME_PROMO_BG_URL}
             alt=""
-            className="absolute left-1/2 top-0 h-full w-[132%] max-w-none -translate-x-1/2 object-cover object-[50%_20%] md:left-0 md:w-full md:max-w-full md:translate-x-0 md:object-center"
+            className="absolute inset-x-0 top-0 h-[42svh] w-full object-cover object-[center_0%] max-md:block md:hidden"
             draggable={false}
             decoding="async"
           />
-          <div className="absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-black via-black/92 to-transparent md:hidden" />
+          <div className="absolute inset-x-0 top-[34svh] z-[1] h-20 bg-gradient-to-b from-transparent to-black max-md:block md:hidden" />
+          <div className="absolute inset-x-0 bottom-0 top-[42svh] z-[1] bg-black max-md:block md:hidden" />
+          <img
+            src={HOME_PROMO_BG_URL}
+            alt=""
+            className="absolute inset-0 hidden h-full w-full object-cover object-center md:block"
+            draggable={false}
+            decoding="async"
+          />
         </div>
       )}
       <div className="absolute inset-0 z-[1] overflow-hidden">
@@ -449,8 +457,8 @@ const MiMundoVRSection = ({
         </div>
       </div>
       {!vrStereoActive && (
-        <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex justify-center overflow-hidden px-3 max-md:bottom-[38%] md:inset-x-0 md:top-16 md:bottom-0 md:items-center md:px-4">
-          <div className="pointer-events-auto w-[82%] max-w-[188px] shrink-0 origin-top max-md:mx-auto sm:max-w-[210px] md:w-full md:max-w-[280px] md:origin-center md:scale-[0.63] md:-translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
+        <div className="pointer-events-none absolute inset-x-0 top-[3.75rem] z-10 flex justify-center overflow-hidden px-3 md:inset-x-0 md:top-16 md:bottom-0 md:items-center md:px-4">
+          <div className="pointer-events-auto w-[76%] max-w-[168px] shrink-0 origin-top max-md:mx-auto sm:max-w-[200px] md:w-full md:max-w-[280px] md:origin-center md:scale-[0.63] md:-translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
             <ProfileCard
               initialName={cardDisplayName}
               initialAvatarSrc={cardAvatarSrc}
