@@ -22,6 +22,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import PricingSection from "@/components/PricingSection";
 import Footer from "@/components/Footer";
+import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
+import { CameraToggleButton } from "@/contexts/CameraBackgroundContext";
 import StoreProductPayPal from "@/components/StoreProductPayPal";
 import { useAuth } from "@/hooks/useAuth";
 import type { SkinRarityLabel } from "@/lib/pricing";
@@ -332,11 +334,11 @@ const TiendaPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background relative overflow-hidden" data-camera-page-root>
       <Navbar />
 
       {/* Immersive background layers */}
-      <div className="fixed inset-0 pointer-events-none">
+      <div className="fixed inset-0 pointer-events-none" data-camera-decorative-bg>
         {/* Grid pattern */}
         <div
           className="absolute inset-0 opacity-[0.03]"
@@ -357,9 +359,12 @@ const TiendaPage = () => {
       </div>
 
       {/* Categorías — mismo patrón de tarjetas que Educación */}
-      <section className="relative px-6 pt-20 pb-28 overflow-hidden">
-        <div className="absolute inset-0 -z-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
-        <div className="container relative z-10 mx-auto max-w-[93.6rem]">
+      <section className="relative z-20 px-6 pt-20 pb-28 overflow-hidden">
+        <div
+          className="absolute inset-0 -z-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none"
+          data-camera-page-section
+        />
+        <div className="container relative z-20 mx-auto max-w-[93.6rem]">
           <AnimatePresence mode="wait">
             {selectedCategory ? (
               <motion.div
@@ -512,10 +517,7 @@ const TiendaPage = () => {
                 transition={{ duration: 0.35 }}
               >
                 <div className="mb-6">
-                  <Button variant="heroOutline" className="w-full sm:w-auto" onClick={() => navigate("/inicio")}>
-                    <ArrowLeft className="h-4 w-4" />
-                    Volver al inicio del perfil
-                  </Button>
+                  <BackToProfileHomeButton />
                 </div>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -595,7 +597,7 @@ const TiendaPage = () => {
       </section>
 
       {/* Investors section */}
-      <section className="relative px-6 pb-32">
+      <section className="relative z-20 px-6 pb-32">
         <div className="container mx-auto max-w-[93.6rem]">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -678,9 +680,12 @@ const TiendaPage = () => {
         </div>
       </section>
 
-      <PricingSection />
+      <div className="relative z-20">
+        <PricingSection />
+        <Footer />
+      </div>
 
-      <Footer />
+      <CameraToggleButton />
     </div>
   );
 };

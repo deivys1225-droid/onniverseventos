@@ -21,6 +21,8 @@ import {
   sendFriendshipRequest,
   type FriendshipPairState,
 } from "@/lib/friendships";
+import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
+import { CameraToggleButton } from "@/contexts/CameraBackgroundContext";
 
 const SectionHeader = ({
   badge,
@@ -347,10 +349,10 @@ const NuestrasSalasPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
+    <div className="relative min-h-screen overflow-hidden bg-background" data-camera-page-root>
       <Navbar />
 
-      <div className="pointer-events-none fixed inset-0">
+      <div className="pointer-events-none fixed inset-0" data-camera-decorative-bg>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_5%,hsl(var(--primary)/0.18),transparent_35%),radial-gradient(circle_at_85%_95%,hsl(290_80%_60%/0.16),transparent_40%)]" />
         <div
           className="absolute inset-0 opacity-[0.05]"
@@ -362,8 +364,11 @@ const NuestrasSalasPage = () => {
         />
       </div>
 
-      <main className="relative z-10 px-6 pt-20 pb-20">
+      <main className="relative z-20 px-6 pt-20 pb-20">
         <div className="container mx-auto max-w-6xl">
+          <div className="mb-6">
+            <BackToProfileHomeButton />
+          </div>
           {/* === SALAS === */}
           <section id="podcast" className="scroll-mt-24">
             <SectionHeader
@@ -686,6 +691,8 @@ const NuestrasSalasPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <CameraToggleButton />
     </div>
   );
 };

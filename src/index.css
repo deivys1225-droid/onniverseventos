@@ -67,6 +67,24 @@
     @apply bg-background text-foreground font-body antialiased;
   }
 
+  html.camera-bg-active body {
+    background-color: transparent;
+  }
+
+  html.camera-bg-active [data-camera-page-root] {
+    background-color: transparent !important;
+  }
+
+  html.camera-bg-active [data-camera-decorative-bg] {
+    opacity: 0 !important;
+    visibility: hidden !important;
+  }
+
+  html.camera-bg-active [data-camera-page-section] {
+    background-color: transparent !important;
+    background-image: none !important;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-display;
   }

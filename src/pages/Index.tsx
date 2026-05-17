@@ -4,6 +4,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import HomeOnniVersSeoSection from "@/components/HomeOnniVersSeoSection";
 import WorldCupVrHero from "@/components/WorldCupVrHero";
+import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
+import { CameraToggleButton } from "@/contexts/CameraBackgroundContext";
 
 const Index = () => {
   const location = useLocation();
@@ -18,13 +20,17 @@ const Index = () => {
   }, [location.state]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <section id="perfil" className="relative">
+    <div className="min-h-screen bg-background" data-camera-page-root>
+      <section id="perfil" className="relative z-20">
         <Navbar />
+        <div className="relative z-20 mx-auto max-w-7xl px-6 pt-20 pb-2">
+          <BackToProfileHomeButton />
+        </div>
         <WorldCupVrHero />
         <HomeOnniVersSeoSection />
         <Footer />
       </section>
+      <CameraToggleButton />
     </div>
   );
 };

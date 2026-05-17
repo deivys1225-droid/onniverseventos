@@ -7,7 +7,8 @@ const HomeOnniVersSeoSection = () => {
       id="onnivers-ecosistema-seo"
       lang="es"
       aria-labelledby="onnivers-seo-main-heading"
-      className="border-t border-primary/20 bg-gradient-to-b from-background via-background to-[hsl(235_40%_6%)] px-4 py-12 sm:px-6 md:py-16"
+      className="relative z-20 border-t border-primary/20 bg-gradient-to-b from-background via-background to-[hsl(235_40%_6%)] px-4 py-12 sm:px-6 md:py-16"
+      data-camera-page-section
     >
       <div className="container mx-auto max-w-3xl">
         <h2

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import LegalPageLayout from "@/components/LegalPageLayout";
 import LandingSeoContent from "@/components/LandingSeoContent";
 import { SOCIAL_LINKS } from "@/components/SocialFooterIcons";
+import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
 
 const ORG_JSON_LD = {
   "@context": "https://schema.org",
@@ -37,7 +38,15 @@ const QuienesSomosPage = () => {
     <LegalPageLayout
       title="Quiénes somos"
       description="OnniVers: tu realidad evolucionada — ecosistema inmersivo. Más abajo: identidad legal de Empresa Tecnológica de Colombia S.A.S. y contacto corporativo."
-      topContent={<LandingSeoContent embedded />}
+      topContent={
+        <>
+          <div className="container mx-auto max-w-3xl px-6 pb-4">
+            <BackToProfileHomeButton />
+          </div>
+          <LandingSeoContent embedded />
+        </>
+      }
+      withCameraBackground
     >
       <section
         className="rounded-xl border border-primary/25 bg-primary/5 p-4 md:p-5 [&_h2]:mt-0"

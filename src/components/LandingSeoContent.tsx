@@ -13,9 +13,10 @@ const LandingSeoContent = ({ embedded = false }: LandingSeoContentProps) => {
       lang="es"
       className={
         embedded
-          ? "not-prose border-b border-primary/15 bg-gradient-to-b from-background/80 to-[hsl(235_40%_6%)] px-4 py-10 sm:px-6 md:py-12"
+          ? "not-prose relative z-20 border-b border-primary/15 bg-gradient-to-b from-background/80 to-[hsl(235_40%_6%)] px-4 py-10 sm:px-6 md:py-12"
           : "relative border-t border-primary/20 bg-gradient-to-b from-background via-background to-[hsl(235_40%_6%)] px-4 py-14 sm:px-6 md:py-20"
       }
+      {...(embedded ? { "data-camera-page-section": true } : {})}
     >
       <div className={embedded ? "w-full" : "container mx-auto max-w-3xl"}>
         <p className="mb-8 text-center font-display text-lg font-semibold italic text-primary md:text-xl">

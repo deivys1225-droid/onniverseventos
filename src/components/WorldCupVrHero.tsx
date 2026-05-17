@@ -198,7 +198,7 @@ const WorldCupVrHero = () => {
 
   return (
     <section className="relative min-h-[100dvh] overflow-hidden px-6 pt-24 pb-16">
-      <div className="absolute inset-0">
+      <div className="absolute inset-0" data-camera-decorative-bg>
         <img
           src="https://images.unsplash.com/photo-1577223625816-7546f13df25d?auto=format&fit=crop&w=2200&q=80"
           alt={ALT_HERO_BACKDROP}
@@ -208,12 +208,12 @@ const WorldCupVrHero = () => {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,hsl(190_70%_48%/.14),transparent_42%),radial-gradient(circle_at_85%_22%,hsl(270_55%_52%/.12),transparent_38%),linear-gradient(to_bottom,hsl(230_45%_8%/.45),hsl(235_40%_4%/.82))]" />
       </div>
 
-      <div className="relative z-10 container mx-auto max-w-7xl">
+      <div className="relative z-20 container mx-auto max-w-7xl">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.75 }}
-          className="mb-14 px-2 text-center md:mb-16"
+          className="relative z-20 mb-14 px-2 text-center md:mb-16"
         >
           <h1 className="mx-auto max-w-5xl font-headline font-semibold leading-[1.12]">
             <span className="block bg-gradient-to-br from-cyan-50 via-white to-slate-200 bg-clip-text text-transparent text-[clamp(1.85rem,6.5vw,3.25rem)] tracking-[0.18em] sm:tracking-[0.22em]">

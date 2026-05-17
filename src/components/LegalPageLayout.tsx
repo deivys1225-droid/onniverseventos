@@ -2,23 +2,36 @@ import type { ReactNode } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { cn } from "@/lib/utils";
+import { CameraToggleButton } from "@/contexts/CameraBackgroundContext";
 
 type LegalPageLayoutProps = {
   title: string;
   description?: string;
   children: ReactNode;
-  /** Contenido ancho completo bajo el navbar (p. ej. bloque editorial) sin heredar estilos de artículo. */
   topContent?: ReactNode;
+  withCameraBackground?: boolean;
 };
 
-/** Shell común para páginas legales / institucionales (article semántico para SEO). */
-const LegalPageLayout = ({ title, description, children, topContent }: LegalPageLayoutProps) => {
+const LegalPageLayout = ({
+  title,
+  description,
+  children,
+  topContent,
+  withCameraBackground = false,
+}: LegalPageLayoutProps) => {
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className={cn("min-h-screen bg-background", withCameraBackground && "relative z-20")}
+      {...(withCameraBackground ? { "data-camera-page-root": true } : {})}
+    >
       <Navbar />
-      {topContent != null ? <div className="pt-16">{topContent}</div> : null}
+      {topContent != null ? <div className="relative z-20 pt-16">{topContent}</div> : null}
       <main
-        className={cn("relative z-10 px-6 pb-20", topContent != null ? "pt-10 md:pt-12" : "pt-28")}
+        className={cn(
+          "relative px-6 pb-20",
+          withCameraBackground ? "z-20" : "z-10",
+          topContent != null ? "pt-10 md:pt-12" : "pt-28",
+        )}
       >
         <article className="container mx-auto max-w-3xl">
           <header className="mb-10 border-b border-primary/20 pb-8">
@@ -33,6 +46,7 @@ const LegalPageLayout = ({ title, description, children, topContent }: LegalPage
         </article>
       </main>
       <Footer />
+      {withCameraBackground ? <CameraToggleButton /> : null}
     </div>
   );
 };
