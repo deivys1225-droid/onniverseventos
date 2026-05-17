@@ -46,7 +46,7 @@ const Navbar = () => {
 
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
 
-      <div className="container mx-auto flex h-16 items-center justify-between px-6">
+      <div className="container mx-auto flex h-16 max-w-full items-center justify-between px-4 sm:px-6">
 
         <Link
 

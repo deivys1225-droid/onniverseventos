@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Scan } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -16,7 +16,7 @@ const AUDIENCE_TOKEN =
   (import.meta.env.NEXT_PUBLIC_AGORA_TOKEN as string | undefined)?.trim() ??
   "";
 
-/** `al-universo-{id}` → id de podcast si existe en el directorio (escena inmersiva). */
+/** `al-universo-{id}` â†’ id de podcast si existe en el directorio (escena inmersiva). */
 function podcastIdFromAgoraChannel(channelName: string): string | null {
   const prefix = "al-universo-";
   const n = channelName.trim().toLowerCase();
@@ -49,7 +49,7 @@ const EspectadorView = () => {
   const fallbackMp4 = (searchParams.get("mp4") ?? "").trim();
   const forcedMode = (searchParams.get("mode") ?? "").trim().toLowerCase();
   const useVodMode = forcedMode === "vod" && fallbackMp4.length > 0;
-  /** MP4 asociado al canal (catálogo o VOD actual) para VR/360/MT nativos — evita abrir siempre el vídeo por defecto de /go/*. */
+  /** MP4 asociado al canal (catÃ¡logo o VOD actual) para VR/360/MT nativos â€” evita abrir siempre el vÃ­deo por defecto de /go/*. */
   const nativeBridgeMp4Url = useMemo(() => {
     if (useVodMode && fallbackMp4) return fallbackMp4;
     const prefix = "al-universo-";
@@ -67,7 +67,7 @@ const EspectadorView = () => {
   const remoteUsersRef = useRef<Record<string, IAgoraRTCRemoteUser>>({});
   const remoteContainerId = "agora-audience-remote-player";
 
-  /** Callbacks para el puente Android → JS tras elegir escena en el diálogo nativo. */
+  /** Callbacks para el puente Android â†’ JS tras elegir escena en el diÃ¡logo nativo. */
   const nativeSceneActionsRef = useRef({
     split: () => {},
     immersive: () => {},
@@ -82,7 +82,7 @@ const EspectadorView = () => {
 
     if (!first?.videoTrack) {
       remoteContainer.innerHTML =
-        '<p class="text-sm text-muted-foreground">Esperando transmisión en vivo...</p>';
+        '<p class="text-sm text-muted-foreground">Esperando transmisiÃ³n en vivo...</p>';
       return;
     }
     remoteContainer.innerHTML = "";
@@ -104,12 +104,12 @@ const EspectadorView = () => {
   const joinAudienceRoom = useCallback(async () => {
     if (!APP_ID) {
       setError("Falta NEXT_PUBLIC_AGORA_APP_ID en .env.local");
-      setStatus("Configuración incompleta");
+      setStatus("ConfiguraciÃ³n incompleta");
       return;
     }
     const channelToJoin = channelName.trim();
     if (!channelToJoin) {
-      setError("No se encontró canal para esta sala.");
+      setError("No se encontrÃ³ canal para esta sala.");
       return;
     }
 
@@ -169,7 +169,7 @@ const EspectadorView = () => {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "No se pudo conectar a la sala.";
       setError(msg);
-      setStatus("Error de conexión");
+      setStatus("Error de conexiÃ³n");
       setConnecting(false);
     }
   }, [channelName, inheritedToken, leaveAudienceRoom, mountFirstRemoteUser]);
@@ -187,7 +187,7 @@ const EspectadorView = () => {
 
   const goMixVod = () => {
     if (!fallbackMp4) {
-      setError("Esta sala no incluye un MP4 para la vista MIX. Pide al anfitrión el enlace con parámetro mp4.");
+      setError("Esta sala no incluye un MP4 para la vista MIX. Pide al anfitriÃ³n el enlace con parÃ¡metro mp4.");
       return;
     }
     const next = new URLSearchParams(searchParams);
@@ -200,13 +200,13 @@ const EspectadorView = () => {
     navigate(q ? `/pc?${q}` : "/pc");
   };
 
-  /** Pantalla dividida / escena PC — mismo criterio que el botón «VR/PC». */
+  /** Pantalla dividida / escena PC â€” mismo criterio que el botÃ³n Â«VR/PCÂ». */
   const goPantallaDividida = () => {
     setError(null);
     goVrPc();
   };
 
-  /** Escena inmersiva 360 (PodcastSala360) — mismo criterio que «360°». */
+  /** Escena inmersiva 360 (PodcastSala360) â€” mismo criterio que Â«360Â°Â». */
   const goEscenaInmersiva = () => {
     setError(null);
     const podcastId = podcastIdFromAgoraChannel(channelName);
@@ -236,7 +236,7 @@ const EspectadorView = () => {
     };
   }, []);
 
-  /** Reservado para integración Android / barra inferior (si se enlaza desde nativo). */
+  /** Reservado para integraciÃ³n Android / barra inferior (si se enlaza desde nativo). */
   const onAudienceBarSplit = () => {
     if (tryAndroidNativeSceneSelector("split")) return;
     goPantallaDividida();
@@ -286,7 +286,7 @@ const EspectadorView = () => {
             </div>
             <div className="mt-3 flex items-center justify-between gap-2">
               <p className="text-xs text-cyan-100">
-                {roomTitle} · {useVodMode ? "Reproducción automática MP4" : `Canal: ${channelName} · Estado: ${status}`}
+                {roomTitle} Â· {useVodMode ? "ReproducciÃ³n automÃ¡tica MP4" : `Canal: ${channelName} Â· Estado: ${status}`}
               </p>
               <Button type="button" variant="outline" onClick={() => navigate("/nuestras-salas")}>
                 Salir de la Sala
@@ -301,10 +301,10 @@ const EspectadorView = () => {
                   if (typeof window.Android?.onArClick === "function") {
                     const url = nativeBridgeMp4Url.trim();
                     if (url) {
-                      // Opción 2 (recomendado): window.Android.onArClick("URL_DE_TU_SALA")
+                      // OpciÃ³n 2 (recomendado): window.Android.onArClick("URL_DE_TU_SALA")
                       window.Android.onArClick(url);
                     } else {
-                      // Opción 1: window.Android.onArClick()
+                      // OpciÃ³n 1: window.Android.onArClick()
                       window.Android.onArClick();
                     }
                     return;
@@ -321,26 +321,6 @@ const EspectadorView = () => {
             {error && <p className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">{error}</p>}
           </div>
 
-          <section className="rounded-2xl border border-fuchsia-300/30 bg-card/30 p-4 backdrop-blur-xl">
-            <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-fuchsia-100">Sugeridos</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {podcastStreamers.slice(0, 6).map((item) => {
-                const suggestedChannel = buildAgoraChannel(item.id);
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => navigate(`/sala/espectador/${encodeURIComponent(suggestedChannel)}`)}
-                    className="group rounded-xl border border-fuchsia-300/25 bg-black/30 p-2 text-left transition hover:-translate-y-0.5 hover:border-fuchsia-300/60"
-                  >
-                    <img src={item.avatar} alt={item.name} className="mb-2 h-32 w-full rounded-lg object-cover" />
-                    <p className="truncate text-sm font-semibold text-foreground">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">Canal: {suggestedChannel}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
         </section>
       </main>
     </div>
