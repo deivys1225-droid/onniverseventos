@@ -375,14 +375,15 @@ const MiMundoVRSection = ({
           <img
             src={HOME_PROMO_BG_URL}
             alt=""
-            className="absolute inset-0 h-full w-full max-w-full object-cover object-center"
+            className="absolute left-1/2 top-0 h-full w-[132%] max-w-none -translate-x-1/2 object-cover object-[50%_20%] md:left-0 md:w-full md:max-w-full md:translate-x-0 md:object-center"
             draggable={false}
             decoding="async"
           />
+          <div className="absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-black via-black/92 to-transparent md:hidden" />
         </div>
       )}
-      <div className="absolute inset-0 z-[1]">
-        <div className="absolute inset-0">
+      <div className="absolute inset-0 z-[1] overflow-hidden">
+        <div className="absolute inset-0 h-full w-full overflow-hidden">
         <Canvas
           dpr={vrStereoActive ? VR_STEREO_PIXEL_RATIO : [1, MAX_WEBGL_PIXEL_RATIO]}
           gl={{
@@ -448,8 +449,8 @@ const MiMundoVRSection = ({
         </div>
       </div>
       {!vrStereoActive && (
-        <div className="pointer-events-none absolute inset-x-0 top-16 bottom-0 z-10 flex items-center justify-center overflow-hidden px-3 sm:px-4">
-          <div className="pointer-events-auto w-full max-w-[min(calc(100vw-1.5rem),240px)] origin-center -translate-y-[clamp(1.75rem,9vh,5rem)] sm:max-w-[min(calc(100vw-2rem),260px)] sm:-translate-y-[clamp(2.5rem,12vh,7rem)] md:max-w-[280px] md:scale-[0.63] md:-translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
+        <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex justify-center overflow-hidden px-3 max-md:bottom-[38%] md:inset-x-0 md:top-16 md:bottom-0 md:items-center md:px-4">
+          <div className="pointer-events-auto w-[82%] max-w-[188px] shrink-0 origin-top max-md:mx-auto sm:max-w-[210px] md:w-full md:max-w-[280px] md:origin-center md:scale-[0.63] md:-translate-y-[clamp(3.94rem,19.15vh,11.26rem)]">
             <ProfileCard
               initialName={cardDisplayName}
               initialAvatarSrc={cardAvatarSrc}

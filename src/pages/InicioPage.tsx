@@ -69,7 +69,7 @@ const InicioPage = () => {
   };
 
   return (
-    <div className="fixed inset-0 w-full max-w-full overflow-x-clip overflow-y-hidden overscroll-none bg-black" data-camera-page-root>
+    <div className="fixed inset-0 size-full overflow-x-clip overflow-y-hidden overscroll-none bg-black [width:100%] [max-width:100%]" data-camera-page-root>
       <Navbar />
       <MiMundoVRSection
         profileDisplayName={displayName}

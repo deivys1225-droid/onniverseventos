@@ -100,7 +100,7 @@ const ProfileCard = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "w-full max-w-[min(calc(100vw-1.5rem),240px)] select-none rounded-2xl border border-border/50 bg-card/40 p-4 shadow-[0_0_40px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl transition-all duration-500 sm:max-w-[min(calc(100vw-2rem),260px)] sm:p-5 md:max-w-[280px]",
+        "w-full max-w-full select-none rounded-xl border border-border/50 bg-card/40 p-3 shadow-[0_0_40px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl transition-all duration-500 sm:rounded-2xl sm:p-4 md:p-5",
         "hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-[0_0_45px_-10px_hsl(var(--primary)/0.5)]",
         className,
       )}
@@ -128,7 +128,7 @@ const ProfileCard = ({
         onChange={onFileChange}
       />
 
-      <div className="relative mx-auto mb-4 h-28 w-28">
+      <div className="relative mx-auto mb-3 h-[4.5rem] w-[4.5rem] sm:mb-4 sm:h-24 sm:w-24 md:h-28 md:w-28">
         <div className="absolute inset-0 rounded-full border border-primary/20 bg-black/20 shadow-[inset_0_0_20px_hsl(var(--primary)/0.12)]" />
         <img
           src={displayAvatar}
@@ -139,7 +139,7 @@ const ProfileCard = ({
           type="button"
           size="icon"
           variant="secondary"
-          className="absolute -bottom-0.5 -right-0.5 z-10 h-9 w-9 rounded-full border border-primary/35 bg-background/80 text-primary shadow-[0_0_18px_-4px_hsl(var(--primary)/0.55)] backdrop-blur-md hover:bg-primary/15"
+          className="absolute -bottom-0.5 -right-0.5 z-10 h-7 w-7 rounded-full border border-primary/35 bg-background/80 text-primary shadow-[0_0_18px_-4px_hsl(var(--primary)/0.55)] backdrop-blur-md hover:bg-primary/15 sm:h-9 sm:w-9"
           onClick={onPickFile}
           aria-label="Cambiar foto de perfil"
           disabled={isSaving}
@@ -148,7 +148,7 @@ const ProfileCard = ({
         </Button>
       </div>
 
-      <div className="mb-4 min-h-[2.5rem] text-center">
+      <div className="mb-2 min-h-[2rem] text-center sm:mb-4 sm:min-h-[2.5rem]">
         {editingName ? (
           <Input
             autoFocus
@@ -166,7 +166,7 @@ const ProfileCard = ({
             type="button"
             disabled={isSaving}
             onClick={() => setEditingName(true)}
-            className="group inline-flex max-w-full items-center justify-center gap-2 rounded-lg px-2 py-1 font-display text-lg font-semibold text-foreground transition hover:bg-white/5"
+            className="group inline-flex max-w-full items-center justify-center gap-1.5 rounded-lg px-2 py-0.5 font-display text-base font-semibold text-foreground transition hover:bg-white/5 sm:gap-2 sm:py-1 sm:text-lg"
           >
             <span className="truncate">{name.trim() || initialName}</span>
             <PencilLine className="h-4 w-4 shrink-0 text-primary opacity-70 group-hover:opacity-100" aria-hidden />
@@ -178,7 +178,7 @@ const ProfileCard = ({
         <Button
           type="button"
           variant="outline"
-          className="mb-4 w-full rounded-xl border border-primary/40 bg-primary/5 font-display text-xs font-bold uppercase tracking-[0.18em] text-primary shadow-[0_0_20px_-8px_hsl(var(--primary)/0.5)] transition hover:bg-primary/12 hover:border-primary/55"
+          className="mb-0 w-full rounded-lg border border-primary/40 bg-primary/5 py-2 font-display text-[10px] font-bold uppercase tracking-[0.14em] text-primary shadow-[0_0_20px_-8px_hsl(var(--primary)/0.5)] transition hover:bg-primary/12 hover:border-primary/55 sm:mb-4 sm:rounded-xl sm:text-xs sm:tracking-[0.18em]"
           onClick={() => navigate(liveNavPath)}
         >
           {liveLabel}
