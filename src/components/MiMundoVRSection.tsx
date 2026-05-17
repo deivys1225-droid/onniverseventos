@@ -13,7 +13,8 @@ import {
   getAdaptiveSphereSegments,
   isMobileCoarseDevice,
 } from "@/lib/webglRendererPrefs";
-import { MessageCircleMore, UsersRound } from "lucide-react";
+import { Clapperboard, MessageCircleMore, UsersRound } from "lucide-react";
+import { Link } from "react-router-dom";
 import { CameraToggleButton, useCameraBackground } from "@/contexts/CameraBackgroundContext";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
@@ -467,6 +468,15 @@ const MiMundoVRSection = ({
       {!vrStereoActive && <HomeNavCards />}
       {!vrStereoActive && (
         <>
+          <div className="pointer-events-none fixed bottom-4 left-3 z-[70] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)]">
+            <Link
+              to="/mega-cine"
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-violet-400/55 bg-slate-950/95 px-4 py-2.5 font-display text-[10px] font-bold uppercase tracking-[0.14em] text-violet-100 shadow-[0_0_28px_-4px_rgba(167,139,250,0.85)] transition hover:border-violet-300 hover:bg-slate-900 hover:text-white md:text-xs"
+            >
+              <Clapperboard className="h-4 w-4 shrink-0" aria-hidden />
+              Mega Cine
+            </Link>
+          </div>
           <div className="pointer-events-none fixed top-[4.25rem] right-3 z-[60] flex flex-col items-end gap-2 pr-[max(0.75rem,env(safe-area-inset-right))]">
             <button
               type="button"
