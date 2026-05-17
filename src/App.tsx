@@ -34,6 +34,7 @@ import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
 import PcScenePage from "./pages/PcScenePage.tsx";
 import EmisorView from "./pages/EmisorView.tsx";
 import EspectadorView from "./pages/EspectadorView.tsx";
+import { CameraBackgroundProvider } from "@/contexts/CameraBackgroundContext";
 const queryClient = new QueryClient();
 
 const AppProviders = ({ children }: { children: ReactNode }) =>
@@ -50,6 +51,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <CameraBackgroundProvider>
           <Routes>
             <Route
               path="/"
@@ -194,6 +196,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </CameraBackgroundProvider>
         </BrowserRouter>
       </TooltipProvider>
     </AppProviders>
