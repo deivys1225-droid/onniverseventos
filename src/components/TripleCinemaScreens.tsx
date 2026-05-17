@@ -1,6 +1,7 @@
 ﻿import CinemaScreenOnePhone from "@/components/CinemaScreenOnePhone";
 import CinemaScreenThreeWebsite from "@/components/CinemaScreenThreeWebsite";
 import CinemaScreenTwoEvents from "@/components/CinemaScreenTwoEvents";
+import MegaCineCameraLayer from "@/components/MegaCineCameraLayer";
 import { useCameraBackground } from "@/contexts/CameraBackgroundContext";
 import { MegaCineSplitProvider } from "@/contexts/MegaCineSplitContext";
 import { Columns2, Square } from "lucide-react";
@@ -147,9 +148,10 @@ function SplitMegaCineView() {
     <MegaCineSplitProvider>
       <div className="absolute inset-0 flex">
         <div className="relative h-full w-1/2 shrink-0 overflow-hidden">
+          <MegaCineCameraLayer clipClassName={RIGHT_HALF_CLIP_CLASS} />
           <div
             ref={mirrorRef}
-            className={cn("pointer-events-none select-none", RIGHT_HALF_CLIP_CLASS)}
+            className={cn("pointer-events-none relative z-10 select-none", RIGHT_HALF_CLIP_CLASS)}
             aria-hidden
           >
             <MegaCineScene />
@@ -157,7 +159,8 @@ function SplitMegaCineView() {
         </div>
 
         <div className="relative h-full w-1/2 shrink-0 overflow-hidden border-l-2 border-cyan-500/50">
-          <div ref={masterRef} className={RIGHT_HALF_CLIP_CLASS}>
+          <MegaCineCameraLayer clipClassName={RIGHT_HALF_CLIP_CLASS} />
+          <div ref={masterRef} className={cn("relative z-10", RIGHT_HALF_CLIP_CLASS)}>
             <MegaCineScene />
           </div>
         </div>
@@ -171,7 +174,14 @@ export default function TripleCinemaScreens() {
 
   return (
     <>
-      {splitVertical ? <SplitMegaCineView /> : <MegaCineScene />}
+      {splitVertical ? (
+        <SplitMegaCineView />
+      ) : (
+        <div className="absolute inset-0">
+          <MegaCineCameraLayer />
+          <MegaCineScene />
+        </div>
+      )}
 
       <button
         type="button"
