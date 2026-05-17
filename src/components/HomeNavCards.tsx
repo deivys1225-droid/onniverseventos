@@ -13,7 +13,7 @@ const HOME_NAV_CARDS: HomeNavCardItem[] = [
   { label: "ViveVR", description: "Experiencias inmersivas", path: "/inicio-2", image: "/onni-ecosystem-metaverse.png" },
   { label: "Salas", description: "Shows y comunidad", path: "/nuestras-salas", image: "/eventos-inmersivos.jpeg" },
   { label: "Tienda", description: "Cursos y contenido", path: "/tienda", image: "/compras-inmersivas.jpeg" },
-  { label: "Quiénes somos", description: "OnniVers · Tikes", path: "/quienes-somos", image: "/accesibilidad-universal.jpeg" },
+  { label: "Quienes somos", description: "OnniVers y Tikes", path: "/quienes-somos", image: "/accesibilidad-universal.jpeg" },
 ];
 
 const CARD_CLASS =
