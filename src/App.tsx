@@ -22,6 +22,8 @@ import EventosPage from "./pages/EventosPage.tsx";
 import RedSocialInmersivaPage from "./pages/RedSocialInmersivaPage.tsx";
 import InicioPage from "./pages/InicioPage.tsx";
 import NuestrasSalasPage from "./pages/NuestrasSalasPage.tsx";
+import ComunidadPage from "./pages/ComunidadPage.tsx";
+import Galeria3DPage from "./pages/Galeria3DPage.tsx";
 import EducacionPage from "./pages/EducacionPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import PrivacidadPage from "./pages/PrivacidadPage.tsx";
@@ -126,6 +128,22 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <NuestrasSalasPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/comunidad"
+              element={
+                <PrivateRoute>
+                  <ComunidadPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/3d"
+              element={
+                <PrivateRoute>
+                  <Galeria3DPage />
                 </PrivateRoute>
               }
             />

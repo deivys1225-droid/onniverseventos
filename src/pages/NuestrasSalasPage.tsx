@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Mic2, Radio, Box, UserPlus, Check, Clock, UserRoundCheck } from "lucide-react";
+import { Mic2, Radio, Box } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { Capacitor } from "@capacitor/core";
@@ -16,11 +16,6 @@ import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { useAuth } from "@/hooks/useAuth";
 import { formatStorePrice, salaVideoPriceUsd } from "@/lib/pricing";
 import { hasVaultPurchase } from "@/lib/vaultItems";
-import {
-  loadFriendshipPairStates,
-  sendFriendshipRequest,
-  type FriendshipPairState,
-} from "@/lib/friendships";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
 import { CameraToggleButton } from "@/contexts/CameraBackgroundContext";
 
@@ -116,38 +111,18 @@ function getRoomActiveStream(room: RoomCard, streams: ActiveStreamRow[]): Active
 const NuestrasSalasPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [communityProfiles, setCommunityProfiles] = useState<
-    Array<{ id: string; name: string; avatarUrl: string | null; liveStatus: string }>
-  >([]);
   const [activeStreams, setActiveStreams] = useState<ActiveStreamRow[]>([]);
   const [premiumModalRoom, setPremiumModalRoom] = useState<RoomCard | null>(null);
   const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
-  const [friendshipStates, setFriendshipStates] = useState<Map<string, FriendshipPairState>>(new Map());
   const [sessionPurchases, setSessionPurchases] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     const loadData = async () => {
-      const [{ data: profilesData }, { data: activeData }] = await Promise.all([
-        supabase.from("profiles").select("id,full_name,avatar_url,live_status").order("updated_at", { ascending: false }),
-        supabase
-          .from("active_streams")
-          .select("user_id,is_live,title,stream_url,playback_url,privacy_mode,ticket_price,updated_at")
-          .eq("is_live", true),
-      ]);
+      const { data: activeData } = await supabase
+        .from("active_streams")
+        .select("user_id,is_live,title,stream_url,playback_url,privacy_mode,ticket_price,updated_at")
+        .eq("is_live", true);
 
-      const normalized = ((profilesData ?? []) as Array<{
-        id: string;
-        full_name: string | null;
-        avatar_url: string | null;
-        live_status?: string | null;
-      }>)
-        .map((p) => ({
-          id: p.id,
-          name: p.full_name?.trim() || "Explorador VR",
-          avatarUrl: p.avatar_url,
-          liveStatus: p.live_status?.trim() || "",
-        }));
-      setCommunityProfiles(normalized);
       setActiveStreams((activeData ?? []) as ActiveStreamRow[]);
     };
 
@@ -155,9 +130,6 @@ const NuestrasSalasPage = () => {
 
     const channel = supabase
       .channel("public:nuestras-salas")
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
-        void loadData();
-      })
       .on("postgres_changes", { event: "*", schema: "public", table: "active_streams" }, () => {
         void loadData();
       })
@@ -219,60 +191,6 @@ const NuestrasSalasPage = () => {
     sessionPurchases.has(room.id) ||
     hasVaultPurchase(user?.id, "ticket", room.name);
 
-  const communityRooms: RoomCard[] = useMemo(
-    () =>
-      communityProfiles.map((profile) => {
-        return {
-          id: `community-${profile.id}`,
-          name: profile.name,
-          image: profile.avatarUrl?.trim() || "/placeholder.svg",
-          liveStatus: profile.liveStatus,
-          subtitle: "Comunidad OnniVers",
-          description: "Nuevo creador registrado en la plataforma.",
-          status: "",
-          channel: buildAgoraChannel(profile.id),
-          isPremium: false,
-          priceUsd: 0,
-          ownerUserId: profile.id,
-        };
-      }),
-    [communityProfiles],
-  );
-
-  const communityProfileIdsKey = useMemo(
-    () => communityProfiles.map((p) => p.id).sort().join(","),
-    [communityProfiles],
-  );
-
-  useEffect(() => {
-    if (!user?.id || communityProfiles.length === 0) {
-      setFriendshipStates(new Map());
-      return;
-    }
-    const ids = communityProfiles.map((p) => p.id);
-    let cancelled = false;
-    void loadFriendshipPairStates(user.id, ids).then((m) => {
-      if (!cancelled) setFriendshipStates(m);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, communityProfileIdsKey, communityProfiles]);
-
-  useEffect(() => {
-    if (!user?.id || communityProfiles.length === 0) return;
-    const ids = communityProfiles.map((p) => p.id);
-    const ch = supabase
-      .channel("nuestras-salas-friendships")
-      .on("postgres_changes", { event: "*", schema: "public", table: "friendships" }, () => {
-        void loadFriendshipPairStates(user.id, ids).then(setFriendshipStates);
-      })
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(ch);
-    };
-  }, [user?.id, communityProfileIdsKey]);
-
   const beginRoomSession = (room: RoomCard, activeStream?: ActiveStreamRow | null) => {
     setLoadingRoomId(room.id);
     window.setTimeout(() => {
@@ -322,30 +240,6 @@ const NuestrasSalasPage = () => {
       return;
     }
     beginRoomSession(room, linkedStream);
-  };
-
-  const sendFriendRequestToCommunityMember = async (receiverId: string, displayName: string) => {
-    if (!user) {
-      toast.error("Inicia sesión para enviar solicitudes de amistad.");
-      return;
-    }
-    if (receiverId === user.id) {
-      toast.error("No puedes enviarte una solicitud a ti mismo.");
-      return;
-    }
-    const result = await sendFriendshipRequest(receiverId);
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-    if (result.status === "accepted") {
-      toast.success(`Ya son contactos en OnniVers con ${displayName}.`);
-    } else {
-      toast.success(`Solicitud enviada a ${displayName}. Queda guardada en Supabase hasta que la acepten.`);
-    }
-    const ids = communityProfiles.map((p) => p.id);
-    const next = await loadFriendshipPairStates(user.id, ids);
-    setFriendshipStates(next);
   };
 
   return (
@@ -482,139 +376,6 @@ const NuestrasSalasPage = () => {
               })}
             </div>
 
-            <div className="mt-14">
-              <h3 className="mb-5 text-center font-display text-2xl font-bold tracking-tight text-foreground">
-                Salas de la <span className="text-gradient-neon">Comunidad</span>
-              </h3>
-              <p className="mx-auto mb-7 max-w-2xl text-center text-sm text-muted-foreground">
-                Usuarios registrados que crean su propio espacio. Las salas oficiales aprobadas por el equipo Tikes se
-                mantienen arriba.
-              </p>
-
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {communityRooms.length === 0 && (
-                  <div className="col-span-full rounded-2xl border border-border/50 bg-card/35 p-6 text-center text-sm text-muted-foreground backdrop-blur-xl">
-                    Aun no hay salas comunitarias registradas.
-                  </div>
-                )}
-                {communityRooms.map((room, index) => (
-                  (() => {
-                    const linkedStream = getRoomActiveStream(room, activeStreams);
-                    const online = room.ownerUserId
-                      ? activeStreams.some((s) => {
-                          if (!s.is_live || s.user_id !== room.ownerUserId) return false;
-                          const updatedAtMs = s.updated_at ? Date.parse(s.updated_at) : Number.NaN;
-                          if (!Number.isFinite(updatedAtMs)) return false;
-                          const ageMs = Date.now() - updatedAtMs;
-                          // Evita "en línea" por registros viejos; requiere actividad reciente.
-                          return ageMs >= 0 && ageMs <= 2 * 60 * 1000;
-                        })
-                      : false;
-                    const pairState: FriendshipPairState = room.ownerUserId
-                      ? friendshipStates.get(room.ownerUserId) ?? "none"
-                      : "none";
-                    return (
-                  <motion.div
-                    key={room.id}
-                    className="relative"
-                    initial={{ opacity: 0, y: 24 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-60px" }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    {user && room.ownerUserId && room.ownerUserId !== user.id && (
-                      pairState === "friends" ? (
-                        <div
-                          className="absolute right-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-emerald-400/50 bg-black/40 text-emerald-400 shadow-[0_0_14px_-4px_rgba(52,211,153,0.75)]"
-                          title="Ya son contactos"
-                          aria-hidden
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </div>
-                      ) : pairState === "pending_out" ? (
-                        <div
-                          className="absolute right-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/30 bg-black/35 text-cyan-200/60"
-                          title="Solicitud enviada · pendiente"
-                          aria-hidden
-                        >
-                          <Clock className="h-3.5 w-3.5" />
-                        </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="secondary"
-                          className="absolute right-3 top-3 z-20 h-7 w-7 rounded-full border border-cyan-300/40 bg-black/35 text-cyan-200 shadow-[0_0_14px_-4px_rgba(34,211,238,0.85)] hover:bg-black/50"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            void sendFriendRequestToCommunityMember(room.ownerUserId!, room.name);
-                          }}
-                          title={
-                            pairState === "pending_in"
-                              ? "Te enviaron solicitud · pulsa para aceptar (se guarda en Supabase)"
-                              : "Enviar solicitud de amistad"
-                          }
-                          aria-label={
-                            pairState === "pending_in"
-                              ? `Aceptar solicitud de ${room.name}`
-                              : `Enviar solicitud de amistad a ${room.name}`
-                          }
-                        >
-                          {pairState === "pending_in" ? (
-                            <UserRoundCheck className="h-3.5 w-3.5" />
-                          ) : (
-                            <UserPlus className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                      )
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleRoomAccess(room, online)}
-                      className={`group relative block w-full rounded-2xl border bg-card/40 p-5 text-left backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 ${
-                        online
-                          ? "border-amber-300/80 shadow-[0_0_55px_-10px_rgba(250,204,21,0.95)] hover:border-yellow-200/90"
-                          : "border-border/50 hover:border-primary/50 hover:shadow-[0_0_45px_-10px_hsl(var(--primary)/0.5)]"
-                      }`}
-                    >
-                          <div className="relative mb-4 overflow-hidden rounded-xl border border-primary/20">
-                            <img
-                              src={room.image}
-                              alt={room.name}
-                              className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
-                            <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between rounded-lg border border-white/10 bg-black/45 px-2 py-1 text-[10px] font-display uppercase tracking-wider text-cyan-200 backdrop-blur-md">
-                              <span className="flex items-center gap-1">
-                                <Box className="h-3 w-3 text-primary" />
-                                Sala
-                              </span>
-                              <span className="text-slate-300">{room.subtitle}</span>
-                            </div>
-                          </div>
-                          <div className="mb-2 flex items-center justify-between gap-3">
-                            <h3 className="font-display text-lg font-semibold text-foreground">{room.name}</h3>
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-[10px] font-display font-bold uppercase tracking-wide ${
-                                online ? "bg-amber-300 text-black" : "bg-muted text-muted-foreground"
-                              }`}
-                            >
-                              {online ? "EN LÍNEA" : "OFFLINE"}
-                            </span>
-                          </div>
-                          <p className="mb-4 text-sm text-muted-foreground">{room.description}</p>
-                          <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-primary transition group-hover:bg-primary/20 group-hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]">
-                            <Mic2 className="h-4 w-4" />
-                            {linkedStream?.privacy_mode === "privado_ticket" ? "Ver acceso premium" : "Entrar gratis"}
-                          </span>
-                        </button>
-                  </motion.div>
-                    );
-                  })()
-                ))}
-              </div>
-            </div>
           </section>
         </div>
       </main>

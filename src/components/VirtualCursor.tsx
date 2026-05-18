@@ -1,5 +1,15 @@
+import { publishVirtualCursorMove, resetVirtualCursorPosition } from "@/lib/virtualCursorPosition";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+
+function shouldIgnoreTouchTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      "[data-lobby-move-pad], [data-lobby-ui], [data-lobby-screen], button, a, input, textarea, select, label, [role='button']",
+    ),
+  );
+}
 
 /**
  * Cursor virtual solo en lobby inmersivo (WebView Android / proyección).
@@ -13,22 +23,38 @@ export default function VirtualCursor() {
     setMounted(true);
     document.body.classList.add("virtual-cursor-active");
 
+    const moveCursor = (x: number, y: number) => {
+      setPosition({ x, y });
+      publishVirtualCursorMove(x, y);
+    };
+
     const onMouseMove = (e: MouseEvent) => {
-      setPosition({ x: e.clientX, y: e.clientY });
+      moveCursor(e.clientX, e.clientY);
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (shouldIgnoreTouchTarget(e.target)) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      moveCursor(touch.clientX, touch.clientY);
     };
 
     const onTouchMove = (e: TouchEvent) => {
+      if (shouldIgnoreTouchTarget(e.target)) return;
       const touch = e.touches[0];
       if (!touch) return;
-      setPosition({ x: touch.clientX, y: touch.clientY });
+      moveCursor(touch.clientX, touch.clientY);
     };
 
     window.addEventListener("mousemove", onMouseMove, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: true });
 
     return () => {
       document.body.classList.remove("virtual-cursor-active");
+      resetVirtualCursorPosition();
       window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
     };
   }, []);

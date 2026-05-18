@@ -12,6 +12,8 @@ const APP_APK_DOWNLOAD_URL =
 const NAV_ITEMS = [
   { label: "VIVEVR", path: "/inicio-2" },
   { label: "SALAS", path: "/nuestras-salas" },
+  { label: "COMUNIDAD", path: "/comunidad" },
+  { label: "3D", path: "/3d" },
   { label: "TIENDA", path: "/tienda" },
   { label: "QUIENES SOMOS", path: "/quienes-somos" },
 ] as const;

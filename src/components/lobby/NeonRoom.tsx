@@ -14,6 +14,7 @@ import MobileLobbyMovePad, {
   createMobileMoveInput,
   type MobileMoveInput,
 } from "@/components/lobby/MobileLobbyMovePad";
+import VirtualCursorLook from "@/components/lobby/VirtualCursorLook";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
 
 const ROOM_SIZE = 20;
@@ -35,13 +36,6 @@ function lobbyAndroidUsesNativePantalla2WebView(): boolean {
   );
 }
 /**
- * Modelo "El Corazón" servido offline-first desde /public/assets/models/.
- * Root-relativo para que Capacitor WebView (`androidScheme: "https"`) lo cargue
- * desde `https://localhost/assets/...` sin red.
- */
-const LOBBY_SCREEN_4_CLOUD_MODEL_URL = "/assets/models/corazon.glb";
-
-/**
  * Google Maps embebido (`output=embed`) — suele verse bien en iframe en web y en el WebView de Capacitor.
  * Pantallas 2 y 3 del lobby usan la misma URL por defecto.
  */
@@ -52,7 +46,7 @@ const WALL_SCREEN_EMBEDS = [
   "about:blank",
   LOBBY_GOOGLE_MAPS_EMBED,
   LOBBY_GOOGLE_MAPS_EMBED,
-  LOBBY_SCREEN_4_CLOUD_MODEL_URL,
+  "about:blank",
 ] as const;
 
 type LobbyScreenUrls = [string, string, string, string];
@@ -76,7 +70,10 @@ function readStoredLobbyScreenUrls(): LobbyScreenUrls | null {
       urls[0] = "about:blank";
     }
     if (urls[3] === "https://www.youtube.com/embed/RgKAFK5djSk") {
-      urls[3] = LOBBY_SCREEN_4_CLOUD_MODEL_URL;
+      urls[3] = "about:blank";
+    }
+    if (isGlbSource(urls[3])) {
+      urls[3] = "about:blank";
     }
     if (urls[2] === "about:blank") {
       urls[2] = LOBBY_GOOGLE_MAPS_EMBED;
@@ -86,13 +83,6 @@ function readStoredLobbyScreenUrls(): LobbyScreenUrls | null {
     }
     if (urls[1].includes("tiktok.com")) {
       urls[1] = LOBBY_GOOGLE_MAPS_EMBED;
-    }
-    // Migración offline-first: cualquier URL del Cloudinary anterior pasa al .glb local.
-    if (
-      urls[3] ===
-      "https://res.cloudinary.com/dfsabdxup/image/upload/v1778502197/el_corazon_dbhvfn.glb"
-    ) {
-      urls[3] = LOBBY_SCREEN_4_CLOUD_MODEL_URL;
     }
     return urls;
   } catch {
@@ -598,24 +588,10 @@ function HoloScreens({
       <HoloScreen
         {...screenProps(3, screenUrls[2], [-half + off, y, 0], [0, Math.PI / 2, 0])}
       />
-      {/*
-        Right wall (+X) — swap cuando Pantalla 4 es GLB (default corazon.glb):
-        el GLB va al centro (Y≈1.88); el iframe onnivers.com/nuestras-salas pasa
-        a la pared derecha. Si Pantalla 4 es URL iframe, el GLB no aplica y el
-        iframe vuelve al centro elevado (sin número en pared, solo esta ventana).
-      */}
-      {isGlbSource(screenUrls[3]) ? (
-        <WallSceneGlb
-          url={screenUrls[3]}
-          position={[0, 1.88, 0]}
-          rotation={[0, 0, 0]}
-          scaleMultiplier={0.5}
-        />
-      ) : (
-        <HoloScreen
-          {...screenProps(4, screenUrls[3], [half - off, y, 0], [0, -Math.PI / 2, 0])}
-        />
-      )}
+      {/* Right wall (+X) */}
+      <HoloScreen
+        {...screenProps(4, screenUrls[3], [half - off, y, 0], [0, -Math.PI / 2, 0])}
+      />
     </>
   );
 }
@@ -1133,13 +1109,6 @@ export default function NeonRoom() {
     setLocked(false);
   };
 
-  useEffect(() => {
-    const screenFourUrl = screenUrls[3];
-    if (isGlbSource(screenFourUrl)) {
-      useGLTF.preload(screenFourUrl);
-    }
-  }, [screenUrls]);
-
   // Mobile/desktop: tap fuera del iframe enfocado (sobre el canvas 3D) deshace el foco
   // y vuelve a habilitar el pad/touch-look o el pointer-lock. En el iframe drei `<Html>`
   // se monta como hermano del canvas, asi que los toques sobre la pantalla enfocada NO
@@ -1365,23 +1334,14 @@ export default function NeonRoom() {
             onFocusScreen={focusScreen}
             screenUrls={screenUrls}
           />
-          <ForcedFloatingVideoScreen
-            position={
-              isGlbSource(screenUrls[3])
-                ? [ROOM_SIZE / 2 - 0.03, WALL_HEIGHT / 2, 0]
-                : [0, 2.25, 0]
-            }
-            rotation={
-              isGlbSource(screenUrls[3]) ? [0, -Math.PI / 2, 0] : [0, 0, 0]
-            }
-          />
+          <ForcedFloatingVideoScreen />
           <NeonAccents />
           <LoungeSet />
           <LoungeSpotlight />
 
         <EarthMoonAnchor />
         <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
-        <MobileTouchLook enabled={isMobileTouch && focusedScreen === null} />
+        <VirtualCursorLook enabled={isMobileTouch && focusedScreen === null} />
 
         {focusedScreen === null && !isMobileTouch && (
           <PointerLockControls

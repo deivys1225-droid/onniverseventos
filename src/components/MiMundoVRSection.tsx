@@ -1,6 +1,5 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
 import { Capacitor } from "@capacitor/core";
 import * as THREE from "three";
 import { useNavigate } from "react-router-dom";
@@ -20,13 +19,9 @@ import {
   getAdaptiveSphereSegments,
   isMobileCoarseDevice,
 } from "@/lib/webglRendererPrefs";
-import MiMundoTopActionsPortal from "@/components/MiMundoTopActionsPortal";
-import { MessageCircleMore } from "lucide-react";
 import { CameraToggleButton, useCameraBackground } from "@/contexts/CameraBackgroundContext";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
-import { useAuth } from "@/hooks/useAuth";
-import SocialMenu from "@/components/SocialMenu";
 import HomeNavCards from "@/components/HomeNavCards";
 
 /**
@@ -70,6 +65,144 @@ const DEFAULT_CAMERA_POSITION_MOBILE: [number, number, number] = [0, 0.05, 6.4];
 const DEFAULT_FOV_DESKTOP = 62;
 const DEFAULT_FOV_MOBILE = 48;
 const HOME_PROMO_BG_URL = "/onnivers-home-bg.png";
+const EARTH_DRAG_YAW = 0.0052;
+const EARTH_DRAG_PITCH = 0.0032;
+const EARTH_DRAG_PITCH_MAX = 0.42;
+const EARTH_ZOOM_MIN = 3.2;
+const EARTH_ZOOM_MAX = 12;
+const EARTH_WHEEL_ZOOM = 0.008;
+
+/**
+ * Cámara fija al blanco (sin balanceo) + arrastre para girar + zoom rueda/pellizco.
+ */
+function EarthViewController({
+  basePosition,
+  target,
+  pivotRef,
+  enabled,
+}: {
+  basePosition: [number, number, number];
+  target: [number, number, number];
+  pivotRef: RefObject<THREE.Group | null>;
+  enabled: boolean;
+}) {
+  const { camera, gl } = useThree();
+  const tgt = useMemo(() => new THREE.Vector3(...target), [target]);
+  const viewDir = useMemo(() => {
+    const p = new THREE.Vector3(...basePosition);
+    return p.sub(tgt).normalize();
+  }, [basePosition, tgt]);
+  const distanceRef = useRef(new THREE.Vector3(...basePosition).distanceTo(tgt));
+  const draggingRef = useRef(false);
+  const lastRef = useRef({ x: 0, y: 0 });
+  const manualRef = useRef({ yaw: 0, pitch: 0 });
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchRef = useRef<{ span: number; distance: number } | null>(null);
+
+  const applyPivotRotation = useCallback(() => {
+    if (!pivotRef.current) return;
+    pivotRef.current.rotation.order = "YXZ";
+    pivotRef.current.rotation.y = manualRef.current.yaw;
+    pivotRef.current.rotation.x = manualRef.current.pitch;
+    pivotRef.current.rotation.z = 0;
+  }, [pivotRef]);
+
+  useFrame(() => {
+    if (!enabled) return;
+    camera.position.copy(tgt).addScaledVector(viewDir, distanceRef.current);
+    camera.lookAt(tgt);
+  });
+
+  useEffect(() => {
+    if (!enabled) return;
+    const el = gl.domElement;
+
+    const pointerSpan = () => {
+      const pts = [...pointersRef.current.values()];
+      if (pts.length < 2) return 0;
+      return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      distanceRef.current = THREE.MathUtils.clamp(
+        distanceRef.current + e.deltaY * EARTH_WHEEL_ZOOM,
+        EARTH_ZOOM_MIN,
+        EARTH_ZOOM_MAX,
+      );
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointersRef.current.size === 2) {
+        draggingRef.current = false;
+        pinchRef.current = { span: pointerSpan(), distance: distanceRef.current };
+        return;
+      }
+      if (e.button !== 0) return;
+      draggingRef.current = true;
+      lastRef.current = { x: e.clientX, y: e.clientY };
+      el.setPointerCapture(e.pointerId);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!pointersRef.current.has(e.pointerId)) return;
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (pointersRef.current.size >= 2 && pinchRef.current) {
+        const span = pointerSpan();
+        if (span > 0 && pinchRef.current.span > 0) {
+          const ratio = pinchRef.current.span / span;
+          distanceRef.current = THREE.MathUtils.clamp(
+            pinchRef.current.distance * ratio,
+            EARTH_ZOOM_MIN,
+            EARTH_ZOOM_MAX,
+          );
+        }
+        return;
+      }
+
+      if (!draggingRef.current || !pivotRef.current) return;
+      const dx = e.clientX - lastRef.current.x;
+      const dy = e.clientY - lastRef.current.y;
+      lastRef.current = { x: e.clientX, y: e.clientY };
+      manualRef.current.yaw += dx * EARTH_DRAG_YAW;
+      manualRef.current.pitch += dy * EARTH_DRAG_PITCH;
+      manualRef.current.pitch = THREE.MathUtils.clamp(
+        manualRef.current.pitch,
+        -EARTH_DRAG_PITCH_MAX,
+        EARTH_DRAG_PITCH_MAX,
+      );
+      applyPivotRotation();
+    };
+
+    const onPointerEnd = (e: PointerEvent) => {
+      pointersRef.current.delete(e.pointerId);
+      if (pointersRef.current.size < 2) pinchRef.current = null;
+      if (pointersRef.current.size === 0) draggingRef.current = false;
+      try {
+        el.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ya liberado */
+      }
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", onPointerEnd);
+    el.addEventListener("pointercancel", onPointerEnd);
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", onPointerEnd);
+      el.removeEventListener("pointercancel", onPointerEnd);
+    };
+  }, [enabled, gl, pivotRef, applyPivotRotation]);
+
+  return null;
+}
 
 function OrbitingMoon({ simpleGpu, vrStereo }: { simpleGpu: boolean; vrStereo: boolean }) {
   const pivotRef = useRef<THREE.Group>(null);
@@ -227,6 +360,9 @@ function CentralEarth({
 
   useFrame((_, delta) => {
     if (!earthRef.current) return;
+    // Solo giro natural en eje Y; sin deriva en X/Z que perciba balanceo.
+    earthRef.current.rotation.x = 0;
+    earthRef.current.rotation.z = 0;
     earthRef.current.rotation.y += delta * EARTH_ROTATION_SPEED;
   });
 
@@ -359,9 +495,7 @@ const MiMundoVRSection = ({
   onProfilePersist,
 }: MiMundoVRSectionProps) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [profileSaving, setProfileSaving] = useState(false);
-  const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const [lobbyOpening, setLobbyOpening] = useState(false);
   const { cameraBgActive } = useCameraBackground();
   const vrStereoActive = useVrModeActive();
@@ -386,6 +520,7 @@ const MiMundoVRSection = ({
     () => [0, earthVerticalOffset + orbitTargetLift, 0],
     [earthVerticalOffset, orbitTargetLift],
   );
+  const earthScenePivotRef = useRef<THREE.Group>(null);
 
   const handleLobbyOpen = () => {
     if (lobbyOpening || vrStereoActive) return;
@@ -471,7 +606,7 @@ const MiMundoVRSection = ({
               </>
             ))}
 
-          <group position={[0, earthVerticalOffset, 0]}>
+          <group ref={earthScenePivotRef} position={[0, earthVerticalOffset, 0]}>
             <Suspense fallback={null}>
               <CentralEarth
                 simpleGpu={isMobileCoarse || vrStereoActive}
@@ -484,18 +619,11 @@ const MiMundoVRSection = ({
             </Suspense>
           </group>
 
-          <OrbitControls
-            makeDefault
-            enabled={!vrStereoActive}
+          <EarthViewController
+            basePosition={cameraPosition}
             target={orbitTarget}
-            enablePan={false}
-            enableDamping
-            dampingFactor={0.06}
-            rotateSpeed={0.65}
-            minDistance={3.2}
-            maxDistance={12}
-            minPolarAngle={0.02}
-            maxPolarAngle={Math.PI - 0.02}
+            pivotRef={earthScenePivotRef}
+            enabled={!vrStereoActive}
           />
           <VrStereoPerfSync active={vrStereoActive} />
         </Canvas>
@@ -503,7 +631,9 @@ const MiMundoVRSection = ({
       </div>
       {!vrStereoActive && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
-          <div className="pointer-events-auto w-full max-w-[min(92vw,280px)] origin-center scale-[0.605] -translate-y-[clamp(2.5rem,14vh,6.5rem)] md:-translate-y-[clamp(5.2rem,25vh,13.5rem)]">
+          <div
+            className="pointer-events-auto w-full max-w-[min(92vw,280px)] origin-bottom scale-x-[0.605] scale-y-[0.6655] -translate-y-[calc(clamp(2.5rem,14vh,6.5rem)+19.75%)] md:-translate-y-[calc(clamp(5.2rem,25vh,13.5rem)+19.75%)]"
+          >
             <ProfileCard
               initialName={cardDisplayName}
               initialAvatarSrc={cardAvatarSrc}
@@ -515,23 +645,6 @@ const MiMundoVRSection = ({
         </div>
       )}
       {!vrStereoActive && <HomeNavCards />}
-      {!vrStereoActive && (
-        <>
-          <MiMundoTopActionsPortal
-            socialMenuOpen={socialMenuOpen}
-            onToggleSocial={() => setSocialMenuOpen((prev) => !prev)}
-          />
-          {user && (
-            <SocialMenu userId={user.id} open={socialMenuOpen} onClose={() => setSocialMenuOpen(false)} />
-          )}
-          {!user && socialMenuOpen && (
-            <div className="pointer-events-auto fixed top-32 right-4 z-[70] max-w-[min(92vw,280px)] rounded-xl border border-cyan-300/35 bg-card/90 px-3 py-2 text-xs text-cyan-100 backdrop-blur-xl">
-              <MessageCircleMore className="mr-1 inline h-3.5 w-3.5" />
-              Inicia sesion para usar Social.
-            </div>
-          )}
-        </>
-      )}
       <CameraToggleButton />
     </section>
   );
