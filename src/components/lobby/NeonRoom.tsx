@@ -16,6 +16,7 @@ import MobileLobbyMovePad, {
 } from "@/components/lobby/MobileLobbyMovePad";
 import VirtualCursorLook from "@/components/lobby/VirtualCursorLook";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
+import { LobbyScreenThreeSalasPlayer } from "@/components/lobby/LobbyScreenThreeSalasPlayer";
 
 const ROOM_SIZE = 20;
 const WALL_HEIGHT = 8;
@@ -45,7 +46,7 @@ const LOBBY_GOOGLE_MAPS_EMBED =
 const WALL_SCREEN_EMBEDS = [
   "about:blank",
   LOBBY_GOOGLE_MAPS_EMBED,
-  LOBBY_GOOGLE_MAPS_EMBED,
+  "about:blank",
   "about:blank",
 ] as const;
 
@@ -57,6 +58,58 @@ function defaultLobbyScreenUrls(): LobbyScreenUrls {
   return [...WALL_SCREEN_EMBEDS];
 }
 
+function isGoogleMapsEmbed(url: string): boolean {
+  const u = url.trim().toLowerCase();
+  return u.includes("google.com/maps") || u.includes("maps.google.");
+}
+
+/** Vídeos viejos (YouTube, Cloudinary, etc.) que no deben ir en pantallas 2 y 3. */
+function isLegacyLobbyVideoEmbed(url: string): boolean {
+  const u = url.trim().toLowerCase();
+  if (!u || u === "about:blank") return false;
+  if (isGoogleMapsEmbed(url)) return false;
+  return (
+    u.includes("youtube.com") ||
+    u.includes("youtu.be") ||
+    u.includes("tiktok.com") ||
+    u.includes("cloudinary.com") ||
+    /\.(mp4|webm|m3u8)(\?|#|$)/i.test(u)
+  );
+}
+
+function migrateLobbyScreenUrls(urls: LobbyScreenUrls): LobbyScreenUrls {
+  const next = [...urls] as LobbyScreenUrls;
+
+  if (next[0] === "https://onnivers.com" || next[0] === "https://www.google.com") {
+    next[0] = "about:blank";
+  }
+  if (next[3] === "https://www.youtube.com/embed/RgKAFK5djSk") {
+    next[3] = "about:blank";
+  }
+  if (isGlbSource(next[3])) {
+    next[3] = "about:blank";
+  }
+
+  if (next[1] === "about:blank" || isLegacyLobbyVideoEmbed(next[1])) {
+    next[1] = LOBBY_GOOGLE_MAPS_EMBED;
+  }
+
+  // Pantalla 3: reproductor de salas (no iframe de mapa ni vídeo suelto)
+  if (next[2] === "about:blank" || isLegacyLobbyVideoEmbed(next[2]) || isGoogleMapsEmbed(next[2])) {
+    next[2] = "about:blank";
+  }
+
+  return next;
+}
+
+function persistLobbyScreenUrls(urls: LobbyScreenUrls) {
+  try {
+    localStorage.setItem(LOBBY_SCREEN_URLS_STORAGE_KEY, JSON.stringify(urls));
+  } catch {
+    /* quota / modo privado */
+  }
+}
+
 function readStoredLobbyScreenUrls(): LobbyScreenUrls | null {
   try {
     const raw = localStorage.getItem(LOBBY_SCREEN_URLS_STORAGE_KEY);
@@ -65,24 +118,10 @@ function readStoredLobbyScreenUrls(): LobbyScreenUrls | null {
     if (!Array.isArray(parsed) || parsed.length !== 4 || !parsed.every((value) => typeof value === "string")) {
       return null;
     }
-    const urls = [...parsed] as LobbyScreenUrls;
-    if (urls[0] === "https://onnivers.com" || urls[0] === "https://www.google.com") {
-      urls[0] = "about:blank";
-    }
-    if (urls[3] === "https://www.youtube.com/embed/RgKAFK5djSk") {
-      urls[3] = "about:blank";
-    }
-    if (isGlbSource(urls[3])) {
-      urls[3] = "about:blank";
-    }
-    if (urls[2] === "about:blank") {
-      urls[2] = LOBBY_GOOGLE_MAPS_EMBED;
-    }
-    if (urls[1] === "about:blank") {
-      urls[1] = LOBBY_GOOGLE_MAPS_EMBED;
-    }
-    if (urls[1].includes("tiktok.com")) {
-      urls[1] = LOBBY_GOOGLE_MAPS_EMBED;
+    const stored = [...parsed] as LobbyScreenUrls;
+    const urls = migrateLobbyScreenUrls(stored);
+    if (JSON.stringify(urls) !== JSON.stringify(stored)) {
+      persistLobbyScreenUrls(urls);
     }
     return urls;
   } catch {
@@ -287,6 +326,12 @@ function WallSceneGlb({
 }
 
 const CENTER_SCREEN_EMBED_URL = "https://onnivers.com/nuestras-salas";
+/** Tamaño grande del panel Nuestras Salas (antes flotaba en el centro). */
+const NUESTRAS_SALAS_EMBED_WIDTH = 1024;
+const NUESTRAS_SALAS_EMBED_HEIGHT = 576;
+const NUESTRAS_SALAS_HTML_SCALE = 0.5;
+const NUESTRAS_SALAS_PANEL_WIDTH = WALL_SCREEN_WIDTH * (NUESTRAS_SALAS_EMBED_WIDTH / 800);
+const NUESTRAS_SALAS_PANEL_HEIGHT = WALL_SCREEN_HEIGHT * (NUESTRAS_SALAS_EMBED_HEIGHT / 450);
 
 const MIXED_REALITY_CAMERA_ERROR =
   "No se pudo acceder a la camara trasera. Revisa los permisos del navegador y vuelve a intentarlo.";
@@ -434,8 +479,9 @@ function HoloScreen({
   const screenPointerEvents = !interactionMode || focused ? "auto" : "none";
 
   const isPantalla1 = label === 1;
+  const isPantalla3Salas = label === 3;
   const useNativeTikTokWebViewForP2 =
-    !isPantalla1 && label === 2 && lobbyAndroidUsesNativePantalla2WebView();
+    !isPantalla1 && !isPantalla3Salas && label === 2 && lobbyAndroidUsesNativePantalla2WebView();
 
   return (
     <group position={position} rotation={rotation}>
@@ -462,6 +508,8 @@ function HoloScreen({
               width={embedWidth}
               height={embedHeight}
             />
+          ) : isPantalla3Salas ? (
+            <LobbyScreenThreeSalasPlayer width={embedWidth} height={embedHeight} />
           ) : useNativeTikTokWebViewForP2 && focused ? (
             <div
               style={{
@@ -588,40 +636,49 @@ function HoloScreens({
       <HoloScreen
         {...screenProps(3, screenUrls[2], [-half + off, y, 0], [0, Math.PI / 2, 0])}
       />
-      {/* Right wall (+X) */}
-      <HoloScreen
-        {...screenProps(4, screenUrls[3], [half - off, y, 0], [0, -Math.PI / 2, 0])}
-      />
+      {/* Right wall (+X): pantalla 4 retirada; Nuestras Salas va en ForcedFloatingVideoScreen */}
     </>
   );
 }
 
-/** Iframe fijo a onnivers.com (sin leyenda numérica en la pared, solo esta ventana). */
+/** Iframe fijo a onnivers.com en la pared derecha (sin leyenda «4»). */
 function ForcedFloatingVideoScreen({
-  position = [0, 2.25, 0],
-  rotation = [0, 0, 0],
+  position,
+  rotation,
 }: {
-  position?: [number, number, number];
-  rotation?: [number, number, number];
+  position: [number, number, number];
+  rotation: [number, number, number];
 }) {
   return (
     <group position={position} rotation={rotation}>
-      <Html transform position={[0, 0, 0]} scale={0.5} zIndexRange={LOBBY_SCREEN_HTML_Z_INDEX}>
+      <Html
+        transform
+        position={[0, 0, 0.05]}
+        scale={NUESTRAS_SALAS_HTML_SCALE}
+        zIndexRange={LOBBY_SCREEN_HTML_Z_INDEX}
+        style={{ pointerEvents: "auto" }}
+      >
         <iframe
           src={CENTER_SCREEN_EMBED_URL}
-          width={1024}
-          height={576}
+          width={NUESTRAS_SALAS_EMBED_WIDTH}
+          height={NUESTRAS_SALAS_EMBED_HEIGHT}
           title="onnivers.com — Nuestras salas"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
           style={{
             border: "0",
             display: "block",
+            width: `${NUESTRAS_SALAS_EMBED_WIDTH}px`,
+            height: `${NUESTRAS_SALAS_EMBED_HEIGHT}px`,
             background: "#02030a",
             pointerEvents: "auto",
           }}
         />
       </Html>
+      <mesh position={[0, 0, -0.01]}>
+        <planeGeometry args={[NUESTRAS_SALAS_PANEL_WIDTH, NUESTRAS_SALAS_PANEL_HEIGHT]} />
+        <meshBasicMaterial color="#02030a" toneMapped={false} />
+      </mesh>
     </group>
   );
 }
@@ -1334,7 +1391,10 @@ export default function NeonRoom() {
             onFocusScreen={focusScreen}
             screenUrls={screenUrls}
           />
-          <ForcedFloatingVideoScreen />
+          <ForcedFloatingVideoScreen
+            position={[ROOM_SIZE / 2 - 0.03, WALL_HEIGHT / 2, 0]}
+            rotation={[0, -Math.PI / 2, 0]}
+          />
           <NeonAccents />
           <LoungeSet />
           <LoungeSpotlight />
