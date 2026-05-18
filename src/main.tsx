@@ -17,6 +17,10 @@ declare global {
     /** Puente AR: registrado en MainActivity como {@code Android}. */
     Android?: {
       onArClick(url?: string): void;
+      /** Pantalla dividida VR — URL HLS/RTMP/MP4 de la transmisión actual. */
+      abrirCineLive?(streamUrl: string): void;
+      /** Pantalla mixta AR + cámara — URL HLS/RTMP/MP4 de la transmisión actual. */
+      abrirCamLive?(streamUrl: string): void;
       openLobby?(): void;
       /** Solo lobby Pantalla 2 (TikTok en WebView nativo). */
       showLobbyPantalla2WebView?(): void;

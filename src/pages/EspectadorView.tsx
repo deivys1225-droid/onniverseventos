@@ -1,12 +1,13 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
-import { Scan } from "lucide-react";
+import { MonitorPlay, Scan, Video } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AgoraRTC, { type IAgoraRTCClient, type IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
+import { isStreamPlaybackUrl, resolveCurrentTransmissionUrl } from "@/lib/audiencePlayback";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { toast } from "sonner";
 
@@ -28,6 +29,9 @@ function podcastIdFromAgoraChannel(channelName: string): string | null {
 
 type AudienceSceneKey = "split" | "immersive" | "mix";
 
+const AUDIENCE_NATIVE_BTN_BASE =
+  "group flex min-h-[52px] min-w-[6.5rem] max-w-[11rem] flex-1 flex-col items-center justify-center gap-1.5 rounded-xl border bg-black/35 px-2 py-3 text-center shadow-[0_0_28px_-12px_rgba(34,211,238,0.45)] transition hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5 touch-manipulation";
+
 /** Solo Android APK: abre el selector nativo (AlertDialog). En web/iOS devuelve false. */
 function tryAndroidNativeSceneSelector(preferred: AudienceSceneKey): boolean {
   if (Capacitor.getPlatform() !== "android") return false;
@@ -47,9 +51,10 @@ const EspectadorView = () => {
   const roomTitle = (searchParams.get("title") ?? "Sala en vivo").trim();
   const inheritedToken = (searchParams.get("token") ?? "").trim();
   const fallbackMp4 = (searchParams.get("mp4") ?? "").trim();
+  const streamPlaybackUrl = (searchParams.get("stream") ?? "").trim();
   const forcedMode = (searchParams.get("mode") ?? "").trim().toLowerCase();
   const useVodMode = forcedMode === "vod" && fallbackMp4.length > 0;
-  /** MP4 asociado al canal (catÃ¡logo o VOD actual) para VR/360/MT nativos â€” evita abrir siempre el vÃ­deo por defecto de /go/*. */
+  /** MP4 asociado al canal (catálogo o VOD actual) para puentes nativos. */
   const nativeBridgeMp4Url = useMemo(() => {
     if (useVodMode && fallbackMp4) return fallbackMp4;
     const prefix = "al-universo-";
@@ -59,6 +64,15 @@ const EspectadorView = () => {
     if (!roomId) return "";
     return SALA_MP4_URL_BY_ID[roomId] ?? "";
   }, [useVodMode, fallbackMp4, channelName]);
+  const currentTransmissionUrl = useMemo(
+    () =>
+      resolveCurrentTransmissionUrl({
+        streamParam: streamPlaybackUrl,
+        mp4Param: fallbackMp4 || nativeBridgeMp4Url,
+        includeMp4Fallback: true,
+      }),
+    [streamPlaybackUrl, fallbackMp4, nativeBridgeMp4Url],
+  );
   const [status, setStatus] = useState("Listo para conectar");
   const [connecting, setConnecting] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -250,6 +264,36 @@ const EspectadorView = () => {
     goMixVod();
   };
 
+  const openNativeCineLive = useCallback(() => {
+    const url = currentTransmissionUrl?.trim() ?? "";
+    if (!url || !isStreamPlaybackUrl(url)) {
+      toast.error(
+        "No hay URL de transmisión (HLS, RTMP o MP4). Si la sala es solo Agora en vivo, el anfitrión debe compartir un enlace m3u8/rtmp.",
+      );
+      return;
+    }
+    if (typeof window.Android?.abrirCineLive === "function") {
+      window.Android.abrirCineLive(url);
+      return;
+    }
+    toast.info("Cine Live está disponible en la app Android.");
+  }, [currentTransmissionUrl]);
+
+  const openNativeLiveCam = useCallback(() => {
+    const url = currentTransmissionUrl?.trim() ?? "";
+    if (!url || !isStreamPlaybackUrl(url)) {
+      toast.error(
+        "No hay URL de transmisión (HLS, RTMP o MP4). Si la sala es solo Agora en vivo, el anfitrión debe compartir un enlace m3u8/rtmp.",
+      );
+      return;
+    }
+    if (typeof window.Android?.abrirCamLive === "function") {
+      window.Android.abrirCamLive(url);
+      return;
+    }
+    toast.info("Live Cam está disponible en la app Android.");
+  }, [currentTransmissionUrl]);
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       <Navbar />
@@ -293,7 +337,29 @@ const EspectadorView = () => {
               </Button>
             </div>
 
-            <div className="mt-4 flex justify-center">
+            <div
+              className="mt-4 flex flex-wrap items-stretch justify-center gap-2 sm:gap-3"
+              role="toolbar"
+              aria-label="Modos inmersivos de la sala"
+            >
+              <button
+                type="button"
+                title="Cine Live — pantalla dividida VR"
+                onClick={openNativeCineLive}
+                className={`${AUDIENCE_NATIVE_BTN_BASE} border-cyan-400/45 text-cyan-50 hover:border-cyan-300/85`}
+              >
+                <MonitorPlay className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
+                <span className="text-xs font-semibold tracking-wide sm:text-sm">Cine Live</span>
+              </button>
+              <button
+                type="button"
+                title="Live Cam — pantalla mixta AR con cámara"
+                onClick={openNativeLiveCam}
+                className={`${AUDIENCE_NATIVE_BTN_BASE} border-violet-400/45 text-violet-100 hover:border-violet-300/85`}
+              >
+                <Video className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
+                <span className="text-xs font-semibold tracking-wide sm:text-sm">Live Cam</span>
+              </button>
               <button
                 type="button"
                 title="Realidad aumentada (AR)"
@@ -301,17 +367,15 @@ const EspectadorView = () => {
                   if (typeof window.Android?.onArClick === "function") {
                     const url = nativeBridgeMp4Url.trim();
                     if (url) {
-                      // OpciÃ³n 2 (recomendado): window.Android.onArClick("URL_DE_TU_SALA")
                       window.Android.onArClick(url);
                     } else {
-                      // OpciÃ³n 1: window.Android.onArClick()
                       window.Android.onArClick();
                     }
                     return;
                   }
                   window.location.assign("https://onnivers.com/go/ar");
                 }}
-                className="group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-amber-400/45 bg-black/35 px-2 py-3 text-amber-50 shadow-[0_0_28px_-12px_rgba(245,158,11,0.55)] transition hover:border-amber-300/85 hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5"
+                className={`${AUDIENCE_NATIVE_BTN_BASE} border-amber-400/45 text-amber-50 hover:border-amber-300/85`}
               >
                 <Scan className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
                 <span className="text-xs font-semibold tracking-wide sm:text-sm">AR</span>

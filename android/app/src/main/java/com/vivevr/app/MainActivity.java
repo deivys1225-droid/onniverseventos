@@ -19,6 +19,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
@@ -87,6 +88,14 @@ public class MainActivity extends BridgeActivity {
   private static final String CASA_VIDEO_URL =
       "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757336/Selena_-_Bidi_Bidi_Bom_Bom_hcvcfk.mp4";
 
+  /**
+   * Actividades nativas de sala en vivo (Cine Live / Live Cam). Ajusta el FQCN si tus clases
+   * difieren; deben estar declaradas en AndroidManifest y leer {@link #EXTRA_NATIVE_STREAM_URL}.
+   */
+  private static final String NATIVE_ACTIVITY_CINE_LIVE = "com.vivevr.app.CineLiveActivity";
+  private static final String NATIVE_ACTIVITY_CAM_LIVE = "com.vivevr.app.CamLiveActivity";
+  private static final String EXTRA_NATIVE_STREAM_URL = "streamUrl";
+
   private ActivityResultLauncher<String[]> webkitMediaPermissionLauncher;
   /** Tras elegir escena en {@link SelectorActivity}, URL a cargar en el WebView (MP4 o /go/*). */
   private ActivityResultLauncher<Intent> selectorActivityLauncher;
@@ -141,6 +150,30 @@ public class MainActivity extends BridgeActivity {
           i.putExtra(SelectorActivity.EXTRA_PREFERRED_SCENE, preferredScene);
           selectorActivityLauncher.launch(i);
         });
+  }
+
+  /**
+   * Abre una Activity nativa con la URL HLS/RTMP/MP4 sin recargar el WebView ni tocar Agora.
+   */
+  private void launchNativeStreamActivity(String activityClassName, String streamUrl) {
+    String url = streamUrl != null ? streamUrl.trim() : "";
+    if (url.isEmpty()) {
+      Toast.makeText(this, "Falta la URL de transmisión.", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    try {
+      Intent intent = new Intent();
+      intent.setClassName(this, activityClassName);
+      intent.putExtra(EXTRA_NATIVE_STREAM_URL, url);
+      startActivity(intent);
+    } catch (Exception e) {
+      Toast.makeText(
+              this,
+              "No se pudo abrir la vista nativa. Revisa el manifest y la clase "
+                  + activityClassName,
+              Toast.LENGTH_LONG)
+          .show();
+    }
   }
 
   /** Coincide con la lógica que envía JS desde Espectador (MP4 de sala o fallback /go/*). */
@@ -420,6 +453,23 @@ public class MainActivity extends BridgeActivity {
     @JavascriptInterface
     public void hideLobbyPantalla2WebView() {
       activity.runOnUiThread(() -> activity.hideLobbyPantalla2WebViewInternal());
+    }
+
+    /** Cine Live — pantalla dividida VR; {@code window.Android.abrirCineLive(streamUrl)}. */
+    @JavascriptInterface
+    public void abrirCineLive(String streamUrl) {
+      activity.runOnUiThread(
+          () ->
+              activity.launchNativeStreamActivity(
+                  NATIVE_ACTIVITY_CINE_LIVE, streamUrl));
+    }
+
+    /** Live Cam — mixta AR + cámara; {@code window.Android.abrirCamLive(streamUrl)}. */
+    @JavascriptInterface
+    public void abrirCamLive(String streamUrl) {
+      activity.runOnUiThread(
+          () ->
+              activity.launchNativeStreamActivity(NATIVE_ACTIVITY_CAM_LIVE, streamUrl));
     }
   }
 
