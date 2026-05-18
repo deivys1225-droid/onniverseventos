@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { supabase } from "@/integrations/supabase/client";
-import { isStreamPlaybackUrl } from "@/lib/audiencePlayback";
+import { audienceStreamSessionKey, isStreamPlaybackUrl } from "@/lib/audiencePlayback";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { Button } from "@/components/ui/button";
 import PayPalSmartButton from "@/components/PayPalSmartButton";
@@ -133,7 +133,7 @@ const NuestrasSalasPage = () => {
     const loadData = async () => {
       const { data: activeData } = await supabase
         .from("active_streams")
-        .select("user_id,is_live,title,stream_url,playback_url,privacy_mode,ticket_price,updated_at")
+        .select("user_id,is_live,title,stream_url,playback_url,playback_id,privacy_mode,ticket_price,updated_at")
         .eq("is_live", true);
 
       setActiveStreams((activeData ?? []) as ActiveStreamRow[]);
@@ -220,7 +220,14 @@ const NuestrasSalasPage = () => {
       params.set("title", resolvedTitle);
       params.set("mode", room.mp4Url && !activeStream?.is_live ? "vod" : "live");
       if (resolvedToken) params.set("token", resolvedToken);
-      if (resolvedStreamUrl) params.set("stream", resolvedStreamUrl);
+      if (resolvedStreamUrl) {
+        params.set("stream", resolvedStreamUrl);
+        try {
+          sessionStorage.setItem(audienceStreamSessionKey(resolvedChannel), resolvedStreamUrl);
+        } catch {
+          /* sessionStorage no disponible */
+        }
+      }
       const path = `/sala/espectador/${encodeURIComponent(resolvedChannel)}?${params.toString()}`;
       // En Android el WebView solo intercepta cargas reales de URL (selector nativo en MainActivity).
       // navigate() del SPA no dispara shouldOverrideUrlLoading; location.assign sí.

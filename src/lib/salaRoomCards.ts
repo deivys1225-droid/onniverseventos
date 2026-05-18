@@ -3,6 +3,7 @@ export type ActiveStreamRow = {
   title: string;
   stream_url: string;
   playback_url: string | null;
+  playback_id?: string | null;
   privacy_mode: string;
   ticket_price: number | null;
   user_id: string;

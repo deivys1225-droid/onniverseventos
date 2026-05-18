@@ -7,8 +7,13 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
-import { isStreamPlaybackUrl, resolveCurrentTransmissionUrl } from "@/lib/audiencePlayback";
+import {
+  type ActiveStreamPlaybackSource,
+  audienceStreamSessionKey,
+  resolveLiveTransmissionUrl,
+} from "@/lib/audiencePlayback";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const APP_ID = (import.meta.env.NEXT_PUBLIC_AGORA_APP_ID as string | undefined)?.trim() ?? "";
@@ -52,6 +57,14 @@ const EspectadorView = () => {
   const inheritedToken = (searchParams.get("token") ?? "").trim();
   const fallbackMp4 = (searchParams.get("mp4") ?? "").trim();
   const streamPlaybackUrl = (searchParams.get("stream") ?? "").trim();
+  const sessionStreamUrl = useMemo(() => {
+    try {
+      return sessionStorage.getItem(audienceStreamSessionKey(channelName)) ?? "";
+    } catch {
+      return "";
+    }
+  }, [channelName]);
+  const effectiveStreamParam = streamPlaybackUrl || sessionStreamUrl;
   const forcedMode = (searchParams.get("mode") ?? "").trim().toLowerCase();
   const useVodMode = forcedMode === "vod" && fallbackMp4.length > 0;
   /** MP4 asociado al canal (catálogo o VOD actual) para puentes nativos. */
@@ -64,15 +77,7 @@ const EspectadorView = () => {
     if (!roomId) return "";
     return SALA_MP4_URL_BY_ID[roomId] ?? "";
   }, [useVodMode, fallbackMp4, channelName]);
-  const currentTransmissionUrl = useMemo(
-    () =>
-      resolveCurrentTransmissionUrl({
-        streamParam: streamPlaybackUrl,
-        mp4Param: fallbackMp4 || nativeBridgeMp4Url,
-        includeMp4Fallback: true,
-      }),
-    [streamPlaybackUrl, fallbackMp4, nativeBridgeMp4Url],
-  );
+  const [activeStreamRow, setActiveStreamRow] = useState<ActiveStreamPlaybackSource | null>(null);
   const [status, setStatus] = useState("Listo para conectar");
   const [connecting, setConnecting] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -199,6 +204,63 @@ const EspectadorView = () => {
     void joinAudienceRoom();
   }, [joinAudienceRoom, useVodMode]);
 
+  /** URL pull del live activo en Supabase (HLS/RTMP/Livepeer) para el canal actual. */
+  useEffect(() => {
+    const channelKey = channelName.trim().toLowerCase();
+    if (!channelKey) return;
+
+    let cancelled = false;
+
+    const pickRowForChannel = (rows: ActiveStreamPlaybackSource[]) =>
+      rows.find((row) => {
+        const streamKey = (row.stream_url ?? "").trim().toLowerCase();
+        if (!streamKey) return false;
+        return streamKey === channelKey || streamKey.includes(channelKey) || channelKey.includes(streamKey);
+      }) ?? null;
+
+    const loadActiveStream = async () => {
+      const { data, error } = await supabase
+        .from("active_streams")
+        .select("stream_url, playback_url, playback_id, is_live")
+        .eq("is_live", true);
+
+      if (cancelled || error) return;
+      const liveRows = (data ?? []).filter((row) => row.is_live);
+      setActiveStreamRow(pickRowForChannel(liveRows));
+    };
+
+    void loadActiveStream();
+
+    const channel = supabase
+      .channel(`espectador-stream-${channelKey}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "active_streams" },
+        () => {
+          void loadActiveStream();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(channel);
+    };
+  }, [channelName]);
+
+  /** URL exacta en reproducción: DOM → query/session → Supabase → canal-URL. */
+  const resolveUrlRealDelLive = useCallback((): string | null => {
+    const playerSection = document.getElementById(remoteContainerId)?.closest("section") ?? document;
+    return resolveLiveTransmissionUrl({
+      streamParam: effectiveStreamParam,
+      mp4Param: fallbackMp4 || nativeBridgeMp4Url,
+      channelParam: channelName,
+      activeStream: activeStreamRow,
+      domRoot: playerSection,
+      includeMp4Fallback: true,
+    });
+  }, [effectiveStreamParam, fallbackMp4, nativeBridgeMp4Url, channelName, activeStreamRow]);
+
   const goMixVod = () => {
     if (!fallbackMp4) {
       setError("Esta sala no incluye un MP4 para la vista MIX. Pide al anfitriÃ³n el enlace con parÃ¡metro mp4.");
@@ -265,34 +327,36 @@ const EspectadorView = () => {
   };
 
   const openNativeCineLive = useCallback(() => {
-    const url = currentTransmissionUrl?.trim() ?? "";
-    if (!url || !isStreamPlaybackUrl(url)) {
-      toast.error(
-        "No hay URL de transmisión (HLS, RTMP o MP4). Si la sala es solo Agora en vivo, el anfitrión debe compartir un enlace m3u8/rtmp.",
-      );
+    const urlRealDelLive = resolveUrlRealDelLive()?.trim() ?? "";
+    if (urlRealDelLive) {
+      if (typeof window.Android?.abrirCineLive === "function") {
+        window.Android.abrirCineLive(urlRealDelLive);
+        return;
+      }
+      toast.info("Cine Live está disponible en la app Android.");
       return;
     }
-    if (typeof window.Android?.abrirCineLive === "function") {
-      window.Android.abrirCineLive(url);
-      return;
-    }
-    toast.info("Cine Live está disponible en la app Android.");
-  }, [currentTransmissionUrl]);
+    console.error("No se detecta la URL activa del reproductor");
+    toast.error(
+      "No hay URL HLS/RTMP/MP4 para Cine Live. El video en vivo usa Agora (WebRTC); el anfitrión debe publicar también un enlace m3u8 (parámetro ?stream= o playback_id en active_streams).",
+    );
+  }, [resolveUrlRealDelLive]);
 
   const openNativeLiveCam = useCallback(() => {
-    const url = currentTransmissionUrl?.trim() ?? "";
-    if (!url || !isStreamPlaybackUrl(url)) {
-      toast.error(
-        "No hay URL de transmisión (HLS, RTMP o MP4). Si la sala es solo Agora en vivo, el anfitrión debe compartir un enlace m3u8/rtmp.",
-      );
+    const urlRealDelLive = resolveUrlRealDelLive()?.trim() ?? "";
+    if (urlRealDelLive) {
+      if (typeof window.Android?.abrirCamLive === "function") {
+        window.Android.abrirCamLive(urlRealDelLive);
+        return;
+      }
+      toast.info("Live Cam está disponible en la app Android.");
       return;
     }
-    if (typeof window.Android?.abrirCamLive === "function") {
-      window.Android.abrirCamLive(url);
-      return;
-    }
-    toast.info("Live Cam está disponible en la app Android.");
-  }, [currentTransmissionUrl]);
+    console.error("No se detecta la URL activa del reproductor");
+    toast.error(
+      "No hay URL HLS/RTMP/MP4 para Live Cam. El video en vivo usa Agora (WebRTC); el anfitrión debe publicar también un enlace m3u8 (parámetro ?stream= o playback_id en active_streams).",
+    );
+  }, [resolveUrlRealDelLive]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
