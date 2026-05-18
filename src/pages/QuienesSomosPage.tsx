@@ -46,7 +46,6 @@ const QuienesSomosPage = () => {
           <LandingSeoContent embedded />
         </>
       }
-      withCameraBackground
     >
       <section
         className="rounded-xl border border-primary/25 bg-primary/5 p-4 md:p-5 [&_h2]:mt-0"

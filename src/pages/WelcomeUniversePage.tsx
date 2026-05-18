@@ -208,7 +208,7 @@ const WelcomeUniversePage = () => {
               Regístrate
             </Link>
           </p>
-          <Button variant="hero" size="sm" asChild className="mt-3 w-full">
+          <Button variant="hero" size="sm" asChild className="mt-3 hidden w-full md:inline-flex">
             <a href={APP_APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
               Descargar app
             </a>

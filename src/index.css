@@ -80,24 +80,6 @@
     max-width: 100%;
   }
 
-  html.camera-bg-active body {
-    background-color: transparent;
-  }
-
-  html.camera-bg-active [data-camera-page-root] {
-    background-color: transparent !important;
-  }
-
-  html.camera-bg-active [data-camera-decorative-bg] {
-    opacity: 0 !important;
-    visibility: hidden !important;
-  }
-
-  html.camera-bg-active [data-camera-page-section] {
-    background-color: transparent !important;
-    background-image: none !important;
-  }
-
   [data-camera-page-root] {
     width: 100%;
     max-width: 100%;

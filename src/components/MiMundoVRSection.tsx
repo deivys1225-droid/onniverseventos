@@ -19,10 +19,8 @@ import {
   getAdaptiveSphereSegments,
   isMobileCoarseDevice,
 } from "@/lib/webglRendererPrefs";
-import { CameraToggleButton, useCameraBackground } from "@/contexts/CameraBackgroundContext";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
-import HomeNavCards from "@/components/HomeNavCards";
 
 /**
  * Texturas Tierra alta resolucion (offline-first, copiadas a /public/assets/textures/earth/).
@@ -497,7 +495,6 @@ const MiMundoVRSection = ({
   const navigate = useNavigate();
   const [profileSaving, setProfileSaving] = useState(false);
   const [lobbyOpening, setLobbyOpening] = useState(false);
-  const { cameraBgActive } = useCameraBackground();
   const vrStereoActive = useVrModeActive();
   const environmentId = useMemo<MiMundoEnvironmentId>(() => "lobby", []);
   const storedProfileName = useMemo(
@@ -552,9 +549,9 @@ const MiMundoVRSection = ({
   return (
     <section
       id="mi-mundo-vr"
-      className={`relative h-full w-full max-w-full overflow-x-clip overflow-y-hidden ${cameraBgActive ? "bg-transparent" : "bg-black"}`}
+      className="relative h-full w-full max-w-full overflow-x-clip overflow-y-hidden bg-black"
     >
-      {!vrStereoActive && !cameraBgActive && (
+      {!vrStereoActive && (
         <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
           <img
             src={HOME_PROMO_BG_URL}
@@ -644,8 +641,6 @@ const MiMundoVRSection = ({
           </div>
         </div>
       )}
-      {!vrStereoActive && <HomeNavCards />}
-      <CameraToggleButton />
     </section>
   );
 };

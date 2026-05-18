@@ -8,7 +8,7 @@ type MiMundoTopActionsPortalProps = {
 };
 
 /**
- * Chat en portal a `body` (mismo patrón que CameraToggleButton).
+ * Chat en portal a `body` para flotar sobre el canvas 3D.
  * Evita que el WebView de Android recorte `position: fixed` dentro de la escena 3D.
  */
 export default function MiMundoTopActionsPortal({

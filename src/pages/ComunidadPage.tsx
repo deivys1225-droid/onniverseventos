@@ -23,7 +23,6 @@ import { getRoomActiveStream, type ActiveStreamRow, type RoomCard } from "@/lib/
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
 import MiMundoTopActionsPortal from "@/components/MiMundoTopActionsPortal";
 import SocialMenu from "@/components/SocialMenu";
-import { CameraToggleButton } from "@/contexts/CameraBackgroundContext";
 
 const ComunidadPage = () => {
   const navigate = useNavigate();
@@ -337,7 +336,6 @@ const ComunidadPage = () => {
         )}
       </AnimatePresence>
 
-      <CameraToggleButton />
     </div>
   );
 };

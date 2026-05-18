@@ -1,15 +1,13 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { cn } from "@/lib/utils";
-import { CameraToggleButton } from "@/contexts/CameraBackgroundContext";
 
 type LegalPageLayoutProps = {
   title: string;
   description?: string;
   children: ReactNode;
   topContent?: ReactNode;
-  withCameraBackground?: boolean;
 };
 
 const LegalPageLayout = ({
@@ -17,19 +15,20 @@ const LegalPageLayout = ({
   description,
   children,
   topContent,
-  withCameraBackground = false,
 }: LegalPageLayoutProps) => {
+  const elevated = topContent != null;
+
   return (
     <div
-      className={cn("min-h-screen bg-background", withCameraBackground && "relative z-20")}
-      {...(withCameraBackground ? { "data-camera-page-root": true } : {})}
+      className={cn("min-h-screen bg-background", elevated && "relative z-20")}
+      {...(elevated ? { "data-camera-page-root": true } : {})}
     >
       <Navbar />
       {topContent != null ? <div className="relative z-20 pt-16">{topContent}</div> : null}
       <main
         className={cn(
           "relative px-6 pb-20",
-          withCameraBackground ? "z-20" : "z-10",
+          elevated ? "z-20" : "z-10",
           topContent != null ? "pt-10 md:pt-12" : "pt-28",
         )}
       >
@@ -46,7 +45,6 @@ const LegalPageLayout = ({
         </article>
       </main>
       <Footer />
-      {withCameraBackground ? <CameraToggleButton /> : null}
     </div>
   );
 };

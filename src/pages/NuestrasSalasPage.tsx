@@ -16,8 +16,21 @@ import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { useAuth } from "@/hooks/useAuth";
 import { formatStorePrice, salaVideoPriceUsd } from "@/lib/pricing";
 import { hasVaultPurchase } from "@/lib/vaultItems";
+import {
+  salaRoomCardPadding,
+  salaRoomCtaIcon,
+  salaRoomDesc,
+  salaRoomGridClass,
+  salaRoomImageHeight,
+  salaRoomImageWrapMb,
+  salaRoomOverlayBar,
+  salaRoomOverlayIcon,
+  salaRoomPriceBadge,
+  salaRoomPrimaryBtn,
+  salaRoomStatusBadge,
+  salaRoomTitle,
+} from "@/components/salas/salaRoomCardStyles";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
-import { CameraToggleButton } from "@/contexts/CameraBackgroundContext";
 
 const SectionHeader = ({
   badge,
@@ -273,7 +286,7 @@ const NuestrasSalasPage = () => {
               subtitle="Todas las salas de creadores en una sola cuadrícula. Clic en tarjeta y entras directo."
               accent="border-primary/40 bg-primary/10 text-primary"
             />
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className={salaRoomGridClass}>
               {creatorRooms.map((room, index) => {
                 const linkedStream = getRoomActiveStream(room, activeStreams);
                 const online = Boolean(linkedStream?.is_live);
@@ -288,33 +301,35 @@ const NuestrasSalasPage = () => {
                     transition={{ delay: index * 0.06 }}
                   >
                     <article
-                      className={`group block w-full rounded-2xl border bg-card/40 p-5 text-left backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 ${
+                      className={`group block w-full rounded-2xl border bg-card/40 text-left backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 ${salaRoomCardPadding} ${
                         online
                           ? "border-amber-300/80 shadow-[0_0_55px_-10px_rgba(250,204,21,0.95)] hover:border-yellow-200/90"
                           : "border-border/50 hover:border-primary/50 hover:shadow-[0_0_45px_-10px_hsl(var(--primary)/0.5)]"
                       }`}
                     >
-                    <div className="relative mb-4 overflow-hidden rounded-xl border border-primary/20">
+                    <div className={`relative overflow-hidden rounded-xl border border-primary/20 ${salaRoomImageWrapMb}`}>
                       <img
                         src={room.image}
                         alt={room.name}
-                        className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        className={`${salaRoomImageHeight} w-full object-cover transition-transform duration-500 group-hover:scale-105`}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
-                      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between rounded-lg border border-white/10 bg-black/45 px-2 py-1 text-[10px] font-display uppercase tracking-wider text-cyan-200 backdrop-blur-md">
+                      <div
+                        className={`absolute bottom-2 left-2 right-2 flex items-center justify-between rounded-lg border border-white/10 bg-black/45 text-cyan-200 backdrop-blur-md ${salaRoomOverlayBar}`}
+                      >
                         <span className="flex items-center gap-1">
-                          <Box className="h-3 w-3 text-primary" />
+                          <Box className={`${salaRoomOverlayIcon} text-primary`} />
                           Sala
                         </span>
                         <span className="text-slate-300">{room.subtitle}</span>
                       </div>
                     </div>
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <h3 className="font-display text-lg font-semibold text-foreground">
+                    <div className="mb-2 flex items-center justify-between gap-2 sm:gap-3">
+                      <h3 className={`${salaRoomTitle} truncate`}>
                         {room.name}
                       </h3>
                       <span
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-display font-bold uppercase tracking-wide ${
+                        className={`${salaRoomStatusBadge} shrink-0 ${
                           online
                             ? "bg-amber-300 text-black"
                             : room.status === "En Vivo"
@@ -327,10 +342,10 @@ const NuestrasSalasPage = () => {
                         {online ? "EN LÍNEA" : "OFFLINE"}
                       </span>
                     </div>
-                    <p className="mb-1 text-sm text-muted-foreground">{room.description}</p>
-                    <div className="mb-4">
+                    <p className={`mb-1 ${salaRoomDesc}`}>{room.description}</p>
+                    <div className="mb-3 sm:mb-4">
                       <span
-                        className={`inline-block rounded-full border px-2.5 py-1 text-[10px] font-display font-bold tracking-wide backdrop-blur-md ${
+                        className={`inline-block border backdrop-blur-md ${salaRoomPriceBadge} ${
                           room.priceUsd === 0
                             ? "border-emerald-300/55 bg-emerald-500/15 text-emerald-100 shadow-[0_0_18px_-6px_rgba(52,211,153,0.85)]"
                             : "border-emerald-400/50 bg-white/10 text-white shadow-[0_0_22px_-8px_rgba(110,231,183,0.9)]"
@@ -343,10 +358,10 @@ const NuestrasSalasPage = () => {
                       <Button
                         type="button"
                         variant="heroOutline"
-                        className="w-full min-h-11 gap-2 text-xs font-display font-bold uppercase tracking-wide"
+                        className={salaRoomPrimaryBtn}
                         onClick={() => handleRoomAccess(room, online)}
                       >
-                        <Mic2 className="h-4 w-4" />
+                        <Mic2 className={salaRoomCtaIcon} />
                         {linkedStream?.privacy_mode === "privado_ticket" ? "Ver acceso premium" : "Reproducir Video"}
                       </Button>
                     ) : (
@@ -453,7 +468,6 @@ const NuestrasSalasPage = () => {
         )}
       </AnimatePresence>
 
-      <CameraToggleButton />
     </div>
   );
 };

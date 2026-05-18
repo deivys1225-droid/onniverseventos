@@ -5,7 +5,6 @@ import Footer from "@/components/Footer";
 import HomeOnniVersSeoSection from "@/components/HomeOnniVersSeoSection";
 import WorldCupVrHero from "@/components/WorldCupVrHero";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
-import { CameraToggleButton } from "@/contexts/CameraBackgroundContext";
 
 const Index = () => {
   const location = useLocation();
@@ -30,7 +29,6 @@ const Index = () => {
         <HomeOnniVersSeoSection />
         <Footer />
       </section>
-      <CameraToggleButton />
     </div>
   );
 };

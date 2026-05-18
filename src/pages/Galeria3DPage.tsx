@@ -1,10 +1,9 @@
-import { Box } from "lucide-react";
+﻿import { Box } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SectionHeader from "@/components/salas/SectionHeader";
 import Galeria3DModelsGrid from "@/components/galeria3d/Galeria3DModelsGrid";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
-import { CameraToggleButton } from "@/contexts/CameraBackgroundContext";
 
 const Galeria3DPage = () => {
   return (
@@ -43,7 +42,6 @@ const Galeria3DPage = () => {
       </main>
 
       <Footer />
-      <CameraToggleButton />
     </div>
   );
 };

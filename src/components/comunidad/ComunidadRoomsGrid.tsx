@@ -2,6 +2,22 @@ import { motion } from "framer-motion";
 import { Box, Check, Clock, Mic2, UserPlus, UserRoundCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { FriendshipPairState } from "@/lib/friendships";
+import {
+  salaRoomCardPadding,
+  salaRoomCtaIcon,
+  salaRoomCtaRow,
+  salaRoomDesc,
+  salaRoomFriendBtn,
+  salaRoomFriendIcon,
+  salaRoomGridClass,
+  salaRoomImageHeight,
+  salaRoomImageWrapMb,
+  salaRoomOverlayBar,
+  salaRoomOverlayIcon,
+  salaRoomStatusBadge,
+  salaRoomTitle,
+  salaRoomEmptyState,
+} from "@/components/salas/salaRoomCardStyles";
 import { getRoomActiveStream, isCommunityMemberOnline, type ActiveStreamRow, type RoomCard } from "@/lib/salaRoomCards";
 
 type ComunidadRoomsGridProps = {
@@ -22,9 +38,11 @@ export default function ComunidadRoomsGrid({
   onSendFriendRequest,
 }: ComunidadRoomsGridProps) {
   return (
-    <motion.div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+    <motion.div className={salaRoomGridClass}>
       {communityRooms.length === 0 && (
-        <div className="col-span-full rounded-2xl border border-border/50 bg-card/35 p-6 text-center text-sm text-muted-foreground backdrop-blur-xl">
+        <div
+          className={`col-span-full rounded-2xl border border-border/50 bg-card/35 text-center text-muted-foreground backdrop-blur-xl ${salaRoomEmptyState}`}
+        >
           Aun no hay salas comunitarias registradas.
         </div>
       )}
@@ -47,26 +65,26 @@ export default function ComunidadRoomsGrid({
             {currentUserId && room.ownerUserId && room.ownerUserId !== currentUserId && (
               pairState === "friends" ? (
                 <div
-                  className="absolute right-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-emerald-400/50 bg-black/40 text-emerald-400 shadow-[0_0_14px_-4px_rgba(52,211,153,0.75)]"
+                  className={`${salaRoomFriendBtn} flex items-center justify-center border border-emerald-400/50 bg-black/40 text-emerald-400 shadow-[0_0_14px_-4px_rgba(52,211,153,0.75)]`}
                   title="Ya son contactos"
                   aria-hidden
                 >
-                  <Check className="h-3.5 w-3.5" />
+                  <Check className={salaRoomFriendIcon} />
                 </div>
               ) : pairState === "pending_out" ? (
                 <div
-                  className="absolute right-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/30 bg-black/35 text-cyan-200/60"
+                  className={`${salaRoomFriendBtn} flex items-center justify-center border border-cyan-300/30 bg-black/35 text-cyan-200/60`}
                   title="Solicitud enviada · pendiente"
                   aria-hidden
                 >
-                  <Clock className="h-3.5 w-3.5" />
+                  <Clock className={salaRoomFriendIcon} />
                 </div>
               ) : (
                 <Button
                   type="button"
                   size="icon"
                   variant="secondary"
-                  className="absolute right-3 top-3 z-20 h-7 w-7 rounded-full border border-cyan-300/40 bg-black/35 text-cyan-200 shadow-[0_0_14px_-4px_rgba(34,211,238,0.85)] hover:bg-black/50"
+                  className={`${salaRoomFriendBtn} border border-cyan-300/40 bg-black/35 text-cyan-200 shadow-[0_0_14px_-4px_rgba(34,211,238,0.85)] hover:bg-black/50`}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -84,9 +102,9 @@ export default function ComunidadRoomsGrid({
                   }
                 >
                   {pairState === "pending_in" ? (
-                    <UserRoundCheck className="h-3.5 w-3.5" />
+                    <UserRoundCheck className={salaRoomFriendIcon} />
                   ) : (
-                    <UserPlus className="h-3.5 w-3.5" />
+                    <UserPlus className={salaRoomFriendIcon} />
                   )}
                 </Button>
               )
@@ -94,40 +112,44 @@ export default function ComunidadRoomsGrid({
             <button
               type="button"
               onClick={() => onEnterRoom(room, online)}
-              className={`group relative block w-full rounded-2xl border bg-card/40 p-5 text-left backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 ${
+              className={`group relative block w-full rounded-2xl border bg-card/40 text-left backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 ${salaRoomCardPadding} ${
                 online
                   ? "border-amber-300/80 shadow-[0_0_55px_-10px_rgba(250,204,21,0.95)] hover:border-yellow-200/90"
                   : "border-border/50 hover:border-primary/50 hover:shadow-[0_0_45px_-10px_hsl(var(--primary)/0.5)]"
               }`}
             >
-              <div className="relative mb-4 overflow-hidden rounded-xl border border-primary/20">
+              <div className={`relative overflow-hidden rounded-xl border border-primary/20 ${salaRoomImageWrapMb}`}>
                 <img
                   src={room.image}
                   alt={room.name}
-                  className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className={`${salaRoomImageHeight} w-full object-cover transition-transform duration-500 group-hover:scale-105`}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
-                <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between rounded-lg border border-white/10 bg-black/45 px-2 py-1 text-[10px] font-display uppercase tracking-wider text-cyan-200 backdrop-blur-md">
+                <div
+                  className={`absolute bottom-2 left-2 right-2 flex items-center justify-between rounded-lg border border-white/10 bg-black/45 text-cyan-200 backdrop-blur-md ${salaRoomOverlayBar}`}
+                >
                   <span className="flex items-center gap-1">
-                    <Box className="h-3 w-3 text-primary" />
+                    <Box className={`${salaRoomOverlayIcon} text-primary`} />
                     Sala
                   </span>
                   <span className="text-slate-300">{room.subtitle}</span>
                 </div>
               </div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <h3 className="font-display text-lg font-semibold text-foreground">{room.name}</h3>
+              <div className="mb-2 flex items-center justify-between gap-2 sm:gap-3">
+                <h3 className={`${salaRoomTitle} truncate`}>{room.name}</h3>
                 <span
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-display font-bold uppercase tracking-wide ${
+                  className={`${salaRoomStatusBadge} shrink-0 ${
                     online ? "bg-amber-300 text-black" : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {online ? "EN LÍNEA" : "OFFLINE"}
                 </span>
               </div>
-              <p className="mb-4 text-sm text-muted-foreground">{room.description}</p>
-              <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2.5 text-xs font-display font-bold uppercase tracking-wide text-primary transition group-hover:bg-primary/20 group-hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]">
-                <Mic2 className="h-4 w-4" />
+              <p className={`mb-3 sm:mb-4 ${salaRoomDesc}`}>{room.description}</p>
+              <span
+                className={`${salaRoomCtaRow} transition group-hover:bg-primary/20 group-hover:shadow-[0_0_24px_-4px_hsl(var(--primary)/0.6)]`}
+              >
+                <Mic2 className={salaRoomCtaIcon} />
                 {linkedStream?.privacy_mode === "privado_ticket" ? "Ver acceso premium" : "Entrar gratis"}
               </span>
             </button>

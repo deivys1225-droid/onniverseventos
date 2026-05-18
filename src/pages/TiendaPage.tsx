@@ -22,7 +22,6 @@ import Navbar from "@/components/Navbar";
 import PricingSection from "@/components/PricingSection";
 import Footer from "@/components/Footer";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
-import { CameraToggleButton } from "@/contexts/CameraBackgroundContext";
 import StoreProductPayPal from "@/components/StoreProductPayPal";
 import { useAuth } from "@/hooks/useAuth";
 import type { SkinRarityLabel } from "@/lib/pricing";
@@ -617,7 +616,6 @@ const TiendaPage = () => {
         <Footer />
       </div>
 
-      <CameraToggleButton />
     </div>
   );
 };

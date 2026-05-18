@@ -1,5 +1,3 @@
-import { Capacitor } from "@capacitor/core";
-
 export type DeviceKind = "mobile" | "desktop";
 
 export function detectDeviceKind(): DeviceKind {
@@ -16,12 +14,4 @@ export function isMobileUserAgent(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = (navigator.userAgent || "").toLowerCase();
   return /android|iphone|ipad|ipod|windows phone|mobile/i.test(ua);
-}
-
-/** Botón de cámara de fondo: app nativa, celular/tablet o pantalla táctil estrecha. */
-export function shouldOfferMobileCameraBackground(): boolean {
-  if (typeof window === "undefined") return false;
-  if (Capacitor.isNativePlatform()) return true;
-  if (isMobileUserAgent()) return true;
-  return detectDeviceKind() === "mobile";
 }
