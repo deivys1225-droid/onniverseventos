@@ -7,13 +7,8 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
-import {
-  type ActiveStreamPlaybackSource,
-  audienceStreamSessionKey,
-  resolveLiveTransmissionUrl,
-} from "@/lib/audiencePlayback";
+import { buildAgoraNativeBridgePayload, isAgoraAudienceSessionActive } from "@/lib/agoraNativeBridge";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const APP_ID = (import.meta.env.NEXT_PUBLIC_AGORA_APP_ID as string | undefined)?.trim() ?? "";
@@ -77,7 +72,6 @@ const EspectadorView = () => {
     if (!roomId) return "";
     return SALA_MP4_URL_BY_ID[roomId] ?? "";
   }, [useVodMode, fallbackMp4, channelName]);
-  const [activeStreamRow, setActiveStreamRow] = useState<ActiveStreamPlaybackSource | null>(null);
   const [status, setStatus] = useState("Listo para conectar");
   const [connecting, setConnecting] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -204,62 +198,16 @@ const EspectadorView = () => {
     void joinAudienceRoom();
   }, [joinAudienceRoom, useVodMode]);
 
-  /** URL pull del live activo en Supabase (HLS/RTMP/Livepeer) para el canal actual. */
-  useEffect(() => {
-    const channelKey = channelName.trim().toLowerCase();
-    if (!channelKey) return;
+  /** Token de audiencia usado en join y en el puente nativo (mismo que la sesión activa). */
+  const audienceAgoraToken = useMemo(
+    () => (inheritedToken || AUDIENCE_TOKEN).trim(),
+    [inheritedToken],
+  );
 
-    let cancelled = false;
-
-    const pickRowForChannel = (rows: ActiveStreamPlaybackSource[]) =>
-      rows.find((row) => {
-        const streamKey = (row.stream_url ?? "").trim().toLowerCase();
-        if (!streamKey) return false;
-        return streamKey === channelKey || streamKey.includes(channelKey) || channelKey.includes(streamKey);
-      }) ?? null;
-
-    const loadActiveStream = async () => {
-      const { data, error } = await supabase
-        .from("active_streams")
-        .select("stream_url, playback_url, playback_id, is_live")
-        .eq("is_live", true);
-
-      if (cancelled || error) return;
-      const liveRows = (data ?? []).filter((row) => row.is_live);
-      setActiveStreamRow(pickRowForChannel(liveRows));
-    };
-
-    void loadActiveStream();
-
-    const channel = supabase
-      .channel(`espectador-stream-${channelKey}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "active_streams" },
-        () => {
-          void loadActiveStream();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      cancelled = true;
-      void supabase.removeChannel(channel);
-    };
-  }, [channelName]);
-
-  /** URL exacta en reproducción: DOM → query/session → Supabase → canal-URL. */
-  const resolveUrlRealDelLive = useCallback((): string | null => {
-    const playerSection = document.getElementById(remoteContainerId)?.closest("section") ?? document;
-    return resolveLiveTransmissionUrl({
-      streamParam: effectiveStreamParam,
-      mp4Param: fallbackMp4 || nativeBridgeMp4Url,
-      channelParam: channelName,
-      activeStream: activeStreamRow,
-      domRoot: playerSection,
-      includeMp4Fallback: true,
-    });
-  }, [effectiveStreamParam, fallbackMp4, nativeBridgeMp4Url, channelName, activeStreamRow]);
+  const buildActiveAgoraBridgePayload = useCallback(
+    () => buildAgoraNativeBridgePayload(channelName, audienceAgoraToken, APP_ID),
+    [channelName, audienceAgoraToken],
+  );
 
   const goMixVod = () => {
     if (!fallbackMp4) {
@@ -326,37 +274,41 @@ const EspectadorView = () => {
     goMixVod();
   };
 
-  const openNativeCineLive = useCallback(() => {
-    const urlRealDelLive = resolveUrlRealDelLive()?.trim() ?? "";
-    if (urlRealDelLive) {
-      if (typeof window.Android?.abrirCineLive === "function") {
-        window.Android.abrirCineLive(urlRealDelLive);
+  const dispatchAgoraNativeBridge = useCallback(
+    (method: "abrirCineLive" | "abrirCamLive") => {
+      if (
+        !isAgoraAudienceSessionActive({
+          joined,
+          useVodMode,
+          channelName,
+        })
+      ) {
+        if (connecting) toast.info("Conectando a la sala en vivo…");
         return;
       }
-      toast.info("Cine Live está disponible en la app Android.");
-      return;
-    }
-    console.error("No se detecta la URL activa del reproductor");
-    toast.error(
-      "No hay URL HLS/RTMP/MP4 para Cine Live. El video en vivo usa Agora (WebRTC); el anfitrión debe publicar también un enlace m3u8 (parámetro ?stream= o playback_id en active_streams).",
-    );
-  }, [resolveUrlRealDelLive]);
+
+      const agoraPayload = buildActiveAgoraBridgePayload();
+      const bridge = window.Android;
+      if (bridge && typeof bridge[method] === "function") {
+        bridge[method](agoraPayload);
+        return;
+      }
+      toast.info(
+        method === "abrirCineLive"
+          ? "Cine Live está disponible en la app Android."
+          : "Live Cam está disponible en la app Android.",
+      );
+    },
+    [joined, useVodMode, channelName, connecting, buildActiveAgoraBridgePayload],
+  );
+
+  const openNativeCineLive = useCallback(() => {
+    dispatchAgoraNativeBridge("abrirCineLive");
+  }, [dispatchAgoraNativeBridge]);
 
   const openNativeLiveCam = useCallback(() => {
-    const urlRealDelLive = resolveUrlRealDelLive()?.trim() ?? "";
-    if (urlRealDelLive) {
-      if (typeof window.Android?.abrirCamLive === "function") {
-        window.Android.abrirCamLive(urlRealDelLive);
-        return;
-      }
-      toast.info("Live Cam está disponible en la app Android.");
-      return;
-    }
-    console.error("No se detecta la URL activa del reproductor");
-    toast.error(
-      "No hay URL HLS/RTMP/MP4 para Live Cam. El video en vivo usa Agora (WebRTC); el anfitrión debe publicar también un enlace m3u8 (parámetro ?stream= o playback_id en active_streams).",
-    );
-  }, [resolveUrlRealDelLive]);
+    dispatchAgoraNativeBridge("abrirCamLive");
+  }, [dispatchAgoraNativeBridge]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">

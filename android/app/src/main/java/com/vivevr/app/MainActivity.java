@@ -89,11 +89,17 @@ public class MainActivity extends BridgeActivity {
       "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757336/Selena_-_Bidi_Bidi_Bom_Bom_hcvcfk.mp4";
 
   /**
-   * Actividades nativas de sala en vivo (Cine Live / Live Cam). Ajusta el FQCN si tus clases
-   * difieren; deben estar declaradas en AndroidManifest y leer {@link #EXTRA_NATIVE_STREAM_URL}.
+   * Actividades nativas de sala en vivo (Cine Live / Live Cam). Payload Agora desde JS:
+   * {@code appId|channel|token} o {@code channel|token}. Extras: agoraPayload, agoraAppId,
+   * agoraChannel, agoraToken (y streamUrl legacy con el mismo texto).
    */
   private static final String NATIVE_ACTIVITY_CINE_LIVE = "com.vivevr.app.CineLiveActivity";
   private static final String NATIVE_ACTIVITY_CAM_LIVE = "com.vivevr.app.CamLiveActivity";
+  private static final String EXTRA_AGORA_PAYLOAD = "agoraPayload";
+  private static final String EXTRA_AGORA_APP_ID = "agoraAppId";
+  private static final String EXTRA_AGORA_CHANNEL = "agoraChannel";
+  private static final String EXTRA_AGORA_TOKEN = "agoraToken";
+  /** Legacy: mismo valor que {@link #EXTRA_AGORA_PAYLOAD}. */
   private static final String EXTRA_NATIVE_STREAM_URL = "streamUrl";
 
   private ActivityResultLauncher<String[]> webkitMediaPermissionLauncher;
@@ -153,18 +159,33 @@ public class MainActivity extends BridgeActivity {
   }
 
   /**
-   * Abre una Activity nativa con la URL HLS/RTMP/MP4 sin recargar el WebView ni tocar Agora.
+   * Abre Activity nativa con sesión Agora (WebRTC) sin recargar el WebView.
+   * {@code agoraPayload}: {@code appId|channel|token} o {@code channel|token}.
    */
-  private void launchNativeStreamActivity(String activityClassName, String streamUrl) {
-    String url = streamUrl != null ? streamUrl.trim() : "";
-    if (url.isEmpty()) {
-      Toast.makeText(this, "Falta la URL de transmisión.", Toast.LENGTH_SHORT).show();
+  private void launchNativeAgoraSessionActivity(String activityClassName, String agoraPayload) {
+    String payload = agoraPayload != null ? agoraPayload.trim() : "";
+    if (payload.isEmpty()) {
+      Toast.makeText(this, "Falta la sesión de Agora.", Toast.LENGTH_SHORT).show();
       return;
     }
     try {
       Intent intent = new Intent();
       intent.setClassName(this, activityClassName);
-      intent.putExtra(EXTRA_NATIVE_STREAM_URL, url);
+      intent.putExtra(EXTRA_AGORA_PAYLOAD, payload);
+      intent.putExtra(EXTRA_NATIVE_STREAM_URL, payload);
+
+      String[] parts = payload.split("\\|", -1);
+      if (parts.length >= 3) {
+        intent.putExtra(EXTRA_AGORA_APP_ID, parts[0].trim());
+        intent.putExtra(EXTRA_AGORA_CHANNEL, parts[1].trim());
+        intent.putExtra(EXTRA_AGORA_TOKEN, parts.length > 2 ? parts[2].trim() : "");
+      } else if (parts.length >= 2) {
+        intent.putExtra(EXTRA_AGORA_CHANNEL, parts[0].trim());
+        intent.putExtra(EXTRA_AGORA_TOKEN, parts[1].trim());
+      } else {
+        intent.putExtra(EXTRA_AGORA_CHANNEL, payload);
+      }
+
       startActivity(intent);
     } catch (Exception e) {
       Toast.makeText(
@@ -455,21 +476,22 @@ public class MainActivity extends BridgeActivity {
       activity.runOnUiThread(() -> activity.hideLobbyPantalla2WebViewInternal());
     }
 
-    /** Cine Live — pantalla dividida VR; {@code window.Android.abrirCineLive(streamUrl)}. */
+    /** Cine Live — {@code window.Android.abrirCineLive(appId|channel|token)}. */
     @JavascriptInterface
-    public void abrirCineLive(String streamUrl) {
+    public void abrirCineLive(String agoraPayload) {
       activity.runOnUiThread(
           () ->
-              activity.launchNativeStreamActivity(
-                  NATIVE_ACTIVITY_CINE_LIVE, streamUrl));
+              activity.launchNativeAgoraSessionActivity(
+                  NATIVE_ACTIVITY_CINE_LIVE, agoraPayload));
     }
 
-    /** Live Cam — mixta AR + cámara; {@code window.Android.abrirCamLive(streamUrl)}. */
+    /** Live Cam — {@code window.Android.abrirCamLive(appId|channel|token)}. */
     @JavascriptInterface
-    public void abrirCamLive(String streamUrl) {
+    public void abrirCamLive(String agoraPayload) {
       activity.runOnUiThread(
           () ->
-              activity.launchNativeStreamActivity(NATIVE_ACTIVITY_CAM_LIVE, streamUrl));
+              activity.launchNativeAgoraSessionActivity(
+                  NATIVE_ACTIVITY_CAM_LIVE, agoraPayload));
     }
   }
 
