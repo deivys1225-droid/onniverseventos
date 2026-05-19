@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
+import { audienceStreamSessionKey } from "@/lib/audiencePlayback";
 import { buildAgoraNativeBridgePayload, isAgoraAudienceSessionActive } from "@/lib/agoraNativeBridge";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { toast } from "sonner";

@@ -36,6 +36,7 @@ import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
 import PcScenePage from "./pages/PcScenePage.tsx";
 import EmisorView from "./pages/EmisorView.tsx";
 import EspectadorView from "./pages/EspectadorView.tsx";
+import LiveStreamPage from "./pages/LiveStreamPage.tsx";
 import { CameraBackgroundProvider } from "@/contexts/CameraBackgroundContext";
 const queryClient = new QueryClient();
 
@@ -128,6 +129,22 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <NuestrasSalasPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/live-stream"
+              element={
+                <PrivateRoute>
+                  <LiveStreamPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/live-stream/:channel"
+              element={
+                <PrivateRoute>
+                  <LiveStreamPage />
                 </PrivateRoute>
               }
             />

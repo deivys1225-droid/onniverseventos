@@ -10,6 +10,7 @@ import SectionHeader from "@/components/salas/SectionHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { isStreamPlaybackUrl } from "@/lib/audiencePlayback";
 import { handoffLiveToAndroidNative } from "@/lib/androidAgoraRoomEntry";
+import { buildLiveStreamPath } from "@/lib/liveStreamRoutes";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { Button } from "@/components/ui/button";
 import PayPalSmartButton from "@/components/PayPalSmartButton";
@@ -138,13 +139,24 @@ const ComunidadPage = () => {
         return;
       }
 
-      const params = new URLSearchParams();
       const streamUrlCandidate = activeStream?.stream_url?.trim() || "";
       const playbackUrlCandidate = activeStream?.playback_url?.trim() || "";
       const resolvedChannel = isStreamPlaybackUrl(streamUrlCandidate) ? room.channel : streamUrlCandidate || room.channel;
       const resolvedToken =
         playbackUrlCandidate && !isStreamPlaybackUrl(playbackUrlCandidate) ? playbackUrlCandidate : "";
       const resolvedTitle = activeStream?.title?.trim() || room.name;
+
+      if (activeStream?.is_live) {
+        navigate(
+          buildLiveStreamPath({
+            channel: resolvedChannel,
+            title: resolvedTitle,
+          }),
+        );
+        return;
+      }
+
+      const params = new URLSearchParams();
       const resolvedStreamUrl = [playbackUrlCandidate, streamUrlCandidate].find((value) => isStreamPlaybackUrl(value)) ?? "";
 
       if (room.mp4Url) params.set("mp4", room.mp4Url);
