@@ -59,7 +59,6 @@ export type Database = {
           created_at: string
           id: string
           is_live: boolean
-          livepeer_stream_id: string | null
           playback_id: string | null
           playback_url: string | null
           privacy_mode: string

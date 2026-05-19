@@ -393,18 +393,9 @@ function EarthViewControllerBridge({
   );
 }
 
-function OrbitingMoon({
-  simpleGpu,
-  vrStereo,
-  onOpenLobby,
-}: {
-  simpleGpu: boolean;
-  vrStereo: boolean;
-  onOpenLobby?: () => void;
-}) {
+function OrbitingMoon({ simpleGpu, vrStereo }: { simpleGpu: boolean; vrStereo: boolean }) {
   const pivotRef = useRef<THREE.Group>(null);
   const moonTexture = useLoader(THREE.TextureLoader, MOON_TEXTURE_URL);
-  const onMoonPointerDown = useLobbyTapPointerDown(vrStereo, onOpenLobby);
 
   const moonSeg = useMemo(() => getAdaptiveSphereSegments(vrStereo), [vrStereo]);
 
@@ -421,11 +412,7 @@ function OrbitingMoon({
 
   return (
     <group ref={pivotRef} rotation={[LOCKED_MOON.orbitTiltX, 0, 0]}>
-      <mesh
-        position={[MOON_ORBIT_RADIUS, LOCKED_MOON.meshY, 0]}
-        key={`moon-${moonSeg}`}
-        onPointerDown={onMoonPointerDown}
-      >
+      <mesh position={[MOON_ORBIT_RADIUS, LOCKED_MOON.meshY, 0]} key={`moon-${moonSeg}`}>
         <sphereGeometry args={[MOON_RADIUS, moonSeg, moonSeg]} />
         <meshBasicMaterial map={moonTexture} toneMapped transparent opacity={1} />
       </mesh>
@@ -463,7 +450,7 @@ function specularToRoughnessTexture(specular: THREE.Texture): THREE.CanvasTextur
   return tex;
 }
 
-function useLobbyTapPointerDown(
+function useEarthTapPointerDown(
   vrStereo: boolean,
   onOpenLobby: (() => void) | undefined,
 ) {
@@ -521,15 +508,18 @@ function useLobbyTapPointerDown(
   );
 }
 
-/** Planeta Tierra central (sin lobby; arrastre en el pivote). */
+/** Planeta Tierra central: tap abre lobby inmersivo. */
 function CentralEarth({
   simpleGpu,
   vrStereo,
+  onOpenLobby,
 }: {
   simpleGpu: boolean;
   vrStereo: boolean;
+  onOpenLobby?: () => void;
 }) {
   const earthRef = useRef<THREE.Group>(null);
+  const onEarthSurfacePointerDown = useEarthTapPointerDown(vrStereo, onOpenLobby);
   const [dayMap, normalMap, specularMap, cloudsMap] = useLoader(THREE.TextureLoader, [
     EARTH_DAY_4K,
     EARTH_NORMAL,
@@ -573,11 +563,11 @@ function CentralEarth({
   if (simpleGpu) {
     return (
       <group ref={earthRef} key={`earth-s-${seg}`}>
-        <mesh renderOrder={0}>
+        <mesh renderOrder={0} onPointerDown={onEarthSurfacePointerDown}>
           <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
           <meshBasicMaterial map={dayMap} toneMapped />
         </mesh>
-        <mesh renderOrder={1} scale={1.0018}>
+        <mesh renderOrder={1} scale={1.0018} onPointerDown={onEarthSurfacePointerDown}>
           <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
           <meshBasicMaterial map={cloudsMap} transparent opacity={0.92} depthWrite={false} toneMapped />
         </mesh>
@@ -598,7 +588,7 @@ function CentralEarth({
 
   return (
     <group ref={earthRef} key={`earth-hd-${seg}`}>
-      <mesh renderOrder={0}>
+      <mesh renderOrder={0} onPointerDown={onEarthSurfacePointerDown}>
         <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
         <meshStandardMaterial
           map={dayMap}
@@ -611,7 +601,7 @@ function CentralEarth({
           toneMapped
         />
       </mesh>
-      <mesh renderOrder={1} scale={1.0018}>
+      <mesh renderOrder={1} scale={1.0018} onPointerDown={onEarthSurfacePointerDown}>
         <sphereGeometry args={[CENTRAL_SPHERE_RADIUS, seg, seg]} />
         <meshStandardMaterial
           map={cloudsMap}
@@ -816,14 +806,11 @@ const MiMundoVRSection = ({
               <CentralEarth
                 simpleGpu={isMobileCoarse || vrStereoActive}
                 vrStereo={vrStereoActive}
+                onOpenLobby={vrStereoActive ? undefined : handleLobbyOpen}
               />
             </Suspense>
             <Suspense fallback={null}>
-              <OrbitingMoon
-                simpleGpu={isMobileCoarse || vrStereoActive}
-                vrStereo={vrStereoActive}
-                onOpenLobby={vrStereoActive ? undefined : handleLobbyOpen}
-              />
+              <OrbitingMoon simpleGpu={isMobileCoarse || vrStereoActive} vrStereo={vrStereoActive} />
             </Suspense>
           </EarthMoonPivot>
           <VrStereoPerfSync active={vrStereoActive} />
