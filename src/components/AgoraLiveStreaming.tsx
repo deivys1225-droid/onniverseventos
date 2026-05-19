@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { LivepeerBroadcastPanel } from "@/components/streaming/LivepeerBroadcastPanel";
-import { createLivepeerStream } from "@/lib/livepeerStream";
+import { createLivepeerStream, pollLivepeerStreamStatus } from "@/lib/livepeerStream";
 import { updateProfileLiveState } from "@/lib/profile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,10 +20,12 @@ import { toast } from "sonner";
 type StreamConfig = {
   title: string;
   rawChannelName: string;
+  livepeerStreamId: string;
   streamKey: string;
   playbackId: string;
   playbackUrl: string;
   rtmpIngestUrl: string;
+  rtmpPushUrl: string;
   ingestUrl: string;
   ticketPrice: number;
   isFree: boolean;
@@ -54,7 +57,8 @@ const AgoraLiveStreaming = () => {
           title: config.title,
           category: "Musica",
           is_live: isLive,
-          stream_url: config.ingestUrl,
+          livepeer_stream_id: config.livepeerStreamId,
+          stream_url: config.rtmpPushUrl,
           playback_url: config.playbackUrl,
           playback_id: config.playbackId,
           privacy_mode: privacyMode,
@@ -127,6 +131,43 @@ const AgoraLiveStreaming = () => {
     };
   }, [broadcasting, user?.id]);
 
+  const rtmpPollBusyRef = useRef(false);
+
+  /** Móvil/APK: detecta cuando Larix/OBS conecta RTMP a Livepeer y marca is_live. */
+  useEffect(() => {
+    if (!streamConfig?.livepeerStreamId || !user?.id || broadcasting) return;
+    if (!Capacitor.isNativePlatform()) return;
+
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled || rtmpPollBusyRef.current) return;
+      rtmpPollBusyRef.current = true;
+      try {
+        const status = await pollLivepeerStreamStatus({
+          livepeerStreamId: streamConfig.livepeerStreamId,
+          userId: user.id,
+        });
+        if (cancelled) return;
+        if (status.isActive && status.synced) {
+          setBroadcasting(true);
+          setStatus("En vivo · señal RTMP conectada a Livepeer");
+          toast.success("Transmisión RTMP activa. Los espectadores ya pueden ver tu live.");
+        }
+      } catch {
+        /* sigue en espera de RTMP */
+      } finally {
+        rtmpPollBusyRef.current = false;
+      }
+    };
+
+    void tick();
+    const interval = window.setInterval(() => void tick(), 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [broadcasting, streamConfig?.livepeerStreamId, user?.id]);
+
   const handleGenerateChannel = () => {
     if (!user?.id) {
       setError("Debes iniciar sesión para generar tu canal.");
@@ -158,11 +199,13 @@ const AgoraLiveStreaming = () => {
       const config: StreamConfig = {
         title: `Canal ${requestedChannelName}`,
         rawChannelName: requestedChannelName,
+        livepeerStreamId: livepeer.livepeerStreamId,
         streamKey: livepeer.streamKey,
         playbackId: livepeer.playbackId,
         playbackUrl: livepeer.playbackUrl,
         rtmpIngestUrl: livepeer.rtmpIngestUrl,
-        ingestUrl: livepeer.ingestUrl,
+        rtmpPushUrl: livepeer.rtmpPushUrl,
+        ingestUrl: livepeer.rtmpPushUrl,
         ticketPrice: isFree ? 0 : normalizedPrice,
         isFree,
       };
@@ -170,7 +213,11 @@ const AgoraLiveStreaming = () => {
       await persistLiveState(config, false);
 
       setStreamConfig(config);
-      setStatus("Canal listo · pulsa Iniciar transmisión en el reproductor");
+      setStatus(
+        Capacitor.isNativePlatform()
+          ? "Canal listo · envía RTMP desde el celular (Larix/OBS)"
+          : "Canal listo · pulsa Iniciar transmisión o usa RTMP",
+      );
       setIsConfigOpen(false);
       toast.success("Canal Livepeer creado. Usa cámara y micrófono desde el navegador.");
     } catch (e) {
@@ -253,8 +300,11 @@ const AgoraLiveStreaming = () => {
               {streamConfig.title} · {streamConfig.isFree ? "Gratuito" : `Ticket: $${streamConfig.ticketPrice.toFixed(2)} USD`}
             </p>
             <p className="break-all font-mono text-[10px] text-violet-200/80">HLS: {streamConfig.playbackUrl}</p>
+            <p className="break-all font-mono text-[10px] text-cyan-200/90">
+              RTMP (celular): {streamConfig.rtmpPushUrl}
+            </p>
             <p className="text-[10px] text-muted-foreground">
-              También puedes emitir por OBS con RTMP: {streamConfig.ingestUrl}
+              En móvil usa Larix u OBS con esa URL; la web pasará a en vivo al detectar la señal.
             </p>
           </div>
         )}
