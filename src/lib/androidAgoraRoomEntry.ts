@@ -1,5 +1,5 @@
 import { isStreamPlaybackUrl } from "@/lib/audiencePlayback";
-import { fetchAgoraAudienceToken } from "@/lib/agoraAudienceToken";
+import { fetchAgoraAudienceSession } from "@/lib/agoraAudienceToken";
 import type { ActiveStreamRow, RoomCard } from "@/lib/salaRoomCards";
 
 /** Puente nativo Android disponible (WebView de la APK). */
@@ -43,7 +43,8 @@ export async function resolveAgoraAudienceSession(
   const channel = resolveAgoraChannelFromRoom(room, activeStream);
   let token = resolveAgoraTokenFromActiveStream(activeStream);
   if (!token) {
-    token = await fetchAgoraAudienceToken(channel);
+    const session = await fetchAgoraAudienceSession(channel);
+    return { channel: session.channelName, token: session.audienceToken };
   }
   return { channel, token };
 }

@@ -7,7 +7,7 @@ import {
   channelFromActiveStream,
 } from "@/components/streaming/AgoraAudiencePlayer";
 import { DuplexSplitLayout } from "@/components/streaming/DuplexSplitLayout";
-import { fetchAgoraAudienceToken } from "@/lib/agoraAudienceToken";
+import { fetchAgoraAudienceSession, type AgoraAudienceSession } from "@/lib/agoraAudienceToken";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { supabase } from "@/integrations/supabase/client";
 import type { ActiveStreamRow } from "@/lib/salaRoomCards";
@@ -20,7 +20,7 @@ const LiveStreamPage = () => {
   const [activeStreams, setActiveStreams] = useState<ActiveStreamRow[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [duplexOpen, setDuplexOpen] = useState(false);
-  const [streamToken, setStreamToken] = useState<string | null>(null);
+  const [agoraSession, setAgoraSession] = useState<AgoraAudienceSession | null>(null);
   const [connectNonce, setConnectNonce] = useState(0);
 
   const selectedChannel = useMemo(() => {
@@ -34,13 +34,13 @@ const LiveStreamPage = () => {
   const selectedTitle = (searchParams.get("title") ?? "").trim();
 
   useEffect(() => {
-    setStreamToken(null);
+    setAgoraSession(null);
     setConnectNonce(0);
   }, [selectedChannel]);
 
   const requestConnectAll = useCallback(async () => {
-    const token = await fetchAgoraAudienceToken(selectedChannel);
-    setStreamToken(token);
+    const session = await fetchAgoraAudienceSession(selectedChannel);
+    setAgoraSession(session);
     setConnectNonce((n) => n + 1);
   }, [selectedChannel]);
 
@@ -50,7 +50,7 @@ const LiveStreamPage = () => {
     forceWebPlayback: true as const,
     manualStart: true as const,
     compact: duplexOpen,
-    prefetchedToken: streamToken,
+    prefetchedSession: agoraSession,
     connectNonce,
     showConnectionInfo: true as const,
     ...(duplexOpen ? { onConnectRequest: requestConnectAll } : {}),

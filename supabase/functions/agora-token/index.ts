@@ -17,9 +17,13 @@ function json(body: unknown, status = 200) {
   });
 }
 
+const AGORA_CHANNEL_PREFIX = "al-universo-";
+
 function normalizeChannel(input: string): string {
   const normalized = input.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "-");
-  return `al-universo-${normalized || "main"}`;
+  if (!normalized) return `${AGORA_CHANNEL_PREFIX}main`;
+  if (normalized.startsWith(AGORA_CHANNEL_PREFIX)) return normalized;
+  return `${AGORA_CHANNEL_PREFIX}${normalized}`;
 }
 
 Deno.serve(async (req) => {

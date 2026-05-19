@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import AgoraRTC, { type IAgoraRTCClient, type IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
-import { fetchAgoraAudienceToken } from "@/lib/agoraAudienceToken";
+import { fetchAgoraAudienceSession, type AgoraAudienceSession } from "@/lib/agoraAudienceToken";
 import { isStreamPlaybackUrl } from "@/lib/audiencePlayback";
 import { resolveAgoraChannelFromRoom } from "@/lib/androidAgoraRoomEntry";
 
@@ -16,8 +16,8 @@ export type AgoraAudiencePlayerProps = {
   manualStart?: boolean;
   /** En vrcam: ocupa todo el panel sin aspect-ratio fijo. */
   compact?: boolean;
-  /** Token ya obtenido (p. ej. compartido entre mitades duplex). */
-  prefetchedToken?: string | null;
+  /** Sesión Agora ya resuelta (appId + canal + token alineados). */
+  prefetchedSession?: AgoraAudienceSession | null;
   /** Incrementar para unir todas las instancias con el mismo token (duplex). */
   connectNonce?: number;
   /** Si se define, el botón dispara esto (fetch único) en lugar del join interno. */
@@ -35,7 +35,7 @@ export function AgoraAudiencePlayer({
   forceWebPlayback = false,
   manualStart = false,
   compact = false,
-  prefetchedToken = null,
+  prefetchedSession = null,
   connectNonce = 0,
   onConnectRequest,
   showConnectionInfo = false,
@@ -102,8 +102,8 @@ export function AgoraAudiencePlayer({
       return;
     }
 
-    const channelToJoin = channelName.trim();
-    if (!channelToJoin || isStreamPlaybackUrl(channelToJoin)) {
+    const routeChannel = channelName.trim();
+    if (!routeChannel || isStreamPlaybackUrl(routeChannel)) {
       setError("Canal de Agora no válido.");
       patchStatus("Canal inválido");
       return;
@@ -115,12 +115,29 @@ export function AgoraAudiencePlayer({
       patchStatus("Obteniendo acceso…");
       await leaveAudienceRoom();
       setConnecting(true);
-      patchStatus(`Uniendo a ${channelToJoin}…`);
 
-      let audienceToken = prefetchedToken?.trim() ?? "";
-      if (!audienceToken && (manualStart || forceWebPlayback)) {
-        audienceToken = await fetchAgoraAudienceToken(channelToJoin);
+      let appIdForJoin = APP_ID;
+      let channelToJoin = routeChannel;
+      let audienceToken = prefetchedSession?.audienceToken.trim() ?? "";
+
+      if (prefetchedSession) {
+        appIdForJoin = prefetchedSession.appId;
+        channelToJoin = prefetchedSession.channelName;
+        audienceToken = prefetchedSession.audienceToken;
+      } else if (manualStart || forceWebPlayback) {
+        const session = await fetchAgoraAudienceSession(routeChannel);
+        appIdForJoin = session.appId;
+        channelToJoin = session.channelName;
+        audienceToken = session.audienceToken;
       }
+
+      if (!appIdForJoin) {
+        setError("Falta App ID de Agora.");
+        patchStatus("Configuración incompleta");
+        return;
+      }
+
+      patchStatus(`Uniendo a ${channelToJoin}…`);
 
       const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
       clientRef.current = client;
@@ -146,7 +163,8 @@ export function AgoraAudiencePlayer({
       });
 
       const joinWithTimeout = async (joinToken: string | null) => {
-        const joinTask = client.join(APP_ID, channelToJoin, joinToken, null);
+        const joinUid = joinToken ? 0 : null;
+        const joinTask = client.join(appIdForJoin, channelToJoin, joinToken, joinUid);
         const joinTimeout = new Promise<never>((_, reject) => {
           window.setTimeout(() => reject(new Error("Timeout al conectar con Agora (10s).")), 10000);
         });
@@ -182,7 +200,7 @@ export function AgoraAudiencePlayer({
     channelName,
     manualStart,
     forceWebPlayback,
-    prefetchedToken,
+    prefetchedSession,
     leaveAudienceRoom,
     mountFirstRemoteUser,
     patchJoined,
@@ -190,10 +208,10 @@ export function AgoraAudiencePlayer({
   ]);
 
   useEffect(() => {
-    if (connectNonce > 0 && prefetchedToken?.trim() && manualStart) {
+    if (connectNonce > 0 && prefetchedSession?.audienceToken && manualStart) {
       void joinAudienceRoom();
     }
-  }, [connectNonce, prefetchedToken, manualStart, joinAudienceRoom]);
+  }, [connectNonce, prefetchedSession, manualStart, joinAudienceRoom]);
 
   const handleStartClick = () => {
     if (onConnectRequest) {
@@ -282,14 +300,19 @@ export function AgoraAudiencePlayer({
       {showConnectionInfo && (
         <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
           WebRTC directo · App ID{" "}
-          {APP_ID ? (
-            <span className="text-cyan-200/90">{APP_ID.slice(0, 8)}…</span>
+          {(prefetchedSession?.appId || APP_ID) ? (
+            <span className="text-cyan-200/90">{(prefetchedSession?.appId || APP_ID).slice(0, 8)}…</span>
           ) : (
             <span className="text-destructive">no configurado</span>
           )}{" "}
           · Token vía Edge <span className="text-cyan-200/90">agora-token</span>
           {forceWebPlayback ? " · sin túnel Android" : ""}
-          {joined && prefetchedToken ? " · token activo" : ""}
+          {prefetchedSession ? (
+            <>
+              {" "}
+              · canal <span className="text-cyan-200/90">{prefetchedSession.channelName}</span>
+            </>
+          ) : null}
         </p>
       )}
     </div>
