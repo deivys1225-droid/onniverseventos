@@ -17,6 +17,8 @@ declare global {
     /** Puente AR: registrado en MainActivity como {@code Android}. */
     Android?: {
       onArClick(url?: string): void;
+      /** Entrada a live desde tarjeta: canal + token de audiencia (sin reproductor web). */
+      getAgoraParams?(canal: string, token: string): void;
       /** Cine Live — payload Agora: appId|canal|token de la sesión activa. */
       abrirCineLive?(agoraPayload: string): void;
       /** Live Cam — payload Agora: appId|canal|token de la sesión activa. */

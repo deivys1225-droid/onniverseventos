@@ -9,6 +9,7 @@ import ComunidadRoomsGrid from "@/components/comunidad/ComunidadRoomsGrid";
 import SectionHeader from "@/components/salas/SectionHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { isStreamPlaybackUrl } from "@/lib/audiencePlayback";
+import { handoffLiveToAndroidNative } from "@/lib/androidAgoraRoomEntry";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { Button } from "@/components/ui/button";
 import PayPalSmartButton from "@/components/PayPalSmartButton";
@@ -130,9 +131,13 @@ const ComunidadPage = () => {
     };
   }, [user?.id, communityProfileIdsKey, communityProfiles]);
 
-  const beginRoomSession = (room: RoomCard, activeStream?: ActiveStreamRow | null) => {
+  const beginRoomSession = async (room: RoomCard, activeStream?: ActiveStreamRow | null) => {
     setLoadingRoomId(room.id);
-    window.setTimeout(() => {
+    try {
+      if (await handoffLiveToAndroidNative(room, activeStream)) {
+        return;
+      }
+
       const params = new URLSearchParams();
       const streamUrlCandidate = activeStream?.stream_url?.trim() || "";
       const playbackUrlCandidate = activeStream?.playback_url?.trim() || "";
@@ -153,7 +158,12 @@ const ComunidadPage = () => {
       } else {
         navigate(path);
       }
-    }, 900);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "No se pudo abrir la sala.";
+      toast.error(msg);
+    } finally {
+      setLoadingRoomId(null);
+    }
   };
 
   const handleRoomAccess = (room: RoomCard, online: boolean) => {

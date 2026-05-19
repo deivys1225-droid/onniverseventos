@@ -159,6 +159,20 @@ public class MainActivity extends BridgeActivity {
   }
 
   /**
+   * Entrada desde tarjeta en vivo: canal + token de audiencia hacia Activity nativa Agora.
+   */
+  private void deliverAgoraParamsToNative(String canal, String token) {
+    String channel = canal != null ? canal.trim() : "";
+    String audienceToken = token != null ? token.trim() : "";
+    if (channel.isEmpty()) {
+      Toast.makeText(this, "Falta el canal de Agora.", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    String payload = channel + "|" + audienceToken;
+    launchNativeAgoraSessionActivity(NATIVE_ACTIVITY_CINE_LIVE, payload);
+  }
+
+  /**
    * Abre Activity nativa con sesión Agora (WebRTC) sin recargar el WebView.
    * {@code agoraPayload}: {@code appId|channel|token} o {@code channel|token}.
    */
@@ -474,6 +488,15 @@ public class MainActivity extends BridgeActivity {
     @JavascriptInterface
     public void hideLobbyPantalla2WebView() {
       activity.runOnUiThread(() -> activity.hideLobbyPantalla2WebViewInternal());
+    }
+
+    /**
+     * Tarjeta de evento en vivo (WebView): {@code window.Android.getAgoraParams(canal, token)}.
+     * Abre el reproductor nativo sin iniciar Agora en la web.
+     */
+    @JavascriptInterface
+    public void getAgoraParams(String canal, String token) {
+      activity.runOnUiThread(() -> activity.deliverAgoraParamsToNative(canal, token));
     }
 
     /** Cine Live — {@code window.Android.abrirCineLive(appId|channel|token)}. */

@@ -195,6 +195,8 @@ const EspectadorView = () => {
 
   useEffect(() => {
     if (useVodMode) return;
+    // APK Android: el live se reproduce en nativo (getAgoraParams); evitar doble join WebRTC en WebView.
+    if (typeof window.Android !== "undefined") return;
     void joinAudienceRoom();
   }, [joinAudienceRoom, useVodMode]);
 
