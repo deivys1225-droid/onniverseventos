@@ -31,8 +31,11 @@ export const LOCKED_CAMERA_FOV = {
 } as const;
 
 export const LOCKED_MOON = {
-  orbitTiltX: 0.06,
-  meshY: -1.2,
+  orbitRadiusFactor: 1.8432,
+  /** 0 = órbita en el ecuador (plano XZ), sin inclinación. */
+  orbitTiltX: 0,
+  /** 0 = sobre el ecuador; la órbita recorre todo el contorno ecuatorial. */
+  meshY: 0,
 } as const;
 
 /** Wrapper de ProfileCard sobre el canvas 3D. */

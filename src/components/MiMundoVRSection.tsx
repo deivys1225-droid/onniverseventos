@@ -1,4 +1,15 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import {
+  Suspense,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Capacitor } from "@capacitor/core";
 import * as THREE from "three";
@@ -49,7 +60,7 @@ const CENTRAL_SPHERE_RADIUS = LOCKED_CENTRAL_SPHERE_RADIUS;
 /** Luna: textura local ligera + parametros de orbita. */
 const MOON_TEXTURE_URL = "/assets/textures/moon/moon_1024.jpg";
 const MOON_RADIUS = CENTRAL_SPHERE_RADIUS * 0.27;
-const MOON_ORBIT_RADIUS = CENTRAL_SPHERE_RADIUS * 1.95;
+const MOON_ORBIT_RADIUS = CENTRAL_SPHERE_RADIUS * LOCKED_MOON.orbitRadiusFactor;
 const MOON_ORBIT_SPEED = 0.22;
 const EARTH_ROTATION_SPEED = 0.08;
 const EARTH_TAP_MAX_MOVE_PX = 14;
@@ -70,6 +81,155 @@ const EARTH_DRAG_PITCH_MAX = 0.42;
 const EARTH_ZOOM_MIN = 3.2;
 const EARTH_ZOOM_MAX = 12;
 const EARTH_WHEEL_ZOOM = 0.008;
+/** Radio de captura táctil/ratón (Tierra + órbita lunar); no altera posición bloqueada. */
+const EARTH_DRAG_HIT_RADIUS = MOON_ORBIT_RADIUS + MOON_RADIUS + CENTRAL_SPHERE_RADIUS * 0.35;
+
+type EarthSceneInteractionContextValue = {
+  userDraggedRef: RefObject<boolean>;
+};
+
+const EarthSceneInteractionContext = createContext<EarthSceneInteractionContextValue | null>(null);
+
+/**
+ * Giro manual in-place del pivote (Tierra + Luna). No modifica `position` ni rotación natural de hijos.
+ */
+function useEarthMoonDrag(pivotRef: RefObject<THREE.Group | null>, enabled: boolean) {
+  const { gl } = useThree();
+  const draggingRef = useRef(false);
+  const lastRef = useRef({ x: 0, y: 0 });
+  const manualRef = useRef({ yaw: 0, pitch: 0 });
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchRef = useRef<{ span: number; distance: number } | null>(null);
+  const userDraggedRef = useRef(false);
+
+  const applyPivotRotation = useCallback(() => {
+    if (!pivotRef.current) return;
+    pivotRef.current.rotation.order = "YXZ";
+    pivotRef.current.rotation.y = manualRef.current.yaw;
+    pivotRef.current.rotation.x = manualRef.current.pitch;
+    pivotRef.current.rotation.z = 0;
+  }, [pivotRef]);
+
+  useFrame(() => {
+    if (!enabled) return;
+    applyPivotRotation();
+  });
+
+  const pointerSpan = useCallback(() => {
+    const pts = [...pointersRef.current.values()];
+    if (pts.length < 2) return 0;
+    return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+  }, []);
+
+  const onPointerDown = useCallback(
+    (e: PointerEvent) => {
+      if (!enabled) return;
+      const el = gl.domElement;
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointersRef.current.size === 2) {
+        draggingRef.current = false;
+        pinchRef.current = { span: pointerSpan(), distance: 0 };
+        return;
+      }
+      if (e.button !== 0) return;
+      draggingRef.current = true;
+      userDraggedRef.current = false;
+      lastRef.current = { x: e.clientX, y: e.clientY };
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    },
+    [enabled, gl.domElement, pointerSpan],
+  );
+
+  const onPointerMove = useCallback(
+    (e: PointerEvent) => {
+      if (!enabled) return;
+      if (!pointersRef.current.has(e.pointerId)) return;
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (pointersRef.current.size >= 2 && pinchRef.current) {
+        return;
+      }
+
+      if (!draggingRef.current) return;
+      const dx = e.clientX - lastRef.current.x;
+      const dy = e.clientY - lastRef.current.y;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+        userDraggedRef.current = true;
+      }
+      lastRef.current = { x: e.clientX, y: e.clientY };
+      manualRef.current.yaw += dx * EARTH_DRAG_YAW;
+      manualRef.current.pitch += dy * EARTH_DRAG_PITCH;
+      manualRef.current.pitch = THREE.MathUtils.clamp(
+        manualRef.current.pitch,
+        -EARTH_DRAG_PITCH_MAX,
+        EARTH_DRAG_PITCH_MAX,
+      );
+      applyPivotRotation();
+    },
+    [applyPivotRotation, enabled],
+  );
+
+  const onPointerEnd = useCallback((e: PointerEvent) => {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+    if (pointersRef.current.size === 0) draggingRef.current = false;
+    try {
+      gl.domElement.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ya liberado */
+    }
+  }, [gl.domElement]);
+
+  const r3fPointerDown = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation();
+      onPointerDown(e.nativeEvent);
+    },
+    [onPointerDown],
+  );
+
+  const r3fPointerMove = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      if (!draggingRef.current) return;
+      e.stopPropagation();
+      onPointerMove(e.nativeEvent);
+    },
+    [onPointerMove],
+  );
+
+  const r3fPointerUp = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation();
+      onPointerEnd(e.nativeEvent);
+    },
+    [onPointerEnd],
+  );
+
+  return {
+    userDraggedRef,
+    onPointerDown,
+    onPointerMove,
+    onPointerEnd,
+    r3fPointerDown,
+    r3fPointerMove,
+    r3fPointerUp,
+  };
+}
+
+/** Esfera invisible: ampliar zona de arrastre (órbita lunar) sin cambiar posición bloqueada. */
+function EarthMoonDragHitShell() {
+  const seg = 20;
+  return (
+    <mesh renderOrder={-1}>
+      <sphereGeometry args={[EARTH_DRAG_HIT_RADIUS, seg, seg]} />
+      <meshBasicMaterial transparent opacity={0} depthWrite={false} depthTest={false} />
+    </mesh>
+  );
+}
 
 /**
  * Cámara fija al blanco (sin balanceo) + arrastre para girar + zoom rueda/pellizco.
@@ -79,11 +239,13 @@ function EarthViewController({
   target,
   pivotRef,
   enabled,
+  drag,
 }: {
   basePosition: [number, number, number];
   target: [number, number, number];
   pivotRef: RefObject<THREE.Group | null>;
   enabled: boolean;
+  drag: ReturnType<typeof useEarthMoonDrag>;
 }) {
   const { camera, gl } = useThree();
   const tgt = useMemo(() => new THREE.Vector3(...target), [target]);
@@ -92,19 +254,8 @@ function EarthViewController({
     return p.sub(tgt).normalize();
   }, [basePosition, tgt]);
   const distanceRef = useRef(new THREE.Vector3(...basePosition).distanceTo(tgt));
-  const draggingRef = useRef(false);
-  const lastRef = useRef({ x: 0, y: 0 });
-  const manualRef = useRef({ yaw: 0, pitch: 0 });
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
   const pinchRef = useRef<{ span: number; distance: number } | null>(null);
-
-  const applyPivotRotation = useCallback(() => {
-    if (!pivotRef.current) return;
-    pivotRef.current.rotation.order = "YXZ";
-    pivotRef.current.rotation.y = manualRef.current.yaw;
-    pivotRef.current.rotation.x = manualRef.current.pitch;
-    pivotRef.current.rotation.z = 0;
-  }, [pivotRef]);
 
   useFrame(() => {
     if (!enabled) return;
@@ -134,14 +285,10 @@ function EarthViewController({
     const onPointerDown = (e: PointerEvent) => {
       pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointersRef.current.size === 2) {
-        draggingRef.current = false;
         pinchRef.current = { span: pointerSpan(), distance: distanceRef.current };
         return;
       }
-      if (e.button !== 0) return;
-      draggingRef.current = true;
-      lastRef.current = { x: e.clientX, y: e.clientY };
-      el.setPointerCapture(e.pointerId);
+      drag.onPointerDown(e);
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -161,29 +308,13 @@ function EarthViewController({
         return;
       }
 
-      if (!draggingRef.current || !pivotRef.current) return;
-      const dx = e.clientX - lastRef.current.x;
-      const dy = e.clientY - lastRef.current.y;
-      lastRef.current = { x: e.clientX, y: e.clientY };
-      manualRef.current.yaw += dx * EARTH_DRAG_YAW;
-      manualRef.current.pitch += dy * EARTH_DRAG_PITCH;
-      manualRef.current.pitch = THREE.MathUtils.clamp(
-        manualRef.current.pitch,
-        -EARTH_DRAG_PITCH_MAX,
-        EARTH_DRAG_PITCH_MAX,
-      );
-      applyPivotRotation();
+      drag.onPointerMove(e);
     };
 
     const onPointerEnd = (e: PointerEvent) => {
       pointersRef.current.delete(e.pointerId);
       if (pointersRef.current.size < 2) pinchRef.current = null;
-      if (pointersRef.current.size === 0) draggingRef.current = false;
-      try {
-        el.releasePointerCapture(e.pointerId);
-      } catch {
-        /* ya liberado */
-      }
+      drag.onPointerEnd(e);
     };
 
     el.addEventListener("wheel", onWheel, { passive: false });
@@ -198,9 +329,68 @@ function EarthViewController({
       el.removeEventListener("pointerup", onPointerEnd);
       el.removeEventListener("pointercancel", onPointerEnd);
     };
-  }, [enabled, gl, pivotRef, applyPivotRotation]);
+  }, [drag, enabled, gl]);
 
   return null;
+}
+
+/** Pivote Tierra+Luna con arrastre R3F y contexto para distinguir tap vs drag. */
+function EarthMoonPivot({
+  earthSceneY,
+  children,
+  enabled,
+}: {
+  earthSceneY: number;
+  children: ReactNode;
+  enabled: boolean;
+}) {
+  const pivotRef = useRef<THREE.Group>(null);
+  const drag = useEarthMoonDrag(pivotRef, enabled);
+  const interactionValue = useMemo(() => ({ userDraggedRef: drag.userDraggedRef }), [drag.userDraggedRef]);
+
+  return (
+    <EarthSceneInteractionContext.Provider value={interactionValue}>
+      <group ref={pivotRef} position={[0, earthSceneY, 0]}>
+        {children}
+        <EarthMoonDragHitShell />
+      </group>
+      <EarthViewControllerBridge pivotRef={pivotRef} drag={drag} enabled={enabled} />
+    </EarthSceneInteractionContext.Provider>
+  );
+}
+
+function EarthViewControllerBridge({
+  pivotRef,
+  drag,
+  enabled,
+}: {
+  pivotRef: RefObject<THREE.Group | null>;
+  drag: ReturnType<typeof useEarthMoonDrag>;
+  enabled: boolean;
+}) {
+  const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
+  const isNarrowViewport = useIsMobile();
+  const cameraPosition = isMobileCoarse
+    ? ([...LOCKED_CAMERA_POSITION.mobile] as [number, number, number])
+    : ([...LOCKED_CAMERA_POSITION.desktop] as [number, number, number]);
+  const orbitTarget = useMemo<[number, number, number]>(
+    () => [
+      0,
+      isNarrowViewport ? LOCKED_CAMERA_ORBIT_TARGET_Y.mobile : LOCKED_CAMERA_ORBIT_TARGET_Y.desktop,
+      0,
+    ],
+    [isNarrowViewport],
+  );
+
+  return (
+    <EarthViewController
+      basePosition={cameraPosition}
+      target={orbitTarget}
+      pivotRef={pivotRef}
+      enabled={enabled}
+      drag={drag}
+    />
+  );
 }
 
 function OrbitingMoon({ simpleGpu, vrStereo }: { simpleGpu: boolean; vrStereo: boolean }) {
@@ -277,6 +467,8 @@ function useEarthTapPointerDown(
     };
   }, []);
 
+  const interaction = useContext(EarthSceneInteractionContext);
+
   return useCallback(
     (event: ThreeEvent<PointerEvent>) => {
       if (vrStereo || !onOpenLobby) return;
@@ -303,6 +495,7 @@ function useEarthTapPointerDown(
         const dist = Math.hypot(ev.clientX - x0, ev.clientY - y0);
         const dt = performance.now() - t0;
         if (dist > EARTH_TAP_MAX_MOVE_PX || dt > EARTH_TAP_MAX_MS) return;
+        if (interaction?.userDraggedRef.current) return;
 
         onOpenLobby();
       };
@@ -311,7 +504,7 @@ function useEarthTapPointerDown(
       window.addEventListener("pointerup", onPointerEnd);
       window.addEventListener("pointercancel", onPointerEnd);
     },
-    [vrStereo, onOpenLobby],
+    [interaction, vrStereo, onOpenLobby],
   );
 }
 
@@ -524,8 +717,6 @@ const MiMundoVRSection = ({
     ],
     [isNarrowViewport],
   );
-  const earthScenePivotRef = useRef<THREE.Group>(null);
-
   const handleLobbyOpen = () => {
     if (lobbyOpening || vrStereoActive) return;
     setLobbyOpening(true);
@@ -610,7 +801,7 @@ const MiMundoVRSection = ({
               </>
             ))}
 
-          <group ref={earthScenePivotRef} position={[0, earthSceneY, 0]}>
+          <EarthMoonPivot earthSceneY={earthSceneY} enabled={!vrStereoActive}>
             <Suspense fallback={null}>
               <CentralEarth
                 simpleGpu={isMobileCoarse || vrStereoActive}
@@ -621,14 +812,7 @@ const MiMundoVRSection = ({
             <Suspense fallback={null}>
               <OrbitingMoon simpleGpu={isMobileCoarse || vrStereoActive} vrStereo={vrStereoActive} />
             </Suspense>
-          </group>
-
-          <EarthViewController
-            basePosition={cameraPosition}
-            target={orbitTarget}
-            pivotRef={earthScenePivotRef}
-            enabled={!vrStereoActive}
-          />
+          </EarthMoonPivot>
           <VrStereoPerfSync active={vrStereoActive} />
         </Canvas>
         </div>
