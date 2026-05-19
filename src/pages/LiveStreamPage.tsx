@@ -1,14 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Radio } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
-import {
-  AgoraAudiencePlayer,
-  channelFromActiveStream,
-} from "@/components/streaming/AgoraAudiencePlayer";
+import { LivepeerHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
 import { DuplexSplitLayout } from "@/components/streaming/DuplexSplitLayout";
-import { fetchAgoraAudienceSession, type AgoraAudienceSession } from "@/lib/agoraAudienceToken";
-import { buildAgoraChannel } from "@/lib/agoraRooms";
+import { handoffActiveStreamPlaybackToAndroid } from "@/lib/androidAgoraRoomEntry";
+import { resolvePlaybackFromActiveStreamRow } from "@/lib/audiencePlayback";
+import { buildLiveStreamPath } from "@/lib/liveStreamRoutes";
 import { supabase } from "@/integrations/supabase/client";
 import type { ActiveStreamRow } from "@/lib/salaRoomCards";
 import { cn } from "@/lib/utils";
@@ -20,49 +18,29 @@ const LiveStreamPage = () => {
   const [activeStreams, setActiveStreams] = useState<ActiveStreamRow[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [duplexOpen, setDuplexOpen] = useState(false);
-  const [agoraSession, setAgoraSession] = useState<AgoraAudienceSession | null>(null);
-  const [connectNonce, setConnectNonce] = useState(0);
-
-  const selectedChannel = useMemo(() => {
-    const fromRoute = channelParam?.trim() ? decodeURIComponent(channelParam) : "";
-    if (fromRoute) return fromRoute;
-    const first = activeStreams[0];
-    if (first) return channelFromActiveStream(first.stream_url, buildAgoraChannel("main"));
-    return buildAgoraChannel("main");
-  }, [channelParam, activeStreams]);
+  const lastAndroidBridgeUrlRef = useRef<string | null>(null);
 
   const selectedTitle = (searchParams.get("title") ?? "").trim();
 
-  useEffect(() => {
-    setAgoraSession(null);
-    setConnectNonce(0);
-  }, [selectedChannel]);
+  const selectedStream = useMemo(() => {
+    const routeKey = channelParam?.trim() ? decodeURIComponent(channelParam) : "";
+    if (!routeKey) return activeStreams[0] ?? null;
+    const match = activeStreams.find(
+      (row) =>
+        row.playback_id === routeKey ||
+        row.user_id === routeKey ||
+        row.stream_url.trim() === routeKey ||
+        row.playback_url?.trim() === routeKey,
+    );
+    return match ?? activeStreams[0] ?? null;
+  }, [channelParam, activeStreams]);
 
-  const requestConnectAll = useCallback(async () => {
-    const session = await fetchAgoraAudienceSession(selectedChannel);
-    setAgoraSession(session);
-    setConnectNonce((n) => n + 1);
-  }, [selectedChannel]);
-
-  const playerProps = {
-    channelName: selectedChannel,
-    title: selectedTitle || "LIVE STREAM",
-    forceWebPlayback: true as const,
-    manualStart: true as const,
-    compact: duplexOpen,
-    prefetchedSession: agoraSession,
-    connectNonce,
-    showConnectionInfo: true as const,
-    ...(duplexOpen ? { onConnectRequest: requestConnectAll } : {}),
-  };
-
-  const livePanel = (
-    <AgoraAudiencePlayer key={`live-${selectedChannel}`} {...playerProps} />
+  const playbackUrl = useMemo(
+    () => resolvePlaybackFromActiveStreamRow(selectedStream),
+    [selectedStream],
   );
 
-  const duplexPanel = (
-    <AgoraAudiencePlayer key={`duplex-${selectedChannel}`} {...playerProps} />
-  );
+  const displayTitle = selectedTitle || selectedStream?.title?.trim() || "LIVE STREAM";
 
   useEffect(() => {
     const load = async () => {
@@ -86,13 +64,47 @@ const LiveStreamPage = () => {
     };
   }, []);
 
+  /** Android APK: entrega HLS al Intent nativo en cuanto hay URL resuelta. */
+  useEffect(() => {
+    const url = playbackUrl?.trim();
+    if (!url || !selectedStream?.is_live) return;
+    if (lastAndroidBridgeUrlRef.current === url) return;
+    if (handoffActiveStreamPlaybackToAndroid(selectedStream)) {
+      lastAndroidBridgeUrlRef.current = url;
+    }
+  }, [playbackUrl, selectedStream]);
+
   const selectStream = (row: ActiveStreamRow) => {
-    const channel = channelFromActiveStream(row.stream_url, buildAgoraChannel("main"));
+    if (handoffActiveStreamPlaybackToAndroid(row)) {
+      const url = resolvePlaybackFromActiveStreamRow(row);
+      if (url) lastAndroidBridgeUrlRef.current = url;
+    }
+
     const title = row.title?.trim() || "En vivo";
+    const routeId = row.playback_id?.trim() || row.user_id;
     const params = new URLSearchParams();
     params.set("title", title);
-    navigate(`/live-stream/${encodeURIComponent(channel)}?${params.toString()}`, { replace: true });
+    navigate(`${buildLiveStreamPath({ channel: routeId, title }).split("?")[0]}?${params.toString()}`, {
+      replace: true,
+    });
   };
+
+  const player = playbackUrl ? (
+    <LivepeerHlsPlayer
+      key={playbackUrl}
+      playbackUrl={playbackUrl}
+      title={displayTitle}
+      compact={duplexOpen}
+      manualStart
+    />
+  ) : (
+    <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-cyan-300/35 bg-black/50 p-6 text-center text-sm text-muted-foreground">
+      {loadingList ? "Cargando transmisiones…" : "No hay señal HLS activa. El emisor debe estar en vivo en Livepeer."}
+    </div>
+  );
+
+  const livePanel = player;
+  const duplexPanel = player;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -114,7 +126,7 @@ const LiveStreamPage = () => {
             </div>
             <div>
               <h1 className="font-display text-2xl font-bold tracking-wide text-cyan-50 md:text-3xl">LIVE STREAM</h1>
-              <p className="text-sm text-muted-foreground">Pulsa Ver transmisión para conectar (Agora directo, sin túnel)</p>
+              <p className="text-sm text-muted-foreground">Reproducción HLS Livepeer · sin Agora</p>
             </div>
           </header>
         )}
@@ -132,8 +144,9 @@ const LiveStreamPage = () => {
               ) : (
                 <ul className="flex max-h-[min(50vh,28rem)] flex-col gap-1.5 overflow-y-auto">
                   {activeStreams.map((row) => {
-                    const ch = channelFromActiveStream(row.stream_url, "");
-                    const isActive = ch === selectedChannel || row.stream_url.trim() === selectedChannel;
+                    const isActive =
+                      selectedStream?.user_id === row.user_id ||
+                      selectedStream?.playback_id === row.playback_id;
                     return (
                       <li key={`${row.user_id}-${row.updated_at ?? row.title}`}>
                         <button
@@ -147,7 +160,9 @@ const LiveStreamPage = () => {
                           )}
                         >
                           <span className="block font-medium">{row.title || "Sin título"}</span>
-                          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{ch}</span>
+                          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                            {row.playback_id || row.user_id}
+                          </span>
                         </button>
                       </li>
                     );
@@ -165,18 +180,12 @@ const LiveStreamPage = () => {
                 : "rounded-2xl border border-cyan-300/35 bg-card/35 p-3 shadow-[0_0_50px_-18px_rgba(34,211,238,0.85)] backdrop-blur-xl md:p-4",
             )}
           >
-            {duplexOpen ? (
-              <DuplexSplitLayout leftPanel={livePanel} rightPanel={duplexPanel} />
-            ) : (
-              livePanel
-            )}
+            {duplexOpen ? <DuplexSplitLayout leftPanel={livePanel} rightPanel={duplexPanel} /> : livePanel}
 
             <div
               className={cn(
                 "flex shrink-0 justify-center",
-                duplexOpen
-                  ? "border-t border-cyan-500/25 bg-black/90 py-3"
-                  : "mt-4",
+                duplexOpen ? "border-t border-cyan-500/25 bg-black/90 py-3" : "mt-4",
               )}
             >
               <button

@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
+import { LOCKED_NAVBAR_HEIGHT_CLASS, LOCKED_NAVBAR_MENU_OFFSET_CLASS } from "@/config/lockedHomeLayout";
 
 const APP_APK_DOWNLOAD_URL =
   "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
@@ -35,7 +36,9 @@ const Navbar = () => {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 w-full max-w-[100dvw] overflow-x-clip glass">
-      <div className="relative mx-auto flex h-16 w-full max-w-full items-center justify-between gap-2 px-3 sm:px-6">
+      <div
+        className={`relative mx-auto flex ${LOCKED_NAVBAR_HEIGHT_CLASS} w-full max-w-full items-center justify-between gap-2 px-3 sm:px-6`}
+      >
         <Link
           to="/"
           className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/50"
@@ -90,9 +93,11 @@ const Navbar = () => {
             type="button"
             aria-label="Cerrar menú"
             onClick={closeMenu}
-            className="fixed inset-0 top-16 bg-background/70 backdrop-blur-sm"
+            className={`fixed inset-0 ${LOCKED_NAVBAR_MENU_OFFSET_CLASS} bg-background/70 backdrop-blur-sm`}
           />
-          <div className="absolute left-3 right-3 top-16 z-10 max-h-[min(70dvh,32rem)] overflow-y-auto rounded-2xl border border-primary/30 bg-card/95 p-4 shadow-[0_0_40px_-20px_hsl(var(--primary)/0.9)] backdrop-blur-xl sm:left-auto sm:right-3 sm:w-[min(calc(100vw-1.5rem),20rem)]">
+          <div
+            className={`absolute left-3 right-3 ${LOCKED_NAVBAR_MENU_OFFSET_CLASS} z-10 max-h-[min(70dvh,32rem)] overflow-y-auto rounded-2xl border border-primary/30 bg-card/95 p-4 shadow-[0_0_40px_-20px_hsl(var(--primary)/0.9)] backdrop-blur-xl sm:left-auto sm:right-3 sm:w-[min(calc(100vw-1.5rem),20rem)]`}
+          >
             <p className="mb-3 px-1 text-[10px] font-display font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Navegación
             </p>

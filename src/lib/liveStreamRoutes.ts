@@ -1,4 +1,4 @@
-/** Ruta de la escena LIVE STREAM (reproductor Agora web). */
+/** Ruta de la escena LIVE STREAM (reproductor HLS Livepeer en web; puente HLS en Android). */
 export const LIVE_STREAM_PATH = "/live-stream";
 
 /** Solo canal y título en la URL; el token lo pide el reproductor al pulsar Ver transmisión. */

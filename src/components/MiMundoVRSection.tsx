@@ -19,8 +19,18 @@ import {
   getAdaptiveSphereSegments,
   isMobileCoarseDevice,
 } from "@/lib/webglRendererPrefs";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
+import {
+  LOCKED_CAMERA_FOV,
+  LOCKED_CAMERA_ORBIT_TARGET_Y,
+  LOCKED_CAMERA_POSITION,
+  LOCKED_CENTRAL_SPHERE_RADIUS,
+  LOCKED_EARTH_SCENE_Y,
+  LOCKED_MOON,
+  LOCKED_PROFILE_CARD_WRAPPER_CLASS,
+} from "@/config/lockedHomeLayout";
 
 /**
  * Texturas Tierra alta resolucion (offline-first, copiadas a /public/assets/textures/earth/).
@@ -33,8 +43,8 @@ const EARTH_NORMAL = `${EARTH_TEXTURES_BASE}/earth_normal_2048.jpg`;
 const EARTH_SPECULAR = `${EARTH_TEXTURES_BASE}/earth_specular_2048.jpg`;
 const EARTH_CLOUDS = `${EARTH_TEXTURES_BASE}/earth_clouds_1024.png`;
 
-/** Tierra y luna al 50% del tamano anterior. */
-const CENTRAL_SPHERE_RADIUS = 0.925;
+/** Tierra y luna al 50% del tamano anterior. Valor bloqueado en lockedHomeLayout. */
+const CENTRAL_SPHERE_RADIUS = LOCKED_CENTRAL_SPHERE_RADIUS;
 
 /** Luna: textura local ligera + parametros de orbita. */
 const MOON_TEXTURE_URL = "/assets/textures/moon/moon_1024.jpg";
@@ -53,15 +63,6 @@ function readStoredProfileName(): string | undefined {
     return undefined;
   }
 }
-/** Tierra bajo la tarjeta de perfil (posición acordada). */
-const EARTH_VERTICAL_OFFSET_DESKTOP = -CENTRAL_SPHERE_RADIUS * 6.42;
-const EARTH_VERTICAL_OFFSET_MOBILE = -CENTRAL_SPHERE_RADIUS * 5.17;
-const ORBIT_TARGET_LIFT_DESKTOP = 1.75;
-const ORBIT_TARGET_LIFT_MOBILE = 0.92;
-const DEFAULT_CAMERA_POSITION_DESKTOP: [number, number, number] = [0, -0.53, 6.85];
-const DEFAULT_CAMERA_POSITION_MOBILE: [number, number, number] = [0, 0.05, 6.4];
-const DEFAULT_FOV_DESKTOP = 62;
-const DEFAULT_FOV_MOBILE = 48;
 const HOME_PROMO_BG_URL = "/onnivers-home-bg.png";
 const EARTH_DRAG_YAW = 0.0052;
 const EARTH_DRAG_PITCH = 0.0032;
@@ -220,8 +221,8 @@ function OrbitingMoon({ simpleGpu, vrStereo }: { simpleGpu: boolean; vrStereo: b
   });
 
   return (
-    <group ref={pivotRef} rotation={[0.18, 0, 0]}>
-      <mesh position={[MOON_ORBIT_RADIUS, -0.45, 0]} key={`moon-${moonSeg}`}>
+    <group ref={pivotRef} rotation={[LOCKED_MOON.orbitTiltX, 0, 0]}>
+      <mesh position={[MOON_ORBIT_RADIUS, LOCKED_MOON.meshY, 0]} key={`moon-${moonSeg}`}>
         <sphereGeometry args={[MOON_RADIUS, moonSeg, moonSeg]} />
         <meshBasicMaterial map={moonTexture} toneMapped transparent opacity={1} />
       </mesh>
@@ -509,13 +510,19 @@ const MiMundoVRSection = ({
   const roomMode = useMemo(() => getRoomMode(environmentId), [environmentId]);
 
   const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
-  const earthVerticalOffset = isMobileCoarse ? EARTH_VERTICAL_OFFSET_MOBILE : EARTH_VERTICAL_OFFSET_DESKTOP;
-  const orbitTargetLift = isMobileCoarse ? ORBIT_TARGET_LIFT_MOBILE : ORBIT_TARGET_LIFT_DESKTOP;
-  const cameraPosition = isMobileCoarse ? DEFAULT_CAMERA_POSITION_MOBILE : DEFAULT_CAMERA_POSITION_DESKTOP;
-  const cameraFov = isMobileCoarse ? DEFAULT_FOV_MOBILE : DEFAULT_FOV_DESKTOP;
+  const isNarrowViewport = useIsMobile();
+  const earthSceneY = isNarrowViewport ? LOCKED_EARTH_SCENE_Y.mobile : LOCKED_EARTH_SCENE_Y.desktop;
+  const cameraPosition = isMobileCoarse
+    ? ([...LOCKED_CAMERA_POSITION.mobile] as [number, number, number])
+    : ([...LOCKED_CAMERA_POSITION.desktop] as [number, number, number]);
+  const cameraFov = isMobileCoarse ? LOCKED_CAMERA_FOV.mobile : LOCKED_CAMERA_FOV.desktop;
   const orbitTarget = useMemo<[number, number, number]>(
-    () => [0, earthVerticalOffset + orbitTargetLift, 0],
-    [earthVerticalOffset, orbitTargetLift],
+    () => [
+      0,
+      isNarrowViewport ? LOCKED_CAMERA_ORBIT_TARGET_Y.mobile : LOCKED_CAMERA_ORBIT_TARGET_Y.desktop,
+      0,
+    ],
+    [isNarrowViewport],
   );
   const earthScenePivotRef = useRef<THREE.Group>(null);
 
@@ -603,7 +610,7 @@ const MiMundoVRSection = ({
               </>
             ))}
 
-          <group ref={earthScenePivotRef} position={[0, earthVerticalOffset, 0]}>
+          <group ref={earthScenePivotRef} position={[0, earthSceneY, 0]}>
             <Suspense fallback={null}>
               <CentralEarth
                 simpleGpu={isMobileCoarse || vrStereoActive}
@@ -629,7 +636,7 @@ const MiMundoVRSection = ({
       {!vrStereoActive && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
           <div
-            className="pointer-events-auto w-full max-w-[min(92vw,280px)] origin-bottom scale-x-[0.605] scale-y-[0.6655] -translate-y-[calc(clamp(2.5rem,14vh,6.5rem)+19.75%)] md:-translate-y-[calc(clamp(5.2rem,25vh,13.5rem)+19.75%)]"
+            className={LOCKED_PROFILE_CARD_WRAPPER_CLASS}
           >
             <ProfileCard
               initialName={cardDisplayName}
