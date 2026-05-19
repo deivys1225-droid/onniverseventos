@@ -161,11 +161,30 @@ public class MainActivity extends BridgeActivity {
   /**
    * Entrada desde tarjeta en vivo: canal + token de audiencia hacia Activity nativa Agora.
    */
+  private static boolean isHttpPlaybackUrl(String value) {
+    if (value == null || value.isEmpty()) {
+      return false;
+    }
+    String v = value.trim().toLowerCase(Locale.ROOT);
+    return v.startsWith("http://")
+        || v.startsWith("https://")
+        || v.endsWith(".m3u8")
+        || v.contains(".m3u8?");
+  }
+
   private void deliverAgoraParamsToNative(String canal, String token) {
     String channel = canal != null ? canal.trim() : "";
     String audienceToken = token != null ? token.trim() : "";
+    if (isHttpPlaybackUrl(channel)) {
+      openAudienceSelector("split", channel);
+      return;
+    }
+    if (isHttpPlaybackUrl(audienceToken)) {
+      openAudienceSelector("split", audienceToken);
+      return;
+    }
     if (channel.isEmpty()) {
-      Toast.makeText(this, "Falta el canal de Agora.", Toast.LENGTH_SHORT).show();
+      Toast.makeText(this, "Falta el canal o la URL de reproducción.", Toast.LENGTH_SHORT).show();
       return;
     }
     String payload = channel + "|" + audienceToken;

@@ -44,7 +44,7 @@ const ComunidadPage = () => {
         supabase.from("profiles").select("id,full_name,avatar_url,live_status").order("updated_at", { ascending: false }),
         supabase
           .from("active_streams")
-          .select("user_id,is_live,title,stream_url,playback_url,privacy_mode,ticket_price,updated_at")
+          .select("user_id,is_live,title,stream_url,playback_url,playback_id,privacy_mode,ticket_price,updated_at")
           .eq("is_live", true),
       ]);
 
@@ -147,6 +147,15 @@ const ComunidadPage = () => {
       const resolvedTitle = activeStream?.title?.trim() || room.name;
 
       if (activeStream?.is_live) {
+        const hlsPlayback = [playbackUrlCandidate, streamUrlCandidate].find((value) => isStreamPlaybackUrl(value));
+        if (hlsPlayback) {
+          const params = new URLSearchParams();
+          params.set("stream", hlsPlayback);
+          params.set("title", resolvedTitle);
+          params.set("mode", "live");
+          navigate(`/sala/espectador/${encodeURIComponent(room.channel)}?${params.toString()}`);
+          return;
+        }
         navigate(
           buildLiveStreamPath({
             channel: resolvedChannel,

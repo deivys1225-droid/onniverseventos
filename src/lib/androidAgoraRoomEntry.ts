@@ -1,5 +1,4 @@
-import { isStreamPlaybackUrl } from "@/lib/audiencePlayback";
-import { fetchAgoraAudienceSession } from "@/lib/agoraAudienceToken";
+import { isStreamPlaybackUrl, resolvePlaybackFromActiveStreamRow } from "@/lib/audiencePlayback";
 import type { ActiveStreamRow, RoomCard } from "@/lib/salaRoomCards";
 
 /** Puente nativo Android disponible (WebView de la APK). */
@@ -23,34 +22,8 @@ export function resolveAgoraChannelFromRoom(
   return isStreamPlaybackUrl(streamUrlCandidate) ? room.channel : streamUrlCandidate || room.channel;
 }
 
-export function resolveAgoraTokenFromActiveStream(
-  activeStream?: Pick<ActiveStreamRow, "playback_url"> | null,
-): string {
-  const playbackUrlCandidate = activeStream?.playback_url?.trim() || "";
-  if (playbackUrlCandidate && !isStreamPlaybackUrl(playbackUrlCandidate)) {
-    return playbackUrlCandidate;
-  }
-  return "";
-}
-
 /**
- * Canal + token de audiencia desde Supabase (active_streams) o Edge agora-token.
- */
-export async function resolveAgoraAudienceSession(
-  room: RoomCard,
-  activeStream?: ActiveStreamRow | null,
-): Promise<{ channel: string; token: string }> {
-  const channel = resolveAgoraChannelFromRoom(room, activeStream);
-  let token = resolveAgoraTokenFromActiveStream(activeStream);
-  if (!token) {
-    const session = await fetchAgoraAudienceSession(channel);
-    return { channel: session.channelName, token: session.audienceToken };
-  }
-  return { channel, token };
-}
-
-/**
- * Live en Android: entrega canal/token al nativo y no abre reproductor web.
+ * Live en Android: entrega playback HLS (.m3u8) al reproductor nativo cuando existe.
  * @returns true si el flujo nativo se ejecutó (no navegar a /sala/espectador).
  */
 export async function handoffLiveToAndroidNative(
@@ -61,7 +34,13 @@ export async function handoffLiveToAndroidNative(
     return false;
   }
 
-  const { channel, token } = await resolveAgoraAudienceSession(room, activeStream);
-  window.Android!.getAgoraParams!(channel, token);
+  const playbackUrl = resolvePlaybackFromActiveStreamRow(activeStream);
+  if (playbackUrl && isStreamPlaybackUrl(playbackUrl)) {
+    window.Android!.getAgoraParams!(playbackUrl, "");
+    return true;
+  }
+
+  const channel = resolveAgoraChannelFromRoom(room, activeStream);
+  window.Android!.getAgoraParams!(channel, "");
   return true;
 }

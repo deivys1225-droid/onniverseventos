@@ -221,6 +221,15 @@ const NuestrasSalasPage = () => {
       const resolvedTitle = activeStream?.title?.trim() || room.name;
 
       if (activeStream?.is_live) {
+        const hlsPlayback = [playbackUrlCandidate, streamUrlCandidate].find((value) => isStreamPlaybackUrl(value));
+        if (hlsPlayback) {
+          const params = new URLSearchParams();
+          params.set("stream", hlsPlayback);
+          params.set("title", resolvedTitle);
+          params.set("mode", "live");
+          navigate(`/sala/espectador/${encodeURIComponent(room.channel)}?${params.toString()}`);
+          return;
+        }
         navigate(
           buildLiveStreamPath({
             channel: resolvedChannel,

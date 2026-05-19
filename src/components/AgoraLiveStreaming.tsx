@@ -16,20 +16,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { buildAgoraChannel } from "@/lib/agoraRooms";
-import { supabase, supabasePublicUrl, supabasePublishableKey } from "@/integrations/supabase/client";
+import { createLivepeerStream } from "@/lib/livepeerStream";
+import { updateProfileLiveState } from "@/lib/profile";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const APP_ID = (import.meta.env.NEXT_PUBLIC_AGORA_APP_ID as string | undefined)?.trim() ?? "";
-const ENV_TOKEN = (import.meta.env.NEXT_PUBLIC_AGORA_TOKEN as string | undefined)?.trim() ?? "";
-
 type StreamConfig = {
-  appId: string;
   title: string;
   rawChannelName: string;
-  channel: string;
-  hostToken: string;
-  audienceToken: string;
+  streamKey: string;
+  playbackId: string;
+  playbackUrl: string;
+  rtmpIngestUrl: string;
+  ingestUrl: string;
   ticketPrice: number;
   isFree: boolean;
 };
@@ -54,7 +53,10 @@ const AgoraLiveStreaming = () => {
   const remoteContainerId = "agora-remote-player";
 
   const canGenerate = useMemo(() => Boolean(user?.id) && !joined && !connecting, [user?.id, joined, connecting]);
-  const canGoLive = useMemo(() => Boolean(streamConfig?.appId) && Boolean(streamConfig) && !joined && !connecting, [streamConfig, joined, connecting]);
+  const canGoLive = useMemo(
+    () => Boolean(streamConfig?.streamKey) && Boolean(streamConfig) && !joined && !connecting,
+    [streamConfig, joined, connecting],
+  );
 
   const createClient = useCallback(() => {
     const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
@@ -112,13 +114,8 @@ const AgoraLiveStreaming = () => {
       setError("Primero genera el canal del evento.");
       return;
     }
-    if (!streamConfig.appId) {
-      setError("No se recibió APP ID de Agora al generar el canal.");
-      return;
-    }
-    const room = streamConfig.channel.trim();
-    if (!room) {
-      setError("No se configuró el canal interno de transmisión.");
+    if (!streamConfig.streamKey) {
+      setError("Primero genera el canal Livepeer (stream key).");
       return;
     }
 
@@ -133,65 +130,16 @@ const AgoraLiveStreaming = () => {
         throw new Error("La cámara requiere contexto seguro (HTTPS o localhost).");
       }
 
-      /**
-       * En WebView Android, el permiso debe ligarse al gesto del usuario: si primero hacemos
-       * await client.join() (varios segundos), getUserMedia puede dar NotAllowedError sin diálogo.
-       * Por eso pedimos cámara/micrófono antes de unir al canal.
-       */
       setStatus("Permisos de cámara y micrófono…");
       const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
       localAudioTrackRef.current = microphoneTrack;
       localVideoTrackRef.current = cameraTrack;
-
-      setStatus("Conectando a Agora…");
-      const client = createClient();
-      clientRef.current = client;
-      await client.setClientRole("host");
-      setStatus("Entrando al canal…");
-
-      client.on("user-published", async (user, mediaType) => {
-        remoteUsersRef.current[String(user.uid)] = user;
-        await client.subscribe(user, mediaType);
-        if (mediaType === "video") mountFirstRemoteUser();
-        if (mediaType === "audio") user.audioTrack?.play();
-      });
-
-      client.on("user-unpublished", (user, mediaType) => {
-        if (mediaType === "video") mountFirstRemoteUser();
-        if (!user.hasVideo && !user.hasAudio) {
-          delete remoteUsersRef.current[String(user.uid)];
-        }
-      });
-
-      client.on("user-left", (user) => {
-        delete remoteUsersRef.current[String(user.uid)];
-        mountFirstRemoteUser();
-      });
-
-      const normalizedToken = streamConfig.hostToken.trim();
-      const joinWithTimeout = async (token: string | null) => {
-        const joinTask = client.join(streamConfig.appId, room, token, null);
-        const joinTimeout = new Promise<never>((_, reject) => {
-          window.setTimeout(() => reject(new Error("Timeout al conectar con Agora (10s).")), 10000);
-        });
-        await Promise.race([joinTask, joinTimeout]);
-      };
-
-      try {
-        await joinWithTimeout(normalizedToken || null);
-      } catch (joinErr) {
-        const rawJoinMessage = joinErr instanceof Error ? joinErr.message : String(joinErr);
-        const normalizedJoinMessage = rawJoinMessage.toUpperCase();
-        const isStaticKeyProjectError =
-          normalizedJoinMessage.includes("CAN_NOT_GET_GATEWAY_SERVER") &&
-          normalizedJoinMessage.includes("DYNAMIC USE STATIC KEY");
-        if (!isStaticKeyProjectError) throw joinErr;
-        await joinWithTimeout(null);
-      }
-      setStatus("Publicando transmisión…");
-      await client.publish([microphoneTrack, cameraTrack]);
       cameraTrack.play(localContainerId);
-      setStatus("Transmitiendo en vivo");
+      microphoneTrack.play();
+
+      setStatus(
+        "Vista previa local activa. Emite con OBS/RTMP usando tu Stream Key de Livepeer.",
+      );
 
       const privacyMode = streamConfig.isFree ? "publico" : "privado_ticket";
       const ticketPrice = streamConfig.isFree ? null : Number(streamConfig.ticketPrice.toFixed(2));
@@ -201,8 +149,9 @@ const AgoraLiveStreaming = () => {
           title: streamConfig.title,
           category: "Musica",
           is_live: true,
-          stream_url: streamConfig.channel,
-          playback_url: streamConfig.audienceToken || null,
+          stream_url: streamConfig.ingestUrl,
+          playback_url: streamConfig.playbackUrl,
+          playback_id: streamConfig.playbackId,
           privacy_mode: privacyMode,
           ticket_price: ticketPrice,
           updated_at: new Date().toISOString(),
@@ -210,6 +159,13 @@ const AgoraLiveStreaming = () => {
         { onConflict: "user_id" },
       );
       if (streamErr) throw streamErr;
+
+      await updateProfileLiveState({
+        userId: user.id,
+        isLive: true,
+        streamKey: streamConfig.streamKey,
+        playbackId: streamConfig.playbackId,
+      });
 
       const { error: profileErr } = await supabase
         .from("profiles")
@@ -219,17 +175,11 @@ const AgoraLiveStreaming = () => {
 
       setJoined(true);
       setConnecting(false);
-      toast.success("Live iniciado. Tu tarjeta ya aparece En Línea.");
+      toast.success("Live iniciado. Emite con OBS/RTMP usando tu Stream Key.");
     } catch (e) {
       await leave();
-      const rawMessage = e instanceof Error ? e.message : "No se pudo conectar al canal.";
+      const rawMessage = e instanceof Error ? e.message : "No se pudo iniciar la vista previa.";
       const normalizedMessage = rawMessage.toUpperCase();
-      if (normalizedMessage.includes("CAN_NOT_GET_GATEWAY_SERVER")) {
-        setError(
-          "Agora requiere token dinámico para este proyecto. Configura NEXT_PUBLIC_AGORA_TOKEN con un token RTC válido.",
-        );
-        return;
-      }
       if (
         normalizedMessage.includes("PERMISSION_DENIED") ||
         normalizedMessage.includes("NOTALLOWEDERROR")
@@ -300,48 +250,9 @@ const AgoraLiveStreaming = () => {
     try {
       setError(null);
       setConnecting(true);
-      setStatus("Solicitando token a Agora...");
+      setStatus("Creando stream en Livepeer Studio...");
 
-      let data: Record<string, unknown> | null = null;
-      const { data: invokedData, error: fnError } = await supabase.functions.invoke("agora-token", {
-        body: {
-          channelName: requestedChannelName,
-          uid: 0,
-        },
-      });
-
-      if (!fnError && invokedData) {
-        data = invokedData as Record<string, unknown>;
-      } else {
-        // Fallback robusto por si el helper de Supabase falla en algunos navegadores.
-        const endpoint = `${supabasePublicUrl}/functions/v1/agora-token`;
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: supabasePublishableKey,
-            Authorization: `Bearer ${supabasePublishableKey}`,
-          },
-          body: JSON.stringify({
-            channelName: requestedChannelName,
-            uid: 0,
-          }),
-        });
-        const responseJson = (await response.json()) as Record<string, unknown>;
-        if (!response.ok) {
-          const backendError = String(responseJson.error ?? "");
-          throw new Error(backendError || fnError?.message || "No se pudo generar token de Agora.");
-        }
-        data = responseJson;
-      }
-
-      const resolvedAppId = (data?.appId as string | undefined)?.trim() || APP_ID;
-      if (!resolvedAppId) {
-        throw new Error("Agora no devolvió APP ID y no existe fallback en entorno.");
-      }
-      const resolvedChannel = (data?.channelName as string | undefined)?.trim() || buildAgoraChannel(requestedChannelName);
-      const hostToken = (data?.hostToken as string | undefined)?.trim() || ENV_TOKEN || "";
-      const audienceToken = (data?.audienceToken as string | undefined)?.trim() || ENV_TOKEN;
+      const livepeer = await createLivepeerStream(`Transmision_Onniverso_${requestedChannelName}`);
 
       const resolvedTitle = `Canal ${requestedChannelName}`;
       const privacyMode = isFree ? "publico" : "privado_ticket";
@@ -353,8 +264,9 @@ const AgoraLiveStreaming = () => {
           title: resolvedTitle,
           category: "Musica",
           is_live: true,
-          stream_url: resolvedChannel,
-          playback_url: audienceToken || null,
+          stream_url: livepeer.ingestUrl,
+          playback_url: livepeer.playbackUrl,
+          playback_id: livepeer.playbackId,
           privacy_mode: privacyMode,
           ticket_price: ticketPrice,
           updated_at: new Date().toISOString(),
@@ -363,6 +275,13 @@ const AgoraLiveStreaming = () => {
       );
       if (streamErr) throw streamErr;
 
+      await updateProfileLiveState({
+        userId: user.id,
+        isLive: true,
+        streamKey: livepeer.streamKey,
+        playbackId: livepeer.playbackId,
+      });
+
       const { error: profileErr } = await supabase
         .from("profiles")
         .update({ live_status: "En Línea", updated_at: new Date().toISOString() })
@@ -370,18 +289,19 @@ const AgoraLiveStreaming = () => {
       if (profileErr) throw profileErr;
 
       setStreamConfig({
-        appId: resolvedAppId,
         title: resolvedTitle,
         rawChannelName: requestedChannelName,
-        channel: resolvedChannel,
-        hostToken,
-        audienceToken,
+        streamKey: livepeer.streamKey,
+        playbackId: livepeer.playbackId,
+        playbackUrl: livepeer.playbackUrl,
+        rtmpIngestUrl: livepeer.rtmpIngestUrl,
+        ingestUrl: livepeer.ingestUrl,
         ticketPrice: isFree ? 0 : normalizedPrice,
         isFree,
       });
-      setStatus("Canal generado y tarjeta en línea");
+      setStatus("Canal Livepeer listo · tarjeta en línea");
       setIsConfigOpen(false);
-      toast.success("Canal generado. Tu tarjeta ya está en línea.");
+      toast.success("Stream Livepeer creado. Usa el Stream Key en OBS/RTMP.");
     } catch (e) {
       const message = e instanceof Error ? e.message : `No se pudo generar el canal (${JSON.stringify(e)})`;
       setError(message);
@@ -452,9 +372,20 @@ const AgoraLiveStreaming = () => {
               </div>
             )}
             {streamConfig && (
-              <p className="mt-2 text-center text-xs text-cyan-100/90">
-                Canal: {streamConfig.rawChannelName} (auto) · {streamConfig.isFree ? "Gratuito" : `Ticket: $${streamConfig.ticketPrice.toFixed(2)} USD`}
-              </p>
+              <div className="mt-2 space-y-1 text-center text-xs text-cyan-100/90">
+                <p>
+                  {streamConfig.title} · {streamConfig.isFree ? "Gratuito" : `Ticket: $${streamConfig.ticketPrice.toFixed(2)} USD`}
+                </p>
+                <p className="break-all font-mono text-[10px] text-cyan-200/80">
+                  Stream Key: {streamConfig.streamKey}
+                </p>
+                <p className="break-all font-mono text-[10px] text-cyan-200/80">
+                  RTMP: {streamConfig.ingestUrl}
+                </p>
+                <p className="break-all font-mono text-[10px] text-violet-200/80">
+                  Playback: {streamConfig.playbackUrl}
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -465,7 +396,7 @@ const AgoraLiveStreaming = () => {
           <DialogHeader>
             <DialogTitle className="font-display">Generar canal</DialogTitle>
             <DialogDescription>
-              El sistema genera automáticamente el canal con tu nombre de usuario y solicita token de Agora.
+              Se crea un stream en Livepeer Studio (stream key + enlace HLS para espectadores y Android).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
