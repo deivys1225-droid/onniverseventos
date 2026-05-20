@@ -11,8 +11,10 @@ import { handoffActiveStreamPlaybackToAndroid } from "@/lib/androidAgoraRoomEntr
 import {
   audienceStreamSessionKey,
   isStreamPlaybackUrl,
+  muxPlaybackIdFromHlsUrl,
   resolveCurrentTransmissionUrl,
   resolveLiveTransmissionUrl,
+  resolvePlaybackIdFromActiveStreamRow,
 } from "@/lib/audiencePlayback";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import type { ActiveStreamRow } from "@/lib/salaRoomCards";
@@ -133,6 +135,17 @@ const EspectadorView = () => {
       activeStream: activeStreamRow,
     });
   }, [useVodMode, effectiveStreamParam, fallbackMp4, channelName, activeStreamRow]);
+
+  const playbackId = useMemo(() => {
+    if (useVodMode) return null;
+    const fromRow = resolvePlaybackIdFromActiveStreamRow(activeStreamRow);
+    if (fromRow) return fromRow;
+    return (
+      muxPlaybackIdFromHlsUrl(effectiveStreamParam) ??
+      muxPlaybackIdFromHlsUrl(playbackUrl) ??
+      null
+    );
+  }, [useVodMode, activeStreamRow, effectiveStreamParam, playbackUrl]);
 
   useEffect(() => {
     if (!playbackUrl || useVodMode) return;
@@ -258,16 +271,16 @@ const EspectadorView = () => {
                 <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-cyan-300/45 bg-black text-sm text-muted-foreground">
                   Cargando transmisión Mux…
                 </div>
-              ) : playbackUrl ? (
+              ) : playbackId ? (
                 <MuxHlsPlayer
-                  key={playbackUrl}
-                  playbackUrl={playbackUrl}
+                  key={playbackId}
+                  playbackId={playbackId}
                   title={roomTitle}
                   manualStart={Capacitor.getPlatform() === "android"}
                 />
               ) : (
                 <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-cyan-300/35 bg-black/50 p-6 text-center text-sm text-muted-foreground">
-                  Sin señal HLS. El emisor debe iniciar transmisión desde la sala emisor.
+                  Sin playback ID de Mux. El emisor debe iniciar transmisión desde la sala emisor.
                 </div>
               )}
             </div>

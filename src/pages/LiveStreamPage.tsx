@@ -5,7 +5,10 @@ import Navbar from "@/components/Navbar";
 import { MuxHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
 import { DuplexSplitLayout } from "@/components/streaming/DuplexSplitLayout";
 import { handoffActiveStreamPlaybackToAndroid } from "@/lib/androidAgoraRoomEntry";
-import { resolvePlaybackFromActiveStreamRow } from "@/lib/audiencePlayback";
+import {
+  resolvePlaybackFromActiveStreamRow,
+  resolvePlaybackIdFromActiveStreamRow,
+} from "@/lib/audiencePlayback";
 import { buildLiveStreamPath } from "@/lib/liveStreamRoutes";
 import { supabase } from "@/integrations/supabase/client";
 import type { ActiveStreamRow } from "@/lib/salaRoomCards";
@@ -34,6 +37,11 @@ const LiveStreamPage = () => {
     );
     return match ?? activeStreams[0] ?? null;
   }, [channelParam, activeStreams]);
+
+  const playbackId = useMemo(
+    () => resolvePlaybackIdFromActiveStreamRow(selectedStream),
+    [selectedStream],
+  );
 
   const playbackUrl = useMemo(
     () => resolvePlaybackFromActiveStreamRow(selectedStream),
@@ -89,17 +97,17 @@ const LiveStreamPage = () => {
     });
   };
 
-  const player = playbackUrl ? (
+  const player = playbackId ? (
     <MuxHlsPlayer
-      key={playbackUrl}
-      playbackUrl={playbackUrl}
+      key={playbackId}
+      playbackId={playbackId}
       title={displayTitle}
       compact={duplexOpen}
       manualStart
     />
   ) : (
     <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-cyan-300/35 bg-black/50 p-6 text-center text-sm text-muted-foreground">
-      {loadingList ? "Cargando transmisiones…" : "No hay señal HLS activa. El emisor debe estar en vivo (Mux)."}
+      {loadingList ? "Cargando transmisiones…" : "No hay playback ID activo. El emisor debe estar en vivo (Mux)."}
     </div>
   );
 
@@ -126,7 +134,7 @@ const LiveStreamPage = () => {
             </div>
             <div>
               <h1 className="font-display text-2xl font-bold tracking-wide text-cyan-50 md:text-3xl">LIVE STREAM</h1>
-              <p className="text-sm text-muted-foreground">Reproducción HLS Mux Video</p>
+              <p className="text-sm text-muted-foreground">Reproducción en vivo Mux Player</p>
             </div>
           </header>
         )}

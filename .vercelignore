@@ -3,9 +3,17 @@ dist
 .git
 android
 coverage
+mux-api/node_modules
+Proyecto base1
+unity
+supabase/.temp
 *.log
 *.tmp
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Vídeos locales grandes (gitignore); no subir en CLI deploy
+public/**/*.mp4
+public/*.mp4

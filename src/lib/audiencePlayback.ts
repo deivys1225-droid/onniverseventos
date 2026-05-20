@@ -25,6 +25,30 @@ export function muxPlaybackIdToHlsUrl(playbackId: string | null | undefined): st
   return `${MUX_HLS_BASE}/${id}.m3u8`;
 }
 
+/** Extrae playback_id desde una URL HLS de Mux. */
+export function muxPlaybackIdFromHlsUrl(url: string | null | undefined): string | null {
+  const value = (url ?? "").trim();
+  if (!value) return null;
+  const match = value.match(/stream\.mux\.com\/([A-Za-z0-9]+)(?:\.m3u8)?/i);
+  return match?.[1]?.trim() ?? null;
+}
+
+/** playback_id de Mux para el reproductor oficial (prioriza columna playback_id). */
+export function resolvePlaybackIdFromActiveStreamRow(
+  row: ActiveStreamPlaybackSource | null | undefined,
+): string | null {
+  if (!row) return null;
+
+  const id = (row.playback_id ?? "").trim();
+  if (id && !id.startsWith("youtube:") && !isStreamPlaybackUrl(id)) {
+    return id;
+  }
+
+  return (
+    muxPlaybackIdFromHlsUrl(row.playback_url) ?? muxPlaybackIdFromHlsUrl(row.stream_url) ?? null
+  );
+}
+
 /** @deprecated Usar {@link muxPlaybackIdToHlsUrl} */
 export const livepeerPlaybackIdToHlsUrl = muxPlaybackIdToHlsUrl;
 
