@@ -1,0 +1,15 @@
+# Despliegue en https://render.com → New → Blueprint → conectar repo, carpeta mux-api
+services:
+  - type: web
+    name: onniverso-mux-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: MUX_TOKEN_ID
+        sync: false
+      - key: MUX_TOKEN_SECRET
+        sync: false
+      - key: PORT
+        value: "8787"

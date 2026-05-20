@@ -81,6 +81,7 @@ export default async function handler(req, res) {
       playbackUrl: playback_url,
       rtmp_ingest_url: MUX_RTMP_INGEST_BASE,
       rtmp_push_url: `${MUX_RTMP_INGEST_BASE}/${stream_key}`,
+      rtmp_url: `${MUX_RTMP_INGEST_BASE}/${stream_key}`,
       status: liveStream.status,
     });
   } catch (error) {

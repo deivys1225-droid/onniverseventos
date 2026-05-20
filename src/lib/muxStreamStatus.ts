@@ -3,6 +3,10 @@ import { sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
 
 export type MuxStreamSignalState = "checking" | "active" | "idle" | "error";
 
+export function muxApiBase(): string {
+  return (import.meta.env.VITE_MUX_API_URL as string | undefined)?.trim().replace(/\/$/, "") ?? "";
+}
+
 /** Comprueba si Mux ya está sirviendo HLS (hay RTMP entrando). */
 export async function probeMuxStreamSignal(playbackId: string): Promise<MuxStreamSignalState> {
   const id = sanitizeMuxPlaybackId(playbackId);

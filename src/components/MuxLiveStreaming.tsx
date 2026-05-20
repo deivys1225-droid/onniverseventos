@@ -1,5 +1,4 @@
-import { Suspense, useCallback, useEffect, useState } from "react";
-import { dynamic } from "@/lib/dynamic";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,9 +10,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-const MuxBroadcasterClient = dynamic(() => import("@/components/MuxBroadcasterClient"), { ssr: false });
+import { MuxObsEmitterPanel, type MuxObsStreamCredentials } from "@/components/streaming/MuxObsEmitterPanel";
 import { createMuxStream } from "@/lib/muxStream";
-import { releaseLocalMediaCapture } from "@/lib/mediaStreamCleanup";
 import { updateProfileLiveState } from "@/lib/profile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -25,8 +23,8 @@ type StreamConfig = {
   streamKey: string;
   playbackId: string;
   playbackUrl: string;
-  rtmpIngestUrl: string;
-  ingestUrl: string;
+  rtmpUrl: string;
+  rtmpServer: string;
   ticketPrice: number;
   isFree: boolean;
 };
@@ -40,16 +38,16 @@ type EventSetup = {
 
 const MuxLiveStreaming = () => {
   const { user } = useAuth();
-  const [broadcasting, setBroadcasting] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const [status, setStatus] = useState("Configura tu evento y pulsa Iniciar transmisión");
+  const [status, setStatus] = useState("Pulsa Live para obtener credenciales OBS");
   const [error, setError] = useState<string | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isEmitterOpen, setIsEmitterOpen] = useState(false);
   const [ticketInput, setTicketInput] = useState("0");
   const [isFreeEvent, setIsFreeEvent] = useState(true);
   const [eventSetup, setEventSetup] = useState<EventSetup | null>(null);
   const [streamConfig, setStreamConfig] = useState<StreamConfig | null>(null);
-  const [panelKey, setPanelKey] = useState(0);
+  const [signalLive, setSignalLive] = useState(false);
 
   const canOpenSetup = Boolean(user?.id) && !connecting;
 
@@ -66,7 +64,7 @@ const MuxLiveStreaming = () => {
           title: config.title,
           category: "Musica",
           is_live: isLive,
-          stream_url: config.ingestUrl,
+          stream_url: config.rtmpUrl,
           playback_url: config.playbackUrl,
           playback_id: config.playbackId,
           privacy_mode: privacyMode,
@@ -98,10 +96,10 @@ const MuxLiveStreaming = () => {
 
   const stopLive = useCallback(async () => {
     if (!user?.id) return;
-    releaseLocalMediaCapture();
-    setPanelKey((k) => k + 1);
-    setBroadcasting(false);
+
     setStreamConfig(null);
+    setSignalLive(false);
+    setIsEmitterOpen(false);
 
     const { error: rpcErr } = await supabase.rpc("stop_my_active_streams");
     if (rpcErr) {
@@ -115,63 +113,77 @@ const MuxLiveStreaming = () => {
         .eq("id", user.id);
     }
 
-    setStatus(eventSetup ? "Evento listo · pulsa Iniciar transmisión de nuevo" : "Transmisión detenida");
-    toast.info("Transmisión detenida.");
+    setStatus(eventSetup ? "Sesión cerrada · pulsa Live de nuevo" : "Transmisión detenida");
+    toast.info("Sesión Live cerrada.");
   }, [eventSetup, user?.id]);
 
-  /** Iniciar transmisión: backend Mux crea el live + activamos tarjeta en vivo. */
-  const handleStartTransmission = useCallback(async () => {
+  const ensureMuxStream = useCallback(async (): Promise<StreamConfig> => {
+    if (streamConfig) return streamConfig;
     if (!user?.id || !eventSetup) {
-      setError("Primero configura el evento (Generar canal).");
+      throw new Error("Configura el evento antes de ir en vivo.");
+    }
+
+    setConnecting(true);
+    setStatus("Creando live stream en Mux…");
+
+    const mux = await createMuxStream(`Transmision_Onniverso_${eventSetup.rawChannelName}`);
+
+    const config: StreamConfig = {
+      title: eventSetup.title,
+      rawChannelName: eventSetup.rawChannelName,
+      muxLiveStreamId: mux.liveStreamId,
+      streamKey: mux.streamKey,
+      playbackId: mux.playbackId,
+      playbackUrl: mux.playbackUrl,
+      rtmpUrl: mux.rtmpPushUrl || mux.ingestUrl,
+      rtmpServer: mux.rtmpIngestUrl,
+      ticketPrice: eventSetup.ticketPrice,
+      isFree: eventSetup.isFree,
+    };
+
+    await persistLiveState(config, false);
+    setStreamConfig(config);
+    setSignalLive(false);
+    setStatus("Esperando señal RTMP desde OBS");
+    toast.success("Live Mux creado. Copia la URL RTMP en OBS.");
+    return config;
+  }, [eventSetup, persistLiveState, streamConfig, user?.id]);
+
+  const handleOpenLive = useCallback(async () => {
+    if (!user?.id) {
+      setError("Debes iniciar sesión.");
+      return;
+    }
+    if (!eventSetup) {
+      setIsConfigOpen(true);
       return;
     }
 
     try {
       setError(null);
-      setConnecting(true);
-      setStatus("Creando live stream en Mux…");
-
-      const mux = await createMuxStream(`Transmision_Onniverso_${eventSetup.rawChannelName}`);
-
-      const config: StreamConfig = {
-        title: eventSetup.title,
-        rawChannelName: eventSetup.rawChannelName,
-        muxLiveStreamId: mux.liveStreamId,
-        streamKey: mux.streamKey,
-        playbackId: mux.playbackId,
-        playbackUrl: mux.playbackUrl,
-        rtmpIngestUrl: mux.rtmpIngestUrl,
-        ingestUrl: mux.ingestUrl,
-        ticketPrice: eventSetup.ticketPrice,
-        isFree: eventSetup.isFree,
-      };
-
-      await persistLiveState(config, true);
-
-      setStreamConfig(config);
-      setBroadcasting(true);
-      setStatus("En vivo · publicando cámara del navegador a Mux");
-      toast.success("Live Mux creado. Enviando señal desde el navegador…");
+      await ensureMuxStream();
+      setIsEmitterOpen(true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "No se pudo crear el live en Mux.";
       setError(msg);
-      setStatus("Error al iniciar transmisión");
+      setStatus("Error al crear live");
     } finally {
       setConnecting(false);
     }
-  }, [eventSetup, persistLiveState, user?.id]);
+  }, [ensureMuxStream, eventSetup, user?.id]);
 
-  const handleStopTransmission = useCallback(() => {
-    if (!broadcasting) return;
-    void stopLive();
-  }, [broadcasting, stopLive]);
-
-  useEffect(() => {
-    return () => {
-      if (!user?.id || !broadcasting) return;
-      void supabase.rpc("stop_my_active_streams");
-    };
-  }, [broadcasting, user?.id]);
+  const handleSignalActive = useCallback(async () => {
+    if (!streamConfig || signalLive) return;
+    try {
+      await persistLiveState(streamConfig, true);
+      setSignalLive(true);
+      setStatus("En vivo · señal Mux activa");
+      toast.success("¡Señal detectada! La sala ya está disponible.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "No se pudo publicar el estado en vivo.";
+      toast.error(msg);
+    }
+  }, [persistLiveState, signalLive, streamConfig]);
 
   const openEventSetup = () => {
     if (!user?.id) {
@@ -200,11 +212,24 @@ const MuxLiveStreaming = () => {
       isFree,
     });
     setStreamConfig(null);
-    setBroadcasting(false);
-    setStatus("Evento listo · pulsa Iniciar transmisión (crea el live en Mux)");
+    setSignalLive(false);
+    setStatus("Evento listo · pulsa Live");
     setIsConfigOpen(false);
-    toast.success("Evento configurado. Pulsa Iniciar transmisión cuando estés listo.");
+    toast.success("Evento configurado. Pulsa Live para credenciales OBS.");
   };
+
+  const obsCredentials: MuxObsStreamCredentials | null = streamConfig
+    ? {
+        title: streamConfig.title,
+        rawChannelName: streamConfig.rawChannelName,
+        liveStreamId: streamConfig.muxLiveStreamId,
+        streamKey: streamConfig.streamKey,
+        playbackId: streamConfig.playbackId,
+        playbackUrl: streamConfig.playbackUrl,
+        rtmpUrl: streamConfig.rtmpUrl,
+        rtmpServer: streamConfig.rtmpServer,
+      }
+    : null;
 
   return (
     <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-cyan-300/30 bg-card/35 p-4 shadow-[0_0_60px_-18px_rgba(34,211,238,0.9)] backdrop-blur-xl md:p-6">
@@ -216,7 +241,7 @@ const MuxLiveStreaming = () => {
         <h2 className="font-display text-xl font-bold tracking-tight text-foreground md:text-2xl">
           Evento <span className="text-gradient-neon">Live</span> en Al Universo
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">Transmisión Mux (navegador → RTMP + HLS)</p>
+        <p className="mt-1 text-sm text-muted-foreground">Emisión RTMP con OBS → Mux · Espectadores vía playback_id</p>
       </div>
 
       <div className="relative z-10 mb-3 flex justify-center">
@@ -231,63 +256,32 @@ const MuxLiveStreaming = () => {
         </p>
       )}
 
-      <div className="relative z-10 mx-auto w-full max-w-3xl space-y-4">
-        {!eventSetup ? (
-          <div className="flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-cyan-300/35 bg-black/40 p-6 text-center text-sm text-muted-foreground">
-            Pulsa Generar canal para configurar tu evento en vivo con Mux.
-          </div>
-        ) : streamConfig ? (
-          <Suspense
-            fallback={
-              <div className="flex min-h-[12rem] items-center justify-center rounded-lg border border-cyan-400/30 bg-black/40 p-6 text-sm text-cyan-100/80">
-                Cargando emisor de video…
-              </div>
-            }
-          >
-            <MuxBroadcasterClient
-              key={`${streamConfig.streamKey}-${panelKey}`}
-              title={streamConfig.title}
-              playbackId={streamConfig.playbackId}
-              streamKey={streamConfig.streamKey}
-              rtmpPushUrl={streamConfig.ingestUrl}
-              playbackUrl={streamConfig.playbackUrl}
-              broadcasting={broadcasting}
-              connecting={connecting}
-              onStopTransmission={handleStopTransmission}
-            />
-          </Suspense>
-        ) : (
-          <div className="flex aspect-video w-full flex-col items-center justify-center gap-4 rounded-2xl border border-cyan-300/35 bg-black/50 p-6">
-            <p className="text-center text-sm text-cyan-100">{eventSetup.title}</p>
-            <Button
-              type="button"
-              variant="hero"
-              disabled={connecting}
-              className="min-h-12 min-w-[220px] px-8 font-bold uppercase"
-              onClick={() => void handleStartTransmission()}
-            >
-              {connecting ? "Creando en Mux…" : "Iniciar transmisión"}
-            </Button>
-          </div>
-        )}
-
-        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-          <Button type="button" variant="hero" onClick={openEventSetup} disabled={!canOpenSetup}>
-            {eventSetup ? "Reconfigurar evento" : "Generar canal"}
-          </Button>
-          {broadcasting && (
-            <Button type="button" variant="outline" onClick={() => void stopLive()}>
-              Cerrar señal en la plataforma
-            </Button>
+      <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-col items-center gap-4">
+        <div className="flex w-full flex-col items-center justify-center gap-4 rounded-2xl border border-cyan-300/35 bg-black/50 p-8 text-center">
+          {!eventSetup ? (
+            <p className="text-sm text-muted-foreground">Configura tu evento y luego pulsa Live para obtener credenciales OBS.</p>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-cyan-100">{eventSetup.title}</p>
+              <p className="max-w-md text-xs text-muted-foreground">
+                No se usa cámara del navegador. Transmite desde OBS con la URL RTMP que te entregamos al pulsar Live.
+              </p>
+            </>
           )}
-        </div>
-
-        {streamConfig && (
-          <div className="space-y-1 text-center text-xs text-cyan-100/90">
-            <p className="break-all font-mono text-[10px] text-violet-200/80">playback_id: {streamConfig.playbackId}</p>
-            <p className="break-all font-mono text-[10px] text-violet-200/80">stream_key: {streamConfig.streamKey}</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button type="button" variant="hero" onClick={() => void handleOpenLive()} disabled={connecting || !user?.id}>
+              {connecting ? "Creando en Mux…" : "Live"}
+            </Button>
+            <Button type="button" variant="outline" onClick={openEventSetup} disabled={!canOpenSetup}>
+              {eventSetup ? "Reconfigurar evento" : "Configurar evento"}
+            </Button>
+            {streamConfig && (
+              <Button type="button" variant="outline" onClick={() => void stopLive()}>
+                Cerrar sesión
+              </Button>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
@@ -295,7 +289,7 @@ const MuxLiveStreaming = () => {
           <DialogHeader>
             <DialogTitle className="font-display">Configurar evento Mux</DialogTitle>
             <DialogDescription>
-              Al iniciar transmisión se crea el live en Mux y obtienes stream_key + playback_id.
+              Al pulsar Live se crea el stream en Mux y obtienes stream_key, URL RTMP y playback_id para OBS.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -328,6 +322,26 @@ const MuxLiveStreaming = () => {
               Guardar evento
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEmitterOpen} onOpenChange={setIsEmitterOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-cyan-300/40 bg-card/95 backdrop-blur-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display">Panel de emisión OBS</DialogTitle>
+            <DialogDescription>
+              Copia estos datos en OBS. El indicador pasará a En vivo cuando Mux detecte señal RTMP.
+            </DialogDescription>
+          </DialogHeader>
+          {obsCredentials ? (
+            <MuxObsEmitterPanel
+              credentials={obsCredentials}
+              onSignalActive={() => void handleSignalActive()}
+              onEndSession={() => void stopLive()}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">Creando credenciales…</p>
+          )}
         </DialogContent>
       </Dialog>
     </section>
