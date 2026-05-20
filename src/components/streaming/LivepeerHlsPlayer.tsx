@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import MuxPlayer from "@mux/mux-player-react";
 import { Play } from "lucide-react";
+import { sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
 import { cn } from "@/lib/utils";
 
 export type MuxHlsPlayerProps = {
@@ -22,18 +23,30 @@ export function MuxHlsPlayer({
   className = "",
 }: MuxHlsPlayerProps) {
   const [started, setStarted] = useState(!manualStart);
-  const [error, setError] = useState<string | null>(null);
-  const id = playbackId.trim();
+  const sanitizedPlaybackId = useMemo(
+    () => sanitizeMuxPlaybackId(playbackId),
+    [playbackId],
+  );
+
+  useEffect(() => {
+    console.log("[MuxPlayer] playbackId → MuxPlayer:", {
+      raw: playbackId,
+      sanitized: sanitizedPlaybackId,
+      esUrl: /\.m3u8|stream\.mux\.com/i.test(String(playbackId ?? "")),
+    });
+  }, [playbackId, sanitizedPlaybackId]);
 
   const shellClass = compact
     ? "h-full min-h-[12rem] w-full rounded-lg border border-cyan-300/45 bg-black object-contain"
     : "aspect-video w-full rounded-xl border border-cyan-300/45 bg-black object-contain shadow-[0_0_48px_-10px_rgba(34,211,238,0.95)]";
 
-  if (!id) {
+  if (!sanitizedPlaybackId) {
     return (
       <div className={className}>
         <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
-          No hay playback ID de Mux para reproducir.
+          Playback ID de Mux inválido
+          {playbackId?.trim() ? ` (recibido: ${playbackId.trim().slice(0, 48)}…)` : ""}.
+          Usa el ID plano de Mux, no la URL .m3u8.
         </p>
       </div>
     );
@@ -44,17 +57,14 @@ export function MuxHlsPlayer({
       <div className="relative">
         {started ? (
           <MuxPlayer
-            key={id}
-            playbackId={id}
+            key={sanitizedPlaybackId}
+            playbackId={sanitizedPlaybackId}
             streamType="live"
             metadata={{ video_title: title?.trim() || "Transmisión en vivo" }}
             title={title}
             autoPlay="muted"
             playsInline
             className={shellClass}
-            onError={() => {
-              setError("No se pudo reproducir el stream. ¿El emisor ya está enviando RTMP?");
-            }}
           />
         ) : (
           <div
@@ -66,10 +76,7 @@ export function MuxHlsPlayer({
             <p className="text-center text-sm text-cyan-100/90">{title || "Transmisión en vivo"}</p>
             <button
               type="button"
-              onClick={() => {
-                setError(null);
-                setStarted(true);
-              }}
+              onClick={() => setStarted(true)}
               className="inline-flex min-h-[52px] items-center gap-2 rounded-xl border border-cyan-400/60 bg-cyan-500/20 px-6 py-3 text-sm font-semibold text-cyan-50 shadow-[0_0_32px_-8px_rgba(34,211,238,0.8)] transition hover:bg-cyan-500/35"
             >
               <Play className="h-5 w-5 fill-current" aria-hidden />
@@ -79,16 +86,17 @@ export function MuxHlsPlayer({
         )}
       </div>
       {title && started && (
-        <p className="mt-3 text-xs text-cyan-100">
-          {title} · En vivo
+        <p className="mt-3 text-xs text-cyan-100">{title} · En vivo</p>
+      )}
+      {started && (
+        <p className="mt-2 rounded-md border border-amber-400/35 bg-amber-500/10 p-2 text-xs text-amber-100/95">
+          Si aparece «Live stream is not currently available», el canal Mux está creado pero el emisor aún no envía
+          video por RTMP (Larix, OBS, etc.). La cámara del navegador solo es vista previa.
         </p>
       )}
-      {error && (
-        <p className="mt-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">Mux Player</p>
+      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+        Mux Player · ID {sanitizedPlaybackId.slice(0, 16)}…
+      </p>
     </div>
   );
 }

@@ -11,6 +11,13 @@ import { MUX_RTMP_INGEST_BASE, getMuxClient, muxPlaybackHlsUrl } from "../lib/mu
 
 export const liveStreamRouter = Router();
 
+function extractPlaybackIdFromLiveStream(liveStream) {
+  const fromArray = liveStream?.playback_ids?.[0]?.id;
+  if (fromArray) return String(fromArray).trim();
+  if (liveStream?.playback_id) return String(liveStream.playback_id).trim();
+  return "";
+}
+
 /**
  * Crea un live stream en Mux y responde con stream_key + playback_id para el frontend.
  */
@@ -31,7 +38,7 @@ async function handleCreateStream(req, res) {
     });
 
     const stream_key = String(liveStream.stream_key ?? "").trim();
-    const playback_id = liveStream.playback_ids?.[0]?.id?.trim() ?? "";
+    const playback_id = extractPlaybackIdFromLiveStream(liveStream);
     const playback_url = muxPlaybackHlsUrl(playback_id);
 
     if (!stream_key || !playback_id) {
@@ -47,6 +54,7 @@ async function handleCreateStream(req, res) {
       live_stream_id: liveStream.id,
       stream_key,
       playback_id,
+      playback_ids: liveStream.playback_ids,
       playback_url,
       // Alias camelCase por si el frontend ya los usa
       streamKey: stream_key,

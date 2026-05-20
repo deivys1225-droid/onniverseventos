@@ -8,7 +8,9 @@ import Footer from "@/components/Footer";
 import ComunidadRoomsGrid from "@/components/comunidad/ComunidadRoomsGrid";
 import SectionHeader from "@/components/salas/SectionHeader";
 import { supabase } from "@/integrations/supabase/client";
-import { isStreamPlaybackUrl } from "@/lib/audiencePlayback";
+import { isStreamPlaybackUrl, resolvePlaybackIdFromActiveStreamRow } from "@/lib/audiencePlayback";
+import { buildEspectadorLivePath } from "@/lib/espectadorRoutes";
+import { muxPlaybackIdFromHlsUrl } from "@/lib/muxPlaybackId";
 import { handoffLiveToAndroidNative } from "@/lib/androidAgoraRoomEntry";
 import { buildLiveStreamPath } from "@/lib/liveStreamRoutes";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
@@ -147,19 +149,25 @@ const ComunidadPage = () => {
       const resolvedTitle = activeStream?.title?.trim() || room.name;
 
       if (activeStream?.is_live) {
-        const hlsPlayback = [playbackUrlCandidate, streamUrlCandidate].find((value) => isStreamPlaybackUrl(value));
-        if (hlsPlayback) {
-          const params = new URLSearchParams();
-          params.set("stream", hlsPlayback);
-          params.set("title", resolvedTitle);
-          params.set("mode", "live");
-          navigate(`/sala/espectador/${encodeURIComponent(room.channel)}?${params.toString()}`);
+        const muxPlaybackId =
+          resolvePlaybackIdFromActiveStreamRow(activeStream) ??
+          muxPlaybackIdFromHlsUrl(playbackUrlCandidate) ??
+          muxPlaybackIdFromHlsUrl(streamUrlCandidate);
+        if (muxPlaybackId) {
+          navigate(
+            buildEspectadorLivePath({
+              channel: room.channel,
+              playbackId: muxPlaybackId,
+              title: resolvedTitle,
+            }),
+          );
           return;
         }
         navigate(
           buildLiveStreamPath({
-            channel: resolvedChannel,
+            channel: muxPlaybackId ?? resolvedChannel,
             title: resolvedTitle,
+            playbackId: muxPlaybackId ?? undefined,
           }),
         );
         return;
@@ -173,6 +181,8 @@ const ComunidadPage = () => {
       params.set("mode", room.mp4Url && !activeStream?.is_live ? "vod" : "live");
       if (resolvedToken) params.set("token", resolvedToken);
       if (resolvedStreamUrl) params.set("stream", resolvedStreamUrl);
+      const muxPlaybackId = resolvePlaybackIdFromActiveStreamRow(activeStream);
+      if (muxPlaybackId) params.set("playbackId", muxPlaybackId);
       const path = `/sala/espectador/${encodeURIComponent(resolvedChannel)}?${params.toString()}`;
       if (Capacitor.getPlatform() === "android") {
         window.location.assign(`${window.location.origin}${path}`);

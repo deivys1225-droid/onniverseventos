@@ -6,6 +6,14 @@ import Mux from "@mux/mux-node";
 
 const MUX_RTMP_INGEST_BASE = "rtmps://global-live.mux.com:443/app";
 
+/** playback_ids[0].id al crear el live stream (API Mux). */
+function extractPlaybackIdFromLiveStream(liveStream) {
+  const fromArray = liveStream?.playback_ids?.[0]?.id;
+  if (fromArray) return String(fromArray).trim();
+  if (liveStream?.playback_id) return String(liveStream.playback_id).trim();
+  return "";
+}
+
 function muxPlaybackHlsUrl(playbackId) {
   const id = String(playbackId ?? "").trim();
   return id ? `https://stream.mux.com/${id}.m3u8` : null;
@@ -50,13 +58,14 @@ export default async function handler(req, res) {
     });
 
     const stream_key = String(liveStream.stream_key ?? "").trim();
-    const playback_id = liveStream.playback_ids?.[0]?.id?.trim() ?? "";
+    const playback_id = extractPlaybackIdFromLiveStream(liveStream);
     const playback_url = muxPlaybackHlsUrl(playback_id);
 
     if (!stream_key || !playback_id || !playback_url) {
       return res.status(502).json({
         ok: false,
         error: "Mux no devolvió stream_key o playback_id.",
+        raw: { id: liveStream.id, playback_ids: liveStream.playback_ids },
       });
     }
 
@@ -65,6 +74,7 @@ export default async function handler(req, res) {
       live_stream_id: liveStream.id,
       stream_key,
       playback_id,
+      playback_ids: liveStream.playback_ids,
       playback_url,
       streamKey: stream_key,
       playbackId: playback_id,

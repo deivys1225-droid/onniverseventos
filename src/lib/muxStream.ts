@@ -1,3 +1,5 @@
+import { extractPlaybackIdFromMuxApiPayload, sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
+
 /**
  * Cliente del backend Node `mux-api` (credenciales Mux solo en servidor).
  * En dev, Vite hace proxy de /api/mux → http://localhost:8787
@@ -36,21 +38,34 @@ export async function createMuxStream(title?: string): Promise<MuxStreamSession>
   }
 
   const streamKey = String(data.stream_key ?? data.streamKey ?? "").trim();
-  const playbackId = String(data.playback_id ?? data.playbackId ?? "").trim();
+  const playbackId = extractPlaybackIdFromMuxApiPayload(data) ?? "";
   const playbackUrl = String(data.playback_url ?? data.playbackUrl ?? "").trim();
   const rtmpIngestUrl = String(data.rtmp_ingest_url ?? data.rtmpIngestUrl ?? "rtmps://global-live.mux.com:443/app").trim();
   const rtmpPushUrl = String(data.rtmp_push_url ?? data.rtmpPushUrl ?? "").trim();
   const liveStreamId = String(data.live_stream_id ?? data.liveStreamId ?? "").trim();
 
-  if (!streamKey || !playbackId || !playbackUrl) {
+  const safePlaybackId = sanitizeMuxPlaybackId(playbackId);
+  const safePlaybackUrl =
+    playbackUrl ||
+    (safePlaybackId ? `https://stream.mux.com/${safePlaybackId}.m3u8` : "");
+
+  if (!streamKey || !safePlaybackId || !safePlaybackUrl) {
     throw new Error("Respuesta incompleta de Mux (stream_key, playback_id o playback_url).");
+  }
+
+  if (import.meta.env.DEV) {
+    console.log("[createMuxStream] playback_id extraído:", {
+      playback_id: safePlaybackId,
+      playback_ids: data.playback_ids,
+      stream_key: streamKey,
+    });
   }
 
   return {
     liveStreamId,
     streamKey,
-    playbackId,
-    playbackUrl,
+    playbackId: safePlaybackId,
+    playbackUrl: safePlaybackUrl,
     rtmpIngestUrl,
     rtmpPushUrl: rtmpPushUrl || `${rtmpIngestUrl.replace(/\/$/, "")}/${streamKey}`,
     ingestUrl: rtmpPushUrl || `${rtmpIngestUrl.replace(/\/$/, "")}/${streamKey}`,

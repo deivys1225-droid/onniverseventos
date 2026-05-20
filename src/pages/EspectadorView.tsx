@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { MonitorPlay, Scan, Video } from "lucide-react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { MuxHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
@@ -11,11 +11,12 @@ import { handoffActiveStreamPlaybackToAndroid } from "@/lib/androidAgoraRoomEntr
 import {
   audienceStreamSessionKey,
   isStreamPlaybackUrl,
-  muxPlaybackIdFromHlsUrl,
   resolveCurrentTransmissionUrl,
   resolveLiveTransmissionUrl,
   resolvePlaybackIdFromActiveStreamRow,
 } from "@/lib/audiencePlayback";
+import { muxPlaybackIdToHlsUrl } from "@/lib/audiencePlayback";
+import { muxPlaybackIdFromHlsUrl, sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import type { ActiveStreamRow } from "@/lib/salaRoomCards";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,12 +49,14 @@ function tryAndroidNativeSceneSelector(preferred: AudienceSceneKey): boolean {
 
 const EspectadorView = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { channel } = useParams<{ channel: string }>();
   const [searchParams] = useSearchParams();
   const channelName = useMemo(() => (channel?.trim() ? decodeURIComponent(channel) : buildAgoraChannel("main")), [channel]);
   const roomTitle = (searchParams.get("title") ?? "Sala en vivo").trim();
   const fallbackMp4 = (searchParams.get("mp4") ?? "").trim();
   const streamPlaybackUrl = (searchParams.get("stream") ?? "").trim();
+  const playbackIdParam = (searchParams.get("playbackId") ?? searchParams.get("playback_id") ?? "").trim();
   const sessionStreamUrl = useMemo(() => {
     try {
       return sessionStorage.getItem(audienceStreamSessionKey(channelName)) ?? "";
@@ -138,6 +141,8 @@ const EspectadorView = () => {
 
   const playbackId = useMemo(() => {
     if (useVodMode) return null;
+    const fromQuery = sanitizeMuxPlaybackId(playbackIdParam);
+    if (fromQuery) return fromQuery;
     const fromRow = resolvePlaybackIdFromActiveStreamRow(activeStreamRow);
     if (fromRow) return fromRow;
     return (
@@ -145,7 +150,28 @@ const EspectadorView = () => {
       muxPlaybackIdFromHlsUrl(playbackUrl) ??
       null
     );
-  }, [useVodMode, activeStreamRow, effectiveStreamParam, playbackUrl]);
+  }, [useVodMode, playbackIdParam, activeStreamRow, effectiveStreamParam, playbackUrl]);
+
+  /** URL canónica: ?playbackId=… sin ?stream=https://…m3u8 */
+  useEffect(() => {
+    if (useVodMode || !playbackId) return;
+    const streamInUrl = (searchParams.get("stream") ?? "").trim();
+    const idInUrl = sanitizeMuxPlaybackId(playbackIdParam);
+    if (idInUrl === playbackId && !streamInUrl.includes("stream.mux.com")) return;
+
+    const next = new URLSearchParams(searchParams);
+    next.set("playbackId", playbackId);
+    next.delete("stream");
+    const hls = playbackUrl ?? muxPlaybackIdToHlsUrl(playbackId);
+    if (hls) {
+      try {
+        sessionStorage.setItem(audienceStreamSessionKey(channelName), hls);
+      } catch {
+        /* ignore */
+      }
+    }
+    navigate(`${location.pathname}?${next.toString()}`, { replace: true });
+  }, [useVodMode, playbackId, playbackIdParam, playbackUrl, channelName, location.pathname, navigate, searchParams]);
 
   useEffect(() => {
     if (!playbackUrl || useVodMode) return;
@@ -286,7 +312,7 @@ const EspectadorView = () => {
             </div>
             <div className="mt-3 flex items-center justify-between gap-2">
               <p className="text-xs text-cyan-100">
-                {roomTitle} · {useVodMode ? "MP4" : "Mux HLS"} · {channelName}
+                {roomTitle} · {useVodMode ? "MP4" : "Mux en vivo"} · {channelName}
               </p>
               <Button type="button" variant="outline" onClick={() => navigate("/nuestras-salas")}>
                 Salir de la Sala

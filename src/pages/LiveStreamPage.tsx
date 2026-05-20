@@ -9,6 +9,7 @@ import {
   resolvePlaybackFromActiveStreamRow,
   resolvePlaybackIdFromActiveStreamRow,
 } from "@/lib/audiencePlayback";
+import { sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
 import { buildLiveStreamPath } from "@/lib/liveStreamRoutes";
 import { supabase } from "@/integrations/supabase/client";
 import type { ActiveStreamRow } from "@/lib/salaRoomCards";
@@ -18,6 +19,7 @@ const LiveStreamPage = () => {
   const navigate = useNavigate();
   const { channel: channelParam } = useParams<{ channel?: string }>();
   const [searchParams] = useSearchParams();
+  const playbackIdParam = (searchParams.get("playbackId") ?? searchParams.get("playback_id") ?? "").trim();
   const [activeStreams, setActiveStreams] = useState<ActiveStreamRow[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [duplexOpen, setDuplexOpen] = useState(false);
@@ -38,10 +40,11 @@ const LiveStreamPage = () => {
     return match ?? activeStreams[0] ?? null;
   }, [channelParam, activeStreams]);
 
-  const playbackId = useMemo(
-    () => resolvePlaybackIdFromActiveStreamRow(selectedStream),
-    [selectedStream],
-  );
+  const playbackId = useMemo(() => {
+    const fromQuery = sanitizeMuxPlaybackId(playbackIdParam);
+    if (fromQuery) return fromQuery;
+    return resolvePlaybackIdFromActiveStreamRow(selectedStream);
+  }, [playbackIdParam, selectedStream]);
 
   const playbackUrl = useMemo(
     () => resolvePlaybackFromActiveStreamRow(selectedStream),
@@ -89,12 +92,17 @@ const LiveStreamPage = () => {
     }
 
     const title = row.title?.trim() || "En vivo";
-    const routeId = row.playback_id?.trim() || row.user_id;
-    const params = new URLSearchParams();
-    params.set("title", title);
-    navigate(`${buildLiveStreamPath({ channel: routeId, title }).split("?")[0]}?${params.toString()}`, {
-      replace: true,
-    });
+    const routeId = resolvePlaybackIdFromActiveStreamRow(row) ?? row.user_id;
+    navigate(
+      buildLiveStreamPath({
+        channel: routeId,
+        title,
+        playbackId: resolvePlaybackIdFromActiveStreamRow(row) ?? undefined,
+      }),
+      {
+        replace: true,
+      },
+    );
   };
 
   const player = playbackId ? (
