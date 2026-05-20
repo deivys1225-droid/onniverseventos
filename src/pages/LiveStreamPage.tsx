@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Radio } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
-import { LivepeerHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
+import { MuxHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
 import { DuplexSplitLayout } from "@/components/streaming/DuplexSplitLayout";
 import { handoffActiveStreamPlaybackToAndroid } from "@/lib/androidAgoraRoomEntry";
 import { resolvePlaybackFromActiveStreamRow } from "@/lib/audiencePlayback";
@@ -90,7 +90,7 @@ const LiveStreamPage = () => {
   };
 
   const player = playbackUrl ? (
-    <LivepeerHlsPlayer
+    <MuxHlsPlayer
       key={playbackUrl}
       playbackUrl={playbackUrl}
       title={displayTitle}
@@ -99,7 +99,7 @@ const LiveStreamPage = () => {
     />
   ) : (
     <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-cyan-300/35 bg-black/50 p-6 text-center text-sm text-muted-foreground">
-      {loadingList ? "Cargando transmisiones…" : "No hay señal HLS activa. El emisor debe estar en vivo en Livepeer."}
+      {loadingList ? "Cargando transmisiones…" : "No hay señal HLS activa. El emisor debe estar en vivo (Mux)."}
     </div>
   );
 
@@ -126,7 +126,7 @@ const LiveStreamPage = () => {
             </div>
             <div>
               <h1 className="font-display text-2xl font-bold tracking-wide text-cyan-50 md:text-3xl">LIVE STREAM</h1>
-              <p className="text-sm text-muted-foreground">Reproducción HLS Livepeer · sin Agora</p>
+              <p className="text-sm text-muted-foreground">Reproducción HLS Mux Video</p>
             </div>
           </header>
         )}

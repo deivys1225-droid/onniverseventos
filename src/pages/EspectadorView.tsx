@@ -2,24 +2,25 @@
 import { Capacitor } from "@capacitor/core";
 import { MonitorPlay, Scan, Video } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import AgoraRTC, { type IAgoraRTCClient, type IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
+import { MuxHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
-import { audienceStreamSessionKey } from "@/lib/audiencePlayback";
-import { buildAgoraNativeBridgePayload, isAgoraAudienceSessionActive } from "@/lib/agoraNativeBridge";
+import { handoffActiveStreamPlaybackToAndroid } from "@/lib/androidAgoraRoomEntry";
+import {
+  audienceStreamSessionKey,
+  isStreamPlaybackUrl,
+  resolveCurrentTransmissionUrl,
+  resolveLiveTransmissionUrl,
+} from "@/lib/audiencePlayback";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
+import type { ActiveStreamRow } from "@/lib/salaRoomCards";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const APP_ID = (import.meta.env.NEXT_PUBLIC_AGORA_APP_ID as string | undefined)?.trim() ?? "";
-const AUDIENCE_TOKEN =
-  (import.meta.env.NEXT_PUBLIC_AGORA_AUDIENCE_TOKEN as string | undefined)?.trim() ??
-  (import.meta.env.NEXT_PUBLIC_AGORA_TOKEN as string | undefined)?.trim() ??
-  "";
-
-/** `al-universo-{id}` â†’ id de podcast si existe en el directorio (escena inmersiva). */
-function podcastIdFromAgoraChannel(channelName: string): string | null {
+/** `al-universo-{id}` → id de podcast si existe en el directorio (escena inmersiva). */
+function podcastIdFromChannel(channelName: string): string | null {
   const prefix = "al-universo-";
   const n = channelName.trim().toLowerCase();
   if (!n.startsWith(prefix)) return null;
@@ -33,7 +34,6 @@ type AudienceSceneKey = "split" | "immersive" | "mix";
 const AUDIENCE_NATIVE_BTN_BASE =
   "group flex min-h-[52px] min-w-[6.5rem] max-w-[11rem] flex-1 flex-col items-center justify-center gap-1.5 rounded-xl border bg-black/35 px-2 py-3 text-center shadow-[0_0_28px_-12px_rgba(34,211,238,0.45)] transition hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5 touch-manipulation";
 
-/** Solo Android APK: abre el selector nativo (AlertDialog). En web/iOS devuelve false. */
 function tryAndroidNativeSceneSelector(preferred: AudienceSceneKey): boolean {
   if (Capacitor.getPlatform() !== "android") return false;
   const bridge = (window as Window & { AndroidScene?: { openSceneSelector?: (p: string) => void } }).AndroidScene;
@@ -50,7 +50,6 @@ const EspectadorView = () => {
   const [searchParams] = useSearchParams();
   const channelName = useMemo(() => (channel?.trim() ? decodeURIComponent(channel) : buildAgoraChannel("main")), [channel]);
   const roomTitle = (searchParams.get("title") ?? "Sala en vivo").trim();
-  const inheritedToken = (searchParams.get("token") ?? "").trim();
   const fallbackMp4 = (searchParams.get("mp4") ?? "").trim();
   const streamPlaybackUrl = (searchParams.get("stream") ?? "").trim();
   const sessionStreamUrl = useMemo(() => {
@@ -63,7 +62,7 @@ const EspectadorView = () => {
   const effectiveStreamParam = streamPlaybackUrl || sessionStreamUrl;
   const forcedMode = (searchParams.get("mode") ?? "").trim().toLowerCase();
   const useVodMode = forcedMode === "vod" && fallbackMp4.length > 0;
-  /** MP4 asociado al canal (catálogo o VOD actual) para puentes nativos. */
+
   const nativeBridgeMp4Url = useMemo(() => {
     if (useVodMode && fallbackMp4) return fallbackMp4;
     const prefix = "al-universo-";
@@ -73,148 +72,88 @@ const EspectadorView = () => {
     if (!roomId) return "";
     return SALA_MP4_URL_BY_ID[roomId] ?? "";
   }, [useVodMode, fallbackMp4, channelName]);
-  const [status, setStatus] = useState("Listo para conectar");
-  const [connecting, setConnecting] = useState(false);
-  const [joined, setJoined] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const clientRef = useRef<IAgoraRTCClient | null>(null);
-  const remoteUsersRef = useRef<Record<string, IAgoraRTCRemoteUser>>({});
-  const remoteContainerId = "agora-audience-remote-player";
 
-  /** Callbacks para el puente Android â†’ JS tras elegir escena en el diÃ¡logo nativo. */
+  const [activeStreamRow, setActiveStreamRow] = useState<ActiveStreamRow | null>(null);
+  const [loadingPlayback, setLoadingPlayback] = useState(!useVodMode);
+  const [error, setError] = useState<string | null>(null);
+  const playerRootRef = useRef<HTMLDivElement>(null);
+
   const nativeSceneActionsRef = useRef({
     split: () => {},
     immersive: () => {},
     mix: () => {},
   });
 
-  const mountFirstRemoteUser = useCallback(() => {
-    const users = Object.values(remoteUsersRef.current);
-    const first = users.find((u) => u.videoTrack);
-    const remoteContainer = document.getElementById(remoteContainerId);
-    if (!remoteContainer) return;
-
-    if (!first?.videoTrack) {
-      remoteContainer.innerHTML =
-        '<p class="text-sm text-muted-foreground">Esperando transmisiÃ³n en vivo...</p>';
-      return;
-    }
-    remoteContainer.innerHTML = "";
-    first.videoTrack.play(remoteContainer);
-  }, []);
-
-  const leaveAudienceRoom = useCallback(async () => {
-    const client = clientRef.current;
-    clientRef.current = null;
-    remoteUsersRef.current = {};
-    if (client) {
-      await client.leave();
-    }
-    setJoined(false);
-    setConnecting(false);
-    setStatus("Desconectado");
-  }, []);
-
-  const joinAudienceRoom = useCallback(async () => {
-    if (!APP_ID) {
-      setError("Falta NEXT_PUBLIC_AGORA_APP_ID en .env.local");
-      setStatus("ConfiguraciÃ³n incompleta");
-      return;
-    }
-    const channelToJoin = channelName.trim();
-    if (!channelToJoin) {
-      setError("No se encontrÃ³ canal para esta sala.");
+  useEffect(() => {
+    if (useVodMode) {
+      setLoadingPlayback(false);
       return;
     }
 
-    try {
+    let cancelled = false;
+    const load = async () => {
+      setLoadingPlayback(true);
       setError(null);
-      setConnecting(true);
-      setStatus(`Uniendo a ${channelToJoin}...`);
-      await leaveAudienceRoom();
 
-      const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
-      clientRef.current = client;
-      await client.setClientRole("audience"); // Forzado: siempre token/rol de audiencia.
+      const routeKey = channelName.trim();
+      const { data } = await supabase
+        .from("active_streams")
+        .select("user_id,is_live,title,stream_url,playback_url,playback_id,privacy_mode,ticket_price,updated_at")
+        .eq("is_live", true);
 
-      client.on("user-published", async (user, mediaType) => {
-        remoteUsersRef.current[String(user.uid)] = user;
-        await client.subscribe(user, mediaType);
-        if (mediaType === "video") mountFirstRemoteUser();
-        if (mediaType === "audio") user.audioTrack?.play();
-      });
+      if (cancelled) return;
 
-      client.on("user-unpublished", (user, mediaType) => {
-        if (mediaType === "video") mountFirstRemoteUser();
-        if (!user.hasVideo && !user.hasAudio) {
-          delete remoteUsersRef.current[String(user.uid)];
-        }
-      });
+      const rows = (data ?? []) as ActiveStreamRow[];
+      const match =
+        rows.find((row) => row.stream_url?.trim() === routeKey) ??
+        rows.find((row) => row.playback_url?.trim() === routeKey) ??
+        rows.find((row) => row.playback_id === routeKey) ??
+        rows.find((row) => routeKey.includes(row.user_id)) ??
+        null;
 
-      client.on("user-left", (user) => {
-        delete remoteUsersRef.current[String(user.uid)];
-        mountFirstRemoteUser();
-      });
-
-      const audienceToken = inheritedToken || AUDIENCE_TOKEN.trim();
-      const joinWithTimeout = async (token: string | null) => {
-        const joinTask = client.join(APP_ID, channelToJoin, token, null);
-        const joinTimeout = new Promise<never>((_, reject) => {
-          window.setTimeout(() => reject(new Error("Timeout al conectar con Agora (10s).")), 10000);
-        });
-        await Promise.race([joinTask, joinTimeout]);
-      };
-
-      try {
-        await joinWithTimeout(audienceToken || null);
-      } catch (joinErr) {
-        const rawJoinMessage = joinErr instanceof Error ? joinErr.message : String(joinErr);
-        const normalizedJoinMessage = rawJoinMessage.toUpperCase();
-        const isStaticKeyProjectError =
-          normalizedJoinMessage.includes("CAN_NOT_GET_GATEWAY_SERVER") &&
-          normalizedJoinMessage.includes("DYNAMIC USE STATIC KEY");
-        if (!isStaticKeyProjectError) throw joinErr;
-        // Proyecto Agora en modo static key: audiencia entra sin token.
-        await joinWithTimeout(null);
+      setActiveStreamRow(match);
+      setLoadingPlayback(false);
+      if (!match && !effectiveStreamParam) {
+        setError("No hay transmisión en vivo para esta sala. Espera a que el emisor conecte Mux.");
       }
-      setJoined(true);
-      setConnecting(false);
-      setStatus("En vivo (audiencia)");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "No se pudo conectar a la sala.";
-      setError(msg);
-      setStatus("Error de conexiÃ³n");
-      setConnecting(false);
-    }
-  }, [channelName, inheritedToken, leaveAudienceRoom, mountFirstRemoteUser]);
-
-  useEffect(() => {
-    return () => {
-      void leaveAudienceRoom();
     };
-  }, [leaveAudienceRoom]);
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [channelName, effectiveStreamParam, useVodMode]);
+
+  const playbackUrl = useMemo(() => {
+    if (useVodMode) return null;
+    return resolveLiveTransmissionUrl({
+      streamParam: effectiveStreamParam,
+      mp4Param: fallbackMp4,
+      channelParam: channelName,
+      activeStream: activeStreamRow,
+    });
+  }, [useVodMode, effectiveStreamParam, fallbackMp4, channelName, activeStreamRow]);
 
   useEffect(() => {
-    if (useVodMode) return;
-    // APK Android: el live se reproduce en nativo (getAgoraParams); evitar doble join WebRTC en WebView.
-    if (typeof window.Android !== "undefined") return;
-    void joinAudienceRoom();
-  }, [joinAudienceRoom, useVodMode]);
-
-  /** Token de audiencia usado en join y en el puente nativo (mismo que la sesión activa). */
-  const audienceAgoraToken = useMemo(
-    () => (inheritedToken || AUDIENCE_TOKEN).trim(),
-    [inheritedToken],
-  );
-
-  const buildActiveAgoraBridgePayload = useCallback(
-    () => buildAgoraNativeBridgePayload(channelName, audienceAgoraToken, APP_ID),
-    [channelName, audienceAgoraToken],
-  );
+    if (!playbackUrl || useVodMode) return;
+    handoffActiveStreamPlaybackToAndroid(
+      activeStreamRow ?? {
+        user_id: "",
+        is_live: true,
+        title: roomTitle,
+        stream_url: playbackUrl,
+        playback_url: playbackUrl,
+        playback_id: null,
+        privacy_mode: "publico",
+        ticket_price: null,
+        updated_at: new Date().toISOString(),
+      },
+    );
+  }, [playbackUrl, useVodMode, activeStreamRow, roomTitle]);
 
   const goMixVod = () => {
     if (!fallbackMp4) {
-      setError("Esta sala no incluye un MP4 para la vista MIX. Pide al anfitriÃ³n el enlace con parÃ¡metro mp4.");
+      setError("Esta sala no incluye un MP4 para la vista MIX.");
       return;
     }
     const next = new URLSearchParams(searchParams);
@@ -227,16 +166,14 @@ const EspectadorView = () => {
     navigate(q ? `/pc?${q}` : "/pc");
   };
 
-  /** Pantalla dividida / escena PC â€” mismo criterio que el botÃ³n Â«VR/PCÂ». */
   const goPantallaDividida = () => {
     setError(null);
     goVrPc();
   };
 
-  /** Escena inmersiva 360 (PodcastSala360) â€” mismo criterio que Â«360Â°Â». */
   const goEscenaInmersiva = () => {
     setError(null);
-    const podcastId = podcastIdFromAgoraChannel(channelName);
+    const podcastId = podcastIdFromChannel(channelName);
     const q = searchParams.toString();
     const suffix = q ? `?${q}` : "";
     if (podcastId) {
@@ -263,37 +200,22 @@ const EspectadorView = () => {
     };
   }, []);
 
-  /** Reservado para integraciÃ³n Android / barra inferior (si se enlaza desde nativo). */
-  const onAudienceBarSplit = () => {
-    if (tryAndroidNativeSceneSelector("split")) return;
-    goPantallaDividida();
-  };
-  const onAudienceBarImmersive = () => {
-    if (tryAndroidNativeSceneSelector("immersive")) return;
-    goEscenaInmersiva();
-  };
-  const onAudienceBarMix = () => {
-    if (tryAndroidNativeSceneSelector("mix")) return;
-    goMixVod();
-  };
-
-  const dispatchAgoraNativeBridge = useCallback(
+  const openNativeWithHls = useCallback(
     (method: "abrirCineLive" | "abrirCamLive") => {
-      if (
-        !isAgoraAudienceSessionActive({
-          joined,
-          useVodMode,
-          channelName,
-        })
-      ) {
-        if (connecting) toast.info("Conectando a la sala en vivo…");
+      const hls =
+        resolveCurrentTransmissionUrl({
+          streamParam: effectiveStreamParam || playbackUrl,
+          mp4Param: nativeBridgeMp4Url,
+        }) ?? playbackUrl;
+
+      if (!hls || !isStreamPlaybackUrl(hls)) {
+        toast.info("Conecta primero a una transmisión Mux en vivo.");
         return;
       }
 
-      const agoraPayload = buildActiveAgoraBridgePayload();
       const bridge = window.Android;
-      if (bridge && typeof bridge[method] === "function") {
-        bridge[method](agoraPayload);
+      if (bridge && typeof bridge.getAgoraParams === "function") {
+        bridge.getAgoraParams(hls, "");
         return;
       }
       toast.info(
@@ -302,16 +224,8 @@ const EspectadorView = () => {
           : "Live Cam está disponible en la app Android.",
       );
     },
-    [joined, useVodMode, channelName, connecting, buildActiveAgoraBridgePayload],
+    [effectiveStreamParam, playbackUrl, nativeBridgeMp4Url],
   );
-
-  const openNativeCineLive = useCallback(() => {
-    dispatchAgoraNativeBridge("abrirCineLive");
-  }, [dispatchAgoraNativeBridge]);
-
-  const openNativeLiveCam = useCallback(() => {
-    dispatchAgoraNativeBridge("abrirCamLive");
-  }, [dispatchAgoraNativeBridge]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -331,7 +245,7 @@ const EspectadorView = () => {
       <main className="relative z-10 px-3 pb-10 pt-24 md:px-4">
         <section className="mx-auto w-full max-w-[94rem] space-y-4">
           <div className="rounded-2xl border border-cyan-300/35 bg-card/35 p-2 shadow-[0_0_50px_-18px_rgba(34,211,238,0.9)] backdrop-blur-xl md:p-3">
-            <div className="w-full">
+            <div ref={playerRootRef} className="w-full">
               {useVodMode ? (
                 <video
                   src={fallbackMp4}
@@ -340,16 +254,26 @@ const EspectadorView = () => {
                   playsInline
                   className="aspect-video w-full overflow-hidden rounded-xl border border-cyan-300/45 bg-black shadow-[0_0_48px_-10px_rgba(34,211,238,0.95)]"
                 />
-              ) : (
-                <div
-                  id={remoteContainerId}
-                  className="aspect-video w-full overflow-hidden rounded-xl border border-cyan-300/45 bg-black shadow-[0_0_48px_-10px_rgba(34,211,238,0.95)]"
+              ) : loadingPlayback ? (
+                <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-cyan-300/45 bg-black text-sm text-muted-foreground">
+                  Cargando transmisión Mux…
+                </div>
+              ) : playbackUrl ? (
+                <MuxHlsPlayer
+                  key={playbackUrl}
+                  playbackUrl={playbackUrl}
+                  title={roomTitle}
+                  manualStart={Capacitor.getPlatform() === "android"}
                 />
+              ) : (
+                <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-cyan-300/35 bg-black/50 p-6 text-center text-sm text-muted-foreground">
+                  Sin señal HLS. El emisor debe iniciar transmisión desde la sala emisor.
+                </div>
               )}
             </div>
             <div className="mt-3 flex items-center justify-between gap-2">
               <p className="text-xs text-cyan-100">
-                {roomTitle} Â· {useVodMode ? "ReproducciÃ³n automÃ¡tica MP4" : `Canal: ${channelName} Â· Estado: ${status}`}
+                {roomTitle} · {useVodMode ? "MP4" : "Mux HLS"} · {channelName}
               </p>
               <Button type="button" variant="outline" onClick={() => navigate("/nuestras-salas")}>
                 Salir de la Sala
@@ -364,7 +288,7 @@ const EspectadorView = () => {
               <button
                 type="button"
                 title="Cine Live — pantalla dividida VR"
-                onClick={openNativeCineLive}
+                onClick={() => openNativeWithHls("abrirCineLive")}
                 className={`${AUDIENCE_NATIVE_BTN_BASE} border-cyan-400/45 text-cyan-50 hover:border-cyan-300/85`}
               >
                 <MonitorPlay className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
@@ -373,7 +297,7 @@ const EspectadorView = () => {
               <button
                 type="button"
                 title="Live Cam — pantalla mixta AR con cámara"
-                onClick={openNativeLiveCam}
+                onClick={() => openNativeWithHls("abrirCamLive")}
                 className={`${AUDIENCE_NATIVE_BTN_BASE} border-violet-400/45 text-violet-100 hover:border-violet-300/85`}
               >
                 <Video className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
@@ -401,9 +325,12 @@ const EspectadorView = () => {
               </button>
             </div>
 
-            {error && <p className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">{error}</p>}
+            {error && (
+              <p className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
+                {error}
+              </p>
+            )}
           </div>
-
         </section>
       </main>
     </div>
@@ -411,4 +338,3 @@ const EspectadorView = () => {
 };
 
 export default EspectadorView;
-

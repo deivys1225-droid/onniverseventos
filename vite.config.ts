@@ -38,6 +38,12 @@ export default defineConfig(({ mode }) => {
     hmr: {
       overlay: false,
     },
+    proxy: {
+      "/api/mux": {
+        target: "http://localhost:8787",
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [react(), paypalSdkHeadPlugin(mode, env)],
   resolve: {

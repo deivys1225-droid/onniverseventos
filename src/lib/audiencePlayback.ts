@@ -15,18 +15,18 @@ export type ActiveStreamPlaybackSource = {
   playback_id?: string | null;
 };
 
-const LIVEPEER_HLS_BASE =
-  (import.meta.env.NEXT_PUBLIC_LIVEPEER_HLS_BASE as string | undefined)?.trim() ||
-  "https://livepeercdn.studio/hls";
+const MUX_HLS_BASE = "https://stream.mux.com";
 
-/** Convierte playback_id de Livepeer a manifiesto HLS (.m3u8). */
-export function livepeerPlaybackIdToHlsUrl(playbackId: string | null | undefined): string | null {
+/** Convierte playback_id de Mux a manifiesto HLS (.m3u8). */
+export function muxPlaybackIdToHlsUrl(playbackId: string | null | undefined): string | null {
   const id = (playbackId ?? "").trim();
   if (!id || id.startsWith("youtube:")) return null;
   if (isStreamPlaybackUrl(id)) return id;
-  const base = LIVEPEER_HLS_BASE.replace(/\/$/, "");
-  return `${base}/${id}/index.m3u8`;
+  return `${MUX_HLS_BASE}/${id}.m3u8`;
 }
+
+/** @deprecated Usar {@link muxPlaybackIdToHlsUrl} */
+export const livepeerPlaybackIdToHlsUrl = muxPlaybackIdToHlsUrl;
 
 /**
  * Lee la URL HTTP(S)/RTMP del &lt;video&gt; que está reproduciendo (Agora inyecta video en el contenedor;
@@ -62,7 +62,7 @@ export function resolvePlaybackFromActiveStreamRow(
   const stream = (row.stream_url ?? "").trim();
   if (isStreamPlaybackUrl(stream)) return stream;
 
-  return livepeerPlaybackIdToHlsUrl(row.playback_id);
+  return muxPlaybackIdToHlsUrl(row.playback_id);
 }
 
 /**

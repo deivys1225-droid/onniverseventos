@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,8 +10,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { LivepeerBroadcastPanel } from "@/components/streaming/LivepeerBroadcastPanel";
-import { createLivepeerStream } from "@/lib/livepeerStream";
+import { MuxBroadcastPanel } from "@/components/streaming/MuxBroadcastPanel";
+import { createMuxStream } from "@/lib/muxStream";
+import { releaseLocalMediaCapture } from "@/lib/mediaStreamCleanup";
 import { updateProfileLiveState } from "@/lib/profile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ import { toast } from "sonner";
 type StreamConfig = {
   title: string;
   rawChannelName: string;
+  muxLiveStreamId: string;
   streamKey: string;
   playbackId: string;
   playbackUrl: string;
@@ -28,18 +30,27 @@ type StreamConfig = {
   isFree: boolean;
 };
 
-const AgoraLiveStreaming = () => {
+type EventSetup = {
+  title: string;
+  rawChannelName: string;
+  ticketPrice: number;
+  isFree: boolean;
+};
+
+const MuxLiveStreaming = () => {
   const { user } = useAuth();
   const [broadcasting, setBroadcasting] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const [status, setStatus] = useState("Genera tu canal para transmitir");
+  const [status, setStatus] = useState("Configura tu evento y pulsa Iniciar transmisión");
   const [error, setError] = useState<string | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [ticketInput, setTicketInput] = useState("0");
   const [isFreeEvent, setIsFreeEvent] = useState(true);
+  const [eventSetup, setEventSetup] = useState<EventSetup | null>(null);
   const [streamConfig, setStreamConfig] = useState<StreamConfig | null>(null);
+  const [panelKey, setPanelKey] = useState(0);
 
-  const canGenerate = useMemo(() => Boolean(user?.id) && !broadcasting && !connecting, [user?.id, broadcasting, connecting]);
+  const canOpenSetup = Boolean(user?.id) && !connecting;
 
   const persistLiveState = useCallback(
     async (config: StreamConfig, isLive: boolean) => {
@@ -86,7 +97,11 @@ const AgoraLiveStreaming = () => {
 
   const stopLive = useCallback(async () => {
     if (!user?.id) return;
+    releaseLocalMediaCapture();
+    setPanelKey((k) => k + 1);
     setBroadcasting(false);
+    setStreamConfig(null);
+
     const { error: rpcErr } = await supabase.rpc("stop_my_active_streams");
     if (rpcErr) {
       await supabase
@@ -98,24 +113,54 @@ const AgoraLiveStreaming = () => {
         .update({ live_status: "Offline", updated_at: new Date().toISOString() })
         .eq("id", user.id);
     }
-    setStatus(streamConfig ? "Canal listo · pulsa Iniciar transmisión" : "Transmisión detenida");
+
+    setStatus(eventSetup ? "Evento listo · pulsa Iniciar transmisión de nuevo" : "Transmisión detenida");
     toast.info("Transmisión detenida.");
-  }, [streamConfig, user?.id]);
+  }, [eventSetup, user?.id]);
 
-  const handleLive = useCallback(async () => {
-    if (!streamConfig || !user?.id) return;
-    try {
-      await persistLiveState(streamConfig, true);
-      setBroadcasting(true);
-      setStatus("Transmitiendo en vivo por WebRTC (Livepeer)");
-      toast.success("¡En vivo! Los espectadores ya pueden ver tu transmisión.");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "No se pudo publicar el estado en vivo.";
-      setError(msg);
+  /** Iniciar transmisión: backend Mux crea el live + activamos tarjeta en vivo. */
+  const handleStartTransmission = useCallback(async () => {
+    if (!user?.id || !eventSetup) {
+      setError("Primero configura el evento (Generar canal).");
+      return;
     }
-  }, [persistLiveState, streamConfig, user?.id]);
 
-  const handleStopped = useCallback(() => {
+    try {
+      setError(null);
+      setConnecting(true);
+      setStatus("Creando live stream en Mux…");
+
+      const mux = await createMuxStream(`Transmision_Onniverso_${eventSetup.rawChannelName}`);
+
+      const config: StreamConfig = {
+        title: eventSetup.title,
+        rawChannelName: eventSetup.rawChannelName,
+        muxLiveStreamId: mux.liveStreamId,
+        streamKey: mux.streamKey,
+        playbackId: mux.playbackId,
+        playbackUrl: mux.playbackUrl,
+        rtmpIngestUrl: mux.rtmpIngestUrl,
+        ingestUrl: mux.ingestUrl,
+        ticketPrice: eventSetup.ticketPrice,
+        isFree: eventSetup.isFree,
+      };
+
+      await persistLiveState(config, true);
+
+      setStreamConfig(config);
+      setBroadcasting(true);
+      setStatus("En vivo · envía RTMP con Larix/OBS usando la URL mostrada");
+      toast.success("Live Mux creado. Envía RTMP para que los espectadores vean la señal.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "No se pudo crear el live en Mux.";
+      setError(msg);
+      setStatus("Error al iniciar transmisión");
+    } finally {
+      setConnecting(false);
+    }
+  }, [eventSetup, persistLiveState, user?.id]);
+
+  const handleStopTransmission = useCallback(() => {
     if (!broadcasting) return;
     void stopLive();
   }, [broadcasting, stopLive]);
@@ -127,80 +172,50 @@ const AgoraLiveStreaming = () => {
     };
   }, [broadcasting, user?.id]);
 
-  const handleGenerateChannel = () => {
+  const openEventSetup = () => {
     if (!user?.id) {
-      setError("Debes iniciar sesión para generar tu canal.");
+      setError("Debes iniciar sesión.");
       return;
     }
     setError(null);
     setIsConfigOpen(true);
   };
 
-  const saveConfig = async () => {
+  const saveEventSetup = () => {
     if (!user?.id) return;
     const profileName =
       (user.user_metadata?.full_name as string | undefined)?.trim() ||
       (user.user_metadata?.name as string | undefined)?.trim() ||
       (user.email?.split("@")[0] ?? "").trim() ||
       "creador";
-    const requestedChannelName = profileName;
     const parsed = Number(ticketInput);
     const normalizedPrice = Number.isFinite(parsed) && parsed >= 0 ? Number(parsed.toFixed(2)) : 0;
     const isFree = isFreeEvent || normalizedPrice <= 0;
 
-    try {
-      setError(null);
-      setConnecting(true);
-      setStatus("Creando stream en Livepeer Studio...");
-
-      const livepeer = await createLivepeerStream(`Transmision_Onniverso_${requestedChannelName}`);
-
-      const config: StreamConfig = {
-        title: `Canal ${requestedChannelName}`,
-        rawChannelName: requestedChannelName,
-        streamKey: livepeer.streamKey,
-        playbackId: livepeer.playbackId,
-        playbackUrl: livepeer.playbackUrl,
-        rtmpIngestUrl: livepeer.rtmpIngestUrl,
-        ingestUrl: livepeer.ingestUrl,
-        ticketPrice: isFree ? 0 : normalizedPrice,
-        isFree,
-      };
-
-      await persistLiveState(config, false);
-
-      setStreamConfig(config);
-      setStatus("Canal listo · pulsa Iniciar transmisión en el reproductor");
-      setIsConfigOpen(false);
-      toast.success("Canal Livepeer creado. Usa cámara y micrófono desde el navegador.");
-    } catch (e) {
-      const message = e instanceof Error ? e.message : `No se pudo generar el canal (${JSON.stringify(e)})`;
-      setError(message);
-      setStatus("Error al generar canal");
-    } finally {
-      setConnecting(false);
-    }
+    setEventSetup({
+      title: `Canal ${profileName}`,
+      rawChannelName: profileName,
+      ticketPrice: isFree ? 0 : normalizedPrice,
+      isFree,
+    });
+    setStreamConfig(null);
+    setBroadcasting(false);
+    setStatus("Evento listo · pulsa Iniciar transmisión (crea el live en Mux)");
+    setIsConfigOpen(false);
+    toast.success("Evento configurado. Pulsa Iniciar transmisión cuando estés listo.");
   };
 
   return (
     <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-cyan-300/30 bg-card/35 p-4 shadow-[0_0_60px_-18px_rgba(34,211,238,0.9)] backdrop-blur-xl md:p-6">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,hsl(var(--primary)/0.22),transparent_45%),radial-gradient(circle_at_85%_90%,hsl(290_80%_60%/0.15),transparent_45%)]" />
-        <div
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage:
-              "linear-gradient(hsl(var(--primary)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)",
-            backgroundSize: "52px 52px",
-          }}
-        />
       </div>
 
       <div className="relative z-10 mb-4 text-center md:mb-5">
         <h2 className="font-display text-xl font-bold tracking-tight text-foreground md:text-2xl">
           Evento <span className="text-gradient-neon">Live</span> en Al Universo
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">Transmisión web con Livepeer (cámara + micrófono)</p>
+        <p className="mt-1 text-sm text-muted-foreground">Transmisión con Mux Video (RTMP + HLS)</p>
       </div>
 
       <div className="relative z-10 mb-3 flex justify-center">
@@ -208,37 +223,48 @@ const AgoraLiveStreaming = () => {
           Estado: {status}
         </p>
       </div>
+
       {error && (
-        <p className="relative z-10 mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
+        <p className="relative z-10 mb-4 whitespace-pre-wrap rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </p>
       )}
 
       <div className="relative z-10 mx-auto w-full max-w-3xl space-y-4">
-        {!streamConfig ? (
+        {!eventSetup ? (
           <div className="flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-cyan-300/35 bg-black/40 p-6 text-center text-sm text-muted-foreground">
-            Genera un canal para activar el emisor Livepeer en tu navegador.
+            Pulsa Generar canal para configurar tu evento en vivo con Mux.
           </div>
-        ) : (
-          <LivepeerBroadcastPanel
-            key={streamConfig.streamKey}
-            streamKey={streamConfig.streamKey}
+        ) : streamConfig ? (
+          <MuxBroadcastPanel
+            key={`${streamConfig.streamKey}-${panelKey}`}
             title={streamConfig.title}
-            onLive={() => void handleLive()}
-            onStopped={handleStopped}
-            onError={(message) => setError(message)}
+            streamKey={streamConfig.streamKey}
+            rtmpPushUrl={streamConfig.ingestUrl}
+            playbackUrl={streamConfig.playbackUrl}
+            broadcasting={broadcasting}
+            connecting={connecting}
+            onStartTransmission={handleStartTransmission}
+            onStopTransmission={handleStopTransmission}
           />
+        ) : (
+          <div className="flex aspect-video w-full flex-col items-center justify-center gap-4 rounded-2xl border border-cyan-300/35 bg-black/50 p-6">
+            <p className="text-center text-sm text-cyan-100">{eventSetup.title}</p>
+            <Button
+              type="button"
+              variant="hero"
+              disabled={connecting}
+              className="min-h-12 min-w-[220px] px-8 font-bold uppercase"
+              onClick={() => void handleStartTransmission()}
+            >
+              {connecting ? "Creando en Mux…" : "Iniciar transmisión"}
+            </Button>
+          </div>
         )}
 
         <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-          <Button
-            type="button"
-            variant="hero"
-            onClick={handleGenerateChannel}
-            disabled={!canGenerate}
-            className="min-h-12 min-w-[220px] px-8 text-sm font-bold uppercase tracking-wide"
-          >
-            {streamConfig ? "Nuevo canal" : "Generar canal"}
+          <Button type="button" variant="hero" onClick={openEventSetup} disabled={!canOpenSetup}>
+            {eventSetup ? "Reconfigurar evento" : "Generar canal"}
           </Button>
           {broadcasting && (
             <Button type="button" variant="outline" onClick={() => void stopLive()}>
@@ -249,13 +275,8 @@ const AgoraLiveStreaming = () => {
 
         {streamConfig && (
           <div className="space-y-1 text-center text-xs text-cyan-100/90">
-            <p>
-              {streamConfig.title} · {streamConfig.isFree ? "Gratuito" : `Ticket: $${streamConfig.ticketPrice.toFixed(2)} USD`}
-            </p>
-            <p className="break-all font-mono text-[10px] text-violet-200/80">HLS: {streamConfig.playbackUrl}</p>
-            <p className="text-[10px] text-muted-foreground">
-              También puedes emitir por OBS con RTMP: {streamConfig.ingestUrl}
-            </p>
+            <p className="break-all font-mono text-[10px] text-violet-200/80">playback_id: {streamConfig.playbackId}</p>
+            <p className="break-all font-mono text-[10px] text-violet-200/80">stream_key: {streamConfig.streamKey}</p>
           </div>
         )}
       </div>
@@ -263,9 +284,9 @@ const AgoraLiveStreaming = () => {
       <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
         <DialogContent className="border-cyan-300/40 bg-card/95 backdrop-blur-md sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display">Generar canal Livepeer</DialogTitle>
+            <DialogTitle className="font-display">Configurar evento Mux</DialogTitle>
             <DialogDescription>
-              Crea el stream en Livepeer Studio. Luego transmite con tu cámara y micrófono desde esta página.
+              Al iniciar transmisión se crea el live en Mux y obtienes stream_key + playback_id.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -294,8 +315,8 @@ const AgoraLiveStreaming = () => {
               />
               Evento gratuito
             </label>
-            <Button type="button" className="w-full" onClick={() => void saveConfig()} disabled={connecting}>
-              {connecting ? "Creando stream…" : "Guardar y generar canal"}
+            <Button type="button" className="w-full" onClick={saveEventSetup}>
+              Guardar evento
             </Button>
           </div>
         </DialogContent>
@@ -304,4 +325,4 @@ const AgoraLiveStreaming = () => {
   );
 };
 
-export default AgoraLiveStreaming;
+export default MuxLiveStreaming;

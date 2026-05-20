@@ -3,7 +3,7 @@ import Hls from "hls.js";
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type LivepeerHlsPlayerProps = {
+export type MuxHlsPlayerProps = {
   playbackUrl: string;
   title?: string;
   compact?: boolean;
@@ -12,13 +12,14 @@ export type LivepeerHlsPlayerProps = {
   className?: string;
 };
 
-export function LivepeerHlsPlayer({
+/** Reproductor HLS (Mux, Livepeer u otra URL .m3u8). */
+export function MuxHlsPlayer({
   playbackUrl,
   title,
   compact = false,
   manualStart = true,
   className = "",
-}: LivepeerHlsPlayerProps) {
+}: MuxHlsPlayerProps) {
   const instanceId = useId().replace(/:/g, "");
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -116,7 +117,7 @@ export function LivepeerHlsPlayer({
       <div className="relative">
         <video
           ref={videoRef}
-          id={`livepeer-hls-${instanceId}`}
+          id={`mux-hls-${instanceId}`}
           playsInline
           controls={playing}
           muted={!playing}
@@ -154,9 +155,9 @@ export function LivepeerHlsPlayer({
           {error}
         </p>
       )}
-      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-        Livepeer HLS · WebRTC/WHIP emisor · sin Agora
-      </p>
+      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">Mux Video HLS</p>
     </div>
   );
 }
+
+export { MuxHlsPlayer as LivepeerHlsPlayer };

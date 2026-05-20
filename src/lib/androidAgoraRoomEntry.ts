@@ -19,7 +19,7 @@ export function canHandoffLiveToAndroidNative(): boolean {
 
 /**
  * Envía de inmediato la URL HLS (.m3u8) a {@code window.Android.getAgoraParams}.
- * En Android abre {@link SelectorActivity} y carga la escena con la señal Livepeer.
+ * En Android abre {@link SelectorActivity} y carga la escena con la señal HLS (Mux).
  */
 export function pushHlsPlaybackToAndroidNative(playbackUrl: string): boolean {
   const url = playbackUrl.trim();

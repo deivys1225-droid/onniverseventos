@@ -1,3 +1,5 @@
+import { Capacitor } from "@capacitor/core";
+
 export type DeviceKind = "mobile" | "desktop";
 
 export function detectDeviceKind(): DeviceKind {
@@ -14,4 +16,10 @@ export function isMobileUserAgent(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = (navigator.userAgent || "").toLowerCase();
   return /android|iphone|ipad|ipod|windows phone|mobile/i.test(ua);
+}
+
+/** APK Android (Capacitor), no solo navegador móvil. */
+export function isAndroidNativeApp(): boolean {
+  if (typeof window === "undefined") return false;
+  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 }

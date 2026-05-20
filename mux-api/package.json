@@ -1,0 +1,16 @@
+{
+  "name": "onniverso-mux-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Evaluación Mux Video — servidor Node independiente (no usa Supabase).",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@mux/mux-node": "^9.0.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
