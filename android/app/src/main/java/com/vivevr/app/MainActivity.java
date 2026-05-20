@@ -106,6 +106,8 @@ public class MainActivity extends BridgeActivity {
   /** Tras elegir escena en {@link SelectorActivity}, URL a cargar en el WebView (MP4 o /go/*). */
   private ActivityResultLauncher<Intent> selectorActivityLauncher;
   private String pendingPlaybackUrlForSelector;
+  /** Maleta HLS/playback activo para botones 360 / Mixta / Inmersiva ({@link AndroidBridge}). */
+  private String activeAudiencePlaybackUrl;
   /** Petición pendiente devuelta por el WebChromeClient del WebView */
   private PermissionRequest pendingWebkitPermissionRequest;
   /** Permisos de Android lanzados junto con {@link #pendingWebkitPermissionRequest} */
@@ -149,13 +151,34 @@ public class MainActivity extends BridgeActivity {
    * de reproducción en el WebView (MP4 o /go/*).
    */
   private void openAudienceSelector(String preferredScene, String playbackUrl) {
+    openAudienceSelector(preferredScene, playbackUrl, null);
+  }
+
+  private void openAudienceSelector(String preferredScene, String playbackUrl, String playbackId) {
     runOnUiThread(
         () -> {
-          pendingPlaybackUrlForSelector = playbackUrl;
+          String url = playbackUrl != null ? playbackUrl.trim() : "";
+          if (!url.isEmpty()) {
+            activeAudiencePlaybackUrl = url;
+            pendingPlaybackUrlForSelector = url;
+          }
           Intent i = new Intent(this, SelectorActivity.class);
           i.putExtra(SelectorActivity.EXTRA_PREFERRED_SCENE, preferredScene);
+          if (!url.isEmpty()) {
+            i.putExtra(SelectorActivity.EXTRA_PLAYBACK_URL, url);
+          }
+          if (playbackId != null && !playbackId.trim().isEmpty()) {
+            i.putExtra(SelectorActivity.EXTRA_PLAYBACK_ID, playbackId.trim());
+          }
           selectorActivityLauncher.launch(i);
         });
+  }
+
+  private String resolveAudiencePlaybackOrFallback(String mp4FromJs, String fallbackGoUrl) {
+    if (activeAudiencePlaybackUrl != null && !activeAudiencePlaybackUrl.isEmpty()) {
+      return activeAudiencePlaybackUrl;
+    }
+    return resolveAudienceLaunchUrl(mp4FromJs, fallbackGoUrl);
   }
 
   /**
@@ -176,10 +199,12 @@ public class MainActivity extends BridgeActivity {
     String channel = canal != null ? canal.trim() : "";
     String audienceToken = token != null ? token.trim() : "";
     if (isHttpPlaybackUrl(channel)) {
+      activeAudiencePlaybackUrl = channel;
       openAudienceSelector("split", channel);
       return;
     }
     if (isHttpPlaybackUrl(audienceToken)) {
+      activeAudiencePlaybackUrl = audienceToken;
       openAudienceSelector("split", audienceToken);
       return;
     }
@@ -261,11 +286,19 @@ public class MainActivity extends BridgeActivity {
                 return;
               }
               String scene = data.getStringExtra(SelectorActivity.EXTRA_SELECTED_SCENE);
-              String url = pendingPlaybackUrlForSelector;
+              String url = data.getStringExtra(SelectorActivity.EXTRA_PLAYBACK_URL);
+              if (url == null || url.isEmpty()) {
+                url = pendingPlaybackUrlForSelector;
+              }
+              String playbackId = data.getStringExtra(SelectorActivity.EXTRA_PLAYBACK_ID);
+              if ((url == null || url.isEmpty()) && playbackId != null && !playbackId.isEmpty()) {
+                url = "https://stream.mux.com/" + playbackId.trim() + ".m3u8";
+              }
               pendingPlaybackUrlForSelector = null;
               if (scene == null || scene.isEmpty() || url == null || url.isEmpty()) {
                 return;
               }
+              activeAudiencePlaybackUrl = url;
               Bridge bridge = getBridge();
               WebView webView = bridge != null ? bridge.getWebView() : null;
               if (webView == null) {
@@ -447,19 +480,20 @@ public class MainActivity extends BridgeActivity {
     @JavascriptInterface
     public void on360Click(String mp4Url) {
       activity.openAudienceSelector(
-          "immersive", activity.resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_360_URL));
+          "immersive",
+          activity.resolveAudiencePlaybackOrFallback(mp4Url, AUDIENCE_GO_360_URL));
     }
 
     @JavascriptInterface
     public void onVrClick(String mp4Url) {
       activity.openAudienceSelector(
-          "split", activity.resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_VR_URL));
+          "split", activity.resolveAudiencePlaybackOrFallback(mp4Url, AUDIENCE_GO_VR_URL));
     }
 
     @JavascriptInterface
     public void onMtClick(String mp4Url) {
       activity.openAudienceSelector(
-          "mix", activity.resolveAudienceLaunchUrl(mp4Url, AUDIENCE_GO_MT_URL));
+          "mix", activity.resolveAudiencePlaybackOrFallback(mp4Url, AUDIENCE_GO_MT_URL));
     }
   }
 

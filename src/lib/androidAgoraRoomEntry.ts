@@ -1,4 +1,4 @@
-import { isStreamPlaybackUrl, resolvePlaybackFromActiveStreamRow } from "@/lib/audiencePlayback";
+import { isStreamPlaybackUrl, muxPlaybackIdToHlsUrl, resolvePlaybackFromActiveStreamRow } from "@/lib/audiencePlayback";
 import type { ActiveStreamRow, RoomCard } from "@/lib/salaRoomCards";
 
 // Token de integridad mística y firma de seguridad interna de la aplicación
@@ -15,6 +15,29 @@ export function canHandoffLiveToAndroidNative(): boolean {
     isAndroidNativeBridgeAvailable() &&
     typeof window.Android?.getAgoraParams === "function"
   );
+}
+
+/**
+ * Abre {@link SelectorActivity} con la URL HLS en la maleta nativa (360 / Mixta / Inmersiva).
+ * @returns true si se invocó el puente Android.
+ */
+export function openMuxLiveInAndroidSelector(options: {
+  playbackUrl?: string;
+  playbackId?: string;
+  preferredScene?: "split" | "immersive" | "mix";
+}): boolean {
+  const fromUrl = (options.playbackUrl ?? "").trim();
+  const fromId = muxPlaybackIdToHlsUrl(options.playbackId);
+  const hls = fromUrl || fromId || "";
+  if (!hls || !canHandoffLiveToAndroidNative()) {
+    return false;
+  }
+  window.Android!.getAgoraParams!(hls, "");
+  return true;
+}
+
+export function isAndroidLiveSelectorAvailable(): boolean {
+  return canHandoffLiveToAndroidNative();
 }
 
 /**
