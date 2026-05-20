@@ -60,8 +60,15 @@
 
         <activity
             android:name="com.vivevr.app.SelectorActivity"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@style/AppTheme.NoActionBarLaunch" />
+
+        <activity
+            android:name="com.vivevr.app.PlayerActivity"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:exported="false"
+            android:theme="@style/AppTheme.NoActionBarLaunch" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

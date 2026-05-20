@@ -51,6 +51,9 @@ dependencies {
     // Lobby Pantalla 1: recorrido del árbol SAF (ACTION_OPEN_DOCUMENT_TREE) para reproductor MP3/MP4.
     implementation "androidx.documentfile:documentfile:1.0.1"
     implementation "com.google.android.material:material:1.12.0"
+    implementation "androidx.media3:media3-exoplayer:1.5.1"
+    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"
+    implementation "androidx.media3:media3-ui:1.5.1"
     implementation "com.github.pedroSG94.rtmp-rtsp-stream-client-java:rtplibrary:2.4.4"
     // -----------------------------------------------------------------
     // Google Cardboard SDK (open-source, sucesor de com.google.vr:sdk-base):

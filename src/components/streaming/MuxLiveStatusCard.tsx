@@ -1,5 +1,7 @@
 import { Radio, Smartphone } from "lucide-react";
-import { openMuxLiveInAndroidSelector, isAndroidLiveSelectorAvailable } from "@/lib/androidAgoraRoomEntry";
+import { useNavigate } from "react-router-dom";
+import { canPlayStreamOnAndroidNative, isNativeAndroid } from "@/lib/nativePlayback";
+import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
 import type { MuxStreamSignalState } from "@/lib/muxStreamStatus";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -12,29 +14,34 @@ type MuxLiveStatusCardProps = {
   className?: string;
 };
 
-/**
- * Tarjeta de estado Live (sin <video> ni MuxPlayer).
- * Clic solo cuando está iluminada → Intent Android con .m3u8.
- */
+/** Tarjeta Live: Android → playStream; Web → /go/:id */
 export function MuxLiveStatusCard({
   signal,
   playbackUrl,
   playbackId,
   className,
 }: MuxLiveStatusCardProps) {
+  const navigate = useNavigate();
   const isLive = signal === "active";
   const waiting = signal === "idle" || signal === "checking";
-  const isAndroid = isAndroidLiveSelectorAvailable();
+  const isNative = canPlayStreamOnAndroidNative();
 
   const handleClick = () => {
     if (!isLive) return;
 
-    const ok = openMuxLiveInAndroidSelector({ playbackUrl, playbackId });
-    if (ok) {
-      toast.success("Abriendo SelectorActivity con el stream HLS…");
+    if (
+      handleStreamCardPlay({
+        navigate,
+        streamUrl: playbackUrl,
+        streamId: playbackId,
+        playbackId,
+        title: "En vivo",
+      })
+    ) {
+      toast.success(isNativeAndroid() ? "Abriendo ExoPlayer nativo…" : "Abriendo reproductor…");
       return;
     }
-    toast.error("Usa la app Android (APK) para abrir el selector 360 / Mixta / Inmersiva.");
+    toast.error(isNative ? "Falta URL del stream." : "No hay playback ID para abrir el live.");
   };
 
   return (
@@ -76,9 +83,9 @@ export function MuxLiveStatusCard({
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {isLive
-              ? isAndroid
-                ? "Toca para abrir SelectorActivity (sin reproductor web)."
-                : "Señal Mux activa. Abre la app Android para ver el stream."
+              ? isNative
+                ? "Toca para SelectorActivity → ExoPlayer (sin WebView)."
+                : "Toca para abrir el reproductor web (/go)."
               : "Conecta OBS con la URL RTMP del panel Live."}
           </p>
         </div>

@@ -3,6 +3,7 @@ import { ClientOnly } from "@/components/ClientOnly";
 import { Play, Radio } from "lucide-react";
 import { probeMuxStreamSignal, type MuxStreamSignalState } from "@/lib/muxStreamStatus";
 import { sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
+import { WebLivePlayerGate } from "@/components/streaming/WebLivePlayerGate";
 import { cn } from "@/lib/utils";
 
 const MuxPlayerLazy = lazy(() => import("@mux/mux-player-react"));
@@ -38,6 +39,31 @@ export type MuxHlsPlayerProps = {
 
 /** Reproductor en vivo Mux (@mux/mux-player-react). */
 export function MuxHlsPlayer({
+  playbackId,
+  title,
+  compact = false,
+  manualStart = true,
+  className = "",
+}: MuxHlsPlayerProps) {
+  return (
+    <WebLivePlayerGate
+      nativeFallback={
+        <div
+          className={cn(
+            "flex aspect-video w-full items-center justify-center rounded-xl border border-cyan-300/35 bg-black/50 p-6 text-center text-sm text-muted-foreground",
+            className,
+          )}
+        >
+          Reproducción nativa Android (ExoPlayer). Pulsa la tarjeta EN VIVO o playStream.
+        </div>
+      }
+    >
+      <MuxHlsPlayerWeb {...{ playbackId, title, compact, manualStart, className }} />
+    </WebLivePlayerGate>
+  );
+}
+
+function MuxHlsPlayerWeb({
   playbackId,
   title,
   compact = false,

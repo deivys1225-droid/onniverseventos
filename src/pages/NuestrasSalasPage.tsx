@@ -12,10 +12,8 @@ import {
   isStreamPlaybackUrl,
   resolvePlaybackIdFromActiveStreamRow,
 } from "@/lib/audiencePlayback";
-import { buildEspectadorLivePath } from "@/lib/espectadorRoutes";
 import { muxPlaybackIdFromHlsUrl } from "@/lib/muxPlaybackId";
-import { handoffLiveToAndroidNative } from "@/lib/androidAgoraRoomEntry";
-import { buildLiveStreamPath } from "@/lib/liveStreamRoutes";
+import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { Button } from "@/components/ui/button";
 import PayPalSmartButton from "@/components/PayPalSmartButton";
@@ -215,10 +213,6 @@ const NuestrasSalasPage = () => {
   const beginRoomSession = async (room: RoomCard, activeStream?: ActiveStreamRow | null) => {
     setLoadingRoomId(room.id);
     try {
-      if (await handoffLiveToAndroidNative(room, activeStream)) {
-        return;
-      }
-
       const streamUrlCandidate = activeStream?.stream_url?.trim() || "";
       const playbackUrlCandidate = activeStream?.playback_url?.trim() || "";
       const resolvedChannel = isStreamPlaybackUrl(streamUrlCandidate) ? room.channel : streamUrlCandidate || room.channel;
@@ -231,23 +225,24 @@ const NuestrasSalasPage = () => {
           resolvePlaybackIdFromActiveStreamRow(activeStream) ??
           muxPlaybackIdFromHlsUrl(playbackUrlCandidate) ??
           muxPlaybackIdFromHlsUrl(streamUrlCandidate);
-        if (muxPlaybackId) {
-          navigate(
-            buildEspectadorLivePath({
-              channel: room.channel,
-              playbackId: muxPlaybackId,
-              title: resolvedTitle,
-            }),
-          );
+        const hlsUrl =
+          playbackUrlCandidate && isStreamPlaybackUrl(playbackUrlCandidate)
+            ? playbackUrlCandidate
+            : streamUrlCandidate && isStreamPlaybackUrl(streamUrlCandidate)
+              ? streamUrlCandidate
+              : "";
+        if (
+          handleStreamCardPlay({
+            navigate,
+            streamUrl: hlsUrl || undefined,
+            streamId: muxPlaybackId ?? resolvedChannel,
+            playbackId: muxPlaybackId ?? undefined,
+            title: resolvedTitle,
+          })
+        ) {
           return;
         }
-        navigate(
-          buildLiveStreamPath({
-            channel: muxPlaybackId ?? resolvedChannel,
-            title: resolvedTitle,
-            playbackId: muxPlaybackId ?? undefined,
-          }),
-        );
+        toast.error("No se pudo abrir el stream en vivo.");
         return;
       }
 
@@ -269,11 +264,7 @@ const NuestrasSalasPage = () => {
       const muxPlaybackId = resolvePlaybackIdFromActiveStreamRow(activeStream);
       if (muxPlaybackId) params.set("playbackId", muxPlaybackId);
       const path = `/sala/espectador/${encodeURIComponent(resolvedChannel)}?${params.toString()}`;
-      if (Capacitor.getPlatform() === "android") {
-        window.location.assign(`${window.location.origin}${path}`);
-      } else {
-        navigate(path);
-      }
+      navigate(path);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "No se pudo abrir la sala.";
       toast.error(msg);

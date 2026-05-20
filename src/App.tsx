@@ -3,7 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { isNativeAndroid } from "@/lib/nativePlayback";
 import { PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { isPayPalConfigured, paypalScriptOptions } from "@/config/payments";
 import GuestRoute from "@/components/auth/GuestRoute";
@@ -37,6 +38,7 @@ const PcScenePage = lazy(() => import("./pages/PcScenePage.tsx"));
 const EmisorView = lazy(() => import("./pages/EmisorView.tsx"));
 const EspectadorView = lazy(() => import("./pages/EspectadorView.tsx"));
 const LiveStreamPage = lazy(() => import("./pages/LiveStreamPage.tsx"));
+const GoViewerPage = lazy(() => import("./pages/GoViewerPage.tsx"));
 import { CameraBackgroundProvider } from "@/contexts/CameraBackgroundContext";
 const queryClient = new QueryClient();
 
@@ -55,7 +57,14 @@ const AppProviders = ({ children }: { children: ReactNode }) =>
     <>{children}</>
   );
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    if (isNativeAndroid()) {
+      console.log("[Onniverso] WEB PLAYER BLOCKED ON ANDROID — App shell");
+    }
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <AppProviders>
       <TooltipProvider>
@@ -138,6 +147,14 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <NuestrasSalasPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/go/:streamId"
+              element={
+                <PrivateRoute>
+                  <GoViewerPage />
                 </PrivateRoute>
               }
             />
@@ -246,6 +263,7 @@ const App = () => (
       </TooltipProvider>
     </AppProviders>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

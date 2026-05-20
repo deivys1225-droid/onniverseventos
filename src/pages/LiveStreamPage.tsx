@@ -1,22 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Radio, Smartphone } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { MuxHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
 import { DuplexSplitLayout } from "@/components/streaming/DuplexSplitLayout";
-import { handoffActiveStreamPlaybackToAndroid } from "@/lib/androidAgoraRoomEntry";
-import { isAndroidNativeApp } from "@/lib/deviceDetection";
+import { NativePlaybackRouteGuard } from "@/components/NativePlaybackRouteGuard";
+import { shouldUseWebLivePlayer } from "@/lib/nativePlayback";
+import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
 import {
   resolvePlaybackFromActiveStreamRow,
   resolvePlaybackIdFromActiveStreamRow,
 } from "@/lib/audiencePlayback";
 import { sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
-import { buildLiveStreamPath } from "@/lib/liveStreamRoutes";
 import { supabase } from "@/integrations/supabase/client";
 import type { ActiveStreamRow } from "@/lib/salaRoomCards";
 import { cn } from "@/lib/utils";
 
-const LiveStreamPage = () => {
+const LiveStreamPage = () => (
+  <NativePlaybackRouteGuard>
+    <LiveStreamPageWeb />
+  </NativePlaybackRouteGuard>
+);
+
+const LiveStreamPageWeb = () => {
   const navigate = useNavigate();
   const { channel: channelParam } = useParams<{ channel?: string }>();
   const [searchParams] = useSearchParams();
@@ -24,8 +30,6 @@ const LiveStreamPage = () => {
   const [activeStreams, setActiveStreams] = useState<ActiveStreamRow[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [duplexOpen, setDuplexOpen] = useState(false);
-  const lastAndroidBridgeUrlRef = useRef<string | null>(null);
-
   const selectedTitle = (searchParams.get("title") ?? "").trim();
 
   const selectedStream = useMemo(() => {
@@ -53,7 +57,7 @@ const LiveStreamPage = () => {
   );
 
   const displayTitle = selectedTitle || selectedStream?.title?.trim() || "LIVE STREAM";
-  const useWebMuxPlayer = !isAndroidNativeApp();
+  const useWebMuxPlayer = shouldUseWebLivePlayer();
 
   useEffect(() => {
     const load = async () => {
@@ -77,35 +81,14 @@ const LiveStreamPage = () => {
     };
   }, []);
 
-  /** Android APK: maleta HLS vía puente nativo (sin reproductor web en esta página). */
-  useEffect(() => {
-    if (useWebMuxPlayer) return;
-    const url = playbackUrl?.trim();
-    if (!url || !selectedStream?.is_live) return;
-    if (lastAndroidBridgeUrlRef.current === url) return;
-    if (handoffActiveStreamPlaybackToAndroid(selectedStream)) {
-      lastAndroidBridgeUrlRef.current = url;
-    }
-  }, [playbackUrl, selectedStream, useWebMuxPlayer]);
-
   const selectStream = (row: ActiveStreamRow) => {
-    if (handoffActiveStreamPlaybackToAndroid(row)) {
-      const url = resolvePlaybackFromActiveStreamRow(row);
-      if (url) lastAndroidBridgeUrlRef.current = url;
-    }
-
-    const title = row.title?.trim() || "En vivo";
-    const routeId = resolvePlaybackIdFromActiveStreamRow(row) ?? row.user_id;
-    navigate(
-      buildLiveStreamPath({
-        channel: routeId,
-        title,
-        playbackId: resolvePlaybackIdFromActiveStreamRow(row) ?? undefined,
-      }),
-      {
-        replace: true,
-      },
-    );
+    handleStreamCardPlay({
+      navigate,
+      streamUrl: resolvePlaybackFromActiveStreamRow(row) ?? undefined,
+      streamId: resolvePlaybackIdFromActiveStreamRow(row) ?? row.user_id,
+      playbackId: resolvePlaybackIdFromActiveStreamRow(row) ?? undefined,
+      title: row.title?.trim() || "En vivo",
+    });
   };
 
   const androidNativePlaybackPanel = (

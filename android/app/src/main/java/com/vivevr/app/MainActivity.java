@@ -76,12 +76,6 @@ public class MainActivity extends BridgeActivity {
   private static final String LOBBY_PANTALLA2_UA =
       "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
 
-  /** Destinos del reproductor de audiencia (botones 360 / VR / MT desde JS {@code AndroidBridge}). */
-  private static final String AUDIENCE_GO_360_URL = "https://onnivers.com/go/360";
-  private static final String AUDIENCE_GO_VR_URL = "https://onnivers.com/go/vr";
-  private static final String AUDIENCE_GO_MT_URL = "https://onnivers.com/go/mt";
-  private static final String AUDIENCE_GO_AR_URL = "https://onnivers.com/go/ar";
-
   private static final String DEFAULT_AUDIENCE_CHANNEL = "main";
 
   /** Vídeo “Casa” (Cloudinary); abierto con el reproductor del sistema — sin cambiar la web empaquetada. */
@@ -103,9 +97,8 @@ public class MainActivity extends BridgeActivity {
   private static final String EXTRA_NATIVE_STREAM_URL = "streamUrl";
 
   private ActivityResultLauncher<String[]> webkitMediaPermissionLauncher;
-  /** Tras elegir escena en {@link SelectorActivity}, URL a cargar en el WebView (MP4 o /go/*). */
+  /** Legacy: sin uso para reproducción (flujo nativo vía {@link #openStreamSelector}). */
   private ActivityResultLauncher<Intent> selectorActivityLauncher;
-  private String pendingPlaybackUrlForSelector;
   /** Maleta HLS/playback activo para botones 360 / Mixta / Inmersiva ({@link AndroidBridge}). */
   private String activeAudiencePlaybackUrl;
   /** playback_id Mux en maleta (alternativa a URL HLS completa). */
@@ -114,8 +107,6 @@ public class MainActivity extends BridgeActivity {
   private PermissionRequest pendingWebkitPermissionRequest;
   /** Permisos de Android lanzados junto con {@link #pendingWebkitPermissionRequest} */
   private String[] pendingAndroidPermissionNames;
-  private String pendingSceneAfterNavigation;
-
   /** WebView exclusivo Pantalla 2 (TikTok); no afecta al WebView principal de Capacitor. */
   private WebView lobbyPantalla2WebView;
 
@@ -139,117 +130,81 @@ public class MainActivity extends BridgeActivity {
   /** Mime detectado por DocumentFile o por extensión (paralelo a {@link #pickedMusicUris}). */
   private final List<String> pickedMusicMime = Collections.synchronizedList(new ArrayList<>());
 
-  private interface SceneSelectionCallback {
-    void onSelected(String sceneKey);
-  }
-
-  /** Usado por la interceptación de URLs en el WebViewClient (navegación + selector + loadUrl). */
-  private void setPendingSceneAfterNavigation(String scene) {
-    pendingSceneAfterNavigation = scene;
-  }
-
   /**
-   * Abre {@link SelectorActivity} (sin lista de modos): confirma la escena preferida y carga la URL
-   * de reproducción en el WebView (MP4 o /go/*).
+   * Card / bridge → {@link SelectorActivity} → {@link PlayerActivity} (ExoPlayer). Sin WebView.
    */
-  private void openAudienceSelector(String preferredScene, String playbackUrl) {
-    openAudienceSelector(preferredScene, playbackUrl, null);
+  private void openStreamSelector(String playbackUrl, String playbackId, String preferredScene) {
+    String url = playbackUrl != null ? playbackUrl.trim() : "";
+    String id = playbackId != null ? playbackId.trim() : "";
+    String resolved = StreamUrlResolver.resolve(url, id);
+    if (resolved.isEmpty()) {
+      Toast.makeText(this, "Falta stream_url o playback_id.", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    activeAudiencePlaybackUrl = resolved;
+    if (!id.isEmpty()) {
+      activeAudiencePlaybackId = id;
+    } else {
+      String extracted = StreamUrlResolver.extractMuxPlaybackIdFromHls(resolved);
+      if (!extracted.isEmpty()) {
+        activeAudiencePlaybackId = extracted;
+      }
+    }
+    Intent intent = new Intent(this, SelectorActivity.class);
+    intent.putExtra(SelectorActivity.EXTRA_PREFERRED_SCENE, normalizeSceneKey(preferredScene));
+    intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    intent.putExtra(StreamExtras.STREAM_URL, resolved);
+    intent.putExtra(SelectorActivity.EXTRA_PLAYBACK_URL, resolved);
+    if (activeAudiencePlaybackId != null && !activeAudiencePlaybackId.isEmpty()) {
+      intent.putExtra(SelectorActivity.EXTRA_PLAYBACK_ID, activeAudiencePlaybackId);
+    }
+    startActivity(intent);
   }
 
   private void openAudienceSelector(String preferredScene, String playbackUrl, String playbackId) {
     runOnUiThread(
         () -> {
-          String url = playbackUrl != null ? playbackUrl.trim() : "";
-          if (!url.isEmpty()) {
-            activeAudiencePlaybackUrl = url;
-            pendingPlaybackUrlForSelector = url;
+          String url = resolveNativePlaybackUrl(playbackUrl);
+          String id = playbackId != null ? playbackId.trim() : "";
+          if (url.isEmpty() && !id.isEmpty()) {
+            openStreamSelector("", id, preferredScene);
+            return;
           }
-          Intent i = new Intent(this, SelectorActivity.class);
-          i.putExtra(SelectorActivity.EXTRA_PREFERRED_SCENE, preferredScene);
-          if (!url.isEmpty()) {
-            i.putExtra(SelectorActivity.EXTRA_PLAYBACK_URL, url);
+          if (url.isEmpty()) {
+            Toast.makeText(this, "No hay URL de stream en la maleta nativa.", Toast.LENGTH_SHORT).show();
+            return;
           }
-          if (playbackId != null && !playbackId.trim().isEmpty()) {
-            String id = playbackId.trim();
-            activeAudiencePlaybackId = id;
-            i.putExtra(SelectorActivity.EXTRA_PLAYBACK_ID, id);
-          }
-          selectorActivityLauncher.launch(i);
+          openStreamSelector(url, id, preferredScene);
         });
   }
 
-  /** Ruta /go/* según escena (no cargar .m3u8 crudo en el WebView). */
-  private static String audienceGoUrlForScene(String scene) {
-    String key = normalizeSceneKey(scene);
-    if ("immersive".equals(key)) {
-      return AUDIENCE_GO_360_URL;
-    }
-    if ("mix".equals(key)) {
-      return AUDIENCE_GO_MT_URL;
-    }
-    return AUDIENCE_GO_VR_URL;
-  }
-
-  /** Extrae playback_id de {@code https://stream.mux.com/{id}.m3u8}. */
-  private static String extractMuxPlaybackIdFromHls(String url) {
-    if (url == null || url.isEmpty()) {
-      return "";
-    }
-    try {
-      String segment = Uri.parse(url.trim()).getLastPathSegment();
-      if (segment == null || segment.isEmpty()) {
-        return "";
-      }
-      if (segment.endsWith(".m3u8")) {
-        return segment.substring(0, segment.length() - 5);
-      }
-      return segment;
-    } catch (Exception ignored) {
-      return "";
-    }
-  }
-
-  private String resolveAudiencePlaybackOrFallback(String mp4FromJs, String fallbackGoUrl) {
+  /** Maleta HLS/MP4 activa o URL HTTP directa — nunca rutas /go/* web. */
+  private String resolveNativePlaybackUrl(String candidateUrl) {
     if (activeAudiencePlaybackUrl != null && !activeAudiencePlaybackUrl.isEmpty()) {
       return activeAudiencePlaybackUrl;
     }
-    return resolveAudienceLaunchUrl(mp4FromJs, fallbackGoUrl);
+    if (candidateUrl != null && StreamUrlResolver.isPlayableHttpUrl(candidateUrl.trim())) {
+      return candidateUrl.trim();
+    }
+    return "";
   }
 
   /**
    * Entrada desde tarjeta en vivo: canal + token de audiencia hacia Activity nativa Agora.
    */
-  private static boolean isHttpPlaybackUrl(String value) {
-    if (value == null || value.isEmpty()) {
-      return false;
-    }
-    String v = value.trim().toLowerCase(Locale.ROOT);
-    return v.startsWith("http://")
-        || v.startsWith("https://")
-        || v.endsWith(".m3u8")
-        || v.contains(".m3u8?");
-  }
-
   private void deliverAgoraParamsToNative(String canal, String token) {
     String channel = canal != null ? canal.trim() : "";
     String audienceToken = token != null ? token.trim() : "";
-    if (isHttpPlaybackUrl(channel)) {
+    if (StreamUrlResolver.isPlayableHttpUrl(channel)) {
       String playbackId =
-          !audienceToken.isEmpty() ? audienceToken : extractMuxPlaybackIdFromHls(channel);
-      activeAudiencePlaybackUrl = channel;
-      if (!playbackId.isEmpty()) {
-        activeAudiencePlaybackId = playbackId;
-      }
-      openAudienceSelector("split", channel, playbackId.isEmpty() ? null : playbackId);
+          !audienceToken.isEmpty() ? audienceToken : StreamUrlResolver.extractMuxPlaybackIdFromHls(channel);
+      openStreamSelector(channel, playbackId, "split");
       return;
     }
-    if (isHttpPlaybackUrl(audienceToken)) {
-      String playbackId = !channel.isEmpty() ? channel : extractMuxPlaybackIdFromHls(audienceToken);
-      activeAudiencePlaybackUrl = audienceToken;
-      if (!playbackId.isEmpty()) {
-        activeAudiencePlaybackId = playbackId;
-      }
-      openAudienceSelector("split", audienceToken, playbackId.isEmpty() ? null : playbackId);
+    if (StreamUrlResolver.isPlayableHttpUrl(audienceToken)) {
+      String playbackId =
+          !channel.isEmpty() ? channel : StreamUrlResolver.extractMuxPlaybackIdFromHls(audienceToken);
+      openStreamSelector(audienceToken, playbackId, "split");
       return;
     }
     if (channel.isEmpty()) {
@@ -299,18 +254,6 @@ public class MainActivity extends BridgeActivity {
     }
   }
 
-  /** Coincide con la lógica que envía JS desde Espectador (MP4 de sala o fallback /go/*). */
-  private String resolveAudienceLaunchUrl(String mp4FromJs, String fallbackGoUrl) {
-    if (mp4FromJs == null) {
-      return fallbackGoUrl;
-    }
-    String t = mp4FromJs.trim();
-    if (t.isEmpty()) {
-      return fallbackGoUrl;
-    }
-    return t;
-  }
-
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     webkitMediaPermissionLauncher =
@@ -320,43 +263,7 @@ public class MainActivity extends BridgeActivity {
         registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
-              if (result.getResultCode() != Activity.RESULT_OK) {
-                pendingPlaybackUrlForSelector = null;
-                return;
-              }
-              Intent data = result.getData();
-              if (data == null) {
-                pendingPlaybackUrlForSelector = null;
-                return;
-              }
-              String scene = data.getStringExtra(SelectorActivity.EXTRA_SELECTED_SCENE);
-              String url = data.getStringExtra(SelectorActivity.EXTRA_PLAYBACK_URL);
-              if (url == null || url.isEmpty()) {
-                url = pendingPlaybackUrlForSelector;
-              }
-              String playbackId = data.getStringExtra(SelectorActivity.EXTRA_PLAYBACK_ID);
-              if ((url == null || url.isEmpty()) && playbackId != null && !playbackId.isEmpty()) {
-                url = "https://stream.mux.com/" + playbackId.trim() + ".m3u8";
-              }
-              pendingPlaybackUrlForSelector = null;
-              if (scene == null || scene.isEmpty() || url == null || url.isEmpty()) {
-                return;
-              }
-              activeAudiencePlaybackUrl = url;
-              if (playbackId != null && !playbackId.isEmpty()) {
-                activeAudiencePlaybackId = playbackId.trim();
-              }
-              // HLS Mux/OBS: maleta lista; no navegar (ni .m3u8 ni onnivers.com/go/*).
-              if (isHttpPlaybackUrl(url)) {
-                return;
-              }
-              Bridge bridge = getBridge();
-              WebView webView = bridge != null ? bridge.getWebView() : null;
-              if (webView == null) {
-                return;
-              }
-              setPendingSceneAfterNavigation(scene);
-              webView.loadUrl(url);
+              // Reproducción 100% nativa: sin loadUrl, sin evaluateJavascript, sin notificar al WebView.
             });
 
     // Lobby Pantalla 1 — pre-prompt de permisos: SAF funciona aunque sean denegados;
@@ -409,29 +316,12 @@ public class MainActivity extends BridgeActivity {
               return false;
             }
             String playbackUrl = resolvePlaybackUrl(target);
-            showSceneSelector(
-                view,
-                "split",
-                scene -> {
-                  if (isHttpPlaybackUrl(playbackUrl)) {
-                    activeAudiencePlaybackUrl = playbackUrl;
-                    return;
-                  }
-                  setPendingSceneAfterNavigation(scene);
-                  view.loadUrl(playbackUrl);
-                });
-            return true;
-          }
-
-          @Override
-          public void onPageFinished(WebView view, String url) {
-            super.onPageFinished(view, url);
-            if (pendingSceneAfterNavigation == null || pendingSceneAfterNavigation.isEmpty()) {
-              return;
+            if (StreamUrlResolver.isPlayableHttpUrl(playbackUrl)) {
+              openStreamSelector(
+                  playbackUrl, StreamUrlResolver.extractMuxPlaybackIdFromHls(playbackUrl), "split");
+              return true;
             }
-            String scene = pendingSceneAfterNavigation;
-            pendingSceneAfterNavigation = null;
-            dispatchSceneToJs(view, scene);
+            return false;
           }
         });
     webView.setWebChromeClient(
@@ -459,96 +349,70 @@ public class MainActivity extends BridgeActivity {
   }
 
   /**
-   * Puente Web → nativo: la sala de audiencia llama {@code AndroidScene.openSceneSelector(preferred)}
-   * y se aplica la escena preferida al JS sin diálogo de modos.
+   * Puente escena: abre selector nativo (sin {@code evaluateJavascript} ni /go/*).
    */
   private static final class AudienceSceneBridge {
 
     private final MainActivity activity;
-    private final Bridge bridge;
 
     AudienceSceneBridge(MainActivity activity, Bridge bridge) {
       this.activity = activity;
-      this.bridge = bridge;
     }
 
     @JavascriptInterface
     public void openSceneSelector(String preferredScene) {
       activity.runOnUiThread(
           () -> {
-            WebView webView = bridge.getWebView();
-            if (webView == null) {
+            String url = activity.resolveNativePlaybackUrl(null);
+            if (url.isEmpty()) {
+              Toast.makeText(
+                      activity,
+                      "Pulsa primero una tarjeta en vivo para cargar el stream.",
+                      Toast.LENGTH_SHORT)
+                  .show();
               return;
             }
-            activity.showSceneSelector(
-                webView,
-                preferredScene,
-                this::dispatchSceneToJs);
+            activity.openStreamSelector(
+                url,
+                activity.activeAudiencePlaybackId != null ? activity.activeAudiencePlaybackId : "",
+                preferredScene);
           });
-    }
-
-    private void dispatchSceneToJs(String scene) {
-      WebView webView = bridge.getWebView();
-      if (webView == null) {
-        return;
-      }
-      String esc = scene.replace("\\", "\\\\").replace("'", "\\'");
-      webView.evaluateJavascript(
-          "(function(){ if(window.__onniversoNativeDispatch) window.__onniversoNativeDispatch('"
-              + esc
-              + "'); })()",
-          null);
     }
   }
 
-  /**
-   * Puente Web → nativo para los botones 360°, VR y MT del reproductor:
-   * abren {@link SelectorActivity}; al confirmar escena se carga la URL (MP4 de sala o /go/*) en el WebView.
-   * {@code AndroidBridge.abrirMiSelectorNativo()} aplica la escena preferida en JS sin lista de modos.
-   */
+  /** Botones 360 / VR / MT → {@link SelectorActivity} → {@link PlayerActivity}. */
   private static final class AndroidBridge {
 
     private final MainActivity activity;
-    private final Bridge bridge;
 
     AndroidBridge(MainActivity activity, Bridge bridge) {
       this.activity = activity;
-      this.bridge = bridge;
     }
 
-    /** Aplica la escena preferida en JS sin lista de modos. Sin {@code loadUrl}. */
     @JavascriptInterface
     public void abrirMiSelectorNativo() {
       activity.runOnUiThread(
           () -> {
-            WebView webView = bridge.getWebView();
-            if (webView == null) {
-              return;
+            String url = activity.resolveNativePlaybackUrl(null);
+            if (!url.isEmpty()) {
+              activity.openStreamSelector(url, activity.activeAudiencePlaybackId, "split");
             }
-            activity.showSceneSelector(
-                webView,
-                "split",
-                scene -> activity.dispatchSceneToJs(webView, scene));
           });
     }
 
     @JavascriptInterface
     public void on360Click(String mp4Url) {
-      activity.openAudienceSelector(
-          "immersive",
-          activity.resolveAudiencePlaybackOrFallback(mp4Url, AUDIENCE_GO_360_URL));
+      activity.openAudienceSelector("immersive", mp4Url, null);
     }
 
     @JavascriptInterface
     public void onVrClick(String mp4Url) {
-      activity.openAudienceSelector(
-          "split", activity.resolveAudiencePlaybackOrFallback(mp4Url, AUDIENCE_GO_VR_URL));
+      activity.openAudienceSelector("split", mp4Url, null);
     }
 
     @JavascriptInterface
     public void onMtClick(String mp4Url) {
-      activity.openAudienceSelector(
-          "mix", activity.resolveAudiencePlaybackOrFallback(mp4Url, AUDIENCE_GO_MT_URL));
+      activity.openAudienceSelector("mix", mp4Url, null);
     }
   }
 
@@ -566,16 +430,19 @@ public class MainActivity extends BridgeActivity {
     /** Coincide con {@code window.Android.onArClick()} desde JS (sin argumentos). */
     @JavascriptInterface
     public void onArClick() {
-      activity.openAudienceSelector(
-          "immersive", activity.resolveAudienceLaunchUrl("", AUDIENCE_GO_AR_URL));
+      activity.runOnUiThread(
+          () -> {
+            String url = activity.resolveNativePlaybackUrl(null);
+            if (!url.isEmpty()) {
+              activity.openStreamSelector(url, activity.activeAudiencePlaybackId, "immersive");
+            }
+          });
     }
 
     /** Coincide con {@code window.Android.onArClick("URL_DE_TU_SALA")}. */
     @JavascriptInterface
     public void onArClick(String salaUrl) {
-      String u = salaUrl != null ? salaUrl.trim() : "";
-      activity.openAudienceSelector(
-          "immersive", activity.resolveAudienceLaunchUrl(u, AUDIENCE_GO_AR_URL));
+      activity.openAudienceSelector("immersive", salaUrl, null);
     }
 
     /** Coincide con {@code window.Android.openLobby()} desde el botón Lobby del perfil. */
@@ -599,31 +466,30 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * Tarjeta Live Mux: {@code window.Android.openLiveSelector(playbackUrl, playbackId)}.
-     * Lanza {@link SelectorActivity} con extras; no abre reproductor web (.m3u8).
+     * Reproduce stream en {@link SelectorActivity} (ExoPlayer). {@code window.Android.playStream(url)}.
      */
+    @JavascriptInterface
+    public void playStream(String streamUrl) {
+      activity.runOnUiThread(
+          () -> {
+            String url = streamUrl != null ? streamUrl.trim() : "";
+            if (url.isEmpty()) {
+              Toast.makeText(activity, "Falta URL del stream.", Toast.LENGTH_SHORT).show();
+              return;
+            }
+            String id = StreamUrlResolver.extractMuxPlaybackIdFromHls(url);
+            activity.openStreamSelector(url, id, "split");
+          });
+    }
+
+    /** @deprecated Usar {@link #playStream(String)} */
     @JavascriptInterface
     public void openLiveSelector(String playbackUrl, String playbackId) {
       activity.runOnUiThread(
           () -> {
             String url = playbackUrl != null ? playbackUrl.trim() : "";
             String id = playbackId != null ? playbackId.trim() : "";
-            if (url.isEmpty() && !id.isEmpty()) {
-              url = "https://stream.mux.com/" + id + ".m3u8";
-            }
-            if (url.isEmpty()) {
-              Toast.makeText(
-                      activity,
-                      "Falta playback_url o playback_id del live.",
-                      Toast.LENGTH_SHORT)
-                  .show();
-              return;
-            }
-            if (!id.isEmpty()) {
-              activity.activeAudiencePlaybackId = id;
-            }
-            activity.activeAudiencePlaybackUrl = url;
-            activity.openAudienceSelector("split", url, id.isEmpty() ? null : id);
+            activity.openStreamSelector(url, id, "split");
           });
     }
 
@@ -655,10 +521,6 @@ public class MainActivity extends BridgeActivity {
     }
   }
 
-  private void showSceneSelector(WebView webView, String preferredScene, SceneSelectionCallback callback) {
-    callback.onSelected(normalizeSceneKey(preferredScene));
-  }
-
   private static String normalizeSceneKey(String preferred) {
     if (preferred == null || preferred.isEmpty()) {
       return "split";
@@ -667,18 +529,6 @@ public class MainActivity extends BridgeActivity {
       return preferred;
     }
     return "split";
-  }
-
-  private void dispatchSceneToJs(WebView webView, String scene) {
-    if (webView == null) {
-      return;
-    }
-    String esc = scene.replace("\\", "\\\\").replace("'", "\\'");
-    webView.evaluateJavascript(
-        "(function(){ if(window.__onniversoNativeDispatch) window.__onniversoNativeDispatch('"
-            + esc
-            + "'); })()",
-        null);
   }
 
   private boolean isLobbyDeepLink(Uri uri) {

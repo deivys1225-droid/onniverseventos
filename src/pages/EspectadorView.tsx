@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { MuxHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
-import { handoffActiveStreamPlaybackToAndroid } from "@/lib/androidAgoraRoomEntry";
-import { isAndroidNativeApp } from "@/lib/deviceDetection";
+import { NativePlaybackRouteGuard } from "@/components/NativePlaybackRouteGuard";
+import { isNativeAndroid, playStreamOnAndroidNative, shouldUseWebLivePlayer } from "@/lib/nativePlayback";
 import {
   audienceStreamSessionKey,
   isStreamPlaybackUrl,
@@ -68,7 +68,8 @@ const EspectadorView = () => {
   const effectiveStreamParam = streamPlaybackUrl || sessionStreamUrl;
   const forcedMode = (searchParams.get("mode") ?? "").trim().toLowerCase();
   const useVodMode = forcedMode === "vod" && fallbackMp4.length > 0;
-  const useWebMuxPlayer = !isAndroidNativeApp();
+  const useWebMuxPlayer = shouldUseWebLivePlayer();
+  const blockWebLiveOnAndroid = isNativeAndroid() && !useVodMode;
 
   const nativeBridgeMp4Url = useMemo(() => {
     if (useVodMode && fallbackMp4) return fallbackMp4;
@@ -154,9 +155,9 @@ const EspectadorView = () => {
     );
   }, [useVodMode, playbackIdParam, activeStreamRow, effectiveStreamParam, playbackUrl]);
 
-  /** URL canónica: ?playbackId=… sin ?stream=https://…m3u8 */
+  /** URL canónica en navegador web (sin redirección automática en APK). */
   useEffect(() => {
-    if (useVodMode || !playbackId) return;
+    if (!useWebMuxPlayer || useVodMode || !playbackId) return;
     const streamInUrl = (searchParams.get("stream") ?? "").trim();
     const idInUrl = sanitizeMuxPlaybackId(playbackIdParam);
     if (idInUrl === playbackId && !streamInUrl.includes("stream.mux.com")) return;
@@ -173,24 +174,7 @@ const EspectadorView = () => {
       }
     }
     navigate(`${location.pathname}?${next.toString()}`, { replace: true });
-  }, [useVodMode, playbackId, playbackIdParam, playbackUrl, channelName, location.pathname, navigate, searchParams]);
-
-  useEffect(() => {
-    if (!playbackUrl || useVodMode || useWebMuxPlayer) return;
-    handoffActiveStreamPlaybackToAndroid(
-      activeStreamRow ?? {
-        user_id: "",
-        is_live: true,
-        title: roomTitle,
-        stream_url: playbackUrl,
-        playback_url: playbackUrl,
-        playback_id: null,
-        privacy_mode: "publico",
-        ticket_price: null,
-        updated_at: new Date().toISOString(),
-      },
-    );
-  }, [playbackUrl, useVodMode, useWebMuxPlayer, activeStreamRow, roomTitle]);
+  }, [useVodMode, useWebMuxPlayer, playbackId, playbackIdParam, playbackUrl, channelName, location.pathname, navigate, searchParams]);
 
   const goMixVod = () => {
     if (!fallbackMp4) {
@@ -230,6 +214,7 @@ const EspectadorView = () => {
   nativeSceneActionsRef.current.mix = goMixVod;
 
   useEffect(() => {
+    if (!useWebMuxPlayer) return;
     const w = window as Window & { __onniversoNativeDispatch?: (scene: string) => void };
     w.__onniversoNativeDispatch = (scene: string) => {
       if (scene === "immersive") nativeSceneActionsRef.current.immersive();
@@ -239,10 +224,10 @@ const EspectadorView = () => {
     return () => {
       delete w.__onniversoNativeDispatch;
     };
-  }, []);
+  }, [useWebMuxPlayer]);
 
   const openNativeWithHls = useCallback(
-    (method: "abrirCineLive" | "abrirCamLive") => {
+    (_method: "abrirCineLive" | "abrirCamLive") => {
       const hls =
         resolveCurrentTransmissionUrl({
           streamParam: effectiveStreamParam || playbackUrl,
@@ -254,19 +239,21 @@ const EspectadorView = () => {
         return;
       }
 
-      const bridge = window.Android;
-      if (bridge && typeof bridge.getAgoraParams === "function") {
-        bridge.getAgoraParams(hls, "");
-        return;
-      }
-      toast.info(
-        method === "abrirCineLive"
-          ? "Cine Live está disponible en la app Android."
-          : "Live Cam está disponible en la app Android.",
-      );
+      playStreamOnAndroidNative({ playbackUrl: hls });
     },
     [effectiveStreamParam, playbackUrl, nativeBridgeMp4Url],
   );
+
+  if (blockWebLiveOnAndroid) {
+    return (
+      <div className="relative min-h-screen bg-background">
+        <Navbar />
+        <main className="px-4 pt-24">
+          <NativePlaybackRouteGuard>{null}</NativePlaybackRouteGuard>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -364,7 +351,9 @@ const EspectadorView = () => {
                     }
                     return;
                   }
-                  window.location.assign("https://onnivers.com/go/ar");
+                  if (useWebMuxPlayer) {
+                    navigate("/go/ar");
+                  }
                 }}
                 className={`${AUDIENCE_NATIVE_BTN_BASE} border-amber-400/45 text-amber-50 hover:border-amber-300/85`}
               >
