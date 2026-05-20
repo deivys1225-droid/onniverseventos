@@ -54,7 +54,7 @@ export function MuxHlsPlayer({
             className,
           )}
         >
-          Reproducción nativa Android (ExoPlayer). Pulsa la tarjeta EN VIVO o playStream.
+          Reproducción nativa Android. Pulsa ENTRAR en una tarjeta en vivo (openSelector).
         </div>
       }
     >

@@ -1,28 +1,26 @@
-import { isStreamPlaybackUrl, muxPlaybackIdToHlsUrl, resolvePlaybackFromActiveStreamRow } from "@/lib/audiencePlayback";
-import { canPlayStreamOnAndroidNative, playStreamOnAndroidNative, shouldUseWebLivePlayer } from "@/lib/nativePlayback";
+import { resolvePlaybackIdFromActiveStreamRow } from "@/lib/audiencePlayback";
+import { openLiveUserOnAndroidNative, shouldUseWebLivePlayer } from "@/lib/nativePlayback";
+import { canOpenAndroidSelector, isNativeAndroidBridge } from "@/lib/androidVrBridge";
 import type { ActiveStreamRow, RoomCard } from "@/lib/salaRoomCards";
 
 export const SYSTEM_INTEGRITY_TOKEN = "YHWH_יהוה_ONNIVER_SECURE_INIT";
 
 export function isAndroidNativeBridgeAvailable(): boolean {
-  if (typeof window === "undefined") return false;
-  return typeof window.Android !== "undefined";
+  return isNativeAndroidBridge();
 }
 
 export function canHandoffLiveToAndroidNative(): boolean {
-  return canPlayStreamOnAndroidNative() || (isAndroidNativeBridgeAvailable() && typeof window.Android?.openLiveSelector === "function");
+  return canOpenAndroidSelector();
 }
 
-/** Live Mux → {@code window.Android.playStream(hls)} (ExoPlayer en SelectorActivity). */
+/** Live → {@code openSelector(streamId)} únicamente. */
 export function openMuxLiveInAndroidSelector(options: {
-  playbackUrl?: string;
+  streamId?: string;
   playbackId?: string;
-  preferredScene?: "split" | "immersive" | "mix";
+  playbackUrl?: string;
+  userId?: string;
 }): boolean {
-  return playStreamOnAndroidNative({
-    playbackUrl: options.playbackUrl,
-    playbackId: options.playbackId,
-  });
+  return openLiveUserOnAndroidNative(options);
 }
 
 export function isAndroidLiveSelectorAvailable(): boolean {
@@ -30,51 +28,34 @@ export function isAndroidLiveSelectorAvailable(): boolean {
 }
 
 export function pushHlsPlaybackToAndroidNative(playbackUrl: string, playbackId?: string): boolean {
-  const url = playbackUrl.trim();
-  if (!url || !isStreamPlaybackUrl(url)) return false;
-  return playStreamOnAndroidNative({ playbackUrl: url, playbackId });
+  return openLiveUserOnAndroidNative({ playbackUrl, playbackId, streamId: playbackId });
 }
 
 export function handoffActiveStreamPlaybackToAndroid(
   activeStream: ActiveStreamRow | null | undefined,
 ): boolean {
   if (!activeStream?.is_live) return false;
-  const playbackUrl = resolvePlaybackFromActiveStreamRow(activeStream);
-  if (!playbackUrl) return false;
-  return pushHlsPlaybackToAndroidNative(playbackUrl, activeStream.playback_id ?? undefined);
+  const streamId =
+    resolvePlaybackIdFromActiveStreamRow(activeStream) ??
+    activeStream.user_id?.trim() ??
+    activeStream.stream_url?.trim() ??
+    "";
+  if (!streamId) return false;
+  return openLiveUserOnAndroidNative({ streamId, playbackId: activeStream.playback_id ?? undefined });
 }
 
 export function resolveAgoraChannelFromRoom(
   room: Pick<RoomCard, "channel">,
   activeStream?: Pick<ActiveStreamRow, "stream_url"> | null,
 ): string {
-  const streamUrlCandidate = activeStream?.stream_url?.trim() || "";
-  return isStreamPlaybackUrl(streamUrlCandidate) ? room.channel : streamUrlCandidate || room.channel;
+  return room.channel;
 }
 
-/** Android: playStream nativo. Web: false (el caller navega al espectador). */
+/** Android: openSelector. Web: el caller navega (espectador /go). */
 export async function handoffLiveToAndroidNative(
-  room: RoomCard,
+  _room: RoomCard,
   activeStream?: ActiveStreamRow | null,
 ): Promise<boolean> {
   if (shouldUseWebLivePlayer()) return false;
-
-  if (handoffActiveStreamPlaybackToAndroid(activeStream)) {
-    return true;
-  }
-
-  if (!activeStream?.is_live || !isAndroidNativeBridgeAvailable()) {
-    return false;
-  }
-
-  const channel = resolveAgoraChannelFromRoom(room, activeStream);
-  if (!channel.trim() || isStreamPlaybackUrl(channel)) {
-    return false;
-  }
-
-  if (typeof window.Android?.getAgoraParams === "function") {
-    window.Android.getAgoraParams(channel, "");
-    return true;
-  }
-  return false;
+  return handoffActiveStreamPlaybackToAndroid(activeStream);
 }

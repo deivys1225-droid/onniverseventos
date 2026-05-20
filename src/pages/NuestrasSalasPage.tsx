@@ -235,8 +235,9 @@ const NuestrasSalasPage = () => {
           handleStreamCardPlay({
             navigate,
             streamUrl: hlsUrl || undefined,
-            streamId: muxPlaybackId ?? resolvedChannel,
+            streamId: muxPlaybackId ?? activeStream.user_id ?? resolvedChannel,
             playbackId: muxPlaybackId ?? undefined,
+            userId: activeStream.user_id,
             title: resolvedTitle,
           })
         ) {

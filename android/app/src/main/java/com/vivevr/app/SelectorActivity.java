@@ -10,73 +10,83 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.button.MaterialButton;
 
 /**
- * Selector VR / Cine Live / Live Cam → {@link PlayerActivity} (ExoPlayer, sin WebView).
+ * Único punto de decisión VR: el WebView solo envía streamId; el usuario elige escena aquí.
  */
 public class SelectorActivity extends AppCompatActivity {
 
   private static final String TAG = "OnniversoSelector";
 
-  public static final String EXTRA_PREFERRED_SCENE = StreamExtras.PREFERRED_SCENE;
   public static final String EXTRA_PLAYBACK_URL = StreamExtras.PLAYBACK_URL;
   public static final String EXTRA_PLAYBACK_ID = StreamExtras.PLAYBACK_ID;
+
+  private String streamId = "";
+  private String resolvedPlaybackUrl = "";
+  private String playbackId = "";
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_scene_selector);
 
-    String streamUrl = getIntent().getStringExtra(StreamExtras.STREAM_URL);
-    String playbackUrl = getIntent().getStringExtra(EXTRA_PLAYBACK_URL);
-    String playbackId = getIntent().getStringExtra(EXTRA_PLAYBACK_ID);
-    String urlCandidate =
-        streamUrl != null && !streamUrl.trim().isEmpty() ? streamUrl.trim() : playbackUrl;
-    String resolvedUrl = StreamUrlResolver.resolve(urlCandidate, playbackId);
+    streamId = safeExtra(StreamExtras.STREAM_ID);
+    String streamUrl = safeExtra(StreamExtras.STREAM_URL);
+    String playbackUrl = safeExtra(EXTRA_PLAYBACK_URL);
+    playbackId = safeExtra(EXTRA_PLAYBACK_ID);
 
-    Log.d(TAG, "SelectorActivity — streamUrl ready, scene selection (no WebView)");
+    String urlCandidate = firstNonEmpty(streamUrl, playbackUrl);
+    if (urlCandidate.isEmpty() && StreamUrlResolver.isPlayableHttpUrl(streamId)) {
+      urlCandidate = streamId;
+    }
+    if (playbackId.isEmpty() && !StreamUrlResolver.isPlayableHttpUrl(streamId)) {
+      playbackId = streamId;
+    }
+    if (playbackId.isEmpty() && !urlCandidate.isEmpty()) {
+      playbackId = StreamUrlResolver.extractMuxPlaybackIdFromHls(urlCandidate);
+    }
 
-    if (resolvedUrl.isEmpty()) {
-      Toast.makeText(this, "Falta streamUrl o playback_id.", Toast.LENGTH_LONG).show();
+    resolvedPlaybackUrl = StreamUrlResolver.resolve(urlCandidate, playbackId);
+
+    Log.d(TAG, "SelectorActivity streamId=" + streamId + " resolved=" + resolvedPlaybackUrl);
+
+    if (resolvedPlaybackUrl.isEmpty()) {
+      Toast.makeText(this, "Falta streamId o playback válido.", Toast.LENGTH_LONG).show();
       finish();
       return;
     }
 
-    String preferred = normalizeSceneKey(getIntent().getStringExtra(EXTRA_PREFERRED_SCENE));
-    if (!"split".equals(preferred)) {
-      openPlayer(preferred, resolvedUrl, playbackId);
-      return;
-    }
-
-    MaterialButton vr = findViewById(R.id.btn_scene_immersive);
-    MaterialButton cine = findViewById(R.id.btn_scene_split);
-    MaterialButton liveCam = findViewById(R.id.btn_scene_mix);
+    MaterialButton immersive = findViewById(R.id.btn_scene_immersive);
+    MaterialButton split = findViewById(R.id.btn_scene_split);
+    MaterialButton mix = findViewById(R.id.btn_scene_mix);
     MaterialButton cancel = findViewById(R.id.btn_selector_cancel);
 
-    vr.setOnClickListener(v -> openPlayer("immersive", resolvedUrl, playbackId));
-    cine.setOnClickListener(v -> openPlayer("split", resolvedUrl, playbackId));
-    liveCam.setOnClickListener(v -> openPlayer("mix", resolvedUrl, playbackId));
+    immersive.setOnClickListener(v -> openScene("immersive"));
+    split.setOnClickListener(v -> openScene("split"));
+    mix.setOnClickListener(v -> openScene("mix"));
     cancel.setOnClickListener(v -> finish());
   }
 
-  private void openPlayer(String scene, String playbackUrl, String playbackId) {
-    Log.d(TAG, "Opening PlayerActivity scene=" + scene);
+  private void openScene(String scene) {
+    Log.d(TAG, "Scene selected: " + scene + " streamId=" + streamId);
     Intent intent = new Intent(this, PlayerActivity.class);
     intent.putExtra(PlayerActivity.EXTRA_SELECTED_SCENE, scene);
-    intent.putExtra(StreamExtras.STREAM_URL, playbackUrl);
-    intent.putExtra(PlayerActivity.EXTRA_PLAYBACK_URL, playbackUrl);
-    if (playbackId != null && !playbackId.trim().isEmpty()) {
-      intent.putExtra(PlayerActivity.EXTRA_PLAYBACK_ID, playbackId.trim());
+    intent.putExtra(StreamExtras.STREAM_ID, streamId);
+    intent.putExtra(StreamExtras.STREAM_URL, resolvedPlaybackUrl);
+    intent.putExtra(PlayerActivity.EXTRA_PLAYBACK_URL, resolvedPlaybackUrl);
+    if (!playbackId.isEmpty()) {
+      intent.putExtra(PlayerActivity.EXTRA_PLAYBACK_ID, playbackId);
     }
     startActivity(intent);
     finish();
   }
 
-  private static String normalizeSceneKey(String preferred) {
-    if (preferred == null || preferred.isEmpty()) {
-      return "split";
-    }
-    if ("immersive".equals(preferred) || "mix".equals(preferred) || "split".equals(preferred)) {
-      return preferred;
-    }
-    return "split";
+  private String safeExtra(String key) {
+    String v = getIntent().getStringExtra(key);
+    return v != null ? v.trim() : "";
+  }
+
+  private static String firstNonEmpty(String a, String b) {
+    if (a != null && !a.isEmpty()) return a;
+    if (b != null && !b.isEmpty()) return b;
+    return "";
   }
 }

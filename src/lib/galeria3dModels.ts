@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
+import { openAndroidLiveSelector } from "@/lib/androidVrBridge";
 
 export type Galeria3DModel = {
   id: string;
@@ -53,8 +54,7 @@ export const GALERIA_3D_MODELS: Galeria3DModel[] = [
 
 export function openImmersiveModel(modelUrl: string, title: string) {
   if (Capacitor.getPlatform() === "android") {
-    if (typeof window.Android?.onArClick === "function") {
-      window.Android.onArClick(modelUrl);
+    if (openAndroidLiveSelector(modelUrl)) {
       return;
     }
     const params = new URLSearchParams();

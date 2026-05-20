@@ -82,26 +82,11 @@ public class MainActivity extends BridgeActivity {
   private static final String CASA_VIDEO_URL =
       "https://res.cloudinary.com/dfsabdxup/video/upload/v1777757336/Selena_-_Bidi_Bidi_Bom_Bom_hcvcfk.mp4";
 
-  /**
-   * Actividades nativas de sala en vivo (Cine Live / Live Cam). Payload Agora desde JS:
-   * {@code appId|channel|token} o {@code channel|token}. Extras: agoraPayload, agoraAppId,
-   * agoraChannel, agoraToken (y streamUrl legacy con el mismo texto).
-   */
-  private static final String NATIVE_ACTIVITY_CINE_LIVE = "com.vivevr.app.CineLiveActivity";
-  private static final String NATIVE_ACTIVITY_CAM_LIVE = "com.vivevr.app.CamLiveActivity";
-  private static final String EXTRA_AGORA_PAYLOAD = "agoraPayload";
-  private static final String EXTRA_AGORA_APP_ID = "agoraAppId";
-  private static final String EXTRA_AGORA_CHANNEL = "agoraChannel";
-  private static final String EXTRA_AGORA_TOKEN = "agoraToken";
-  /** Legacy: mismo valor que {@link #EXTRA_AGORA_PAYLOAD}. */
-  private static final String EXTRA_NATIVE_STREAM_URL = "streamUrl";
-
   private ActivityResultLauncher<String[]> webkitMediaPermissionLauncher;
-  /** Legacy: sin uso para reproducción (flujo nativo vía {@link #openStreamSelector}). */
   private ActivityResultLauncher<Intent> selectorActivityLauncher;
-  /** Maleta HLS/playback activo para botones 360 / Mixta / Inmersiva ({@link AndroidBridge}). */
+  /** Último streamId/URL entregado desde tarjeta ENTRAR (solo para re-apertura del selector). */
+  private String activeAudienceStreamId;
   private String activeAudiencePlaybackUrl;
-  /** playback_id Mux en maleta (alternativa a URL HLS completa). */
   private String activeAudiencePlaybackId;
   /** Petición pendiente devuelta por el WebChromeClient del WebView */
   private PermissionRequest pendingWebkitPermissionRequest;
@@ -131,127 +116,44 @@ public class MainActivity extends BridgeActivity {
   private final List<String> pickedMusicMime = Collections.synchronizedList(new ArrayList<>());
 
   /**
-   * Card / bridge → {@link SelectorActivity} → {@link PlayerActivity} (ExoPlayer). Sin WebView.
+   * Única entrada live desde WebView: {@code window.Android.openSelector(streamId)}.
+   * El WebView no elige escena; {@link SelectorActivity} muestra las tres opciones oficiales.
    */
-  private void openStreamSelector(String playbackUrl, String playbackId, String preferredScene) {
-    String url = playbackUrl != null ? playbackUrl.trim() : "";
-    String id = playbackId != null ? playbackId.trim() : "";
-    String resolved = StreamUrlResolver.resolve(url, id);
-    if (resolved.isEmpty()) {
-      Toast.makeText(this, "Falta stream_url o playback_id.", Toast.LENGTH_SHORT).show();
+  private void openSelector(String streamId) {
+    String raw = streamId != null ? streamId.trim() : "";
+    if (raw.isEmpty()) {
+      Toast.makeText(this, "Falta streamId.", Toast.LENGTH_SHORT).show();
       return;
     }
-    activeAudiencePlaybackUrl = resolved;
-    if (!id.isEmpty()) {
-      activeAudiencePlaybackId = id;
+
+    activeAudienceStreamId = raw;
+    String playbackUrl = "";
+    String playbackId = "";
+    if (StreamUrlResolver.isPlayableHttpUrl(raw)) {
+      playbackUrl = raw;
+      playbackId = StreamUrlResolver.extractMuxPlaybackIdFromHls(raw);
     } else {
-      String extracted = StreamUrlResolver.extractMuxPlaybackIdFromHls(resolved);
-      if (!extracted.isEmpty()) {
-        activeAudiencePlaybackId = extracted;
-      }
+      playbackId = raw;
     }
+
+    String resolved = StreamUrlResolver.resolve(playbackUrl, playbackId);
+    if (resolved.isEmpty()) {
+      Toast.makeText(this, "Stream no válido.", Toast.LENGTH_SHORT).show();
+      return;
+    }
+
+    activeAudiencePlaybackUrl = resolved;
+    activeAudiencePlaybackId = playbackId;
+
     Intent intent = new Intent(this, SelectorActivity.class);
-    intent.putExtra(SelectorActivity.EXTRA_PREFERRED_SCENE, normalizeSceneKey(preferredScene));
     intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    intent.putExtra(StreamExtras.STREAM_ID, raw);
     intent.putExtra(StreamExtras.STREAM_URL, resolved);
     intent.putExtra(SelectorActivity.EXTRA_PLAYBACK_URL, resolved);
-    if (activeAudiencePlaybackId != null && !activeAudiencePlaybackId.isEmpty()) {
-      intent.putExtra(SelectorActivity.EXTRA_PLAYBACK_ID, activeAudiencePlaybackId);
+    if (!playbackId.isEmpty()) {
+      intent.putExtra(SelectorActivity.EXTRA_PLAYBACK_ID, playbackId);
     }
     startActivity(intent);
-  }
-
-  private void openAudienceSelector(String preferredScene, String playbackUrl, String playbackId) {
-    runOnUiThread(
-        () -> {
-          String url = resolveNativePlaybackUrl(playbackUrl);
-          String id = playbackId != null ? playbackId.trim() : "";
-          if (url.isEmpty() && !id.isEmpty()) {
-            openStreamSelector("", id, preferredScene);
-            return;
-          }
-          if (url.isEmpty()) {
-            Toast.makeText(this, "No hay URL de stream en la maleta nativa.", Toast.LENGTH_SHORT).show();
-            return;
-          }
-          openStreamSelector(url, id, preferredScene);
-        });
-  }
-
-  /** Maleta HLS/MP4 activa o URL HTTP directa — nunca rutas /go/* web. */
-  private String resolveNativePlaybackUrl(String candidateUrl) {
-    if (activeAudiencePlaybackUrl != null && !activeAudiencePlaybackUrl.isEmpty()) {
-      return activeAudiencePlaybackUrl;
-    }
-    if (candidateUrl != null && StreamUrlResolver.isPlayableHttpUrl(candidateUrl.trim())) {
-      return candidateUrl.trim();
-    }
-    return "";
-  }
-
-  /**
-   * Entrada desde tarjeta en vivo: canal + token de audiencia hacia Activity nativa Agora.
-   */
-  private void deliverAgoraParamsToNative(String canal, String token) {
-    String channel = canal != null ? canal.trim() : "";
-    String audienceToken = token != null ? token.trim() : "";
-    if (StreamUrlResolver.isPlayableHttpUrl(channel)) {
-      String playbackId =
-          !audienceToken.isEmpty() ? audienceToken : StreamUrlResolver.extractMuxPlaybackIdFromHls(channel);
-      openStreamSelector(channel, playbackId, "split");
-      return;
-    }
-    if (StreamUrlResolver.isPlayableHttpUrl(audienceToken)) {
-      String playbackId =
-          !channel.isEmpty() ? channel : StreamUrlResolver.extractMuxPlaybackIdFromHls(audienceToken);
-      openStreamSelector(audienceToken, playbackId, "split");
-      return;
-    }
-    if (channel.isEmpty()) {
-      Toast.makeText(this, "Falta el canal o la URL de reproducción.", Toast.LENGTH_SHORT).show();
-      return;
-    }
-    String payload = channel + "|" + audienceToken;
-    launchNativeAgoraSessionActivity(NATIVE_ACTIVITY_CINE_LIVE, payload);
-  }
-
-  /**
-   * Abre Activity nativa con sesión Agora (WebRTC) sin recargar el WebView.
-   * {@code agoraPayload}: {@code appId|channel|token} o {@code channel|token}.
-   */
-  private void launchNativeAgoraSessionActivity(String activityClassName, String agoraPayload) {
-    String payload = agoraPayload != null ? agoraPayload.trim() : "";
-    if (payload.isEmpty()) {
-      Toast.makeText(this, "Falta la sesión de Agora.", Toast.LENGTH_SHORT).show();
-      return;
-    }
-    try {
-      Intent intent = new Intent();
-      intent.setClassName(this, activityClassName);
-      intent.putExtra(EXTRA_AGORA_PAYLOAD, payload);
-      intent.putExtra(EXTRA_NATIVE_STREAM_URL, payload);
-
-      String[] parts = payload.split("\\|", -1);
-      if (parts.length >= 3) {
-        intent.putExtra(EXTRA_AGORA_APP_ID, parts[0].trim());
-        intent.putExtra(EXTRA_AGORA_CHANNEL, parts[1].trim());
-        intent.putExtra(EXTRA_AGORA_TOKEN, parts.length > 2 ? parts[2].trim() : "");
-      } else if (parts.length >= 2) {
-        intent.putExtra(EXTRA_AGORA_CHANNEL, parts[0].trim());
-        intent.putExtra(EXTRA_AGORA_TOKEN, parts[1].trim());
-      } else {
-        intent.putExtra(EXTRA_AGORA_CHANNEL, payload);
-      }
-
-      startActivity(intent);
-    } catch (Exception e) {
-      Toast.makeText(
-              this,
-              "No se pudo abrir la vista nativa. Revisa el manifest y la clase "
-                  + activityClassName,
-              Toast.LENGTH_LONG)
-          .show();
-    }
   }
 
   @Override
@@ -317,9 +219,18 @@ public class MainActivity extends BridgeActivity {
             }
             String playbackUrl = resolvePlaybackUrl(target);
             if (StreamUrlResolver.isPlayableHttpUrl(playbackUrl)) {
-              openStreamSelector(
-                  playbackUrl, StreamUrlResolver.extractMuxPlaybackIdFromHls(playbackUrl), "split");
+              openSelector(playbackUrl);
               return true;
+            }
+            String path = target.getPath() != null ? target.getPath() : "";
+            if (path.contains("/go/")) {
+              String segment = path.substring(path.lastIndexOf("/go/") + 4);
+              int slash = segment.indexOf('/');
+              if (slash >= 0) segment = segment.substring(0, slash);
+              if (!segment.isEmpty()) {
+                openSelector(Uri.decode(segment));
+                return true;
+              }
             }
             return false;
           }
@@ -339,8 +250,6 @@ public class MainActivity extends BridgeActivity {
     // (webView.loadUrl("https://onnivers.com")) hacía que la app dependiera de internet en
     // cada arranque y mostrara ERR_INTERNET_DISCONNECTED sin red.
 
-    webView.addJavascriptInterface(new AudienceSceneBridge(this, bridge), "AndroidScene");
-    webView.addJavascriptInterface(new AndroidBridge(this, bridge), "AndroidBridge");
     webView.addJavascriptInterface(new AndroidJsApi(this), "Android");
     // Lobby Pantalla 1: reproductor MP3/MP4 desde carpeta del dispositivo (SAF + base64).
     webView.addJavascriptInterface(new MusicFolderJsApi(this), "AndroidMusic");
@@ -349,75 +258,7 @@ public class MainActivity extends BridgeActivity {
   }
 
   /**
-   * Puente escena: abre selector nativo (sin {@code evaluateJavascript} ni /go/*).
-   */
-  private static final class AudienceSceneBridge {
-
-    private final MainActivity activity;
-
-    AudienceSceneBridge(MainActivity activity, Bridge bridge) {
-      this.activity = activity;
-    }
-
-    @JavascriptInterface
-    public void openSceneSelector(String preferredScene) {
-      activity.runOnUiThread(
-          () -> {
-            String url = activity.resolveNativePlaybackUrl(null);
-            if (url.isEmpty()) {
-              Toast.makeText(
-                      activity,
-                      "Pulsa primero una tarjeta en vivo para cargar el stream.",
-                      Toast.LENGTH_SHORT)
-                  .show();
-              return;
-            }
-            activity.openStreamSelector(
-                url,
-                activity.activeAudiencePlaybackId != null ? activity.activeAudiencePlaybackId : "",
-                preferredScene);
-          });
-    }
-  }
-
-  /** Botones 360 / VR / MT → {@link SelectorActivity} → {@link PlayerActivity}. */
-  private static final class AndroidBridge {
-
-    private final MainActivity activity;
-
-    AndroidBridge(MainActivity activity, Bridge bridge) {
-      this.activity = activity;
-    }
-
-    @JavascriptInterface
-    public void abrirMiSelectorNativo() {
-      activity.runOnUiThread(
-          () -> {
-            String url = activity.resolveNativePlaybackUrl(null);
-            if (!url.isEmpty()) {
-              activity.openStreamSelector(url, activity.activeAudiencePlaybackId, "split");
-            }
-          });
-    }
-
-    @JavascriptInterface
-    public void on360Click(String mp4Url) {
-      activity.openAudienceSelector("immersive", mp4Url, null);
-    }
-
-    @JavascriptInterface
-    public void onVrClick(String mp4Url) {
-      activity.openAudienceSelector("split", mp4Url, null);
-    }
-
-    @JavascriptInterface
-    public void onMtClick(String mp4Url) {
-      activity.openAudienceSelector("mix", mp4Url, null);
-    }
-  }
-
-  /**
-   * Objeto global {@code window.Android} para AR ({@code onArClick}).
+   * Puente social {@code window.Android}: solo openSelector + lobby. Sin elección de escena desde JS.
    */
   private static final class AndroidJsApi {
 
@@ -427,34 +268,65 @@ public class MainActivity extends BridgeActivity {
       this.activity = activity;
     }
 
-    /** Coincide con {@code window.Android.onArClick()} desde JS (sin argumentos). */
+    /**
+     * Tarjeta ENTRAR / usuario en vivo: {@code window.Android.openSelector(streamId)}.
+     * streamId = playback_id, user_id, liveId o URL HLS.
+     */
+    @JavascriptInterface
+    public void openSelector(String streamId) {
+      activity.runOnUiThread(() -> activity.openSelector(streamId));
+    }
+
+    /** @deprecated Usar {@link #openSelector(String)} */
+    @JavascriptInterface
+    public void playStream(String streamUrl) {
+      activity.runOnUiThread(() -> activity.openSelector(streamUrl));
+    }
+
+    /** @deprecated Usar {@link #openSelector(String)} */
+    @JavascriptInterface
+    public void openLiveSelector(String playbackUrl, String playbackId) {
+      activity.runOnUiThread(
+          () -> {
+            String id = playbackId != null ? playbackId.trim() : "";
+            String url = playbackUrl != null ? playbackUrl.trim() : "";
+            activity.openSelector(!id.isEmpty() ? id : url);
+          });
+    }
+
+    /** Galería / assets: misma ruta oficial (selector elige escena). */
+    @JavascriptInterface
+    public void onArClick(String assetUrl) {
+      activity.runOnUiThread(() -> activity.openSelector(assetUrl != null ? assetUrl : ""));
+    }
+
     @JavascriptInterface
     public void onArClick() {
       activity.runOnUiThread(
           () -> {
-            String url = activity.resolveNativePlaybackUrl(null);
-            if (!url.isEmpty()) {
-              activity.openStreamSelector(url, activity.activeAudiencePlaybackId, "immersive");
+            String id =
+                activity.activeAudienceStreamId != null
+                    ? activity.activeAudienceStreamId
+                    : (activity.activeAudiencePlaybackId != null
+                        ? activity.activeAudiencePlaybackId
+                        : "");
+            if (id.isEmpty()) {
+              Toast.makeText(
+                      activity,
+                      "Pulsa ENTRAR en un usuario en vivo primero.",
+                      Toast.LENGTH_SHORT)
+                  .show();
+              return;
             }
+            activity.openSelector(id);
           });
     }
 
-    /** Coincide con {@code window.Android.onArClick("URL_DE_TU_SALA")}. */
-    @JavascriptInterface
-    public void onArClick(String salaUrl) {
-      activity.openAudienceSelector("immersive", salaUrl, null);
-    }
-
-    /** Coincide con {@code window.Android.openLobby()} desde el botón Lobby del perfil. */
     @JavascriptInterface
     public void openLobby() {
       activity.runOnUiThread(() -> activity.openLobbyImmersive(null));
     }
 
-    /**
-     * Lobby Pantalla 2 — muestra el WebView nativo con TikTok (solo Android). El Web oculta el
-     * iframe duplicado mientras está enfocado.
-     */
     @JavascriptInterface
     public void showLobbyPantalla2WebView() {
       activity.runOnUiThread(() -> activity.attachAndShowLobbyPantalla2WebView());
@@ -464,71 +336,6 @@ public class MainActivity extends BridgeActivity {
     public void hideLobbyPantalla2WebView() {
       activity.runOnUiThread(() -> activity.hideLobbyPantalla2WebViewInternal());
     }
-
-    /**
-     * Reproduce stream en {@link SelectorActivity} (ExoPlayer). {@code window.Android.playStream(url)}.
-     */
-    @JavascriptInterface
-    public void playStream(String streamUrl) {
-      activity.runOnUiThread(
-          () -> {
-            String url = streamUrl != null ? streamUrl.trim() : "";
-            if (url.isEmpty()) {
-              Toast.makeText(activity, "Falta URL del stream.", Toast.LENGTH_SHORT).show();
-              return;
-            }
-            String id = StreamUrlResolver.extractMuxPlaybackIdFromHls(url);
-            activity.openStreamSelector(url, id, "split");
-          });
-    }
-
-    /** @deprecated Usar {@link #playStream(String)} */
-    @JavascriptInterface
-    public void openLiveSelector(String playbackUrl, String playbackId) {
-      activity.runOnUiThread(
-          () -> {
-            String url = playbackUrl != null ? playbackUrl.trim() : "";
-            String id = playbackId != null ? playbackId.trim() : "";
-            activity.openStreamSelector(url, id, "split");
-          });
-    }
-
-    /**
-     * Tarjeta de evento en vivo (WebView): {@code window.Android.getAgoraParams(canal, token)}.
-     * {@code token} puede llevar playback_id cuando {@code canal} es URL HLS.
-     */
-    @JavascriptInterface
-    public void getAgoraParams(String canal, String token) {
-      activity.runOnUiThread(() -> activity.deliverAgoraParamsToNative(canal, token));
-    }
-
-    /** Cine Live — {@code window.Android.abrirCineLive(appId|channel|token)}. */
-    @JavascriptInterface
-    public void abrirCineLive(String agoraPayload) {
-      activity.runOnUiThread(
-          () ->
-              activity.launchNativeAgoraSessionActivity(
-                  NATIVE_ACTIVITY_CINE_LIVE, agoraPayload));
-    }
-
-    /** Live Cam — {@code window.Android.abrirCamLive(appId|channel|token)}. */
-    @JavascriptInterface
-    public void abrirCamLive(String agoraPayload) {
-      activity.runOnUiThread(
-          () ->
-              activity.launchNativeAgoraSessionActivity(
-                  NATIVE_ACTIVITY_CAM_LIVE, agoraPayload));
-    }
-  }
-
-  private static String normalizeSceneKey(String preferred) {
-    if (preferred == null || preferred.isEmpty()) {
-      return "split";
-    }
-    if ("immersive".equals(preferred) || "mix".equals(preferred) || "split".equals(preferred)) {
-      return preferred;
-    }
-    return "split";
   }
 
   private boolean isLobbyDeepLink(Uri uri) {
@@ -642,7 +449,7 @@ public class MainActivity extends BridgeActivity {
         || "www.aluniverso.com".equals(host)
         || "onnivers.com".equals(host)
         || "www.onnivers.com".equals(host)) {
-      return path.startsWith("/sala/espectador/");
+      return path.startsWith("/sala/espectador/") || path.startsWith("/go/");
     }
     return path.endsWith(".mp4");
   }

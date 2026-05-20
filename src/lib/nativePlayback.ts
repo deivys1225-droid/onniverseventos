@@ -1,12 +1,13 @@
+import { openAndroidLiveSelector, canOpenAndroidSelector, isNativeAndroidBridge } from "@/lib/androidVrBridge";
 import { muxPlaybackIdToHlsUrl } from "@/lib/audiencePlayback";
 
 export { handleStreamCardPlay } from "@/lib/streamCardNavigation";
 export type { StreamCardPlayOptions } from "@/lib/streamCardNavigation";
+export { openAndroidLiveSelector, canOpenAndroidSelector, isNativeAndroidBridge } from "@/lib/androidVrBridge";
 
 /** APK: existe {@code window.Android}. */
 export function isNativeAndroid(): boolean {
-  if (typeof window === "undefined") return false;
-  return typeof window.Android !== "undefined";
+  return isNativeAndroidBridge();
 }
 
 /** Navegador web únicamente (sin reproductor en APK). */
@@ -18,26 +19,37 @@ export function shouldUseWebLivePlayer(): boolean {
   return web;
 }
 
+/** @deprecated Usar {@link canOpenAndroidSelector} */
 export function canPlayStreamOnAndroidNative(): boolean {
-  return isNativeAndroid() && typeof window.Android?.playStream === "function";
+  return canOpenAndroidSelector();
 }
 
-/** Flujo nativo paralelo: playStream(url) directo, sin React player. */
+/**
+ * Live en Android: solo {@code openSelector(streamId)} — sin elegir escena desde JS.
+ */
+export function openLiveUserOnAndroidNative(options: {
+  streamId?: string;
+  playbackId?: string;
+  playbackUrl?: string;
+  userId?: string;
+}): boolean {
+  const fromId = (options.streamId ?? options.playbackId ?? options.userId ?? "").trim();
+  if (fromId) {
+    return openAndroidLiveSelector(fromId);
+  }
+  const url = (options.playbackUrl ?? "").trim() || muxPlaybackIdToHlsUrl(options.playbackId) || "";
+  if (url) {
+    return openAndroidLiveSelector(url);
+  }
+  return false;
+}
+
+/** Alias legacy — redirige a {@link openLiveUserOnAndroidNative}. */
 export function playStreamOnAndroidNative(options: {
   playbackUrl?: string;
   playbackId?: string;
+  streamId?: string;
+  userId?: string;
 }): boolean {
-  if (!canPlayStreamOnAndroidNative()) return false;
-
-  const fromUrl = (options.playbackUrl ?? "").trim();
-  const fromId = muxPlaybackIdToHlsUrl(options.playbackId);
-  const url = fromUrl || fromId || "";
-  if (!url) return false;
-
-  if (import.meta.env.DEV) {
-    console.log("[Onniverso] NATIVE playStream", url.slice(0, 80));
-  }
-
-  window.Android!.playStream!(url);
-  return true;
+  return openLiveUserOnAndroidNative(options);
 }

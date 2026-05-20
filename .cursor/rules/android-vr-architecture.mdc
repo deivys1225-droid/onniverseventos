@@ -1,0 +1,40 @@
+---
+description: Arquitectura blindada WebView social + VR nativo Android (openSelector)
+globs:
+  - src/**/*.{ts,tsx}
+  - android/**/*.java
+alwaysApply: true
+---
+
+# Arquitectura VR Onniverso (NO modificar sin petición explícita)
+
+## WebView = solo comunidad social
+- Tarjetas, EN LÍNEA, perfiles, Firebase, chat, presencia, navegación social.
+- **Prohibido** abrir escenas VR, reproductores HLS/Mux o rutas `/go/*` como experiencia inmersiva desde JS en Android.
+
+## Única entrada Android desde JS
+```ts
+if (window.Android?.openSelector) {
+  window.Android.openSelector(streamId); // playback_id | user_id | liveId | URL HLS
+}
+```
+
+## Flujo oficial
+```
+WebView (ENTRAR en vivo) → openSelector(streamId) → SelectorActivity
+  → Escena Inmersiva | Pantalla Dividida | Escena Realidad Mixta → PlayerActivity
+```
+
+## Prohibido (obsoleto)
+- `playStream`, `openLiveSelector`, `getAgoraParams`, `abrirCineLive`, `abrirCamLive`
+- `AndroidBridge`, `AndroidScene`, `on360Click`, `onVrClick`, `onMtClick`
+- Cine Live / Live Cam / Cinema / playCinema desde WebView
+- Elegir escena (`immersive`/`split`/`mix`) desde JavaScript en Android
+
+## Web (navegador)
+- Live: `/go/:streamId` + MuxPlayer
+- Rutas de reproducción bloqueadas en APK vía `NativePlaybackRouteGuard`
+
+## Centralizar cambios VR
+- JS: `src/lib/androidVrBridge.ts`, `src/lib/streamCardNavigation.ts`
+- Android: `MainActivity.openSelector`, `SelectorActivity`, `StreamExtras`

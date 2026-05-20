@@ -1,4 +1,5 @@
 import { muxPlaybackIdToHlsUrl, isStreamPlaybackUrl } from "@/lib/audiencePlayback";
+import { openAndroidLiveSelector } from "@/lib/androidVrBridge";
 import { muxPlaybackIdFromHlsUrl } from "@/lib/muxPlaybackId";
 
 function isNativeAndroid(): boolean {
@@ -6,11 +7,11 @@ function isNativeAndroid(): boolean {
 }
 
 export type StreamCardPlayOptions = {
-  /** URL HLS/MP4 directa (prioridad). */
   streamUrl?: string;
-  /** ID para ruta web /go/:streamId y fallback Mux. */
+  /** playback_id, user_id o liveId — único dato que Android necesita. */
   streamId?: string;
   playbackId?: string;
+  userId?: string;
   title?: string;
   navigate?: (path: string) => void;
 };
@@ -18,41 +19,42 @@ export type StreamCardPlayOptions = {
 function resolveStreamUrl(options: StreamCardPlayOptions): string {
   const fromUrl = (options.streamUrl ?? "").trim();
   if (fromUrl && isStreamPlaybackUrl(fromUrl)) return fromUrl;
-  const fromId = muxPlaybackIdToHlsUrl(options.playbackId ?? options.streamId);
-  return fromId ?? "";
+  return muxPlaybackIdToHlsUrl(options.playbackId ?? options.streamId) ?? "";
 }
 
-function resolveStreamId(options: StreamCardPlayOptions, streamUrl: string): string {
-  const explicit = (options.streamId ?? options.playbackId ?? "").trim();
+function resolveNativeStreamId(options: StreamCardPlayOptions, streamUrl: string): string {
+  const explicit = (options.streamId ?? options.playbackId ?? options.userId ?? "").trim();
   if (explicit) return explicit;
   return muxPlaybackIdFromHlsUrl(streamUrl) ?? "";
 }
 
+function resolveWebStreamId(options: StreamCardPlayOptions, streamUrl: string): string {
+  return resolveNativeStreamId(options, streamUrl);
+}
+
 /**
- * Android: playStream → SelectorActivity → PlayerActivity (ExoPlayer).
- * Web: /go/:id → MuxPlayer (sin mezclar con ExoPlayer).
+ * Android: openSelector(streamId) → SelectorActivity (usuario elige escena).
+ * Web: /go/:id → MuxPlayer.
  */
 export function handleStreamCardPlay(options: StreamCardPlayOptions): boolean {
   const streamUrl = resolveStreamUrl(options);
-  const streamId = resolveStreamId(options, streamUrl);
+  const nativeStreamId = resolveNativeStreamId(options, streamUrl);
+  const webStreamId = resolveWebStreamId(options, streamUrl);
 
   if (isNativeAndroid()) {
     if (import.meta.env.DEV) {
-      console.log("[Onniverso] WEB PLAYER BLOCKED ON ANDROID — handleStreamCardPlay → playStream");
+      console.log("[Onniverso] WEB VR BLOCKED — handleStreamCardPlay → openSelector");
     }
-    if (!streamUrl) {
-      return false;
-    }
-    window.Android!.playStream!(streamUrl);
-    return true;
+    if (!nativeStreamId) return false;
+    return openAndroidLiveSelector(nativeStreamId);
   }
 
-  if (!options.navigate || !streamId) {
+  if (!options.navigate || !webStreamId) {
     return false;
   }
 
   if (import.meta.env.DEV) {
-    console.log("[Onniverso] RENDER PLAYER WEB — /go/", streamId);
+    console.log("[Onniverso] RENDER PLAYER WEB — /go/", webStreamId);
   }
 
   const params = new URLSearchParams();
@@ -62,6 +64,6 @@ export function handleStreamCardPlay(options: StreamCardPlayOptions): boolean {
   if (pb) params.set("playbackId", pb);
 
   const qs = params.toString();
-  options.navigate(qs ? `/go/${encodeURIComponent(streamId)}?${qs}` : `/go/${encodeURIComponent(streamId)}`);
+  options.navigate(qs ? `/go/${encodeURIComponent(webStreamId)}?${qs}` : `/go/${encodeURIComponent(webStreamId)}`);
   return true;
 }

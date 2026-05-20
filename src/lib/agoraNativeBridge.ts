@@ -1,10 +1,7 @@
 /** Separador del payload que Android parsea: appId|canal|token (o canal|token). */
 export const AGORA_NATIVE_BRIDGE_SEP = "|";
 
-/**
- * Payload para {@code window.Android.abrirCineLive} / {@code abrirCamLive}.
- * Incluye App ID, canal y token de audiencia de la sesión Agora activa.
- */
+/** Payload Agora (solo WebRTC emisor/web si aplica; ya no se usa en puente Android live). */
 export function buildAgoraNativeBridgePayload(
   channel: string,
   token: string,
