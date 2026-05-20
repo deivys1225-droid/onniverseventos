@@ -8,6 +8,7 @@ import { MuxHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { handoffActiveStreamPlaybackToAndroid } from "@/lib/androidAgoraRoomEntry";
+import { isAndroidNativeApp } from "@/lib/deviceDetection";
 import {
   audienceStreamSessionKey,
   isStreamPlaybackUrl,
@@ -67,6 +68,7 @@ const EspectadorView = () => {
   const effectiveStreamParam = streamPlaybackUrl || sessionStreamUrl;
   const forcedMode = (searchParams.get("mode") ?? "").trim().toLowerCase();
   const useVodMode = forcedMode === "vod" && fallbackMp4.length > 0;
+  const useWebMuxPlayer = !isAndroidNativeApp();
 
   const nativeBridgeMp4Url = useMemo(() => {
     if (useVodMode && fallbackMp4) return fallbackMp4;
@@ -174,7 +176,7 @@ const EspectadorView = () => {
   }, [useVodMode, playbackId, playbackIdParam, playbackUrl, channelName, location.pathname, navigate, searchParams]);
 
   useEffect(() => {
-    if (!playbackUrl || useVodMode) return;
+    if (!playbackUrl || useVodMode || useWebMuxPlayer) return;
     handoffActiveStreamPlaybackToAndroid(
       activeStreamRow ?? {
         user_id: "",
@@ -188,7 +190,7 @@ const EspectadorView = () => {
         updated_at: new Date().toISOString(),
       },
     );
-  }, [playbackUrl, useVodMode, activeStreamRow, roomTitle]);
+  }, [playbackUrl, useVodMode, useWebMuxPlayer, activeStreamRow, roomTitle]);
 
   const goMixVod = () => {
     if (!fallbackMp4) {
@@ -297,12 +299,19 @@ const EspectadorView = () => {
                 <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-cyan-300/45 bg-black text-sm text-muted-foreground">
                   Cargando transmisión Mux…
                 </div>
+              ) : !useWebMuxPlayer ? (
+                <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border border-cyan-300/45 bg-black/50 p-6 text-center text-sm text-muted-foreground">
+                  <p className="font-semibold text-cyan-50">Reproducción nativa (Android)</p>
+                  <p className="max-w-md text-xs">
+                    El live Mux se entrega al puente nativo. Usa los botones 360° / VR / MT debajo.
+                  </p>
+                </div>
               ) : playbackId ? (
                 <MuxHlsPlayer
                   key={playbackId}
                   playbackId={playbackId}
                   title={roomTitle}
-                  manualStart={Capacitor.getPlatform() === "android"}
+                  manualStart
                 />
               ) : (
                 <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-cyan-300/35 bg-black/50 p-6 text-center text-sm text-muted-foreground">

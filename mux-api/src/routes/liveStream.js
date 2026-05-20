@@ -76,6 +76,68 @@ async function handleCreateStream(req, res) {
   }
 }
 
+function normalizeMuxStatus(raw) {
+  const status = String(raw ?? "idle").trim().toLowerCase();
+  return { status, active: status === "active" };
+}
+
+async function resolveLiveStreamByQuery(mux, { liveStreamId, playbackId }) {
+  const id = String(liveStreamId ?? "").trim();
+  const pb = String(playbackId ?? "").trim();
+
+  if (id) {
+    return mux.video.liveStreams.retrieve(id);
+  }
+
+  if (pb) {
+    try {
+      const playback = await mux.video.playbackIds.retrieve(pb);
+      const objectType = playback?.object?.type;
+      const objectId = playback?.object?.id;
+      if (objectType === "live_stream" && objectId) {
+        return mux.video.liveStreams.retrieve(objectId);
+      }
+    } catch {
+      /* sin playback → 404 abajo */
+    }
+  }
+
+  return null;
+}
+
+/** GET /api/mux/stream-status?liveStreamId=…&playbackId=… */
+async function handleStreamStatus(req, res) {
+  const liveStreamId = String(req.query?.liveStreamId ?? req.query?.id ?? "").trim();
+  const playbackId = String(req.query?.playbackId ?? req.query?.playback_id ?? "").trim();
+
+  if (!liveStreamId && !playbackId) {
+    return res.status(400).json({ ok: false, error: "Falta liveStreamId o playbackId" });
+  }
+
+  try {
+    const mux = getMuxClient();
+    const liveStream = await resolveLiveStreamByQuery(mux, { liveStreamId, playbackId });
+
+    if (!liveStream) {
+      return res.status(404).json({ ok: false, error: "Live stream no encontrado en Mux" });
+    }
+
+    const { status, active } = normalizeMuxStatus(liveStream.status);
+
+    return res.status(200).json({
+      ok: true,
+      live_stream_id: liveStream.id ?? liveStreamId ?? null,
+      playback_id: playbackId || null,
+      status,
+      active,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error al consultar Mux.";
+    return res.status(500).json({ ok: false, error: message });
+  }
+}
+
+liveStreamRouter.get("/stream-status", handleStreamStatus);
 liveStreamRouter.post("/create-stream", handleCreateStream);
 /** @deprecated Usar /create-stream */
 liveStreamRouter.post("/live-stream", handleCreateStream);

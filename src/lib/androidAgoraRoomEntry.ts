@@ -13,12 +13,13 @@ export function isAndroidNativeBridgeAvailable(): boolean {
 export function canHandoffLiveToAndroidNative(): boolean {
   return (
     isAndroidNativeBridgeAvailable() &&
-    typeof window.Android?.getAgoraParams === "function"
+    (typeof window.Android?.openLiveSelector === "function" ||
+      typeof window.Android?.getAgoraParams === "function")
   );
 }
 
 /**
- * Abre {@link SelectorActivity} con la URL HLS en la maleta nativa (360 / Mixta / Inmersiva).
+ * Tarjeta Live → Intent {@code SelectorActivity} con playback_url / playback_id (sin reproductor web).
  * @returns true si se invocó el puente Android.
  */
 export function openMuxLiveInAndroidSelector(options: {
@@ -29,10 +30,16 @@ export function openMuxLiveInAndroidSelector(options: {
   const fromUrl = (options.playbackUrl ?? "").trim();
   const fromId = muxPlaybackIdToHlsUrl(options.playbackId);
   const hls = fromUrl || fromId || "";
+  const playbackId = (options.playbackId ?? "").trim();
   if (!hls || !canHandoffLiveToAndroidNative()) {
     return false;
   }
-  window.Android!.getAgoraParams!(hls, "");
+  const bridge = window.Android!;
+  if (typeof bridge.openLiveSelector === "function") {
+    bridge.openLiveSelector(hls, playbackId);
+    return true;
+  }
+  bridge.getAgoraParams!(hls, playbackId);
   return true;
 }
 
@@ -41,16 +48,14 @@ export function isAndroidLiveSelectorAvailable(): boolean {
 }
 
 /**
- * Envía de inmediato la URL HLS (.m3u8) a {@code window.Android.getAgoraParams}.
- * En Android abre {@link SelectorActivity} y carga la escena con la señal HLS (Mux).
+ * Entrega HLS a la maleta nativa y abre {@code SelectorActivity} (sin cargar .m3u8 en el WebView).
  */
-export function pushHlsPlaybackToAndroidNative(playbackUrl: string): boolean {
+export function pushHlsPlaybackToAndroidNative(playbackUrl: string, playbackId?: string): boolean {
   const url = playbackUrl.trim();
   if (!url || !isStreamPlaybackUrl(url) || !canHandoffLiveToAndroidNative()) {
     return false;
   }
-  window.Android!.getAgoraParams!(url, "");
-  return true;
+  return openMuxLiveInAndroidSelector({ playbackUrl: url, playbackId });
 }
 
 /**

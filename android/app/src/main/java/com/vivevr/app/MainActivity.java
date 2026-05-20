@@ -108,6 +108,8 @@ public class MainActivity extends BridgeActivity {
   private String pendingPlaybackUrlForSelector;
   /** Maleta HLS/playback activo para botones 360 / Mixta / Inmersiva ({@link AndroidBridge}). */
   private String activeAudiencePlaybackUrl;
+  /** playback_id Mux en maleta (alternativa a URL HLS completa). */
+  private String activeAudiencePlaybackId;
   /** Petición pendiente devuelta por el WebChromeClient del WebView */
   private PermissionRequest pendingWebkitPermissionRequest;
   /** Permisos de Android lanzados junto con {@link #pendingWebkitPermissionRequest} */
@@ -168,10 +170,43 @@ public class MainActivity extends BridgeActivity {
             i.putExtra(SelectorActivity.EXTRA_PLAYBACK_URL, url);
           }
           if (playbackId != null && !playbackId.trim().isEmpty()) {
-            i.putExtra(SelectorActivity.EXTRA_PLAYBACK_ID, playbackId.trim());
+            String id = playbackId.trim();
+            activeAudiencePlaybackId = id;
+            i.putExtra(SelectorActivity.EXTRA_PLAYBACK_ID, id);
           }
           selectorActivityLauncher.launch(i);
         });
+  }
+
+  /** Ruta /go/* según escena (no cargar .m3u8 crudo en el WebView). */
+  private static String audienceGoUrlForScene(String scene) {
+    String key = normalizeSceneKey(scene);
+    if ("immersive".equals(key)) {
+      return AUDIENCE_GO_360_URL;
+    }
+    if ("mix".equals(key)) {
+      return AUDIENCE_GO_MT_URL;
+    }
+    return AUDIENCE_GO_VR_URL;
+  }
+
+  /** Extrae playback_id de {@code https://stream.mux.com/{id}.m3u8}. */
+  private static String extractMuxPlaybackIdFromHls(String url) {
+    if (url == null || url.isEmpty()) {
+      return "";
+    }
+    try {
+      String segment = Uri.parse(url.trim()).getLastPathSegment();
+      if (segment == null || segment.isEmpty()) {
+        return "";
+      }
+      if (segment.endsWith(".m3u8")) {
+        return segment.substring(0, segment.length() - 5);
+      }
+      return segment;
+    } catch (Exception ignored) {
+      return "";
+    }
   }
 
   private String resolveAudiencePlaybackOrFallback(String mp4FromJs, String fallbackGoUrl) {
@@ -199,13 +234,22 @@ public class MainActivity extends BridgeActivity {
     String channel = canal != null ? canal.trim() : "";
     String audienceToken = token != null ? token.trim() : "";
     if (isHttpPlaybackUrl(channel)) {
+      String playbackId =
+          !audienceToken.isEmpty() ? audienceToken : extractMuxPlaybackIdFromHls(channel);
       activeAudiencePlaybackUrl = channel;
-      openAudienceSelector("split", channel);
+      if (!playbackId.isEmpty()) {
+        activeAudiencePlaybackId = playbackId;
+      }
+      openAudienceSelector("split", channel, playbackId.isEmpty() ? null : playbackId);
       return;
     }
     if (isHttpPlaybackUrl(audienceToken)) {
+      String playbackId = !channel.isEmpty() ? channel : extractMuxPlaybackIdFromHls(audienceToken);
       activeAudiencePlaybackUrl = audienceToken;
-      openAudienceSelector("split", audienceToken);
+      if (!playbackId.isEmpty()) {
+        activeAudiencePlaybackId = playbackId;
+      }
+      openAudienceSelector("split", audienceToken, playbackId.isEmpty() ? null : playbackId);
       return;
     }
     if (channel.isEmpty()) {
@@ -299,6 +343,13 @@ public class MainActivity extends BridgeActivity {
                 return;
               }
               activeAudiencePlaybackUrl = url;
+              if (playbackId != null && !playbackId.isEmpty()) {
+                activeAudiencePlaybackId = playbackId.trim();
+              }
+              // HLS Mux/OBS: maleta lista; no navegar (ni .m3u8 ni onnivers.com/go/*).
+              if (isHttpPlaybackUrl(url)) {
+                return;
+              }
               Bridge bridge = getBridge();
               WebView webView = bridge != null ? bridge.getWebView() : null;
               if (webView == null) {
@@ -362,6 +413,10 @@ public class MainActivity extends BridgeActivity {
                 view,
                 "split",
                 scene -> {
+                  if (isHttpPlaybackUrl(playbackUrl)) {
+                    activeAudiencePlaybackUrl = playbackUrl;
+                    return;
+                  }
                   setPendingSceneAfterNavigation(scene);
                   view.loadUrl(playbackUrl);
                 });
@@ -544,8 +599,37 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
+     * Tarjeta Live Mux: {@code window.Android.openLiveSelector(playbackUrl, playbackId)}.
+     * Lanza {@link SelectorActivity} con extras; no abre reproductor web (.m3u8).
+     */
+    @JavascriptInterface
+    public void openLiveSelector(String playbackUrl, String playbackId) {
+      activity.runOnUiThread(
+          () -> {
+            String url = playbackUrl != null ? playbackUrl.trim() : "";
+            String id = playbackId != null ? playbackId.trim() : "";
+            if (url.isEmpty() && !id.isEmpty()) {
+              url = "https://stream.mux.com/" + id + ".m3u8";
+            }
+            if (url.isEmpty()) {
+              Toast.makeText(
+                      activity,
+                      "Falta playback_url o playback_id del live.",
+                      Toast.LENGTH_SHORT)
+                  .show();
+              return;
+            }
+            if (!id.isEmpty()) {
+              activity.activeAudiencePlaybackId = id;
+            }
+            activity.activeAudiencePlaybackUrl = url;
+            activity.openAudienceSelector("split", url, id.isEmpty() ? null : id);
+          });
+    }
+
+    /**
      * Tarjeta de evento en vivo (WebView): {@code window.Android.getAgoraParams(canal, token)}.
-     * Abre el reproductor nativo sin iniciar Agora en la web.
+     * {@code token} puede llevar playback_id cuando {@code canal} es URL HLS.
      */
     @JavascriptInterface
     public void getAgoraParams(String canal, String token) {

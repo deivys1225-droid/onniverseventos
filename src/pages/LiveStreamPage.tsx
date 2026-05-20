@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Radio } from "lucide-react";
+import { Radio, Smartphone } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { MuxHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
 import { DuplexSplitLayout } from "@/components/streaming/DuplexSplitLayout";
 import { handoffActiveStreamPlaybackToAndroid } from "@/lib/androidAgoraRoomEntry";
+import { isAndroidNativeApp } from "@/lib/deviceDetection";
 import {
   resolvePlaybackFromActiveStreamRow,
   resolvePlaybackIdFromActiveStreamRow,
@@ -52,6 +53,7 @@ const LiveStreamPage = () => {
   );
 
   const displayTitle = selectedTitle || selectedStream?.title?.trim() || "LIVE STREAM";
+  const useWebMuxPlayer = !isAndroidNativeApp();
 
   useEffect(() => {
     const load = async () => {
@@ -75,15 +77,16 @@ const LiveStreamPage = () => {
     };
   }, []);
 
-  /** Android APK: entrega HLS al Intent nativo en cuanto hay URL resuelta. */
+  /** Android APK: maleta HLS vía puente nativo (sin reproductor web en esta página). */
   useEffect(() => {
+    if (useWebMuxPlayer) return;
     const url = playbackUrl?.trim();
     if (!url || !selectedStream?.is_live) return;
     if (lastAndroidBridgeUrlRef.current === url) return;
     if (handoffActiveStreamPlaybackToAndroid(selectedStream)) {
       lastAndroidBridgeUrlRef.current = url;
     }
-  }, [playbackUrl, selectedStream]);
+  }, [playbackUrl, selectedStream, useWebMuxPlayer]);
 
   const selectStream = (row: ActiveStreamRow) => {
     if (handoffActiveStreamPlaybackToAndroid(row)) {
@@ -105,7 +108,23 @@ const LiveStreamPage = () => {
     );
   };
 
-  const player = playbackId ? (
+  const androidNativePlaybackPanel = (
+    <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 rounded-xl border border-cyan-300/35 bg-black/50 p-6 text-center">
+      <Smartphone className="h-10 w-10 text-cyan-300" aria-hidden />
+      <p className="text-sm font-semibold text-cyan-50">Reproducción nativa (Android)</p>
+      <p className="max-w-md text-xs text-muted-foreground">
+        El live Mux no se reproduce aquí en el WebView. Usa la tarjeta <strong>EN VIVO</strong> en la sala emisor o los
+        botones 360° / VR / MT del puente nativo.
+      </p>
+      {playbackId ? (
+        <p className="font-mono text-[10px] text-cyan-200/80">playback_id: {playbackId}</p>
+      ) : null}
+    </div>
+  );
+
+  const player = !useWebMuxPlayer ? (
+    androidNativePlaybackPanel
+  ) : playbackId ? (
     <MuxHlsPlayer
       key={playbackId}
       playbackId={playbackId}
@@ -142,7 +161,9 @@ const LiveStreamPage = () => {
             </div>
             <div>
               <h1 className="font-display text-2xl font-bold tracking-wide text-cyan-50 md:text-3xl">LIVE STREAM</h1>
-              <p className="text-sm text-muted-foreground">Reproducción en vivo Mux Player</p>
+              <p className="text-sm text-muted-foreground">
+                {useWebMuxPlayer ? "Reproducción en vivo Mux Player" : "Reproducción nativa Android"}
+              </p>
             </div>
           </header>
         )}

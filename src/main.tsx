@@ -17,7 +17,9 @@ declare global {
     /** Puente AR: registrado en MainActivity como {@code Android}. */
     Android?: {
       onArClick(url?: string): void;
-      /** Entrada a live desde tarjeta: canal + token de audiencia (sin reproductor web). */
+      /** Tarjeta Live Mux → SelectorActivity con playback_url y playback_id. */
+      openLiveSelector?(playbackUrl: string, playbackId: string): void;
+      /** Entrada legacy: canal HLS + playback_id en token (sin reproductor web). */
       getAgoraParams?(canal: string, token: string): void;
       /** Cine Live — payload Agora: appId|canal|token de la sesión activa. */
       abrirCineLive?(agoraPayload: string): void;

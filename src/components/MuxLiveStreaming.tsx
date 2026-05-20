@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,7 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { MuxObsEmitterPanel, type MuxObsStreamCredentials } from "@/components/streaming/MuxObsEmitterPanel";
+import { MuxLiveStatusCard } from "@/components/streaming/MuxLiveStatusCard";
 import { createMuxStream } from "@/lib/muxStream";
+import { MUX_SIGNAL_POLL_MS, resolveMuxStreamSignalState } from "@/lib/muxStreamPolling";
+import type { MuxStreamSignalState } from "@/lib/muxStreamStatus";
 import { updateProfileLiveState } from "@/lib/profile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -48,6 +51,12 @@ const MuxLiveStreaming = () => {
   const [eventSetup, setEventSetup] = useState<EventSetup | null>(null);
   const [streamConfig, setStreamConfig] = useState<StreamConfig | null>(null);
   const [signalLive, setSignalLive] = useState(false);
+  const [muxSignal, setMuxSignal] = useState<MuxStreamSignalState>("idle");
+  const signalLiveRef = useRef(signalLive);
+
+  useEffect(() => {
+    signalLiveRef.current = signalLive;
+  }, [signalLive]);
 
   const canOpenSetup = Boolean(user?.id) && !connecting;
 
@@ -173,7 +182,7 @@ const MuxLiveStreaming = () => {
   }, [ensureMuxStream, eventSetup, user?.id]);
 
   const handleSignalActive = useCallback(async () => {
-    if (!streamConfig || signalLive) return;
+    if (!streamConfig || signalLiveRef.current) return;
     try {
       await persistLiveState(streamConfig, true);
       setSignalLive(true);
@@ -183,7 +192,37 @@ const MuxLiveStreaming = () => {
       const msg = e instanceof Error ? e.message : "No se pudo publicar el estado en vivo.";
       toast.error(msg);
     }
-  }, [persistLiveState, signalLive, streamConfig]);
+  }, [persistLiveState, streamConfig]);
+
+  useEffect(() => {
+    if (!streamConfig) {
+      setMuxSignal("idle");
+      return;
+    }
+
+    let cancelled = false;
+
+    const poll = async () => {
+      const next = await resolveMuxStreamSignalState({
+        liveStreamId: streamConfig.muxLiveStreamId,
+        playbackId: streamConfig.playbackId,
+      });
+      if (cancelled) return;
+
+      setMuxSignal(next);
+      if (next === "active") {
+        void handleSignalActive();
+      }
+    };
+
+    setMuxSignal("checking");
+    void poll();
+    const timer = window.setInterval(() => void poll(), MUX_SIGNAL_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [streamConfig, handleSignalActive]);
 
   const openEventSetup = () => {
     if (!user?.id) {
@@ -257,6 +296,15 @@ const MuxLiveStreaming = () => {
       )}
 
       <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-col items-center gap-4">
+        {streamConfig ? (
+          <MuxLiveStatusCard
+            className="w-full"
+            signal={muxSignal}
+            playbackUrl={streamConfig.playbackUrl}
+            playbackId={streamConfig.playbackId}
+          />
+        ) : null}
+
         <div className="flex w-full flex-col items-center justify-center gap-4 rounded-2xl border border-cyan-300/35 bg-black/50 p-8 text-center">
           {!eventSetup ? (
             <p className="text-sm text-muted-foreground">Configura tu evento y luego pulsa Live para obtener credenciales OBS.</p>
@@ -336,7 +384,7 @@ const MuxLiveStreaming = () => {
           {obsCredentials ? (
             <MuxObsEmitterPanel
               credentials={obsCredentials}
-              onSignalActive={() => void handleSignalActive()}
+              signal={muxSignal}
               onEndSession={() => void stopLive()}
             />
           ) : (
