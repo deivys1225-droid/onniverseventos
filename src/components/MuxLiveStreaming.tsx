@@ -239,6 +239,7 @@ const MuxLiveStreaming = () => {
           <MuxBroadcastPanel
             key={`${streamConfig.streamKey}-${panelKey}`}
             title={streamConfig.title}
+            playbackId={streamConfig.playbackId}
             streamKey={streamConfig.streamKey}
             rtmpPushUrl={streamConfig.ingestUrl}
             playbackUrl={streamConfig.playbackUrl}

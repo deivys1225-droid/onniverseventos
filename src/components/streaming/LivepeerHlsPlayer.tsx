@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import MuxPlayer from "@mux/mux-player-react";
-import { Play } from "lucide-react";
+import { Play, Radio } from "lucide-react";
+import { probeMuxStreamSignal, type MuxStreamSignalState } from "@/lib/muxStreamStatus";
 import { sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
 import { cn } from "@/lib/utils";
 
 export type MuxHlsPlayerProps = {
-  /** ID de reproducción Mux (no la URL .m3u8). */
   playbackId: string;
   title?: string;
   compact?: boolean;
-  /** Espera al botón «Ver transmisión» antes de cargar el player. */
   manualStart?: boolean;
   className?: string;
 };
@@ -23,6 +22,8 @@ export function MuxHlsPlayer({
   className = "",
 }: MuxHlsPlayerProps) {
   const [started, setStarted] = useState(!manualStart);
+  const [signal, setSignal] = useState<MuxStreamSignalState>("checking");
+
   const sanitizedPlaybackId = useMemo(
     () => sanitizeMuxPlaybackId(playbackId),
     [playbackId],
@@ -32,9 +33,25 @@ export function MuxHlsPlayer({
     console.log("[MuxPlayer] playbackId → MuxPlayer:", {
       raw: playbackId,
       sanitized: sanitizedPlaybackId,
-      esUrl: /\.m3u8|stream\.mux\.com/i.test(String(playbackId ?? "")),
     });
   }, [playbackId, sanitizedPlaybackId]);
+
+  useEffect(() => {
+    if (!sanitizedPlaybackId || !started) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      const next = await probeMuxStreamSignal(sanitizedPlaybackId);
+      if (!cancelled) setSignal(next);
+    };
+
+    void poll();
+    const timer = window.setInterval(() => void poll(), 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [sanitizedPlaybackId, started]);
 
   const shellClass = compact
     ? "h-full min-h-[12rem] w-full rounded-lg border border-cyan-300/45 bg-black object-contain"
@@ -44,28 +61,42 @@ export function MuxHlsPlayer({
     return (
       <div className={className}>
         <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
-          Playback ID de Mux inválido
-          {playbackId?.trim() ? ` (recibido: ${playbackId.trim().slice(0, 48)}…)` : ""}.
-          Usa el ID plano de Mux, no la URL .m3u8.
+          Playback ID de Mux inválido. Usa el ID plano, no la URL .m3u8.
         </p>
       </div>
     );
   }
 
+  const waitingRtmp = started && signal === "idle";
+
   return (
     <div className={className}>
       <div className="relative">
         {started ? (
-          <MuxPlayer
-            key={sanitizedPlaybackId}
-            playbackId={sanitizedPlaybackId}
-            streamType="live"
-            metadata={{ video_title: title?.trim() || "Transmisión en vivo" }}
-            title={title}
-            autoPlay="muted"
-            playsInline
-            className={shellClass}
-          />
+          <>
+            <MuxPlayer
+              key={sanitizedPlaybackId}
+              playbackId={sanitizedPlaybackId}
+              streamType="live"
+              metadata={{ video_title: title?.trim() || "Transmisión en vivo" }}
+              title={title}
+              autoPlay="muted"
+              playsInline
+              className={shellClass}
+            />
+            {waitingRtmp && (
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl bg-black/80 p-6 text-center">
+                <Radio className="h-10 w-10 animate-pulse text-amber-300" aria-hidden />
+                <p className="max-w-md text-sm font-semibold text-amber-50">
+                  Sin señal de video en Mux
+                </p>
+                <p className="max-w-md text-xs text-amber-100/90">
+                  El emisor debe conectar <strong>Larix</strong> u <strong>OBS</strong> con la URL RTMP del panel.
+                  La cámara del navegador no transmite a los espectadores.
+                </p>
+              </div>
+            )}
+          </>
         ) : (
           <div
             className={cn(
@@ -86,12 +117,8 @@ export function MuxHlsPlayer({
         )}
       </div>
       {title && started && (
-        <p className="mt-3 text-xs text-cyan-100">{title} · En vivo</p>
-      )}
-      {started && (
-        <p className="mt-2 rounded-md border border-amber-400/35 bg-amber-500/10 p-2 text-xs text-amber-100/95">
-          Si aparece «Live stream is not currently available», el canal Mux está creado pero el emisor aún no envía
-          video por RTMP (Larix, OBS, etc.). La cámara del navegador solo es vista previa.
+        <p className="mt-3 text-xs text-cyan-100">
+          {title} · {signal === "active" ? "Señal Mux activa" : signal === "idle" ? "Esperando RTMP" : "Comprobando…"}
         </p>
       )}
       <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">

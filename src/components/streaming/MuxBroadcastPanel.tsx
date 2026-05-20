@@ -3,10 +3,12 @@ import { Copy, Mic, MicOff, Radio, Square, Video, VideoOff } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { releaseLocalMediaCapture, stopMediaStreamTracks } from "@/lib/mediaStreamCleanup";
 import { cn } from "@/lib/utils";
+import { probeMuxStreamSignal, type MuxStreamSignalState } from "@/lib/muxStreamStatus";
 import { toast } from "sonner";
 
 type MuxBroadcastPanelProps = {
   title?: string;
+  playbackId: string;
   streamKey: string;
   rtmpPushUrl: string;
   playbackUrl: string;
@@ -24,6 +26,7 @@ type MuxBroadcastPanelProps = {
  */
 export function MuxBroadcastPanel({
   title = "Transmisión en vivo",
+  playbackId,
   streamKey,
   rtmpPushUrl,
   playbackUrl,
@@ -39,6 +42,27 @@ export function MuxBroadcastPanel({
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [rtmpSignal, setRtmpSignal] = useState<MuxStreamSignalState>("checking");
+
+  useEffect(() => {
+    if (!broadcasting || !playbackId.trim()) {
+      setRtmpSignal("checking");
+      return;
+    }
+
+    let cancelled = false;
+    const poll = async () => {
+      const next = await probeMuxStreamSignal(playbackId);
+      if (!cancelled) setRtmpSignal(next);
+    };
+
+    void poll();
+    const timer = window.setInterval(() => void poll(), 6000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [broadcasting, playbackId]);
 
   const stopPreview = useCallback(() => {
     stopMediaStreamTracks(streamRef.current);
@@ -109,9 +133,21 @@ export function MuxBroadcastPanel({
           </div>
         )}
         {broadcasting && (
-          <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-black/60 px-2.5 py-1 backdrop-blur">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-red-200">En vivo</span>
+          <div
+            className={cn(
+              "absolute left-3 top-3 flex items-center gap-2 rounded-full px-2.5 py-1 backdrop-blur",
+              rtmpSignal === "active" ? "bg-emerald-900/70" : "bg-amber-900/70",
+            )}
+          >
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full",
+                rtmpSignal === "active" ? "animate-pulse bg-emerald-400" : "bg-amber-400",
+              )}
+            />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-white">
+              {rtmpSignal === "active" ? "RTMP conectado" : "Falta RTMP"}
+            </span>
           </div>
         )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 pt-10">
