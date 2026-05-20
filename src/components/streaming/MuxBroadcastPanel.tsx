@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Copy, Mic, MicOff, Radio, Square, Video, VideoOff } from "lucide-react";
+import { Copy, Mic, MicOff, Square, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MuxBrowserBroadcaster, type MuxBrowserBroadcastState } from "@/lib/muxBrowserBroadcast";
 import { releaseLocalMediaCapture, stopMediaStreamTracks } from "@/lib/mediaStreamCleanup";
-import { cn } from "@/lib/utils";
 import { probeMuxStreamSignal, type MuxStreamSignalState } from "@/lib/muxStreamStatus";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 type MuxBroadcastPanelProps = {
@@ -12,17 +13,14 @@ type MuxBroadcastPanelProps = {
   streamKey: string;
   rtmpPushUrl: string;
   playbackUrl: string;
-  /** true cuando el live ya está activo en plataforma */
   broadcasting: boolean;
   connecting?: boolean;
-  onStartTransmission: () => void | Promise<void>;
   onStopTransmission: () => void;
   className?: string;
 };
 
 /**
- * Emisor Mux: vista previa local + RTMP (Larix/OBS).
- * Mux no usa WHIP en navegador; la señal entra por RTMP con stream_key.
+ * Emisor Mux: cámara/mic en el navegador → WebSocket → mux-api (ffmpeg) → RTMP Mux.
  */
 export function MuxBroadcastPanel({
   title = "Transmisión en vivo",
@@ -32,39 +30,23 @@ export function MuxBroadcastPanel({
   playbackUrl,
   broadcasting,
   connecting = false,
-  onStartTransmission,
   onStopTransmission,
   className,
 }: MuxBroadcastPanelProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const broadcasterRef = useRef<MuxBrowserBroadcaster | null>(null);
+
   const [previewOn, setPreviewOn] = useState(false);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [rtmpSignal, setRtmpSignal] = useState<MuxStreamSignalState>("checking");
-
-  useEffect(() => {
-    if (!broadcasting || !playbackId.trim()) {
-      setRtmpSignal("checking");
-      return;
-    }
-
-    let cancelled = false;
-    const poll = async () => {
-      const next = await probeMuxStreamSignal(playbackId);
-      if (!cancelled) setRtmpSignal(next);
-    };
-
-    void poll();
-    const timer = window.setInterval(() => void poll(), 6000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [broadcasting, playbackId]);
+  const [broadcastState, setBroadcastState] = useState<MuxBrowserBroadcastState>("idle");
+  const [broadcastError, setBroadcastError] = useState<string | null>(null);
+  const [muxSignal, setMuxSignal] = useState<MuxStreamSignalState>("checking");
 
   const stopPreview = useCallback(() => {
+    broadcasterRef.current?.stop();
     stopMediaStreamTracks(streamRef.current);
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
@@ -76,7 +58,7 @@ export function MuxBroadcastPanel({
     stopPreview();
     try {
       const media = await navigator.mediaDevices.getUserMedia({
-        video: videoEnabled,
+        video: videoEnabled ? { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } : false,
         audio: audioEnabled,
       });
       streamRef.current = media;
@@ -85,38 +67,119 @@ export function MuxBroadcastPanel({
         await videoRef.current.play();
       }
       setPreviewOn(true);
+      return media;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "No se pudo abrir cámara/micrófono.";
       setPreviewError(msg);
+      return null;
     }
   }, [audioEnabled, stopPreview, videoEnabled]);
 
   useEffect(() => {
     void startPreview();
     return () => {
+      broadcasterRef.current?.stop();
       stopPreview();
       releaseLocalMediaCapture();
     };
   }, [startPreview, stopPreview]);
 
+  /** Publicar a Mux cuando el live ya está creado y hay stream_key. */
+  useEffect(() => {
+    if (!broadcasting || !streamKey.trim()) {
+      broadcasterRef.current?.stop();
+      setBroadcastState("idle");
+      return;
+    }
+
+    let cancelled = false;
+
+    const run = async () => {
+      const media = streamRef.current ?? (await startPreview());
+      if (!media || cancelled) return;
+
+      if (!broadcasterRef.current) {
+        broadcasterRef.current = new MuxBrowserBroadcaster((state, detail) => {
+          setBroadcastState(state);
+          if (state === "error" && detail) setBroadcastError(detail);
+        });
+      }
+
+      setBroadcastError(null);
+      try {
+        await broadcasterRef.current.start(streamKey, media);
+        if (!cancelled) toast.success("Enviando video a Mux desde el navegador.");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "No se pudo iniciar la emisión.";
+        setBroadcastError(msg);
+        toast.error(msg);
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [broadcasting, streamKey, startPreview]);
+
+  useEffect(() => {
+    if (!broadcasting || !playbackId.trim()) {
+      setMuxSignal("checking");
+      return;
+    }
+
+    let cancelled = false;
+    const poll = async () => {
+      const next = await probeMuxStreamSignal(playbackId);
+      if (!cancelled) setMuxSignal(next);
+    };
+
+    void poll();
+    const timer = window.setInterval(() => void poll(), 6000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [broadcasting, playbackId]);
+
   const copyRtmp = () => {
     void navigator.clipboard?.writeText(rtmpPushUrl);
-    toast.success("URL RTMP copiada para Larix/OBS.");
+    toast.success("URL RTMP copiada (respaldo Larix/OBS).");
   };
+
+  const handleStop = () => {
+    broadcasterRef.current?.stop();
+    onStopTransmission();
+  };
+
+  const statusLabel =
+    broadcastState === "live"
+      ? muxSignal === "active"
+        ? "Mux Active · transmitiendo"
+        : "Enviando… esperando Active en Mux"
+      : broadcastState === "connecting"
+        ? "Conectando emisor…"
+        : broadcastState === "error"
+          ? "Error de emisión"
+          : "Listo";
 
   return (
     <div className={cn("w-full space-y-3", className)}>
-      <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-        <p className="font-semibold text-amber-50">Emisión Mux por RTMP</p>
+      <div className="rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
+        <p className="font-semibold text-cyan-50">Emisión desde el navegador (Web → RTMP Mux)</p>
         <p className="mt-1">
-          {broadcasting
-            ? "Envía la señal desde Larix u OBS con la URL RTMP para que los espectadores vean el live."
-            : "El live ya está creado en Mux. Envía RTMP con la URL de abajo."}
+          La cámara y el micrófono se envían al servidor y de ahí a Mux con tu <span className="font-mono">stream_key</span>.
+          Si falla, usa Larix/OBS con la URL RTMP de respaldo.
         </p>
-        <p className="mt-1 break-all font-mono text-[10px] text-amber-200/90">{rtmpPushUrl}</p>
-        <Button type="button" variant="outline" size="sm" className="mt-2 border-amber-400/50" onClick={copyRtmp}>
+        {broadcastError && (
+          <p className="mt-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-destructive">
+            {broadcastError}
+          </p>
+        )}
+        <Button type="button" variant="outline" size="sm" className="mt-2 border-cyan-400/50" onClick={copyRtmp}>
           <Copy className="mr-1 h-3 w-3" />
-          Copiar RTMP
+          Copiar RTMP (respaldo)
         </Button>
       </div>
 
@@ -135,44 +198,37 @@ export function MuxBroadcastPanel({
         {broadcasting && (
           <div
             className={cn(
-              "absolute left-3 top-3 flex items-center gap-2 rounded-full px-2.5 py-1 backdrop-blur",
-              rtmpSignal === "active" ? "bg-emerald-900/70" : "bg-amber-900/70",
+              "absolute left-3 top-3 flex flex-col gap-0.5 rounded-lg px-2.5 py-1 backdrop-blur",
+              muxSignal === "active"
+                ? "bg-emerald-900/80"
+                : broadcastState === "live"
+                  ? "bg-cyan-900/80"
+                  : "bg-amber-900/80",
             )}
           >
-            <span
-              className={cn(
-                "h-2 w-2 rounded-full",
-                rtmpSignal === "active" ? "animate-pulse bg-emerald-400" : "bg-amber-400",
-              )}
-            />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-white">
-              {rtmpSignal === "active" ? "RTMP conectado" : "Falta RTMP"}
+            <span className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  muxSignal === "active" ? "animate-pulse bg-emerald-400" : "bg-amber-400",
+                )}
+              />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-white">{statusLabel}</span>
             </span>
           </div>
         )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 pt-10">
           <div className="flex flex-wrap items-center justify-center gap-2">
-            {!broadcasting ? (
-              <Button
-                type="button"
-                disabled={connecting}
-                className="inline-flex min-h-11 min-w-[11rem] gap-2 border-cyan-400/60 bg-cyan-500/25 px-5 font-semibold text-cyan-50 hover:bg-cyan-500/40"
-                onClick={() => void onStartTransmission()}
-              >
-                <Radio className="h-5 w-5" />
-                {connecting ? "Conectando…" : "Iniciar transmisión"}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                className="inline-flex min-h-11 min-w-[11rem] gap-2 border-rose-400/60 bg-rose-500/20 px-5 font-semibold text-rose-100"
-                onClick={onStopTransmission}
-              >
-                <Square className="h-5 w-5" />
-                Detener transmisión
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={connecting || !broadcasting}
+              className="inline-flex min-h-11 min-w-[11rem] gap-2 border-rose-400/60 bg-rose-500/20 px-5 font-semibold text-rose-100"
+              onClick={handleStop}
+            >
+              <Square className="h-5 w-5" />
+              Detener transmisión
+            </Button>
             <Button
               type="button"
               variant="outline"

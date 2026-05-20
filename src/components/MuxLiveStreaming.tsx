@@ -149,8 +149,8 @@ const MuxLiveStreaming = () => {
 
       setStreamConfig(config);
       setBroadcasting(true);
-      setStatus("En vivo · envía RTMP con Larix/OBS usando la URL mostrada");
-      toast.success("Live Mux creado. Envía RTMP para que los espectadores vean la señal.");
+      setStatus("En vivo · publicando cámara del navegador a Mux");
+      toast.success("Live Mux creado. Enviando señal desde el navegador…");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "No se pudo crear el live en Mux.";
       setError(msg);
@@ -215,7 +215,7 @@ const MuxLiveStreaming = () => {
         <h2 className="font-display text-xl font-bold tracking-tight text-foreground md:text-2xl">
           Evento <span className="text-gradient-neon">Live</span> en Al Universo
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">Transmisión con Mux Video (RTMP + HLS)</p>
+        <p className="mt-1 text-sm text-muted-foreground">Transmisión Mux (navegador → RTMP + HLS)</p>
       </div>
 
       <div className="relative z-10 mb-3 flex justify-center">
@@ -245,7 +245,6 @@ const MuxLiveStreaming = () => {
             playbackUrl={streamConfig.playbackUrl}
             broadcasting={broadcasting}
             connecting={connecting}
-            onStartTransmission={handleStartTransmission}
             onStopTransmission={handleStopTransmission}
           />
         ) : (

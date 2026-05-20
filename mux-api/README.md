@@ -20,6 +20,16 @@ npm install
 npm run dev
 ```
 
+## Emisión desde el navegador (WebSocket → RTMP)
+
+`WS /api/mux/ws-ingest?streamKey=YOUR_STREAM_KEY`
+
+El frontend envía chunks WebM (MediaRecorder); este servidor usa **ffmpeg** (incluido vía `ffmpeg-static`) y publica a:
+
+`rtmps://global-live.mux.com:443/app/{streamKey}`
+
+En desarrollo, Vite hace proxy de `/api/mux` (incl. WebSocket) a `:8787`.
+
 ## Endpoint
 
 ### `POST /api/mux/create-stream`
