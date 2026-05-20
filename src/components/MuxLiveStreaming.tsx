@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { MuxBroadcastPanel } from "@/components/streaming/MuxBroadcastPanel";
+import { MuxBroadcast } from "@/components/streaming/MuxBroadcast";
 import { createMuxStream } from "@/lib/muxStream";
 import { releaseLocalMediaCapture } from "@/lib/mediaStreamCleanup";
 import { updateProfileLiveState } from "@/lib/profile";
@@ -236,7 +236,7 @@ const MuxLiveStreaming = () => {
             Pulsa Generar canal para configurar tu evento en vivo con Mux.
           </div>
         ) : streamConfig ? (
-          <MuxBroadcastPanel
+          <MuxBroadcast
             key={`${streamConfig.streamKey}-${panelKey}`}
             title={streamConfig.title}
             playbackId={streamConfig.playbackId}

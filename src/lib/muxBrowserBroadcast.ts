@@ -77,7 +77,12 @@ export class MuxBrowserBroadcaster {
       };
 
       ws.onopen = () => resolve();
-      ws.onerror = () => fail("No se pudo conectar al servidor de emisión (WebSocket).");
+      ws.onerror = () =>
+        fail(
+          import.meta.env.DEV
+            ? "No se pudo conectar a mux-api. En otra terminal: cd mux-api && npm run dev"
+            : "No se pudo conectar al servidor de emisión. Configura VITE_MUX_WS_URL (mux-api con ffmpeg).",
+        );
       ws.onclose = (ev) => {
         if (this.state === "connecting") {
           fail(ev.reason || "WebSocket cerrado antes de iniciar.");

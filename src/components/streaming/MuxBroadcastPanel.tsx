@@ -7,7 +7,7 @@ import { probeMuxStreamSignal, type MuxStreamSignalState } from "@/lib/muxStream
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-type MuxBroadcastPanelProps = {
+export type MuxBroadcastPanelProps = {
   title?: string;
   playbackId: string;
   streamKey: string;
