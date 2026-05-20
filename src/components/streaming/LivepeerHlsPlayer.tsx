@@ -1,9 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
-import MuxPlayer from "@mux/mux-player-react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { ClientOnly } from "@/components/ClientOnly";
 import { Play, Radio } from "lucide-react";
 import { probeMuxStreamSignal, type MuxStreamSignalState } from "@/lib/muxStreamStatus";
 import { sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
 import { cn } from "@/lib/utils";
+
+const MuxPlayerLazy = lazy(() => import("@mux/mux-player-react"));
+
+type MuxPlayerClientProps = {
+  playbackId: string;
+  streamType?: "live" | "on-demand";
+  metadata?: { video_title?: string };
+  title?: string;
+  autoPlay?: "muted" | boolean;
+  playsInline?: boolean;
+  className?: string;
+};
+
+function MuxPlayerClient(props: MuxPlayerClientProps) {
+  const shell = props.className ?? "";
+  return (
+    <ClientOnly fallback={<div className={shell} aria-hidden />}>
+      <Suspense fallback={<div className={cn(shell, "animate-pulse bg-black/80")} aria-hidden />}>
+        <MuxPlayerLazy {...props} />
+      </Suspense>
+    </ClientOnly>
+  );
+}
 
 export type MuxHlsPlayerProps = {
   playbackId: string;
@@ -74,7 +97,7 @@ export function MuxHlsPlayer({
       <div className="relative">
         {started ? (
           <>
-            <MuxPlayer
+            <MuxPlayerClient
               key={sanitizedPlaybackId}
               playbackId={sanitizedPlaybackId}
               streamType="live"

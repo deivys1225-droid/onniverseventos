@@ -29,6 +29,7 @@ function resolveWsBase(): string {
 }
 
 function pickRecorderMime(): string {
+  if (typeof MediaRecorder === "undefined") return "video/webm";
   const candidates = ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus", "video/webm"];
   return candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? "video/webm";
 }
