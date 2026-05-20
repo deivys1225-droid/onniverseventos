@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { dynamic } from "@/lib/dynamic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { MuxBroadcast } from "@/components/streaming/MuxBroadcast";
+const MuxBroadcasterClient = dynamic(() => import("@/components/MuxBroadcasterClient"), { ssr: false });
 import { createMuxStream } from "@/lib/muxStream";
 import { releaseLocalMediaCapture } from "@/lib/mediaStreamCleanup";
 import { updateProfileLiveState } from "@/lib/profile";
@@ -236,17 +237,25 @@ const MuxLiveStreaming = () => {
             Pulsa Generar canal para configurar tu evento en vivo con Mux.
           </div>
         ) : streamConfig ? (
-          <MuxBroadcast
-            key={`${streamConfig.streamKey}-${panelKey}`}
-            title={streamConfig.title}
-            playbackId={streamConfig.playbackId}
-            streamKey={streamConfig.streamKey}
-            rtmpPushUrl={streamConfig.ingestUrl}
-            playbackUrl={streamConfig.playbackUrl}
-            broadcasting={broadcasting}
-            connecting={connecting}
-            onStopTransmission={handleStopTransmission}
-          />
+          <Suspense
+            fallback={
+              <div className="flex min-h-[12rem] items-center justify-center rounded-lg border border-cyan-400/30 bg-black/40 p-6 text-sm text-cyan-100/80">
+                Cargando emisor de video…
+              </div>
+            }
+          >
+            <MuxBroadcasterClient
+              key={`${streamConfig.streamKey}-${panelKey}`}
+              title={streamConfig.title}
+              playbackId={streamConfig.playbackId}
+              streamKey={streamConfig.streamKey}
+              rtmpPushUrl={streamConfig.ingestUrl}
+              playbackUrl={streamConfig.playbackUrl}
+              broadcasting={broadcasting}
+              connecting={connecting}
+              onStopTransmission={handleStopTransmission}
+            />
+          </Suspense>
         ) : (
           <div className="flex aspect-video w-full flex-col items-center justify-center gap-4 rounded-2xl border border-cyan-300/35 bg-black/50 p-6">
             <p className="text-center text-sm text-cyan-100">{eventSetup.title}</p>

@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Copy, Mic, MicOff, Square, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +9,17 @@ import { probeMuxStreamSignal, type MuxStreamSignalState } from "@/lib/muxStream
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export type MuxBroadcastPanelProps = {
+/**
+ * Emisor Mux (solo cliente).
+ *
+ * `@mux/mux-broadcast-react` no está publicado en npm (404).
+ * Toda la lógica de emisión desde navegador vive aquí: getUserMedia, MediaRecorder
+ * y WebSocket → mux-api → ffmpeg → RTMP Mux.
+ *
+ * Cuando Mux publique el paquete oficial, importarlo únicamente en este archivo.
+ */
+
+export type MuxBroadcasterClientProps = {
   title?: string;
   playbackId: string;
   streamKey: string;
@@ -19,10 +31,7 @@ export type MuxBroadcastPanelProps = {
   className?: string;
 };
 
-/**
- * Emisor Mux: cámara/mic en el navegador → WebSocket → mux-api (ffmpeg) → RTMP Mux.
- */
-export function MuxBroadcastPanel({
+export default function MuxBroadcasterClient({
   title = "Transmisión en vivo",
   playbackId,
   streamKey,
@@ -32,7 +41,7 @@ export function MuxBroadcastPanel({
   connecting = false,
   onStopTransmission,
   className,
-}: MuxBroadcastPanelProps) {
+}: MuxBroadcasterClientProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const broadcasterRef = useRef<MuxBrowserBroadcaster | null>(null);
@@ -54,6 +63,11 @@ export function MuxBroadcastPanel({
   }, []);
 
   const startPreview = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setPreviewError("Cámara/micrófono no disponibles en este entorno.");
+      return null;
+    }
+
     setPreviewError(null);
     stopPreview();
     try {
@@ -84,7 +98,6 @@ export function MuxBroadcastPanel({
     };
   }, [startPreview, stopPreview]);
 
-  /** Publicar a Mux cuando el live ya está creado y hay stream_key. */
   useEffect(() => {
     if (!broadcasting || !streamKey.trim()) {
       broadcasterRef.current?.stop();
@@ -169,8 +182,8 @@ export function MuxBroadcastPanel({
       <div className="rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
         <p className="font-semibold text-cyan-50">Emisión desde el navegador (Web → RTMP Mux)</p>
         <p className="mt-1">
-          La cámara y el micrófono se envían al servidor y de ahí a Mux con tu <span className="font-mono">stream_key</span>.
-          Si falla, usa Larix/OBS con la URL RTMP de respaldo.
+          La cámara y el micrófono se envían al servidor y de ahí a Mux con tu{" "}
+          <span className="font-mono">stream_key</span>. Si falla, usa Larix/OBS con la URL RTMP de respaldo.
         </p>
         {broadcastError && (
           <p className="mt-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-destructive">
