@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { MonitorPlay, Radio, Smartphone, Video } from "lucide-react";
-import { muxPlaybackIdToHlsUrl } from "@/lib/audiencePlayback";
 import type { MuxStreamSignalState } from "@/lib/muxStreamStatus";
 import { cn } from "@/lib/utils";
+import { invokeOpenStreamDirect, resolveMuxM3u8FromPlayback } from "@/lib/liveStreamOpenDirect";
 import { toast } from "sonner";
 
 type MuxLiveStatusCardProps = {
@@ -12,12 +12,6 @@ type MuxLiveStatusCardProps = {
   onSignalBecameActive?: () => void;
   className?: string;
 };
-
-function resolveMuxM3u8Url(playbackUrl: string, playbackId: string): string {
-  const direct = playbackUrl.trim();
-  if (direct.includes(".m3u8")) return direct;
-  return muxPlaybackIdToHlsUrl(playbackId) ?? "";
-}
 
 /** Tarjeta EN VIVO (ámbar): elige STREAM o STREAM CAM → AndroidBridge.openStreamDirect */
 export function MuxLiveStatusCard({
@@ -30,19 +24,16 @@ export function MuxLiveStatusCard({
   const waiting = signal === "idle" || signal === "checking";
   const [showStreamChoices, setShowStreamChoices] = useState(false);
 
-  const m3u8Url = resolveMuxM3u8Url(playbackUrl, playbackId);
+  const m3u8Url = resolveMuxM3u8FromPlayback(playbackUrl, playbackId);
 
   const openStreamDirect = (action: "OPEN_STREAM" | "OPEN_STREAM_CAM") => {
     if (!m3u8Url) {
       toast.error("Falta URL .m3u8 de Mux.");
       return;
     }
-    if (typeof window.AndroidBridge?.openStreamDirect === "function") {
-      window.AndroidBridge.openStreamDirect(m3u8Url, action);
+    if (invokeOpenStreamDirect(m3u8Url, action)) {
       setShowStreamChoices(false);
-      return;
     }
-    toast.error("AndroidBridge no disponible. Usa la app Android.");
   };
 
   const handleCardClick = () => {

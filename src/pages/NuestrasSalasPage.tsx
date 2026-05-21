@@ -20,6 +20,7 @@ import PayPalSmartButton from "@/components/PayPalSmartButton";
 import { toast } from "sonner";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { useAuth } from "@/hooks/useAuth";
+import { useLiveStreamChoiceModal } from "@/hooks/useLiveStreamChoiceModal";
 import { formatStorePrice, salaVideoPriceUsd } from "@/lib/pricing";
 import { hasVaultPurchase } from "@/lib/vaultItems";
 import {
@@ -134,6 +135,7 @@ const NuestrasSalasPage = () => {
   const [premiumModalRoom, setPremiumModalRoom] = useState<RoomCard | null>(null);
   const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
   const [sessionPurchases, setSessionPurchases] = useState<Set<string>>(() => new Set());
+  const { requestChoice, dialog: liveStreamChoiceDialog } = useLiveStreamChoiceModal();
 
   useEffect(() => {
     const loadData = async () => {
@@ -231,6 +233,9 @@ const NuestrasSalasPage = () => {
             : streamUrlCandidate && isStreamPlaybackUrl(streamUrlCandidate)
               ? streamUrlCandidate
               : "";
+        if (requestChoice(activeStream, resolvedTitle)) {
+          return;
+        }
         if (
           handleStreamCardPlay({
             navigate,
@@ -437,6 +442,8 @@ const NuestrasSalasPage = () => {
       </main>
 
       <Footer />
+
+      {liveStreamChoiceDialog}
 
       <AnimatePresence>
         {premiumModalRoom && (

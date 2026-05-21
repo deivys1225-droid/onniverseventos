@@ -43,7 +43,7 @@ const Navbar = () => {
           className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/50"
           aria-label="OnniVers — Inicio"
         >
-          <OnniVersoLogo className="min-w-0 max-w-[min(46vw,10rem)]" iconSize={24} />
+          <OnniVersoLogo className="shrink-0" iconSize={24} />
         </Link>
 
         <div className="flex shrink-0 items-center gap-2">

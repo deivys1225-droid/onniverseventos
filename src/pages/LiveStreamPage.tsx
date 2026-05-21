@@ -7,6 +7,8 @@ import { DuplexSplitLayout } from "@/components/streaming/DuplexSplitLayout";
 import { NativePlaybackRouteGuard } from "@/components/NativePlaybackRouteGuard";
 import { shouldUseWebLivePlayer } from "@/lib/nativePlayback";
 import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
+import { useLiveStreamChoiceModal } from "@/hooks/useLiveStreamChoiceModal";
+import { isAndroidLiveStreamChoicePlatform } from "@/lib/liveStreamOpenDirect";
 import {
   resolvePlaybackFromActiveStreamRow,
   resolvePlaybackIdFromActiveStreamRow,
@@ -31,6 +33,7 @@ const LiveStreamPageWeb = () => {
   const [loadingList, setLoadingList] = useState(true);
   const [duplexOpen, setDuplexOpen] = useState(false);
   const selectedTitle = (searchParams.get("title") ?? "").trim();
+  const { requestChoice, dialog: liveStreamChoiceDialog } = useLiveStreamChoiceModal();
 
   const selectedStream = useMemo(() => {
     const routeKey = channelParam?.trim() ? decodeURIComponent(channelParam) : "";
@@ -82,12 +85,16 @@ const LiveStreamPageWeb = () => {
   }, []);
 
   const selectStream = (row: ActiveStreamRow) => {
+    const title = row.title?.trim() || "En vivo";
+    if (requestChoice(row, title)) {
+      return;
+    }
     handleStreamCardPlay({
       navigate,
       streamUrl: resolvePlaybackFromActiveStreamRow(row) ?? undefined,
       streamId: resolvePlaybackIdFromActiveStreamRow(row) ?? row.user_id,
       playbackId: resolvePlaybackIdFromActiveStreamRow(row) ?? undefined,
-      title: row.title?.trim() || "En vivo",
+      title,
     });
   };
 
@@ -224,6 +231,8 @@ const LiveStreamPageWeb = () => {
           </section>
         </div>
       </main>
+
+      {isAndroidLiveStreamChoicePlatform() ? liveStreamChoiceDialog : null}
     </div>
   );
 };

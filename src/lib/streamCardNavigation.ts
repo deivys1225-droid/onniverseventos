@@ -1,9 +1,6 @@
 import { muxPlaybackIdToHlsUrl, isStreamPlaybackUrl } from "@/lib/audiencePlayback";
+import { isAndroidLiveStreamChoicePlatform } from "@/lib/liveStreamOpenDirect";
 import { muxPlaybackIdFromHlsUrl } from "@/lib/muxPlaybackId";
-
-function isNativeAndroid(): boolean {
-  return typeof window !== "undefined" && typeof window.Android !== "undefined";
-}
 
 export type StreamCardPlayOptions = {
   /** URL HLS/MP4 directa (prioridad). */
@@ -29,22 +26,15 @@ function resolveStreamId(options: StreamCardPlayOptions, streamUrl: string): str
 }
 
 /**
- * Android: playStream → SelectorActivity → PlayerActivity (ExoPlayer).
- * Web: /go/:id → MuxPlayer (sin mezclar con ExoPlayer).
+ * Web: /go/:id → MuxPlayer.
+ * Android en vivo: usar {@link useLiveStreamChoiceModal} + openStreamDirect (no playStream).
  */
 export function handleStreamCardPlay(options: StreamCardPlayOptions): boolean {
   const streamUrl = resolveStreamUrl(options);
   const streamId = resolveStreamId(options, streamUrl);
 
-  if (isNativeAndroid()) {
-    if (import.meta.env.DEV) {
-      console.log("[Onniverso] WEB PLAYER BLOCKED ON ANDROID — handleStreamCardPlay → playStream");
-    }
-    if (!streamUrl) {
-      return false;
-    }
-    window.Android!.playStream!(streamUrl);
-    return true;
+  if (isAndroidLiveStreamChoicePlatform()) {
+    return false;
   }
 
   if (!options.navigate || !streamId) {

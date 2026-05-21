@@ -2,7 +2,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MessageCircleMore, UsersRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import { Capacitor } from "@capacitor/core";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ComunidadRoomsGrid from "@/components/comunidad/ComunidadRoomsGrid";
@@ -16,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import PayPalSmartButton from "@/components/PayPalSmartButton";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useLiveStreamChoiceModal } from "@/hooks/useLiveStreamChoiceModal";
 import {
   loadFriendshipPairStates,
   sendFriendshipRequest,
@@ -37,6 +37,7 @@ const ComunidadPage = () => {
   const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
   const [friendshipStates, setFriendshipStates] = useState<Map<string, FriendshipPairState>>(new Map());
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
+  const { requestChoice, dialog: liveStreamChoiceDialog } = useLiveStreamChoiceModal();
 
   useEffect(() => {
     const loadData = async () => {
@@ -153,6 +154,10 @@ const ComunidadPage = () => {
             : streamUrlCandidate && isStreamPlaybackUrl(streamUrlCandidate)
               ? streamUrlCandidate
               : "";
+        if (requestChoice(activeStream, resolvedTitle)) {
+          return;
+        }
+
         if (
           handleStreamCardPlay({
             navigate,
@@ -296,6 +301,8 @@ const ComunidadPage = () => {
       </main>
 
       <Footer />
+
+      {liveStreamChoiceDialog}
 
       <AnimatePresence>
         {premiumModalRoom && (

@@ -8,15 +8,16 @@ import { MuxHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
 import { podcastStreamers } from "@/data/podcastStreamers";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { NativePlaybackRouteGuard } from "@/components/NativePlaybackRouteGuard";
-import { isNativeAndroid, playStreamOnAndroidNative, shouldUseWebLivePlayer } from "@/lib/nativePlayback";
+import { isNativeAndroid, shouldUseWebLivePlayer } from "@/lib/nativePlayback";
+import { invokeOpenStreamDirect, resolveMuxM3u8FromPlayback } from "@/lib/liveStreamOpenDirect";
 import {
   audienceStreamSessionKey,
   isStreamPlaybackUrl,
+  muxPlaybackIdToHlsUrl,
   resolveCurrentTransmissionUrl,
   resolveLiveTransmissionUrl,
   resolvePlaybackIdFromActiveStreamRow,
 } from "@/lib/audiencePlayback";
-import { muxPlaybackIdToHlsUrl } from "@/lib/audiencePlayback";
 import { muxPlaybackIdFromHlsUrl, sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import type { ActiveStreamRow } from "@/lib/salaRoomCards";
@@ -227,7 +228,7 @@ const EspectadorView = () => {
   }, [useWebMuxPlayer]);
 
   const openNativeWithHls = useCallback(
-    (_method: "abrirCineLive" | "abrirCamLive") => {
+    (action: "OPEN_STREAM" | "OPEN_STREAM_CAM") => {
       const hls =
         resolveCurrentTransmissionUrl({
           streamParam: effectiveStreamParam || playbackUrl,
@@ -239,9 +240,15 @@ const EspectadorView = () => {
         return;
       }
 
-      playStreamOnAndroidNative({ playbackUrl: hls });
+      const m3u8Url =
+        hls.includes(".m3u8") ? hls : resolveMuxM3u8FromPlayback(hls, playbackId ?? "");
+      if (!m3u8Url) {
+        toast.error("Falta URL .m3u8 de Mux.");
+        return;
+      }
+      invokeOpenStreamDirect(m3u8Url, action);
     },
-    [effectiveStreamParam, playbackUrl, nativeBridgeMp4Url],
+    [effectiveStreamParam, playbackUrl, nativeBridgeMp4Url, playbackId],
   );
 
   if (blockWebLiveOnAndroid) {
@@ -323,7 +330,7 @@ const EspectadorView = () => {
               <button
                 type="button"
                 title="Cine Live — pantalla dividida VR"
-                onClick={() => openNativeWithHls("abrirCineLive")}
+                onClick={() => openNativeWithHls("OPEN_STREAM")}
                 className={`${AUDIENCE_NATIVE_BTN_BASE} border-cyan-400/45 text-cyan-50 hover:border-cyan-300/85`}
               >
                 <MonitorPlay className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
@@ -332,7 +339,7 @@ const EspectadorView = () => {
               <button
                 type="button"
                 title="Live Cam — pantalla mixta AR con cámara"
-                onClick={() => openNativeWithHls("abrirCamLive")}
+                onClick={() => openNativeWithHls("OPEN_STREAM_CAM")}
                 className={`${AUDIENCE_NATIVE_BTN_BASE} border-violet-400/45 text-violet-100 hover:border-violet-300/85`}
               >
                 <Video className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
