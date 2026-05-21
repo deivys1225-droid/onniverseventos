@@ -414,6 +414,31 @@ public class MainActivity extends BridgeActivity {
     public void onMtClick(String mp4Url) {
       activity.openAudienceSelector("mix", mp4Url, null);
     }
+
+    /**
+     * Tarjeta EN VIVO: URL .m3u8 directa + acción.
+     * {@code OPEN_STREAM} → Cine (split / SelectorActivity).
+     * {@code OPEN_STREAM_CAM} → Realidad mixta (mix → reproductor nativo).
+     */
+    @JavascriptInterface
+    public void openStreamDirect(String m3u8Url, String action) {
+      activity.runOnUiThread(
+          () -> {
+            String url = m3u8Url != null ? m3u8Url.trim() : "";
+            if (!StreamUrlResolver.isPlayableHttpUrl(url) || !url.toLowerCase(Locale.ROOT).contains(".m3u8")) {
+              Toast.makeText(activity, "URL .m3u8 inválida.", Toast.LENGTH_SHORT).show();
+              return;
+            }
+            String id = StreamUrlResolver.extractMuxPlaybackIdFromHls(url);
+            String act = action != null ? action.trim().toUpperCase(Locale.ROOT) : "";
+            String scene = "OPEN_STREAM_CAM".equals(act) ? "mix" : "split";
+            activity.activeAudiencePlaybackUrl = url;
+            if (!id.isEmpty()) {
+              activity.activeAudiencePlaybackId = id;
+            }
+            activity.openStreamSelector(url, id, scene);
+          });
+    }
   }
 
   /**
