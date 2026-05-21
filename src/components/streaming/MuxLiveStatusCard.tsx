@@ -1,7 +1,5 @@
 import { Radio, Smartphone } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { canPlayStreamOnAndroidNative, isNativeAndroid } from "@/lib/nativePlayback";
-import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
+import { muxPlaybackIdToHlsUrl } from "@/lib/audiencePlayback";
 import type { MuxStreamSignalState } from "@/lib/muxStreamStatus";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -21,27 +19,24 @@ export function MuxLiveStatusCard({
   playbackId,
   className,
 }: MuxLiveStatusCardProps) {
-  const navigate = useNavigate();
   const isLive = signal === "active";
   const waiting = signal === "idle" || signal === "checking";
-  const isNative = canPlayStreamOnAndroidNative();
 
   const handleClick = () => {
     if (!isLive) return;
 
-    if (
-      handleStreamCardPlay({
-        navigate,
-        streamUrl: playbackUrl,
-        streamId: playbackId,
-        playbackId,
-        title: "En vivo",
-      })
-    ) {
-      toast.success(isNativeAndroid() ? "Abriendo ExoPlayer nativo…" : "Abriendo reproductor…");
+    const link = playbackUrl.trim() || muxPlaybackIdToHlsUrl(playbackId) || "";
+    if (!link) {
+      toast.error("Falta URL del stream.");
       return;
     }
-    toast.error(isNative ? "Falta URL del stream." : "No hay playback ID para abrir el live.");
+
+    if (typeof window.Android?.playStream !== "function") {
+      toast.error("Abre la app Android para ver el live.");
+      return;
+    }
+
+    window.Android.playStream(link);
   };
 
   return (
@@ -52,7 +47,7 @@ export function MuxLiveStatusCard({
       className={cn(
         "relative w-full overflow-hidden rounded-2xl border px-5 py-4 text-left transition-all duration-300",
         isLive
-          ? "cursor-pointer border-red-400/70 bg-gradient-to-r from-red-600/25 via-red-500/15 to-rose-600/20 shadow-[0_0_32px_-4px_rgba(239,68,68,0.75)] ring-2 ring-red-400/40 hover:shadow-[0_0_40px_rgba(239,68,68,0.9)]"
+          ? "cursor-pointer border-amber-300/80 bg-amber-300/10 shadow-[0_0_24px_-8px_rgba(250,204,21,0.95)] ring-2 ring-amber-300/50 hover:border-yellow-200/90 hover:shadow-[0_0_32px_rgba(250,204,21,0.85)]"
           : waiting
             ? "cursor-default border-amber-400/45 bg-amber-500/10"
             : "cursor-default border-destructive/40 bg-destructive/10",
@@ -61,7 +56,7 @@ export function MuxLiveStatusCard({
     >
       {isLive && (
         <span
-          className="pointer-events-none absolute inset-0 animate-pulse bg-gradient-to-r from-red-500/10 via-transparent to-red-500/10"
+          className="pointer-events-none absolute inset-0 animate-pulse bg-gradient-to-r from-amber-400/15 via-transparent to-amber-300/10"
           aria-hidden
         />
       )}
@@ -71,7 +66,7 @@ export function MuxLiveStatusCard({
           className={cn(
             "h-4 w-4 shrink-0 rounded-full",
             isLive
-              ? "animate-pulse bg-red-500 shadow-[0_0_14px_rgba(239,68,68,1)]"
+              ? "animate-pulse bg-amber-400 shadow-[0_0_14px_rgba(250,204,21,0.95)]"
               : signal === "checking"
                 ? "animate-pulse bg-cyan-400/80"
                 : "bg-amber-400",
@@ -83,14 +78,12 @@ export function MuxLiveStatusCard({
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {isLive
-              ? isNative
-                ? "Toca para SelectorActivity → ExoPlayer (sin WebView)."
-                : "Toca para abrir el reproductor web (/go)."
+              ? "Toca para abrir SelectorActivity y reproducir el stream."
               : "Conecta OBS con la URL RTMP del panel Live."}
           </p>
         </div>
         {isLive ? (
-          <Smartphone className="h-6 w-6 shrink-0 text-red-300" aria-hidden />
+          <Smartphone className="h-6 w-6 shrink-0 text-amber-300" aria-hidden />
         ) : (
           <Radio className="h-5 w-5 shrink-0 text-amber-300" aria-hidden />
         )}
