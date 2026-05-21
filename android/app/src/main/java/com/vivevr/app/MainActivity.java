@@ -161,6 +161,38 @@ public class MainActivity extends BridgeActivity {
     startActivity(intent);
   }
 
+  /**
+   * Tarjeta EN VIVO ({@code openStreamDirect}): URL .m3u8 → {@link PlayerActivity} sin pasar por
+   * la UI de {@link SelectorActivity}.
+   */
+  private void openStreamPlayerDirect(String playbackUrl, String playbackId, String preferredScene) {
+    String url = playbackUrl != null ? playbackUrl.trim() : "";
+    String id = playbackId != null ? playbackId.trim() : "";
+    String resolved = StreamUrlResolver.resolve(url, id);
+    if (resolved.isEmpty()) {
+      Toast.makeText(this, "Falta stream_url o playback_id.", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    activeAudiencePlaybackUrl = resolved;
+    if (!id.isEmpty()) {
+      activeAudiencePlaybackId = id;
+    } else {
+      String extracted = StreamUrlResolver.extractMuxPlaybackIdFromHls(resolved);
+      if (!extracted.isEmpty()) {
+        activeAudiencePlaybackId = extracted;
+      }
+    }
+    Intent intent = new Intent(this, PlayerActivity.class);
+    intent.putExtra(PlayerActivity.EXTRA_SELECTED_SCENE, normalizeSceneKey(preferredScene));
+    intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    intent.putExtra(StreamExtras.STREAM_URL, resolved);
+    intent.putExtra(PlayerActivity.EXTRA_PLAYBACK_URL, resolved);
+    if (activeAudiencePlaybackId != null && !activeAudiencePlaybackId.isEmpty()) {
+      intent.putExtra(PlayerActivity.EXTRA_PLAYBACK_ID, activeAudiencePlaybackId);
+    }
+    startActivity(intent);
+  }
+
   private void openAudienceSelector(String preferredScene, String playbackUrl, String playbackId) {
     runOnUiThread(
         () -> {
@@ -416,9 +448,8 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * Tarjeta EN VIVO: URL .m3u8 directa + acción.
-     * {@code OPEN_STREAM} → Cine (split / SelectorActivity).
-     * {@code OPEN_STREAM_CAM} → Realidad mixta (mix → reproductor nativo).
+     * Tarjeta EN VIVO: URL .m3u8 directa + acción → {@link PlayerActivity} (sin SelectorActivity).
+     * {@code OPEN_STREAM} → Cine (split). {@code OPEN_STREAM_CAM} → Realidad mixta (mix).
      */
     @JavascriptInterface
     public void openStreamDirect(String m3u8Url, String action) {
@@ -432,11 +463,7 @@ public class MainActivity extends BridgeActivity {
             String id = StreamUrlResolver.extractMuxPlaybackIdFromHls(url);
             String act = action != null ? action.trim().toUpperCase(Locale.ROOT) : "";
             String scene = "OPEN_STREAM_CAM".equals(act) ? "mix" : "split";
-            activity.activeAudiencePlaybackUrl = url;
-            if (!id.isEmpty()) {
-              activity.activeAudiencePlaybackId = id;
-            }
-            activity.openStreamSelector(url, id, scene);
+            activity.openStreamPlayerDirect(url, id, scene);
           });
     }
   }
