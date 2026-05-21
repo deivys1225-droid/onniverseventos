@@ -4,6 +4,7 @@ import {
   muxPlaybackIdToHlsUrl,
   resolvePlaybackIdFromActiveStreamRow,
 } from "@/lib/audiencePlayback";
+import { isNativeAndroid } from "@/lib/nativePlayback";
 import type { ActiveStreamRow } from "@/lib/salaRoomCards";
 import { toast } from "sonner";
 
@@ -43,8 +44,10 @@ export function resolveMuxM3u8FromActiveStream(activeStream: ActiveStreamRow): s
   return muxPlaybackIdToHlsUrl(playbackId) ?? "";
 }
 
+/** APK / WebView: mismo criterio que NativePlaybackRouteGuard ({@code window.Android}). */
 export function isAndroidLiveStreamChoicePlatform(): boolean {
-  return Capacitor.getPlatform() === "android";
+  if (typeof window === "undefined") return false;
+  return Capacitor.getPlatform() === "android" || isNativeAndroid();
 }
 
 export function buildLiveStreamChoicePayload(
@@ -66,9 +69,23 @@ export function invokeOpenStreamDirect(m3u8Url: string, action: LiveStreamDirect
 }
 
 /**
- * Receptor en Android: muestra elección STREAM / STREAM CAM (el caller abre el diálogo).
- * Devuelve true si el flujo en vivo quedó manejado aquí (no usar playStream).
+ * Tarjeta EN VIVO (receptor): en Android muestra STREAM / STREAM CAM y no navega a espectador.
+ * Devuelve true si el flujo quedó en la app (modal o error), sin ir a rutas web bloqueadas.
  */
-export function shouldHandoffLiveStreamToChoiceDialog(activeStream: ActiveStreamRow | null | undefined): boolean {
-  return Boolean(activeStream?.is_live && isAndroidLiveStreamChoicePlatform());
+export function handoffAudienceLiveCardOnAndroid(
+  activeStream: ActiveStreamRow | null | undefined,
+  title: string,
+  requestChoice: (stream: ActiveStreamRow, displayTitle: string) => boolean,
+  audienceTappedLive: boolean,
+): boolean {
+  const isLiveEntry = Boolean(activeStream?.is_live) || audienceTappedLive;
+  if (!isLiveEntry || !isAndroidLiveStreamChoicePlatform()) {
+    return false;
+  }
+  if (!activeStream) {
+    toast.error("No hay transmisión en vivo disponible.");
+    return true;
+  }
+  requestChoice(activeStream, title);
+  return true;
 }

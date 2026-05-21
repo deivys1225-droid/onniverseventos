@@ -9,6 +9,7 @@ import SectionHeader from "@/components/salas/SectionHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { isStreamPlaybackUrl, resolvePlaybackIdFromActiveStreamRow } from "@/lib/audiencePlayback";
 import { muxPlaybackIdFromHlsUrl } from "@/lib/muxPlaybackId";
+import { handoffAudienceLiveCardOnAndroid } from "@/lib/liveStreamOpenDirect";
 import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { Button } from "@/components/ui/button";
@@ -133,8 +134,14 @@ const ComunidadPage = () => {
     };
   }, [user?.id, communityProfileIdsKey, communityProfiles]);
 
-  const beginRoomSession = async (room: RoomCard, activeStream?: ActiveStreamRow | null) => {
-    setLoadingRoomId(room.id);
+  const beginRoomSession = async (
+    room: RoomCard,
+    activeStream?: ActiveStreamRow | null,
+    options?: { audienceTappedLive?: boolean },
+  ) => {
+    const audienceTappedLive = Boolean(options?.audienceTappedLive);
+    const useLoadingOverlay = !audienceTappedLive;
+    if (useLoadingOverlay) setLoadingRoomId(room.id);
     try {
       const streamUrlCandidate = activeStream?.stream_url?.trim() || "";
       const playbackUrlCandidate = activeStream?.playback_url?.trim() || "";
@@ -142,6 +149,12 @@ const ComunidadPage = () => {
       const resolvedToken =
         playbackUrlCandidate && !isStreamPlaybackUrl(playbackUrlCandidate) ? playbackUrlCandidate : "";
       const resolvedTitle = activeStream?.title?.trim() || room.name;
+
+      if (
+        handoffAudienceLiveCardOnAndroid(activeStream, resolvedTitle, requestChoice, audienceTappedLive)
+      ) {
+        return;
+      }
 
       if (activeStream?.is_live) {
         const muxPlaybackId =
@@ -154,10 +167,6 @@ const ComunidadPage = () => {
             : streamUrlCandidate && isStreamPlaybackUrl(streamUrlCandidate)
               ? streamUrlCandidate
               : "";
-        if (requestChoice(activeStream, resolvedTitle)) {
-          return;
-        }
-
         if (
           handleStreamCardPlay({
             navigate,
@@ -215,7 +224,7 @@ const ComunidadPage = () => {
       });
       return;
     }
-    beginRoomSession(room, linkedStream);
+    beginRoomSession(room, linkedStream, { audienceTappedLive: true });
   };
 
   const sendFriendRequestToCommunityMember = async (receiverId: string, displayName: string) => {
@@ -341,7 +350,7 @@ const ComunidadPage = () => {
                   const selectedRoom = premiumModalRoom;
                   setPremiumModalRoom(null);
                   const linkedStream = getRoomActiveStream(selectedRoom, activeStreams);
-                  beginRoomSession(selectedRoom, linkedStream);
+                  beginRoomSession(selectedRoom, linkedStream, { audienceTappedLive: true });
                 }}
               />
               <div className="mt-3 flex justify-end">

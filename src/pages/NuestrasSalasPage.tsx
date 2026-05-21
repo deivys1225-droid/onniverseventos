@@ -13,6 +13,7 @@ import {
   resolvePlaybackIdFromActiveStreamRow,
 } from "@/lib/audiencePlayback";
 import { muxPlaybackIdFromHlsUrl } from "@/lib/muxPlaybackId";
+import { handoffAudienceLiveCardOnAndroid } from "@/lib/liveStreamOpenDirect";
 import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { Button } from "@/components/ui/button";
@@ -212,8 +213,14 @@ const NuestrasSalasPage = () => {
     sessionPurchases.has(room.id) ||
     hasVaultPurchase(user?.id, "ticket", room.name);
 
-  const beginRoomSession = async (room: RoomCard, activeStream?: ActiveStreamRow | null) => {
-    setLoadingRoomId(room.id);
+  const beginRoomSession = async (
+    room: RoomCard,
+    activeStream?: ActiveStreamRow | null,
+    options?: { audienceTappedLive?: boolean },
+  ) => {
+    const audienceTappedLive = Boolean(options?.audienceTappedLive);
+    const useLoadingOverlay = !audienceTappedLive;
+    if (useLoadingOverlay) setLoadingRoomId(room.id);
     try {
       const streamUrlCandidate = activeStream?.stream_url?.trim() || "";
       const playbackUrlCandidate = activeStream?.playback_url?.trim() || "";
@@ -221,6 +228,12 @@ const NuestrasSalasPage = () => {
       const resolvedToken =
         playbackUrlCandidate && !isStreamPlaybackUrl(playbackUrlCandidate) ? playbackUrlCandidate : "";
       const resolvedTitle = activeStream?.title?.trim() || room.name;
+
+      if (
+        handoffAudienceLiveCardOnAndroid(activeStream, resolvedTitle, requestChoice, audienceTappedLive)
+      ) {
+        return;
+      }
 
       if (activeStream?.is_live) {
         const muxPlaybackId =
@@ -233,9 +246,6 @@ const NuestrasSalasPage = () => {
             : streamUrlCandidate && isStreamPlaybackUrl(streamUrlCandidate)
               ? streamUrlCandidate
               : "";
-        if (requestChoice(activeStream, resolvedTitle)) {
-          return;
-        }
         if (
           handleStreamCardPlay({
             navigate,
@@ -298,7 +308,7 @@ const NuestrasSalasPage = () => {
       });
       return;
     }
-    beginRoomSession(room, linkedStream);
+    beginRoomSession(room, linkedStream, { audienceTappedLive: true });
   };
 
   return (
@@ -482,7 +492,7 @@ const NuestrasSalasPage = () => {
                   const selectedRoom = premiumModalRoom;
                   setPremiumModalRoom(null);
                   const linkedStream = getRoomActiveStream(selectedRoom, activeStreams);
-                  beginRoomSession(selectedRoom, linkedStream);
+                  beginRoomSession(selectedRoom, linkedStream, { audienceTappedLive: true });
                 }}
               />
               <div className="mt-3 flex justify-end">

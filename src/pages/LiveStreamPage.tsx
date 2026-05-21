@@ -8,7 +8,7 @@ import { NativePlaybackRouteGuard } from "@/components/NativePlaybackRouteGuard"
 import { shouldUseWebLivePlayer } from "@/lib/nativePlayback";
 import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
 import { useLiveStreamChoiceModal } from "@/hooks/useLiveStreamChoiceModal";
-import { isAndroidLiveStreamChoicePlatform } from "@/lib/liveStreamOpenDirect";
+import { handoffAudienceLiveCardOnAndroid } from "@/lib/liveStreamOpenDirect";
 import {
   resolvePlaybackFromActiveStreamRow,
   resolvePlaybackIdFromActiveStreamRow,
@@ -86,7 +86,7 @@ const LiveStreamPageWeb = () => {
 
   const selectStream = (row: ActiveStreamRow) => {
     const title = row.title?.trim() || "En vivo";
-    if (requestChoice(row, title)) {
+    if (handoffAudienceLiveCardOnAndroid(row, title, requestChoice, true)) {
       return;
     }
     handleStreamCardPlay({
@@ -232,7 +232,7 @@ const LiveStreamPageWeb = () => {
         </div>
       </main>
 
-      {isAndroidLiveStreamChoicePlatform() ? liveStreamChoiceDialog : null}
+      {liveStreamChoiceDialog}
     </div>
   );
 };
