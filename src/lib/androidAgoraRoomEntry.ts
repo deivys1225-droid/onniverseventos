@@ -1,26 +1,28 @@
-import { resolvePlaybackIdFromActiveStreamRow } from "@/lib/audiencePlayback";
-import { openLiveUserOnAndroidNative, shouldUseWebLivePlayer } from "@/lib/nativePlayback";
-import { canOpenAndroidSelector, isNativeAndroidBridge } from "@/lib/androidVrBridge";
+import { isStreamPlaybackUrl, muxPlaybackIdToHlsUrl, resolvePlaybackFromActiveStreamRow } from "@/lib/audiencePlayback";
+import { canPlayStreamOnAndroidNative, playStreamOnAndroidNative, shouldUseWebLivePlayer } from "@/lib/nativePlayback";
 import type { ActiveStreamRow, RoomCard } from "@/lib/salaRoomCards";
 
 export const SYSTEM_INTEGRITY_TOKEN = "YHWH_יהוה_ONNIVER_SECURE_INIT";
 
 export function isAndroidNativeBridgeAvailable(): boolean {
-  return isNativeAndroidBridge();
+  if (typeof window === "undefined") return false;
+  return typeof window.Android !== "undefined";
 }
 
 export function canHandoffLiveToAndroidNative(): boolean {
-  return canOpenAndroidSelector();
+  return canPlayStreamOnAndroidNative() || (isAndroidNativeBridgeAvailable() && typeof window.Android?.openLiveSelector === "function");
 }
 
-/** Live → {@code openSelector(streamId)} únicamente. */
+/** Live Mux → {@code window.Android.playStream(hls)} (ExoPlayer en SelectorActivity). */
 export function openMuxLiveInAndroidSelector(options: {
-  streamId?: string;
-  playbackId?: string;
   playbackUrl?: string;
-  userId?: string;
+  playbackId?: string;
+  preferredScene?: "split" | "immersive" | "mix";
 }): boolean {
-  return openLiveUserOnAndroidNative(options);
+  return playStreamOnAndroidNative({
+    playbackUrl: options.playbackUrl,
+    playbackId: options.playbackId,
+  });
 }
 
 export function isAndroidLiveSelectorAvailable(): boolean {
@@ -28,34 +30,51 @@ export function isAndroidLiveSelectorAvailable(): boolean {
 }
 
 export function pushHlsPlaybackToAndroidNative(playbackUrl: string, playbackId?: string): boolean {
-  return openLiveUserOnAndroidNative({ playbackUrl, playbackId, streamId: playbackId });
+  const url = playbackUrl.trim();
+  if (!url || !isStreamPlaybackUrl(url)) return false;
+  return playStreamOnAndroidNative({ playbackUrl: url, playbackId });
 }
 
 export function handoffActiveStreamPlaybackToAndroid(
   activeStream: ActiveStreamRow | null | undefined,
 ): boolean {
   if (!activeStream?.is_live) return false;
-  const streamId =
-    resolvePlaybackIdFromActiveStreamRow(activeStream) ??
-    activeStream.user_id?.trim() ??
-    activeStream.stream_url?.trim() ??
-    "";
-  if (!streamId) return false;
-  return openLiveUserOnAndroidNative({ streamId, playbackId: activeStream.playback_id ?? undefined });
+  const playbackUrl = resolvePlaybackFromActiveStreamRow(activeStream);
+  if (!playbackUrl) return false;
+  return pushHlsPlaybackToAndroidNative(playbackUrl, activeStream.playback_id ?? undefined);
 }
 
 export function resolveAgoraChannelFromRoom(
   room: Pick<RoomCard, "channel">,
   activeStream?: Pick<ActiveStreamRow, "stream_url"> | null,
 ): string {
-  return room.channel;
+  const streamUrlCandidate = activeStream?.stream_url?.trim() || "";
+  return isStreamPlaybackUrl(streamUrlCandidate) ? room.channel : streamUrlCandidate || room.channel;
 }
 
-/** Android: openSelector. Web: el caller navega (espectador /go). */
+/** Android: playStream nativo. Web: false (el caller navega al espectador). */
 export async function handoffLiveToAndroidNative(
-  _room: RoomCard,
+  room: RoomCard,
   activeStream?: ActiveStreamRow | null,
 ): Promise<boolean> {
   if (shouldUseWebLivePlayer()) return false;
-  return handoffActiveStreamPlaybackToAndroid(activeStream);
+
+  if (handoffActiveStreamPlaybackToAndroid(activeStream)) {
+    return true;
+  }
+
+  if (!activeStream?.is_live || !isAndroidNativeBridgeAvailable()) {
+    return false;
+  }
+
+  const channel = resolveAgoraChannelFromRoom(room, activeStream);
+  if (!channel.trim() || isStreamPlaybackUrl(channel)) {
+    return false;
+  }
+
+  if (typeof window.Android?.getAgoraParams === "function") {
+    window.Android.getAgoraParams(channel, "");
+    return true;
+  }
+  return false;
 }

@@ -1,14 +1,18 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { LayoutGrid, Scan, Sparkles } from "lucide-react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { MonitorPlay, Scan, Video } from "lucide-react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { MuxHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
 import { podcastStreamers } from "@/data/podcastStreamers";
+import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { NativePlaybackRouteGuard } from "@/components/NativePlaybackRouteGuard";
-import { isNativeAndroid, shouldUseWebLivePlayer } from "@/lib/nativePlayback";
+import { isNativeAndroid, playStreamOnAndroidNative, shouldUseWebLivePlayer } from "@/lib/nativePlayback";
 import {
   audienceStreamSessionKey,
+  isStreamPlaybackUrl,
+  resolveCurrentTransmissionUrl,
   resolveLiveTransmissionUrl,
   resolvePlaybackIdFromActiveStreamRow,
 } from "@/lib/audiencePlayback";
@@ -29,8 +33,20 @@ function podcastIdFromChannel(channelName: string): string | null {
   return podcastStreamers.some((s) => s.id === id) ? id : null;
 }
 
-const AUDIENCE_SCENE_BTN_BASE =
+type AudienceSceneKey = "split" | "immersive" | "mix";
+
+const AUDIENCE_NATIVE_BTN_BASE =
   "group flex min-h-[52px] min-w-[6.5rem] max-w-[11rem] flex-1 flex-col items-center justify-center gap-1.5 rounded-xl border bg-black/35 px-2 py-3 text-center shadow-[0_0_28px_-12px_rgba(34,211,238,0.45)] transition hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5 touch-manipulation";
+
+function tryAndroidNativeSceneSelector(preferred: AudienceSceneKey): boolean {
+  if (Capacitor.getPlatform() !== "android") return false;
+  const bridge = (window as Window & { AndroidScene?: { openSceneSelector?: (p: string) => void } }).AndroidScene;
+  if (typeof bridge?.openSceneSelector === "function") {
+    bridge.openSceneSelector(preferred);
+    return true;
+  }
+  return false;
+}
 
 const EspectadorView = () => {
   const navigate = useNavigate();
@@ -55,10 +71,26 @@ const EspectadorView = () => {
   const useWebMuxPlayer = shouldUseWebLivePlayer();
   const blockWebLiveOnAndroid = isNativeAndroid() && !useVodMode;
 
+  const nativeBridgeMp4Url = useMemo(() => {
+    if (useVodMode && fallbackMp4) return fallbackMp4;
+    const prefix = "al-universo-";
+    const n = channelName.trim().toLowerCase();
+    if (!n.startsWith(prefix)) return "";
+    const roomId = n.slice(prefix.length);
+    if (!roomId) return "";
+    return SALA_MP4_URL_BY_ID[roomId] ?? "";
+  }, [useVodMode, fallbackMp4, channelName]);
+
   const [activeStreamRow, setActiveStreamRow] = useState<ActiveStreamRow | null>(null);
   const [loadingPlayback, setLoadingPlayback] = useState(!useVodMode);
   const [error, setError] = useState<string | null>(null);
   const playerRootRef = useRef<HTMLDivElement>(null);
+
+  const nativeSceneActionsRef = useRef({
+    split: () => {},
+    immersive: () => {},
+    mix: () => {},
+  });
 
   useEffect(() => {
     if (useVodMode) {
@@ -177,6 +209,41 @@ const EspectadorView = () => {
     navigate(`/podcast-hub${suffix}`);
   };
 
+  nativeSceneActionsRef.current.split = goPantallaDividida;
+  nativeSceneActionsRef.current.immersive = goEscenaInmersiva;
+  nativeSceneActionsRef.current.mix = goMixVod;
+
+  useEffect(() => {
+    if (!useWebMuxPlayer) return;
+    const w = window as Window & { __onniversoNativeDispatch?: (scene: string) => void };
+    w.__onniversoNativeDispatch = (scene: string) => {
+      if (scene === "immersive") nativeSceneActionsRef.current.immersive();
+      else if (scene === "mix") nativeSceneActionsRef.current.mix();
+      else nativeSceneActionsRef.current.split();
+    };
+    return () => {
+      delete w.__onniversoNativeDispatch;
+    };
+  }, [useWebMuxPlayer]);
+
+  const openNativeWithHls = useCallback(
+    (_method: "abrirCineLive" | "abrirCamLive") => {
+      const hls =
+        resolveCurrentTransmissionUrl({
+          streamParam: effectiveStreamParam || playbackUrl,
+          mp4Param: nativeBridgeMp4Url,
+        }) ?? playbackUrl;
+
+      if (!hls || !isStreamPlaybackUrl(hls)) {
+        toast.info("Conecta primero a una transmisión Mux en vivo.");
+        return;
+      }
+
+      playStreamOnAndroidNative({ playbackUrl: hls });
+    },
+    [effectiveStreamParam, playbackUrl, nativeBridgeMp4Url],
+  );
+
   if (blockWebLiveOnAndroid) {
     return (
       <div className="relative min-h-screen bg-background">
@@ -248,41 +315,52 @@ const EspectadorView = () => {
               </Button>
             </div>
 
-            {useWebMuxPlayer && !useVodMode ? (
-              <div
-                className="mt-4 flex flex-wrap items-stretch justify-center gap-2 sm:gap-3"
-                role="toolbar"
-                aria-label="Escenas web (solo navegador)"
+            <div
+              className="mt-4 flex flex-wrap items-stretch justify-center gap-2 sm:gap-3"
+              role="toolbar"
+              aria-label="Modos inmersivos de la sala"
+            >
+              <button
+                type="button"
+                title="Cine Live — pantalla dividida VR"
+                onClick={() => openNativeWithHls("abrirCineLive")}
+                className={`${AUDIENCE_NATIVE_BTN_BASE} border-cyan-400/45 text-cyan-50 hover:border-cyan-300/85`}
               >
-                <button
-                  type="button"
-                  title="Escena Inmersiva"
-                  onClick={goEscenaInmersiva}
-                  className={`${AUDIENCE_SCENE_BTN_BASE} border-violet-400/45 text-violet-100 hover:border-violet-300/85`}
-                >
-                  <Sparkles className="h-5 w-5 shrink-0 opacity-90" aria-hidden />
-                  <span className="text-xs font-semibold tracking-wide sm:text-sm">Escena Inmersiva</span>
-                </button>
-                <button
-                  type="button"
-                  title="Pantalla Dividida"
-                  onClick={goPantallaDividida}
-                  className={`${AUDIENCE_SCENE_BTN_BASE} border-cyan-400/45 text-cyan-50 hover:border-cyan-300/85`}
-                >
-                  <LayoutGrid className="h-5 w-5 shrink-0 opacity-90" aria-hidden />
-                  <span className="text-xs font-semibold tracking-wide sm:text-sm">Pantalla Dividida</span>
-                </button>
-                <button
-                  type="button"
-                  title="Escena Realidad Mixta"
-                  onClick={goMixVod}
-                  className={`${AUDIENCE_SCENE_BTN_BASE} border-amber-400/45 text-amber-50 hover:border-amber-300/85`}
-                >
-                  <Scan className="h-5 w-5 shrink-0 opacity-90" aria-hidden />
-                  <span className="text-xs font-semibold tracking-wide sm:text-sm">Escena Realidad Mixta</span>
-                </button>
-              </div>
-            ) : null}
+                <MonitorPlay className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
+                <span className="text-xs font-semibold tracking-wide sm:text-sm">Cine Live</span>
+              </button>
+              <button
+                type="button"
+                title="Live Cam — pantalla mixta AR con cámara"
+                onClick={() => openNativeWithHls("abrirCamLive")}
+                className={`${AUDIENCE_NATIVE_BTN_BASE} border-violet-400/45 text-violet-100 hover:border-violet-300/85`}
+              >
+                <Video className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
+                <span className="text-xs font-semibold tracking-wide sm:text-sm">Live Cam</span>
+              </button>
+              <button
+                type="button"
+                title="Realidad aumentada (AR)"
+                onClick={() => {
+                  if (typeof window.Android?.onArClick === "function") {
+                    const url = nativeBridgeMp4Url.trim();
+                    if (url) {
+                      window.Android.onArClick(url);
+                    } else {
+                      window.Android.onArClick();
+                    }
+                    return;
+                  }
+                  if (useWebMuxPlayer) {
+                    navigate("/go/ar");
+                  }
+                }}
+                className={`${AUDIENCE_NATIVE_BTN_BASE} border-amber-400/45 text-amber-50 hover:border-amber-300/85`}
+              >
+                <Scan className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
+                <span className="text-xs font-semibold tracking-wide sm:text-sm">AR</span>
+              </button>
+            </div>
 
             {error && (
               <p className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">

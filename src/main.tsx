@@ -6,24 +6,44 @@ import "./index.css";
 
 declare global {
   interface Window {
-    /**
-     * Android: única entrada live/VR desde comunidad.
-     * {@code window.Android.openSelector(streamId)} → SelectorActivity.
-     */
+    /** Solo Android: llama {@code AndroidBridge.abrirMiSelectorNativo()} (sin cargar página). */
+    irAlSelectorNativo?: () => void;
+    AndroidBridge?: {
+      abrirMiSelectorNativo?: () => void;
+      onVrClick?: (mp4Url?: string) => void;
+      on360Click?: (mp4Url?: string) => void;
+      onMtClick?: (mp4Url?: string) => void;
+    };
+    /** Puente AR: registrado en MainActivity como {@code Android}. */
     Android?: {
-      openSelector(streamId: string): void;
-      /** @deprecated Usar openSelector */
-      playStream?(streamUrl: string): void;
-      /** @deprecated Usar openSelector */
-      openLiveSelector?(playbackUrl: string, playbackId: string): void;
-      /** Galería / assets — delega a openSelector */
       onArClick(url?: string): void;
+      /** HLS/URL → SelectorActivity (ExoPlayer nativo). */
+      playStream?(streamUrl: string): void;
+      /** @deprecated Usar playStream */
+      openLiveSelector?(playbackUrl: string, playbackId: string): void;
+      /** Entrada legacy Agora (no HLS Mux). */
+      getAgoraParams?(canal: string, token: string): void;
+      /** Cine Live — payload Agora: appId|canal|token de la sesión activa. */
+      abrirCineLive?(agoraPayload: string): void;
+      /** Live Cam — payload Agora: appId|canal|token de la sesión activa. */
+      abrirCamLive?(agoraPayload: string): void;
       openLobby?(): void;
+      /** Solo lobby Pantalla 2 (TikTok en WebView nativo). */
       showLobbyPantalla2WebView?(): void;
       hideLobbyPantalla2WebView?(): void;
     };
   }
 }
+
+/** Android: solo puente nativo (AlertDialog escena). PC: no-op (usa toast desde UI si hace falta). */
+function irAlSelectorNativo() {
+  const bridge = typeof window.AndroidBridge !== "undefined" ? window.AndroidBridge : undefined;
+  if (bridge != null && typeof bridge.abrirMiSelectorNativo === "function") {
+    bridge.abrirMiSelectorNativo();
+  }
+}
+
+window.irAlSelectorNativo = irAlSelectorNativo;
 
 function AppRoot() {
   useEffect(() => {
@@ -57,6 +77,7 @@ function AppRoot() {
     const normalizeDeepLinkPath = (incomingUrl: string): string | null => {
       try {
         const u = new URL(incomingUrl);
+        // onniverso://open?url=<destino>: conserva navegación interna de la web.
         if (u.protocol === "onniverso:" && u.hostname === "open") {
           const inner = u.searchParams.get("url");
           if (!inner) return null;

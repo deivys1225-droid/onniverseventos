@@ -60,7 +60,7 @@ const AppProviders = ({ children }: { children: ReactNode }) =>
 const App = () => {
   useEffect(() => {
     if (isNativeAndroid()) {
-      console.log("[Onniverso] WEB VR BLOCKED ON ANDROID — use openSelector from ENTRAR");
+      console.log("[Onniverso] WEB PLAYER BLOCKED ON ANDROID — App shell");
     }
   }, []);
 

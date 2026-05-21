@@ -14,7 +14,7 @@ type MuxLiveStatusCardProps = {
   className?: string;
 };
 
-/** Tarjeta Live: Android → openSelector; Web → /go/:id */
+/** Tarjeta Live: Android → playStream; Web → /go/:id */
 export function MuxLiveStatusCard({
   signal,
   playbackUrl,

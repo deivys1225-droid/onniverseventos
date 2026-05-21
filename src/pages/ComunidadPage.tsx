@@ -157,9 +157,8 @@ const ComunidadPage = () => {
           handleStreamCardPlay({
             navigate,
             streamUrl: hlsUrl || undefined,
-            streamId: muxPlaybackId ?? activeStream.user_id ?? resolvedChannel,
+            streamId: muxPlaybackId ?? resolvedChannel,
             playbackId: muxPlaybackId ?? undefined,
-            userId: activeStream.user_id,
             title: resolvedTitle,
           })
         ) {

@@ -20,8 +20,8 @@ export function NativePlaybackRouteGuard({ children }: { children: ReactNode }) 
       <Smartphone className="h-12 w-12 text-cyan-300" aria-hidden />
       <h1 className="text-xl font-bold text-cyan-50">Reproducción nativa</h1>
       <p className="max-w-md text-sm text-muted-foreground">
-        Esta ruta es solo para navegador web. En la app Android usa ENTRAR en un usuario en vivo: openSelector(streamId)
-        abre SelectorActivity (Escena Inmersiva, Pantalla Dividida o Realidad Mixta).
+        Esta ruta es solo para navegador web. En la app Android usa las tarjetas EN VIVO — se abre SelectorActivity y
+        ExoPlayer sin pasar por aquí.
       </p>
     </div>
   );

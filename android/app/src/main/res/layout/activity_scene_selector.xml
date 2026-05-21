@@ -12,7 +12,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
-        android:text="Elige escena"
+        android:text="Elige modo de reproducción"
         android:textColor="#e0f2fe"
         android:textSize="20sp"
         android:textStyle="bold" />
@@ -23,7 +23,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="32dp"
         android:gravity="center"
-        android:text="La app nativa renderiza la experiencia (sin WebView)"
+        android:text="Reproductor nativo ExoPlayer (sin WebView)"
         android:textColor="#94a3b8"
         android:textSize="13sp" />
 
@@ -32,21 +32,21 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
-        android:text="Escena Inmersiva" />
+        android:text="VR" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_scene_split"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
-        android:text="Pantalla Dividida" />
+        android:text="Cine Live" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_scene_mix"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
-        android:text="Escena Realidad Mixta" />
+        android:text="Live Cam" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_selector_cancel"
