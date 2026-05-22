@@ -17,13 +17,9 @@ import { handoffSalaCardOnAndroid } from "@/lib/salaOpenDirect";
 import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { Button } from "@/components/ui/button";
-import PayPalSmartButton from "@/components/PayPalSmartButton";
 import { toast } from "sonner";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
-import { useAuth } from "@/hooks/useAuth";
 import { useSalaChoiceModal } from "@/hooks/useSalaChoiceModal";
-import { formatStorePrice, salaVideoPriceUsd } from "@/lib/pricing";
-import { hasVaultPurchase } from "@/lib/vaultItems";
 import {
   salaRoomCardPadding,
   salaRoomCtaIcon,
@@ -33,7 +29,6 @@ import {
   salaRoomImageWrapMb,
   salaRoomOverlayBar,
   salaRoomOverlayIcon,
-  salaRoomPriceBadge,
   salaRoomPrimaryBtn,
   salaRoomStatusBadge,
   salaRoomTitle,
@@ -100,19 +95,6 @@ type RoomCard = {
   mp4Url?: string;
 };
 
-const FREE_ROOM_IDS = new Set(["hablando-huevadas", "axon-king", "luisito-comunica-er", "gopro-gpy"]);
-
-function isRoomOnline(room: RoomCard, streams: ActiveStreamRow[]): boolean {
-  const roomId = room.id.toLowerCase();
-  const roomName = room.name.toLowerCase();
-  const channel = room.channel.toLowerCase();
-  return streams.some((s) => {
-    if (!s.is_live) return false;
-    const haystack = `${s.title} ${s.stream_url} ${s.playback_url ?? ""}`.toLowerCase();
-    return haystack.includes(roomId) || haystack.includes(roomName) || haystack.includes(channel);
-  });
-}
-
 function getRoomActiveStream(room: RoomCard, streams: ActiveStreamRow[]): ActiveStreamRow | null {
   if (room.ownerUserId) {
     const direct = streams.find((s) => s.is_live && s.user_id === room.ownerUserId);
@@ -131,11 +113,8 @@ function getRoomActiveStream(room: RoomCard, streams: ActiveStreamRow[]): Active
 
 const NuestrasSalasPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [activeStreams, setActiveStreams] = useState<ActiveStreamRow[]>([]);
-  const [premiumModalRoom, setPremiumModalRoom] = useState<RoomCard | null>(null);
   const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
-  const [sessionPurchases, setSessionPurchases] = useState<Set<string>>(() => new Set());
   const { requestSalaChoice, dialog: salaChoiceDialog } = useSalaChoiceModal();
 
   useEffect(() => {
@@ -163,22 +142,18 @@ const NuestrasSalasPage = () => {
   }, []);
 
   const creatorRooms: RoomCard[] = useMemo(() => {
-    const streamerRooms = podcastStreamers.map((streamer) => {
-      const priceUsd = salaVideoPriceUsd(streamer.id, FREE_ROOM_IDS);
-      return {
-        id: streamer.id,
-        name: streamer.name,
-        image: streamer.avatar,
-        subtitle: streamer.immersiveSalaName,
-        description: streamer.loungeTitle,
-        status: streamer.status === "live" ? "En Vivo" : "Offline",
-        channel: buildAgoraChannel(streamer.id),
-        isPremium: priceUsd > 0,
-        priceUsd,
-        mp4Url: SALA_MP4_URL_BY_ID[streamer.id],
-      };
-    });
-    const michaelPriceUsd = salaVideoPriceUsd("michael-jackson", FREE_ROOM_IDS);
+    const streamerRooms = podcastStreamers.map((streamer) => ({
+      id: streamer.id,
+      name: streamer.name,
+      image: streamer.avatar,
+      subtitle: streamer.immersiveSalaName,
+      description: streamer.loungeTitle,
+      status: streamer.status === "live" ? "En Vivo" : "Offline",
+      channel: buildAgoraChannel(streamer.id),
+      isPremium: false,
+      priceUsd: 0,
+      mp4Url: SALA_MP4_URL_BY_ID[streamer.id],
+    }));
     return [
       ...streamerRooms,
       {
@@ -201,17 +176,12 @@ const NuestrasSalasPage = () => {
         description: "Show inmersivo y hits eternos",
         status: "VIP",
         channel: buildAgoraChannel("michael-jackson"),
-        isPremium: michaelPriceUsd > 0,
-        priceUsd: michaelPriceUsd,
+        isPremium: false,
+        priceUsd: 0,
         mp4Url: SALA_MP4_URL_BY_ID["michael-jackson"],
       },
     ];
   }, []);
-
-  const isRoomUnlocked = (room: RoomCard) =>
-    room.priceUsd === 0 ||
-    sessionPurchases.has(room.id) ||
-    hasVaultPurchase(user?.id, "ticket", room.name);
 
   const beginRoomSession = async (
     room: RoomCard,
@@ -296,16 +266,6 @@ const NuestrasSalasPage = () => {
       toast.info("Esta sala no está en línea en este momento.");
       return;
     }
-    const requiresTicket =
-      linkedStream?.privacy_mode === "privado_ticket" && Number.isFinite(linkedStream.ticket_price) && Number(linkedStream.ticket_price) > 0;
-    if (requiresTicket) {
-      setPremiumModalRoom({
-        ...room,
-        isPremium: true,
-        priceUsd: Number(linkedStream?.ticket_price ?? room.priceUsd),
-      });
-      return;
-    }
     beginRoomSession(room, linkedStream, { fromSalaCard: true });
   };
 
@@ -344,8 +304,6 @@ const NuestrasSalasPage = () => {
               {creatorRooms.map((room, index) => {
                 const linkedStream = getRoomActiveStream(room, activeStreams);
                 const online = Boolean(linkedStream?.is_live);
-                const unlocked = isRoomUnlocked(room);
-
                 return (
                   <motion.div
                     key={room.id}
@@ -396,49 +354,16 @@ const NuestrasSalasPage = () => {
                         {online ? "EN LÍNEA" : "OFFLINE"}
                       </span>
                     </div>
-                    <p className={`mb-1 ${salaRoomDesc}`}>{room.description}</p>
-                    <div className="mb-3 sm:mb-4">
-                      <span
-                        className={`inline-block border backdrop-blur-md ${salaRoomPriceBadge} ${
-                          room.priceUsd === 0
-                            ? "border-emerald-300/55 bg-emerald-500/15 text-emerald-100 shadow-[0_0_18px_-6px_rgba(52,211,153,0.85)]"
-                            : "border-emerald-400/50 bg-white/10 text-white shadow-[0_0_22px_-8px_rgba(110,231,183,0.9)]"
-                        }`}
-                      >
-                        {formatStorePrice(room.priceUsd)}
-                      </span>
-                    </div>
-                    {unlocked ? (
-                      <Button
-                        type="button"
-                        variant="heroOutline"
-                        className={salaRoomPrimaryBtn}
-                        onClick={() => handleRoomAccess(room, online)}
-                      >
-                        <Mic2 className={salaRoomCtaIcon} />
-                        {linkedStream?.privacy_mode === "privado_ticket" ? "Ver acceso premium" : "Reproducir Video"}
-                      </Button>
-                    ) : (
-                      <PayPalSmartButton
-                        priceUsd={room.priceUsd}
-                        description={`OnniVers — Sala — ${room.name}`.slice(0, 120)}
-                        eventId={`sala:${room.id}`}
-                        vaultType="ticket"
-                        vaultTitle={room.name}
-                        vaultThumbnailUrl={room.image}
-                        notifySource="sala"
-                        productCategoryId="sala"
-                        productCategoryLabel="Sala"
-                        productTitle={room.name}
-                        onPurchaseComplete={() => {
-                          setSessionPurchases((prev) => {
-                            const next = new Set(prev);
-                            next.add(room.id);
-                            return next;
-                          });
-                        }}
-                      />
-                    )}
+                    <p className={`mb-3 sm:mb-4 ${salaRoomDesc}`}>{room.description}</p>
+                    <Button
+                      type="button"
+                      variant="heroOutline"
+                      className={salaRoomPrimaryBtn}
+                      onClick={() => handleRoomAccess(room, online)}
+                    >
+                      <Mic2 className={salaRoomCtaIcon} />
+                      Reproducir Video
+                    </Button>
                     </article>
                   </motion.div>
                 );
@@ -452,56 +377,6 @@ const NuestrasSalasPage = () => {
       <Footer />
 
       {salaChoiceDialog}
-
-      <AnimatePresence>
-        {premiumModalRoom && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ y: 18, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 12, opacity: 0 }}
-              className="w-full max-w-md rounded-2xl border border-amber-300/55 bg-card/95 p-5 shadow-[0_0_60px_-18px_rgba(250,204,21,0.95)]"
-            >
-              <h3 className="font-display text-xl font-bold text-foreground">Acceso Premium</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Este evento requiere validación de pago para entrar a la sala.
-              </p>
-              <div className="mt-3 rounded-lg border border-amber-300/45 bg-amber-300/10 p-3">
-                <p className="text-sm font-semibold text-foreground">{premiumModalRoom.name}</p>
-                <p className="text-xs text-amber-200">Total: ${premiumModalRoom.priceUsd.toFixed(2)} USD</p>
-              </div>
-              <PayPalSmartButton
-                priceUsd={premiumModalRoom.priceUsd}
-                description={`Acceso Premium - ${premiumModalRoom.name}`.slice(0, 120)}
-                eventId={`sala-premium:${premiumModalRoom.id}`}
-                vaultType="ticket"
-                vaultTitle={premiumModalRoom.name}
-                vaultThumbnailUrl={premiumModalRoom.image}
-                notifySource="sala"
-                productCategoryId="sala"
-                productCategoryLabel="Sala Premium"
-                productTitle={premiumModalRoom.name}
-                onPurchaseComplete={() => {
-                  const selectedRoom = premiumModalRoom;
-                  setPremiumModalRoom(null);
-                  const linkedStream = getRoomActiveStream(selectedRoom, activeStreams);
-                  beginRoomSession(selectedRoom, linkedStream, { fromSalaCard: true });
-                }}
-              />
-              <div className="mt-3 flex justify-end">
-                <Button type="button" variant="outline" onClick={() => setPremiumModalRoom(null)}>
-                  Cancelar
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {loadingRoomId && (

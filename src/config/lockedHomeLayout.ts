@@ -8,6 +8,9 @@ export const LOCKED_HOME_LAYOUT_VERSION = "2026-05-18-v1" as const;
 
 export const LOCKED_CENTRAL_SPHERE_RADIUS = 0.925;
 
+/** Tierra + Luna en móvil: 30 % más pequeñas que en desktop. */
+export const LOCKED_EARTH_MOBILE_SCALE = 0.7;
+
 /** Y de la esfera terrestre (independiente del punto de mira de la cámara). */
 export const LOCKED_EARTH_SCENE_Y = {
   desktop: -LOCKED_CENTRAL_SPHERE_RADIUS * 7.02,

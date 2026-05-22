@@ -38,6 +38,7 @@ import {
   LOCKED_CAMERA_ORBIT_TARGET_Y,
   LOCKED_CAMERA_POSITION,
   LOCKED_CENTRAL_SPHERE_RADIUS,
+  LOCKED_EARTH_MOBILE_SCALE,
   LOCKED_EARTH_SCENE_Y,
   LOCKED_MOON,
   LOCKED_PROFILE_CARD_WRAPPER_CLASS,
@@ -337,10 +338,12 @@ function EarthViewController({
 /** Pivote Tierra+Luna con arrastre R3F y contexto para distinguir tap vs drag. */
 function EarthMoonPivot({
   earthSceneY,
+  scale,
   children,
   enabled,
 }: {
   earthSceneY: number;
+  scale: number;
   children: ReactNode;
   enabled: boolean;
 }) {
@@ -350,7 +353,7 @@ function EarthMoonPivot({
 
   return (
     <EarthSceneInteractionContext.Provider value={interactionValue}>
-      <group ref={pivotRef} position={[0, earthSceneY, 0]}>
+      <group ref={pivotRef} position={[0, earthSceneY, 0]} scale={[scale, scale, scale]}>
         {children}
         <EarthMoonDragHitShell />
       </group>
@@ -705,6 +708,7 @@ const MiMundoVRSection = ({
   const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
   const isNarrowViewport = useIsMobile();
   const earthSceneY = isNarrowViewport ? LOCKED_EARTH_SCENE_Y.mobile : LOCKED_EARTH_SCENE_Y.desktop;
+  const earthMoonScale = isNarrowViewport ? LOCKED_EARTH_MOBILE_SCALE : 1;
   const cameraPosition = isMobileCoarse
     ? ([...LOCKED_CAMERA_POSITION.mobile] as [number, number, number])
     : ([...LOCKED_CAMERA_POSITION.desktop] as [number, number, number]);
@@ -801,7 +805,7 @@ const MiMundoVRSection = ({
               </>
             ))}
 
-          <EarthMoonPivot earthSceneY={earthSceneY} enabled={!vrStereoActive}>
+          <EarthMoonPivot earthSceneY={earthSceneY} scale={earthMoonScale} enabled={!vrStereoActive}>
             <Suspense fallback={null}>
               <CentralEarth
                 simpleGpu={isMobileCoarse || vrStereoActive}
