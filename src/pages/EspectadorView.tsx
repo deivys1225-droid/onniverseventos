@@ -1,20 +1,16 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
-import { MonitorPlay, Scan, Video } from "lucide-react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { MuxHlsPlayer } from "@/components/streaming/LivepeerHlsPlayer";
 import { podcastStreamers } from "@/data/podcastStreamers";
-import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { NativePlaybackRouteGuard } from "@/components/NativePlaybackRouteGuard";
 import { isNativeAndroid, shouldUseWebLivePlayer } from "@/lib/nativePlayback";
-import { invokeOpenStreamDirect, resolveMuxM3u8FromPlayback } from "@/lib/liveStreamOpenDirect";
 import {
   audienceStreamSessionKey,
   isStreamPlaybackUrl,
   muxPlaybackIdToHlsUrl,
-  resolveCurrentTransmissionUrl,
   resolveLiveTransmissionUrl,
   resolvePlaybackIdFromActiveStreamRow,
 } from "@/lib/audiencePlayback";
@@ -35,9 +31,6 @@ function podcastIdFromChannel(channelName: string): string | null {
 }
 
 type AudienceSceneKey = "split" | "immersive" | "mix";
-
-const AUDIENCE_NATIVE_BTN_BASE =
-  "group flex min-h-[52px] min-w-[6.5rem] max-w-[11rem] flex-1 flex-col items-center justify-center gap-1.5 rounded-xl border bg-black/35 px-2 py-3 text-center shadow-[0_0_28px_-12px_rgba(34,211,238,0.45)] transition hover:bg-black/50 sm:flex-row sm:gap-2 sm:py-3.5 touch-manipulation";
 
 function tryAndroidNativeSceneSelector(preferred: AudienceSceneKey): boolean {
   if (Capacitor.getPlatform() !== "android") return false;
@@ -71,16 +64,6 @@ const EspectadorView = () => {
   const useVodMode = forcedMode === "vod" && fallbackMp4.length > 0;
   const useWebMuxPlayer = shouldUseWebLivePlayer();
   const blockWebLiveOnAndroid = isNativeAndroid() && !useVodMode;
-
-  const nativeBridgeMp4Url = useMemo(() => {
-    if (useVodMode && fallbackMp4) return fallbackMp4;
-    const prefix = "al-universo-";
-    const n = channelName.trim().toLowerCase();
-    if (!n.startsWith(prefix)) return "";
-    const roomId = n.slice(prefix.length);
-    if (!roomId) return "";
-    return SALA_MP4_URL_BY_ID[roomId] ?? "";
-  }, [useVodMode, fallbackMp4, channelName]);
 
   const [activeStreamRow, setActiveStreamRow] = useState<ActiveStreamRow | null>(null);
   const [loadingPlayback, setLoadingPlayback] = useState(!useVodMode);
@@ -227,30 +210,6 @@ const EspectadorView = () => {
     };
   }, [useWebMuxPlayer]);
 
-  const openNativeWithHls = useCallback(
-    (action: "OPEN_STREAM" | "OPEN_STREAM_CAM") => {
-      const hls =
-        resolveCurrentTransmissionUrl({
-          streamParam: effectiveStreamParam || playbackUrl,
-          mp4Param: nativeBridgeMp4Url,
-        }) ?? playbackUrl;
-
-      if (!hls || !isStreamPlaybackUrl(hls)) {
-        toast.info("Conecta primero a una transmisión Mux en vivo.");
-        return;
-      }
-
-      const m3u8Url =
-        hls.includes(".m3u8") ? hls : resolveMuxM3u8FromPlayback(hls, playbackId ?? "");
-      if (!m3u8Url) {
-        toast.error("Falta URL .m3u8 de Mux.");
-        return;
-      }
-      invokeOpenStreamDirect(m3u8Url, action);
-    },
-    [effectiveStreamParam, playbackUrl, nativeBridgeMp4Url, playbackId],
-  );
-
   if (blockWebLiveOnAndroid) {
     return (
       <div className="relative min-h-screen bg-background">
@@ -297,7 +256,7 @@ const EspectadorView = () => {
                 <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border border-cyan-300/45 bg-black/50 p-6 text-center text-sm text-muted-foreground">
                   <p className="font-semibold text-cyan-50">Reproducción nativa (Android)</p>
                   <p className="max-w-md text-xs">
-                    El live Mux se entrega al puente nativo. Usa los botones 360° / VR / MT debajo.
+                    Abre la sala desde Nuestras salas y elige pantalla dividida, mixta o escena 360.
                   </p>
                 </div>
               ) : playbackId ? (
@@ -320,53 +279,6 @@ const EspectadorView = () => {
               <Button type="button" variant="outline" onClick={() => navigate("/nuestras-salas")}>
                 Salir de la Sala
               </Button>
-            </div>
-
-            <div
-              className="mt-4 flex flex-wrap items-stretch justify-center gap-2 sm:gap-3"
-              role="toolbar"
-              aria-label="Modos inmersivos de la sala"
-            >
-              <button
-                type="button"
-                title="Cine Live — pantalla dividida VR"
-                onClick={() => openNativeWithHls("OPEN_STREAM")}
-                className={`${AUDIENCE_NATIVE_BTN_BASE} border-cyan-400/45 text-cyan-50 hover:border-cyan-300/85`}
-              >
-                <MonitorPlay className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
-                <span className="text-xs font-semibold tracking-wide sm:text-sm">Cine Live</span>
-              </button>
-              <button
-                type="button"
-                title="Live Cam — pantalla mixta AR con cámara"
-                onClick={() => openNativeWithHls("OPEN_STREAM_CAM")}
-                className={`${AUDIENCE_NATIVE_BTN_BASE} border-violet-400/45 text-violet-100 hover:border-violet-300/85`}
-              >
-                <Video className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
-                <span className="text-xs font-semibold tracking-wide sm:text-sm">Live Cam</span>
-              </button>
-              <button
-                type="button"
-                title="Realidad aumentada (AR)"
-                onClick={() => {
-                  if (typeof window.Android?.onArClick === "function") {
-                    const url = nativeBridgeMp4Url.trim();
-                    if (url) {
-                      window.Android.onArClick(url);
-                    } else {
-                      window.Android.onArClick();
-                    }
-                    return;
-                  }
-                  if (useWebMuxPlayer) {
-                    navigate("/go/ar");
-                  }
-                }}
-                className={`${AUDIENCE_NATIVE_BTN_BASE} border-amber-400/45 text-amber-50 hover:border-amber-300/85`}
-              >
-                <Scan className="h-5 w-5 shrink-0 opacity-90 transition group-hover:scale-105" aria-hidden />
-                <span className="text-xs font-semibold tracking-wide sm:text-sm">AR</span>
-              </button>
             </div>
 
             {error && (

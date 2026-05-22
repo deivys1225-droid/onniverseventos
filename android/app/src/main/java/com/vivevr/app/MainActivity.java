@@ -503,6 +503,37 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
+     * Tarjeta de sala: URL .m3u8 o .mp4 + acción → {@link PlayerActivity} sin SelectorActivity.
+     * {@code OPEN_SALA_DIVIDIDA} → split. {@code OPEN_SALA_MIXTA} → mix. {@code OPEN_SALA_360} →
+     * immersive.
+     */
+    @JavascriptInterface
+    public void openSalaDirect(String salaUrl, String action) {
+      activity.runOnUiThread(
+          () -> {
+            String url = salaUrl != null ? salaUrl.trim() : "";
+            String lower = url.toLowerCase(Locale.ROOT);
+            boolean isHls = lower.contains(".m3u8");
+            boolean isMp4 = lower.contains(".mp4");
+            if (!StreamUrlResolver.isPlayableHttpUrl(url) || (!isHls && !isMp4)) {
+              Toast.makeText(activity, "URL de sala inválida (.m3u8 o .mp4).", Toast.LENGTH_SHORT).show();
+              return;
+            }
+            String id = isHls ? StreamUrlResolver.extractMuxPlaybackIdFromHls(url) : "";
+            String act = action != null ? action.trim().toUpperCase(Locale.ROOT) : "";
+            String scene;
+            if ("OPEN_SALA_MIXTA".equals(act)) {
+              scene = "mix";
+            } else if ("OPEN_SALA_360".equals(act)) {
+              scene = "immersive";
+            } else {
+              scene = "split";
+            }
+            activity.openStreamPlayerDirect(url, id, scene);
+          });
+    }
+
+    /**
      * Galería 3D: URL .glb + {@code OPEN_MODEL_3D} (visor dual VR) o {@code OPEN_MODEL_INMERSIVO}.
      */
     @JavascriptInterface

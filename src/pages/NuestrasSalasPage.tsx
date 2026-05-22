@@ -13,7 +13,7 @@ import {
   resolvePlaybackIdFromActiveStreamRow,
 } from "@/lib/audiencePlayback";
 import { muxPlaybackIdFromHlsUrl } from "@/lib/muxPlaybackId";
-import { handoffAudienceLiveCardOnAndroid } from "@/lib/liveStreamOpenDirect";
+import { handoffSalaCardOnAndroid } from "@/lib/salaOpenDirect";
 import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import PayPalSmartButton from "@/components/PayPalSmartButton";
 import { toast } from "sonner";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { useAuth } from "@/hooks/useAuth";
-import { useLiveStreamChoiceModal } from "@/hooks/useLiveStreamChoiceModal";
+import { useSalaChoiceModal } from "@/hooks/useSalaChoiceModal";
 import { formatStorePrice, salaVideoPriceUsd } from "@/lib/pricing";
 import { hasVaultPurchase } from "@/lib/vaultItems";
 import {
@@ -136,7 +136,7 @@ const NuestrasSalasPage = () => {
   const [premiumModalRoom, setPremiumModalRoom] = useState<RoomCard | null>(null);
   const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
   const [sessionPurchases, setSessionPurchases] = useState<Set<string>>(() => new Set());
-  const { requestChoice, dialog: liveStreamChoiceDialog } = useLiveStreamChoiceModal();
+  const { requestSalaChoice, dialog: salaChoiceDialog } = useSalaChoiceModal();
 
   useEffect(() => {
     const loadData = async () => {
@@ -216,10 +216,10 @@ const NuestrasSalasPage = () => {
   const beginRoomSession = async (
     room: RoomCard,
     activeStream?: ActiveStreamRow | null,
-    options?: { audienceTappedLive?: boolean },
+    options?: { fromSalaCard?: boolean },
   ) => {
-    const audienceTappedLive = Boolean(options?.audienceTappedLive);
-    const useLoadingOverlay = !audienceTappedLive;
+    const fromSalaCard = Boolean(options?.fromSalaCard);
+    const useLoadingOverlay = !fromSalaCard;
     if (useLoadingOverlay) setLoadingRoomId(room.id);
     try {
       const streamUrlCandidate = activeStream?.stream_url?.trim() || "";
@@ -229,9 +229,7 @@ const NuestrasSalasPage = () => {
         playbackUrlCandidate && !isStreamPlaybackUrl(playbackUrlCandidate) ? playbackUrlCandidate : "";
       const resolvedTitle = activeStream?.title?.trim() || room.name;
 
-      if (
-        handoffAudienceLiveCardOnAndroid(activeStream, resolvedTitle, requestChoice, audienceTappedLive)
-      ) {
+      if (handoffSalaCardOnAndroid(room, activeStream, resolvedTitle, requestSalaChoice)) {
         return;
       }
 
@@ -291,7 +289,7 @@ const NuestrasSalasPage = () => {
   const handleRoomAccess = (room: RoomCard, online: boolean) => {
     const linkedStream = getRoomActiveStream(room, activeStreams);
     if (!online && room.mp4Url) {
-      beginRoomSession(room, linkedStream);
+      beginRoomSession(room, linkedStream, { fromSalaCard: true });
       return;
     }
     if (!online) {
@@ -308,7 +306,7 @@ const NuestrasSalasPage = () => {
       });
       return;
     }
-    beginRoomSession(room, linkedStream, { audienceTappedLive: true });
+    beginRoomSession(room, linkedStream, { fromSalaCard: true });
   };
 
   return (
@@ -453,7 +451,7 @@ const NuestrasSalasPage = () => {
 
       <Footer />
 
-      {liveStreamChoiceDialog}
+      {salaChoiceDialog}
 
       <AnimatePresence>
         {premiumModalRoom && (
@@ -492,7 +490,7 @@ const NuestrasSalasPage = () => {
                   const selectedRoom = premiumModalRoom;
                   setPremiumModalRoom(null);
                   const linkedStream = getRoomActiveStream(selectedRoom, activeStreams);
-                  beginRoomSession(selectedRoom, linkedStream, { audienceTappedLive: true });
+                  beginRoomSession(selectedRoom, linkedStream, { fromSalaCard: true });
                 }}
               />
               <div className="mt-3 flex justify-end">
