@@ -12,9 +12,19 @@ import {
   salaRoomPrimaryBtn,
   salaRoomTitle,
 } from "@/components/salas/salaRoomCardStyles";
+import { useModel3DChoiceModal } from "@/hooks/useModel3DChoiceModal";
 import { GALERIA_3D_MODELS, openImmersiveModel, type Galeria3DModel } from "@/lib/galeria3dModels";
+import { shouldHandoffModel3DOnAndroid } from "@/lib/model3dOpenDirect";
 
-function ModelCard({ model, index }: { model: Galeria3DModel; index: number }) {
+function ModelCard({
+  model,
+  index,
+  onOpenModel,
+}: {
+  model: Galeria3DModel;
+  index: number;
+  onOpenModel: (model: Galeria3DModel) => void;
+}) {
   return (
     <motion.article
       initial={{ opacity: 0, y: 24 }}
@@ -72,7 +82,7 @@ function ModelCard({ model, index }: { model: Galeria3DModel; index: number }) {
         variant="heroOutline"
         size="sm"
         className={`mt-3 touch-manipulation sm:mt-4 ${salaRoomPrimaryBtn}`}
-        onClick={() => openImmersiveModel(model.modelUrl, model.title)}
+        onClick={() => onOpenModel(model)}
       >
         Ver en 3D
       </Button>
@@ -81,11 +91,22 @@ function ModelCard({ model, index }: { model: Galeria3DModel; index: number }) {
 }
 
 export default function Galeria3DModelsGrid() {
+  const { requestModelChoice, dialog } = useModel3DChoiceModal();
+
+  const handleOpenModel = (model: Galeria3DModel) => {
+    if (requestModelChoice(model)) return;
+    if (shouldHandoffModel3DOnAndroid(model.modelUrl)) return;
+    openImmersiveModel(model.modelUrl, model.title);
+  };
+
   return (
-    <motion.div className={salaRoomGrid3ColClass}>
-      {GALERIA_3D_MODELS.map((model, index) => (
-        <ModelCard key={model.id} model={model} index={index} />
-      ))}
-    </motion.div>
+    <>
+      {dialog}
+      <motion.div className={salaRoomGrid3ColClass}>
+        {GALERIA_3D_MODELS.map((model, index) => (
+          <ModelCard key={model.id} model={model} index={index} onOpenModel={handleOpenModel} />
+        ))}
+      </motion.div>
+    </>
   );
 }

@@ -15,6 +15,8 @@ declare global {
       onMtClick?: (mp4Url?: string) => void;
       /** URL .m3u8 Mux + OPEN_STREAM | OPEN_STREAM_CAM */
       openStreamDirect?: (m3u8Url: string, action: string) => void;
+      /** URL .glb + OPEN_MODEL_3D | OPEN_MODEL_INMERSIVO */
+      openModelDirect?: (modelUrl: string, action: string) => void;
     };
     /** Puente AR: registrado en MainActivity como {@code Android}. */
     Android?: {

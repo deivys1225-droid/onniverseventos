@@ -165,6 +165,41 @@ public class MainActivity extends BridgeActivity {
    * Tarjeta EN VIVO ({@code openStreamDirect}): URL .m3u8 → {@link PlayerActivity} sin pasar por
    * la UI de {@link SelectorActivity}.
    */
+  /** Extras Galería 3D → actividades nativas de visor (.glb). */
+  public static final String EXTRA_MODEL_URL = "modelUrl";
+  public static final String EXTRA_MODEL_ACTION = "modelAction";
+
+  /**
+   * Puente Galería 3D ({@link AndroidBridge#openModelDirect}). OPEN_MODEL_3D = visor dual VR;
+   * OPEN_MODEL_INMERSIVO = visor inmersivo.
+   */
+  private void deliverModelDirectToNative(String modelUrl, String action) {
+    String url = modelUrl != null ? modelUrl.trim() : "";
+    if (!StreamUrlResolver.isPlayableHttpUrl(url) || !url.toLowerCase(Locale.ROOT).contains(".glb")) {
+      Toast.makeText(this, "URL .glb inválida.", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    String act = action != null ? action.trim().toUpperCase(Locale.ROOT) : "";
+    String activityClass =
+        "OPEN_MODEL_INMERSIVO".equals(act)
+            ? "com.vivevr.app.ModelImmersiveActivity"
+            : "com.vivevr.app.ModelDualVrActivity";
+    try {
+      Intent intent = new Intent();
+      intent.setClassName(getPackageName(), activityClass);
+      intent.putExtra(EXTRA_MODEL_URL, url);
+      intent.putExtra(EXTRA_MODEL_ACTION, act);
+      intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+      startActivity(intent);
+    } catch (Exception e) {
+      Toast.makeText(
+              this,
+              "Visor 3D nativo no disponible en esta compilación.",
+              Toast.LENGTH_LONG)
+          .show();
+    }
+  }
+
   private void openStreamPlayerDirect(String playbackUrl, String playbackId, String preferredScene) {
     String url = playbackUrl != null ? playbackUrl.trim() : "";
     String id = playbackId != null ? playbackId.trim() : "";
@@ -465,6 +500,14 @@ public class MainActivity extends BridgeActivity {
             String scene = "OPEN_STREAM_CAM".equals(act) ? "mix" : "split";
             activity.openStreamPlayerDirect(url, id, scene);
           });
+    }
+
+    /**
+     * Galería 3D: URL .glb + {@code OPEN_MODEL_3D} (visor dual VR) o {@code OPEN_MODEL_INMERSIVO}.
+     */
+    @JavascriptInterface
+    public void openModelDirect(String modelUrl, String action) {
+      activity.runOnUiThread(() -> activity.deliverModelDirectToNative(modelUrl, action));
     }
   }
 
