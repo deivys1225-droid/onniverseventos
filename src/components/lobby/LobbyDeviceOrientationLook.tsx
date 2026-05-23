@@ -1,12 +1,15 @@
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Quaternion } from "three";
+import { MathUtils, Quaternion } from "three";
 import {
   applyDeviceOrientationToCamera,
   readScreenOrientationDeg,
 } from "@/lib/deviceOrientationCamera";
 
-const HEAD_SMOOTHING_RATE_HZ = 10;
+/** Más bajo = menos temblor en reposo; un poco más de inercia al girar. */
+const HEAD_SMOOTHING_RATE_HZ = 6;
+/** Ignora microcambios del sensor cuando el teléfono está casi quieto. */
+const ORIENTATION_DEADZONE_RAD = MathUtils.degToRad(0.45);
 
 type LobbyDeviceOrientationLookProps = {
   enabled: boolean;
@@ -18,7 +21,8 @@ type LobbyDeviceOrientationLookProps = {
 export default function LobbyDeviceOrientationLook({ enabled }: LobbyDeviceOrientationLookProps) {
   const { camera } = useThree();
   const orientationRef = useRef<DeviceOrientationEvent | null>(null);
-  const targetQuatRef = useRef(new Quaternion());
+  const rawTargetQuatRef = useRef(new Quaternion());
+  const stableTargetQuatRef = useRef(new Quaternion());
   const isFirstFrameRef = useRef(true);
 
   useEffect(() => {
@@ -48,7 +52,7 @@ export default function LobbyDeviceOrientationLook({ enabled }: LobbyDeviceOrien
     if (evt?.alpha == null || evt.beta == null || evt.gamma == null) return;
 
     applyDeviceOrientationToCamera(
-      targetQuatRef.current,
+      rawTargetQuatRef.current,
       evt.alpha,
       evt.beta,
       evt.gamma,
@@ -56,14 +60,19 @@ export default function LobbyDeviceOrientationLook({ enabled }: LobbyDeviceOrien
     );
 
     if (isFirstFrameRef.current) {
-      camera.quaternion.copy(targetQuatRef.current);
+      stableTargetQuatRef.current.copy(rawTargetQuatRef.current);
+      camera.quaternion.copy(stableTargetQuatRef.current);
       isFirstFrameRef.current = false;
-    } else {
-      const factor = 1 - Math.exp(-HEAD_SMOOTHING_RATE_HZ * delta);
-      camera.quaternion.slerp(targetQuatRef.current, factor);
+      return;
     }
 
-    camera.up.set(0, 1, 0);
+    const deltaAngle = stableTargetQuatRef.current.angleTo(rawTargetQuatRef.current);
+    if (deltaAngle >= ORIENTATION_DEADZONE_RAD) {
+      stableTargetQuatRef.current.copy(rawTargetQuatRef.current);
+    }
+
+    const factor = 1 - Math.exp(-HEAD_SMOOTHING_RATE_HZ * delta);
+    camera.quaternion.slerp(stableTargetQuatRef.current, factor);
   });
 
   return null;
