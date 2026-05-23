@@ -31,37 +31,6 @@ export function readScreenOrientationDeg(): number {
   return typeof legacy === "number" ? legacy : 0;
 }
 
-export type LobbyPilotRole = "master" | "slave";
-
-/** Pantalla partida en Android: ?role=master|slave */
-export function parseLobbyPilotRole(search?: string): LobbyPilotRole | null {
-  if (typeof window === "undefined" && search == null) return null;
-  const params = new URLSearchParams(search ?? window.location.search);
-  const role = params.get("role")?.trim().toLowerCase();
-  if (role === "master" || role === "slave") return role;
-  return null;
-}
-
-export function isLobbySplitScreenRole(search?: string): boolean {
-  return parseLobbyPilotRole(search) !== null;
-}
-
-/** Duplica sensibilidad yaw/alpha respecto al primer valor (compensa viewport al 50%). */
-export function amplifyYawAlphaDeg(
-  originAlphaDeg: number,
-  currentAlphaDeg: number,
-  sensitivity: number,
-): number {
-  if (sensitivity === 1) return currentAlphaDeg;
-  let delta = currentAlphaDeg - originAlphaDeg;
-  while (delta > 180) delta -= 360;
-  while (delta < -180) delta += 360;
-  let amplified = originAlphaDeg + delta * sensitivity;
-  while (amplified >= 360) amplified -= 360;
-  while (amplified < 0) amplified += 360;
-  return amplified;
-}
-
 type DeviceOrientationEventCtor = typeof DeviceOrientationEvent & {
   requestPermission?: () => Promise<"granted" | "denied">;
 };
