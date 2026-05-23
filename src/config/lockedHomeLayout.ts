@@ -8,13 +8,14 @@ export const LOCKED_HOME_LAYOUT_VERSION = "2026-05-18-v1" as const;
 
 export const LOCKED_CENTRAL_SPHERE_RADIUS = 0.925;
 
-/** Tierra + Luna en móvil: 30 % más pequeñas que en desktop. */
-export const LOCKED_EARTH_MOBILE_SCALE = 0.7;
+/** Tierra + Luna en móvil: escala base 0.7; −10 % adicional → 0.63 vs desktop. */
+export const LOCKED_EARTH_MOBILE_SCALE = 0.63;
 
 /** Y de la esfera terrestre (independiente del punto de mira de la cámara). */
 export const LOCKED_EARTH_SCENE_Y = {
   desktop: -LOCKED_CENTRAL_SPHERE_RADIUS * 7.02,
-  mobile: -LOCKED_CENTRAL_SPHERE_RADIUS * 6.02,
+  /** +20 % más arriba que 6.02 (factor × 0.8). */
+  mobile: -LOCKED_CENTRAL_SPHERE_RADIUS * 4.816,
 } as const;
 
 /** Punto de mira de la cámara (fijo; no acoplar al offset de la Tierra). */
