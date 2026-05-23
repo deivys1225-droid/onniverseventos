@@ -11,14 +11,14 @@ import {
   type RefObject,
 } from "react";
 import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
-import { Capacitor } from "@capacitor/core";
 import * as THREE from "three";
 import { useNavigate } from "react-router-dom";
 import {
   LOBBY_IMMERSIVE_PATH,
   LOBBY_OPEN_TRANSITION_MS,
-  openLobbyImmersiveOnAndroid,
+  shouldUseWebLobbyRoute,
 } from "@/lib/lobbyImmersive";
+import { invokeOpenLobbyDirect } from "@/lib/lobbyOpenDirect";
 import {
   getRoomMode,
   type MiMundoEnvironmentId,
@@ -731,10 +731,11 @@ const MiMundoVRSection = ({
   );
   const handleLobbyOpen = () => {
     if (lobbyOpening || vrStereoActive) return;
-    if (Capacitor.getPlatform() === "android") {
-      openLobbyImmersiveOnAndroid();
-      return;
-    }
+
+    // APK: puente nativo primero; NUNCA navegar si existe AndroidBridge/Android.
+    if (invokeOpenLobbyDirect()) return;
+    if (!shouldUseWebLobbyRoute()) return;
+
     setLobbyOpening(true);
     window.setTimeout(() => {
       navigate(LOBBY_IMMERSIVE_PATH);
