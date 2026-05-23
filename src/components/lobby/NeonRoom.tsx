@@ -17,7 +17,13 @@ import MobileLobbyMovePad, {
 import VirtualCursorLook from "@/components/lobby/VirtualCursorLook";
 import LobbyDeviceOrientationLook from "@/components/lobby/LobbyDeviceOrientationLook";
 import LobbyGyroToggleButton from "@/components/lobby/LobbyGyroToggleButton";
+import LobbyNativeRotationBridge from "@/components/lobby/LobbyNativeRotationBridge";
 import { requestDeviceOrientationPermission } from "@/lib/deviceOrientationCamera";
+import {
+  parseLobbyPilotRole,
+  registerNativeRotationGlobal,
+  unregisterNativeRotationGlobal,
+} from "@/lib/lobbyNativePilot";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
 import { LobbyScreenThreeSalasPlayer } from "@/components/lobby/LobbyScreenThreeSalasPlayer";
 
@@ -1083,6 +1089,8 @@ function MobileTouchLook({ enabled }: { enabled: boolean }) {
 export default function NeonRoom() {
   const navigate = useNavigate();
   const isMobileTouch = useMemo(() => isMobileCoarseDevice(), []);
+  const nativePilotRole = useMemo(() => parseLobbyPilotRole(), []);
+  const useNativePilot = nativePilotRole !== null;
   const mobileMoveInput = useRef(createMobileMoveInput());
   const [locked, setLocked] = useState(false);
   const [escapeBarVisible, setEscapeBarVisible] = useState(true);
@@ -1134,6 +1142,14 @@ export default function NeonRoom() {
   useEffect(() => {
     escapeBarVisibleRef.current = escapeBarVisible;
   }, [escapeBarVisible]);
+
+  useEffect(() => {
+    if (!useNativePilot) return;
+    setGyroLookEnabled(false);
+    setGyroError(null);
+    registerNativeRotationGlobal();
+    return () => unregisterNativeRotationGlobal();
+  }, [useNativePilot]);
 
   useEffect(() => {
     return () => {
@@ -1305,8 +1321,10 @@ export default function NeonRoom() {
   }, []);
 
   const mixedRealityActive = mixedRealityEnabled;
-  const gyroLookActive = gyroLookEnabled && focusedScreen === null;
-  const virtualCursorLookActive = isMobileTouch && focusedScreen === null && !gyroLookEnabled;
+  const gyroLookActive = !useNativePilot && gyroLookEnabled && focusedScreen === null;
+  const nativeRotationActive = useNativePilot && focusedScreen === null;
+  const virtualCursorLookActive =
+    isMobileTouch && focusedScreen === null && !gyroLookEnabled && !useNativePilot;
 
   return (
     <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : "bg-black"}`}>
@@ -1427,6 +1445,7 @@ export default function NeonRoom() {
 
         <EarthMoonAnchor />
         <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
+        <LobbyNativeRotationBridge enabled={nativeRotationActive} />
         <LobbyDeviceOrientationLook enabled={gyroLookActive} />
         <VirtualCursorLook enabled={virtualCursorLookActive} />
 
@@ -1446,7 +1465,7 @@ export default function NeonRoom() {
         inputRef={mobileMoveInput}
       />
 
-      {isMobileTouch && (
+      {isMobileTouch && !useNativePilot && (
         <LobbyGyroToggleButton
           active={gyroLookEnabled}
           onActivate={() => void activateGyroLook()}

@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { label: "SALAS", path: "/nuestras-salas" },
   { label: "COMUNIDAD", path: "/comunidad" },
   { label: "3D", path: "/3d" },
+  { label: "REPRODUCTOR GALERIA", path: "/reproductor-galeria" },
   { label: "TIENDA", path: "/tienda" },
   { label: "QUIENES SOMOS", path: "/quienes-somos" },
 ] as const;

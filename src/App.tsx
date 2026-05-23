@@ -25,6 +25,7 @@ import InicioPage from "./pages/InicioPage.tsx";
 import NuestrasSalasPage from "./pages/NuestrasSalasPage.tsx";
 import ComunidadPage from "./pages/ComunidadPage.tsx";
 import Galeria3DPage from "./pages/Galeria3DPage.tsx";
+import ReproductorGaleriaPage from "./pages/ReproductorGaleriaPage.tsx";
 import EducacionPage from "./pages/EducacionPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import PrivacidadPage from "./pages/PrivacidadPage.tsx";
@@ -187,6 +188,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <Galeria3DPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/reproductor-galeria"
+              element={
+                <PrivateRoute>
+                  <ReproductorGaleriaPage />
                 </PrivateRoute>
               }
             />
