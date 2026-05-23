@@ -476,6 +476,12 @@ function useEarthTapPointerDown(
     (event: ThreeEvent<PointerEvent>) => {
       if (vrStereo || !onOpenLobby) return;
 
+      event.stopPropagation();
+      const native = event.nativeEvent;
+      if (typeof native.preventDefault === "function") {
+        native.preventDefault();
+      }
+
       const prev = activePointerEndRef.current;
       if (prev) {
         window.removeEventListener("pointerup", prev);
@@ -483,7 +489,6 @@ function useEarthTapPointerDown(
         activePointerEndRef.current = null;
       }
 
-      const native = event.nativeEvent;
       const pointerId = native.pointerId;
       const x0 = native.clientX;
       const y0 = native.clientY;
@@ -500,6 +505,9 @@ function useEarthTapPointerDown(
         if (dist > EARTH_TAP_MAX_MOVE_PX || dt > EARTH_TAP_MAX_MS) return;
         if (interaction?.userDraggedRef.current) return;
 
+        if (typeof ev.preventDefault === "function") {
+          ev.preventDefault();
+        }
         onOpenLobby();
       };
 
@@ -723,12 +731,12 @@ const MiMundoVRSection = ({
   );
   const handleLobbyOpen = () => {
     if (lobbyOpening || vrStereoActive) return;
+    if (Capacitor.getPlatform() === "android") {
+      openLobbyImmersiveOnAndroid();
+      return;
+    }
     setLobbyOpening(true);
     window.setTimeout(() => {
-      if (Capacitor.getPlatform() === "android") {
-        openLobbyImmersiveOnAndroid();
-        return;
-      }
       navigate(LOBBY_IMMERSIVE_PATH);
     }, LOBBY_OPEN_TRANSITION_MS);
   };

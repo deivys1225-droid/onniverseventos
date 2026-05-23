@@ -38,6 +38,8 @@ declare global {
       /** Live Cam — payload Agora: appId|canal|token de la sesión activa. */
       abrirCamLive?(agoraPayload: string): void;
       openLobby?(): void;
+      /** Mismo que {@code AndroidBridge.openLobbyDirect} (Tierra / lobby nativo). */
+      openLobbyDirect?: () => void;
       /** Solo lobby Pantalla 2 (TikTok en WebView nativo). */
       showLobbyPantalla2WebView?(): void;
       hideLobbyPantalla2WebView?(): void;

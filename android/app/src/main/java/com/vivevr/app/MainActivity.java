@@ -599,6 +599,12 @@ public class MainActivity extends BridgeActivity {
       activity.runOnUiThread(() -> activity.launchLobbyVrDirect());
     }
 
+    /** Coincide con {@code window.Android.openLobbyDirect()} (Tierra; sin URL). */
+    @JavascriptInterface
+    public void openLobbyDirect() {
+      activity.runOnUiThread(() -> activity.launchLobbyVrDirect());
+    }
+
     /**
      * Lobby Pantalla 2 — muestra el WebView nativo con TikTok (solo Android). El Web oculta el
      * iframe duplicado mientras está enfocado.
