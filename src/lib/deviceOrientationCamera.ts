@@ -31,6 +31,25 @@ export function readScreenOrientationDeg(): number {
   return typeof legacy === "number" ? legacy : 0;
 }
 
+/** Diferencia angular mínima entre dos ángulos en grados (0–360). */
+export function angleDeltaDeg(fromDeg: number, toDeg: number): number {
+  let delta = toDeg - fromDeg;
+  while (delta > 180) delta -= 360;
+  while (delta < -180) delta += 360;
+  return Math.abs(delta);
+}
+
+/** Interpolación exponencial entre ángulos en grados (0–360). */
+export function lerpAngleDeg(fromDeg: number, toDeg: number, t: number): number {
+  let delta = toDeg - fromDeg;
+  while (delta > 180) delta -= 360;
+  while (delta < -180) delta += 360;
+  let result = fromDeg + delta * t;
+  while (result >= 360) result -= 360;
+  while (result < 0) result += 360;
+  return result;
+}
+
 type DeviceOrientationEventCtor = typeof DeviceOrientationEvent & {
   requestPermission?: () => Promise<"granted" | "denied">;
 };

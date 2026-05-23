@@ -1,6 +1,6 @@
-/** Android: abre LobbyVrActivity nativa (doble ventana) sin pasar URL. */
+/** Android: abre Lobby nativo; sin URL (la app conoce la pantalla). */
 export function invokeOpenLobbyDirect(): boolean {
-  if (typeof window.AndroidBridge?.openLobbyDirect === "function") {
+  if (window.AndroidBridge) {
     window.AndroidBridge.openLobbyDirect();
     return true;
   }
