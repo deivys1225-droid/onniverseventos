@@ -7,11 +7,10 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <!--
-      Sensores de movimiento (giroscopio + acelerómetro) para el modo VR
-      estéreo manual del lobby (ManualStereoRenderer en src/components/lobby/VrSession.tsx).
+      Sensores de movimiento (giroscopio + acelerómetro) para mirada con
+      giroscopio en el lobby (LobbyDeviceOrientationLook, viewport único).
       `required="false"` deja entrar al APK aunque el dispositivo no los
-      tenga (en ese caso el modo VR sigue mostrando split-screen pero la
-      cámara no se moverá con la cabeza).
+      tenga (en ese caso el botón GIROSCOPIO no moverá la cámara).
     -->
     <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />

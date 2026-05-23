@@ -15,6 +15,9 @@ import MobileLobbyMovePad, {
   type MobileMoveInput,
 } from "@/components/lobby/MobileLobbyMovePad";
 import VirtualCursorLook from "@/components/lobby/VirtualCursorLook";
+import LobbyDeviceOrientationLook from "@/components/lobby/LobbyDeviceOrientationLook";
+import LobbyGyroToggleButton from "@/components/lobby/LobbyGyroToggleButton";
+import { requestDeviceOrientationPermission } from "@/lib/deviceOrientationCamera";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
 import { LobbyScreenThreeSalasPlayer } from "@/components/lobby/LobbyScreenThreeSalasPlayer";
 
@@ -1088,6 +1091,8 @@ export default function NeonRoom() {
   const [mixedRealityLoading, setMixedRealityLoading] = useState(false);
   const [mixedRealityError, setMixedRealityError] = useState<string | null>(null);
   const mixedRealityStartInFlightRef = useRef(false);
+  const [gyroLookEnabled, setGyroLookEnabled] = useState(false);
+  const [gyroError, setGyroError] = useState<string | null>(null);
   const [screenUrls] = useState<LobbyScreenUrls>(
     () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
   );
@@ -1280,7 +1285,28 @@ export default function NeonRoom() {
     await startMixedReality();
   }, [mixedRealityEnabled, startMixedReality, stopMixedReality]);
 
+  const activateGyroLook = useCallback(async () => {
+    setGyroError(null);
+    const permission = await requestDeviceOrientationPermission();
+    if (permission === "unsupported") {
+      setGyroError("Giroscopio no disponible en este dispositivo.");
+      return;
+    }
+    if (permission === "denied") {
+      setGyroError("Permiso de orientación denegado. Actívalo en Ajustes del navegador.");
+      return;
+    }
+    setGyroLookEnabled(true);
+  }, []);
+
+  const deactivateGyroLook = useCallback(() => {
+    setGyroLookEnabled(false);
+    setGyroError(null);
+  }, []);
+
   const mixedRealityActive = mixedRealityEnabled;
+  const gyroLookActive = gyroLookEnabled && focusedScreen === null;
+  const virtualCursorLookActive = isMobileTouch && focusedScreen === null && !gyroLookEnabled;
 
   return (
     <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : "bg-black"}`}>
@@ -1401,7 +1427,8 @@ export default function NeonRoom() {
 
         <EarthMoonAnchor />
         <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
-        <VirtualCursorLook enabled={isMobileTouch && focusedScreen === null} />
+        <LobbyDeviceOrientationLook enabled={gyroLookActive} />
+        <VirtualCursorLook enabled={virtualCursorLookActive} />
 
         {focusedScreen === null && !isMobileTouch && (
           <PointerLockControls
@@ -1418,6 +1445,15 @@ export default function NeonRoom() {
         enabled={isMobileTouch && focusedScreen === null}
         inputRef={mobileMoveInput}
       />
+
+      {isMobileTouch && (
+        <LobbyGyroToggleButton
+          active={gyroLookEnabled}
+          onActivate={() => void activateGyroLook()}
+          onDeactivate={deactivateGyroLook}
+          errorMessage={gyroError}
+        />
+      )}
 
       {/*
         Barra de avisos inferior ("Pearl Room · WASD mover · ratón mirar")
