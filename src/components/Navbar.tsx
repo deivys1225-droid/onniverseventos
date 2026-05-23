@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
 import { LOCKED_NAVBAR_HEIGHT_CLASS, LOCKED_NAVBAR_MENU_OFFSET_CLASS } from "@/config/lockedHomeLayout";
+import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
 
 const APP_APK_DOWNLOAD_URL =
   "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
@@ -33,6 +34,13 @@ const Navbar = () => {
   };
 
   const closeMenu = () => setIsMenuOpen(false);
+
+  const handleNavItemClick = (path: string, event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (path === "/reproductor-galeria" && invokeOpenGalleryDirect()) {
+      event.preventDefault();
+    }
+    closeMenu();
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 w-full max-w-[100dvw] overflow-x-clip glass">
@@ -106,7 +114,7 @@ const Navbar = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  onClick={closeMenu}
+                  onClick={(event) => handleNavItemClick(item.path, event)}
                   className="flex min-h-[48px] w-full items-center rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-left text-sm font-display font-semibold tracking-wide text-primary transition hover:bg-primary/15"
                 >
                   {item.label}

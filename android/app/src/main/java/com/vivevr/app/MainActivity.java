@@ -89,6 +89,10 @@ public class MainActivity extends BridgeActivity {
    */
   private static final String NATIVE_ACTIVITY_CINE_LIVE = "com.vivevr.app.CineLiveActivity";
   private static final String NATIVE_ACTIVITY_CAM_LIVE = "com.vivevr.app.CamLiveActivity";
+  /** Lobby VR — doble ventana (master/slave); sin URL desde JS. */
+  private static final String NATIVE_ACTIVITY_LOBBY_VR = "com.vivevr.app.LobbyVrActivity";
+  /** Reproductor galería — actividad nativa; sin URL desde JS. */
+  private static final String NATIVE_ACTIVITY_GALLERY = "com.vivevr.app.GalleryActivity";
   private static final String EXTRA_AGORA_PAYLOAD = "agoraPayload";
   private static final String EXTRA_AGORA_APP_ID = "agoraAppId";
   private static final String EXTRA_AGORA_CHANNEL = "agoraChannel";
@@ -376,7 +380,7 @@ public class MainActivity extends BridgeActivity {
               return false;
             }
             if (isLobbyDeepLink(target)) {
-              openLobbyImmersive(view);
+              launchLobbyVrDirect();
               return true;
             }
             if (!isPlaybackTarget(target)) {
@@ -540,6 +544,24 @@ public class MainActivity extends BridgeActivity {
     public void openModelDirect(String modelUrl, String action) {
       activity.runOnUiThread(() -> activity.deliverModelDirectToNative(modelUrl, action));
     }
+
+    /**
+     * Tierra/Luna o acceso al lobby → {@link LobbyVrActivity} (doble ventana). La actividad
+     * nativa ya conoce la URL y la configuración; no se pasa ningún parámetro desde JS.
+     */
+    @JavascriptInterface
+    public void openLobbyDirect() {
+      activity.runOnUiThread(() -> activity.launchLobbyVrDirect());
+    }
+
+    /**
+     * Navbar REPRODUCTOR GALERIA → actividad nativa del reproductor. La app ya conoce la
+     * configuración; no se pasa ningún parámetro desde JS.
+     */
+    @JavascriptInterface
+    public void openGalleryDirect() {
+      activity.runOnUiThread(() -> activity.launchGalleryDirect());
+    }
   }
 
   /**
@@ -574,7 +596,7 @@ public class MainActivity extends BridgeActivity {
     /** Coincide con {@code window.Android.openLobby()} desde el botón Lobby del perfil. */
     @JavascriptInterface
     public void openLobby() {
-      activity.runOnUiThread(() -> activity.openLobbyImmersive(null));
+      activity.runOnUiThread(() -> activity.launchLobbyVrDirect());
     }
 
     /**
@@ -673,6 +695,38 @@ public class MainActivity extends BridgeActivity {
     }
     if (target != null) {
       target.loadUrl(LOBBY_IMMERSIVE_URL);
+    }
+  }
+
+  /** {@link AndroidBridge#openLobbyDirect} — abre LobbyVrActivity sin URL. */
+  private void launchLobbyVrDirect() {
+    try {
+      Intent intent = new Intent();
+      intent.setClassName(getPackageName(), NATIVE_ACTIVITY_LOBBY_VR);
+      intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+      startActivity(intent);
+    } catch (Exception e) {
+      Toast.makeText(
+              this,
+              "Lobby VR nativo no disponible en esta compilación.",
+              Toast.LENGTH_LONG)
+          .show();
+    }
+  }
+
+  /** {@link AndroidBridge#openGalleryDirect} — abre GalleryActivity sin URL. */
+  private void launchGalleryDirect() {
+    try {
+      Intent intent = new Intent();
+      intent.setClassName(getPackageName(), NATIVE_ACTIVITY_GALLERY);
+      intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+      startActivity(intent);
+    } catch (Exception e) {
+      Toast.makeText(
+              this,
+              "Reproductor galería nativo no disponible en esta compilación.",
+              Toast.LENGTH_LONG)
+          .show();
     }
   }
 

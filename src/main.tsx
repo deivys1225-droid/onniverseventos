@@ -19,6 +19,10 @@ declare global {
       openSalaDirect?: (salaUrl: string, action: string) => void;
       /** URL .glb + OPEN_MODEL_3D | OPEN_MODEL_INMERSIVO */
       openModelDirect?: (modelUrl: string, action: string) => void;
+      /** Abre LobbyVrActivity nativa (doble ventana); sin URL. */
+      openLobbyDirect?: () => void;
+      /** Abre reproductor galería nativo; sin URL. */
+      openGalleryDirect?: () => void;
     };
     /** Puente AR: registrado en MainActivity como {@code Android}. */
     Android?: {

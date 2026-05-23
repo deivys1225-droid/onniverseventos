@@ -35,6 +35,13 @@ export default defineConfig(({ mode }) => {
   server: {
     host: "::",
     port: 5173,
+    watch: {
+      ignored: [
+        "**/android/**",
+        "**/ANDROID_LOBBY_TIERRA_LISTO/**",
+        "**/dist-lobby-earth/**",
+      ],
+    },
     hmr: {
       overlay: false,
     },
