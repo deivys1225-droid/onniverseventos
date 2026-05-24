@@ -11,7 +11,10 @@ import {
   MAX_WEBGL_PIXEL_RATIO,
 } from "@/lib/webglRendererPrefs";
 import { useLobbyFinePointer } from "@/lib/useLobbyFinePointer";
-import LobbyMouseButtonControls, { createMouseMoveInput } from "@/components/lobby/LobbyMouseControls";
+import LobbyMouseButtonControls, {
+  createMouseMoveInput,
+  LobbyMobileMouseLook,
+} from "@/components/lobby/LobbyMouseControls";
 import MobileLobbyMovePad, {
   createMobileMoveInput,
   type MobileMoveInput,
@@ -1035,6 +1038,8 @@ export default function NeonRoom() {
   const mixedRealityActive = mixedRealityEnabled;
   const gyroLookActive = gyroLookEnabled && focusedScreen === null;
   const mobileTouchLookActive = isTouchOnlyLobby && focusedScreen === null && !gyroLookEnabled;
+  const usesPointerLock = !isMobileCoarse && usesFinePointer;
+  const mobileMouseLookActive = isMobileCoarse && usesFinePointer && focusedScreen === null;
 
   return (
     <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : "bg-black"}`}>
@@ -1158,8 +1163,9 @@ export default function NeonRoom() {
         />
         <LobbyDeviceOrientationLook enabled={gyroLookActive} recenterToken={gyroRecenterToken} />
         <MobileTouchLook enabled={mobileTouchLookActive} />
+        <LobbyMobileMouseLook enabled={mobileMouseLookActive} />
 
-        {focusedScreen === null && usesFinePointer && (
+        {focusedScreen === null && usesPointerLock && (
           <PointerLockControls
             onLock={() => {
               setLocked(true);
@@ -1200,7 +1206,7 @@ export default function NeonRoom() {
         siguen ahí pero ahora son no-ops visuales).
       */}
 
-      {locked && focusedScreen === null && (
+      {(locked || mobileMouseLookActive) && focusedScreen === null && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference" />
       )}
     </div>

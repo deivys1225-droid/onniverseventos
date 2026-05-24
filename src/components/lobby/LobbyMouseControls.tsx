@@ -1,4 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useThree } from "@react-three/fiber";
+import * as THREE from "three";
 
 /** -1 atrás (clic derecho), 0 quieto, 1 adelante (clic izquierdo). */
 export type MouseMoveInput = {
@@ -152,6 +154,77 @@ export default function LobbyMouseButtonControls({
       window.removeEventListener("blur", onBlur);
     };
   }, [enabled, movementEnabled, inputRef, onEscape]);
+
+  return null;
+}
+
+const MOBILE_MOUSE_LOOK_SENSITIVITY = 0.0045;
+
+/**
+ * Celular/tablet con ratón: el pointer-lock del WebView suele fallar;
+ * giramos la cámara con el movimiento del ratón (como PC con lock activo).
+ */
+export function LobbyMobileMouseLook({ enabled }: { enabled: boolean }) {
+  const { camera } = useThree();
+  const lastPosition = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!enabled) {
+      lastPosition.current = null;
+      return;
+    }
+
+    const applyDelta = (dx: number, dy: number) => {
+      if (dx === 0 && dy === 0) return;
+      camera.rotation.order = "YXZ";
+      camera.rotation.y -= dx * MOBILE_MOUSE_LOOK_SENSITIVITY;
+      camera.rotation.x = THREE.MathUtils.clamp(
+        camera.rotation.x - dy * MOBILE_MOUSE_LOOK_SENSITIVITY,
+        -1.35,
+        1.35,
+      );
+      camera.up.set(0, 1, 0);
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return;
+      lastPosition.current = { x: event.clientX, y: event.clientY };
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return;
+
+      let dx = event.movementX;
+      let dy = event.movementY;
+
+      if (dx === 0 && dy === 0) {
+        if (!lastPosition.current) {
+          lastPosition.current = { x: event.clientX, y: event.clientY };
+          return;
+        }
+        dx = event.clientX - lastPosition.current.x;
+        dy = event.clientY - lastPosition.current.y;
+      }
+
+      lastPosition.current = { x: event.clientX, y: event.clientY };
+      applyDelta(dx, dy);
+    };
+
+    const reset = () => {
+      lastPosition.current = null;
+    };
+
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("blur", reset);
+
+    return () => {
+      reset();
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("blur", reset);
+    };
+  }, [camera, enabled]);
 
   return null;
 }
