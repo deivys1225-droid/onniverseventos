@@ -23,6 +23,35 @@ export function applyDeviceOrientationToCamera(
   quaternion.multiply(new Quaternion().setFromAxisAngle(Z_AXIS, -orient));
 }
 
+const _scratchDeviceQuat = new Quaternion();
+const _scratchInvRefDevice = new Quaternion();
+const _scratchDeltaQuat = new Quaternion();
+
+/**
+ * Orientación de cámara calibrada: aplica solo el delta del sensor desde el momento
+ * de calibración, preservando hacia dónde miraba el usuario al activar el giro.
+ */
+export function computeCalibratedCameraQuaternion(
+  out: Quaternion,
+  refCamera: Quaternion,
+  refDevice: Quaternion,
+  alphaDeg: number,
+  betaDeg: number,
+  gammaDeg: number,
+  screenOrientationDeg: number,
+): void {
+  applyDeviceOrientationToCamera(
+    _scratchDeviceQuat,
+    alphaDeg,
+    betaDeg,
+    gammaDeg,
+    screenOrientationDeg,
+  );
+  _scratchInvRefDevice.copy(refDevice).invert();
+  _scratchDeltaQuat.copy(_scratchInvRefDevice).multiply(_scratchDeviceQuat);
+  out.copy(refCamera).multiply(_scratchDeltaQuat);
+}
+
 export function readScreenOrientationDeg(): number {
   if (typeof window === "undefined") return 0;
   const fromApi = window.screen?.orientation?.angle;

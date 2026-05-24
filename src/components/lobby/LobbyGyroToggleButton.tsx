@@ -1,9 +1,12 @@
-import { useCallback, type CSSProperties } from "react";
+import { useCallback, useRef, type CSSProperties } from "react";
+
+const LONG_PRESS_MS = 550;
 
 type LobbyGyroToggleButtonProps = {
   active: boolean;
   onActivate: () => void;
   onDeactivate: () => void;
+  onRecenter?: () => void;
   errorMessage?: string | null;
 };
 
@@ -11,8 +14,12 @@ export default function LobbyGyroToggleButton({
   active,
   onActivate,
   onDeactivate,
+  onRecenter,
   errorMessage,
 }: LobbyGyroToggleButtonProps) {
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
+
   const baseStyle: CSSProperties = {
     position: "fixed",
     zIndex: 99999,
@@ -44,6 +51,19 @@ export default function LobbyGyroToggleButton({
       : "0 0 28px -4px rgba(34, 211, 238, 0.95), inset 0 0 18px -10px rgba(34, 211, 238, 0.55)",
   };
 
+  const hintStyle: CSSProperties = {
+    position: "fixed",
+    zIndex: 99998,
+    pointerEvents: "none",
+    bottom: "calc(58px + env(safe-area-inset-bottom, 0px))",
+    left: "calc(20px + env(safe-area-inset-left, 0px))",
+    fontFamily: "system-ui, sans-serif",
+    fontSize: 10,
+    fontWeight: 600,
+    color: "rgba(254, 243, 199, 0.85)",
+    letterSpacing: "0.04em",
+  };
+
   const errorStyle: CSSProperties = {
     ...baseStyle,
     bottom: "calc(76px + env(safe-area-inset-bottom, 0px))",
@@ -64,7 +84,32 @@ export default function LobbyGyroToggleButton({
     if (el) el.style.setProperty("-webkit-backdrop-filter", "blur(8px)");
   }, []);
 
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current != null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handlePointerDown = () => {
+    if (!active || !onRecenter) return;
+    longPressTriggeredRef.current = false;
+    clearLongPress();
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      onRecenter();
+    }, LONG_PRESS_MS);
+  };
+
+  const handlePointerUp = () => {
+    clearLongPress();
+  };
+
   const handleClick = () => {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
     if (active) onDeactivate();
     else onActivate();
   };
@@ -76,14 +121,27 @@ export default function LobbyGyroToggleButton({
           {errorMessage}
         </div>
       ) : null}
+      {active && onRecenter ? (
+        <p style={hintStyle} data-lobby-ui>
+          Mantén pulsado para recentrar
+        </p>
+      ) : null}
       <button
         ref={setWebkitBlur}
         type="button"
         onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPointerLeave={handlePointerUp}
         style={buttonStyle}
         data-lobby-ui
         aria-pressed={active}
-        aria-label={active ? "Desactivar giroscopio" : "Activar giroscopio para mirar alrededor"}
+        aria-label={
+          active
+            ? "Desactivar giroscopio. Mantén pulsado para recentrar la vista."
+            : "Activar giroscopio para mirar alrededor"
+        }
       >
         {active ? "GIRO OFF" : "GIROSCOPIO"}
       </button>

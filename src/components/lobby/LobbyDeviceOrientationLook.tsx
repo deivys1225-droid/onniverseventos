@@ -1,26 +1,27 @@
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { MathUtils, Quaternion } from "three";
+import { Quaternion } from "three";
 import {
   angleDeltaDeg,
   applyDeviceOrientationToCamera,
+  computeCalibratedCameraQuaternion,
   lerpAngleDeg,
   readScreenOrientationDeg,
 } from "@/lib/deviceOrientationCamera";
 
 /** Suavizado de la cámara: más bajo = menos temblor, más inercia al girar. */
-const HEAD_SMOOTHING_RATE_HZ = 2.4;
+const HEAD_SMOOTHING_RATE_HZ = 1.55;
 /** Filtro del sensor en reposo (Hz). */
-const SENSOR_FILTER_REST_HZ = 1.6;
+const SENSOR_FILTER_REST_HZ = 1.1;
 /** Filtro del sensor en giro moderado (Hz). */
-const SENSOR_FILTER_MOVE_HZ = 5.5;
+const SENSOR_FILTER_MOVE_HZ = 3.8;
 /** Filtro del sensor en giro rápido (Hz). */
-const SENSOR_FILTER_FAST_HZ = 9;
+const SENSOR_FILTER_FAST_HZ = 5.5;
 /** Por debajo de esto (°) el teléfono se considera quieto y se ignora ruido del sensor. */
-const STILLNESS_THRESHOLD_DEG = 0.75;
+const STILLNESS_THRESHOLD_DEG = 1.35;
 /** Giro moderado / rápido para subir la respuesta del filtro (°). */
-const MOTION_MODERATE_DEG = 1.8;
-const MOTION_FAST_DEG = 5.5;
+const MOTION_MODERATE_DEG = 2.6;
+const MOTION_FAST_DEG = 7.5;
 
 type FilteredOrientation = {
   alpha: number;
@@ -49,28 +50,40 @@ function maxOrientationMotionDeg(
 
 type LobbyDeviceOrientationLookProps = {
   enabled: boolean;
+  /** Incrementar para recalibrar sin desactivar el giro (p. ej. mantener pulsado GIRO). */
+  recenterToken?: number;
 };
 
 /**
- * Mirada con giroscopio en un solo viewport (sin StereoEffect ni pantalla partida).
+ * Mirada con giroscopio calibrada: al activar conserva la vista actual y aplica
+ * solo el movimiento relativo del sensor (evita saltar 180° hacia las pantallas).
  */
-export default function LobbyDeviceOrientationLook({ enabled }: LobbyDeviceOrientationLookProps) {
+export default function LobbyDeviceOrientationLook({
+  enabled,
+  recenterToken = 0,
+}: LobbyDeviceOrientationLookProps) {
   const { camera } = useThree();
   const orientationRef = useRef<DeviceOrientationEvent | null>(null);
   const filteredOrientationRef = useRef<FilteredOrientation | null>(null);
   const targetQuatRef = useRef(new Quaternion());
-  const isFirstFrameRef = useRef(true);
+  const refCameraQuatRef = useRef(new Quaternion());
+  const refDeviceQuatRef = useRef(new Quaternion());
+  const calibratedRef = useRef(false);
+
+  const resetCalibration = () => {
+    calibratedRef.current = false;
+    filteredOrientationRef.current = null;
+    orientationRef.current = null;
+  };
 
   useEffect(() => {
     if (!enabled) {
-      orientationRef.current = null;
-      filteredOrientationRef.current = null;
+      resetCalibration();
       return;
     }
 
     camera.rotation.reorder("YXZ");
-    isFirstFrameRef.current = true;
-    filteredOrientationRef.current = null;
+    resetCalibration();
 
     const onOrientation = (event: DeviceOrientationEvent) => {
       orientationRef.current = event;
@@ -79,10 +92,14 @@ export default function LobbyDeviceOrientationLook({ enabled }: LobbyDeviceOrien
 
     return () => {
       window.removeEventListener("deviceorientation", onOrientation, true);
-      orientationRef.current = null;
-      filteredOrientationRef.current = null;
+      resetCalibration();
     };
   }, [camera, enabled]);
+
+  useEffect(() => {
+    if (!enabled || recenterToken === 0) return;
+    resetCalibration();
+  }, [enabled, recenterToken]);
 
   useFrame((_, delta) => {
     if (!enabled) return;
@@ -113,19 +130,30 @@ export default function LobbyDeviceOrientationLook({ enabled }: LobbyDeviceOrien
     }
 
     const filtered = filteredOrientationRef.current;
-    applyDeviceOrientationToCamera(
+    const screenDeg = readScreenOrientationDeg();
+
+    if (!calibratedRef.current) {
+      refCameraQuatRef.current.copy(camera.quaternion);
+      applyDeviceOrientationToCamera(
+        refDeviceQuatRef.current,
+        filtered.alpha,
+        filtered.beta,
+        filtered.gamma,
+        screenDeg,
+      );
+      calibratedRef.current = true;
+      return;
+    }
+
+    computeCalibratedCameraQuaternion(
       targetQuatRef.current,
+      refCameraQuatRef.current,
+      refDeviceQuatRef.current,
       filtered.alpha,
       filtered.beta,
       filtered.gamma,
-      readScreenOrientationDeg(),
+      screenDeg,
     );
-
-    if (isFirstFrameRef.current) {
-      camera.quaternion.copy(targetQuatRef.current);
-      isFirstFrameRef.current = false;
-      return;
-    }
 
     const factor = 1 - Math.exp(-HEAD_SMOOTHING_RATE_HZ * delta);
     camera.quaternion.slerp(targetQuatRef.current, factor);

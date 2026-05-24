@@ -937,6 +937,7 @@ export default function NeonRoom() {
   const [mixedRealityError, setMixedRealityError] = useState<string | null>(null);
   const mixedRealityStartInFlightRef = useRef(false);
   const [gyroLookEnabled, setGyroLookEnabled] = useState(false);
+  const [gyroRecenterToken, setGyroRecenterToken] = useState(0);
   const [gyroError, setGyroError] = useState<string | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1242,7 +1243,7 @@ export default function NeonRoom() {
 
         <EarthMoonAnchor />
         <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
-        <LobbyDeviceOrientationLook enabled={gyroLookActive} />
+        <LobbyDeviceOrientationLook enabled={gyroLookActive} recenterToken={gyroRecenterToken} />
         <VirtualCursorLook enabled={virtualCursorLookActive} />
 
         {focusedScreen === null && !isMobileTouch && (
@@ -1266,6 +1267,7 @@ export default function NeonRoom() {
           active={gyroLookEnabled}
           onActivate={() => void activateGyroLook()}
           onDeactivate={deactivateGyroLook}
+          onRecenter={() => setGyroRecenterToken((t) => t + 1)}
           errorMessage={gyroError}
         />
       )}
