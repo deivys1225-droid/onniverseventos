@@ -13,7 +13,7 @@ import {
 import { useLobbyFinePointer } from "@/lib/useLobbyFinePointer";
 import LobbyMouseButtonControls, {
   createMouseMoveInput,
-  LobbyLeftClickOrbitSpin,
+  LobbyRightClickOrbitSpin,
   LobbyMobileMouseLook,
 } from "@/components/lobby/LobbyMouseControls";
 import MobileLobbyMovePad, {
@@ -809,7 +809,7 @@ export default function NeonRoom() {
   const isTouchOnlyLobby = isMobileCoarse && !usesFinePointer;
   const mobileMoveInput = useRef(createMobileMoveInput());
   const mouseMoveInput = useRef(createMouseMoveInput());
-  const leftSpinHeldRef = useRef(false);
+  const orbitSpinHeldRef = useRef(false);
   const mobileLookFallbackRef = useRef(false);
   const [mobileLookFallback, setMobileLookFallback] = useState(false);
   const [locked, setLocked] = useState(false);
@@ -1242,7 +1242,7 @@ export default function NeonRoom() {
         <LobbyDeviceOrientationLook enabled={gyroLookActive} recenterToken={gyroRecenterToken} />
         <MobileTouchLook enabled={mobileTouchLookActive} />
         <LobbyMobileMouseLook enabled={mobileMouseLookActive} />
-        <LobbyLeftClickOrbitSpin enabled={mobileFallbackSpinActive} spinHeldRef={leftSpinHeldRef} />
+        <LobbyRightClickOrbitSpin enabled={mobileFallbackSpinActive} spinHeldRef={orbitSpinHeldRef} />
 
         {usesPointerLockControls && (
           <PointerLockControls
@@ -1266,7 +1266,7 @@ export default function NeonRoom() {
         inputRef={mouseMoveInput}
         onEscape={handleLobbyEscape}
         fallbackSpinMode={mobileFallbackSpinActive}
-        leftSpinHeldRef={leftSpinHeldRef}
+        orbitSpinHeldRef={orbitSpinHeldRef}
       />
 
       {isTouchOnlyLobby && (

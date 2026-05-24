@@ -32,9 +32,9 @@ type LobbyMouseButtonControlsProps = {
   inputRef: React.MutableRefObject<MouseMoveInput>;
   /** Misma acción que la tecla Escape (doble clic derecho). */
   onEscape?: () => void;
-  /** Móvil sin pointer-lock: izquierdo = girar, derecho = adelante. */
+  /** Móvil sin pointer-lock: derecho = girar, izquierdo = adelante. */
   fallbackSpinMode?: boolean;
-  leftSpinHeldRef?: MutableRefObject<boolean>;
+  orbitSpinHeldRef?: MutableRefObject<boolean>;
 };
 
 /**
@@ -49,7 +49,7 @@ export default function LobbyMouseButtonControls({
   inputRef,
   onEscape,
   fallbackSpinMode = false,
-  leftSpinHeldRef,
+  orbitSpinHeldRef,
 }: LobbyMouseButtonControlsProps) {
   useEffect(() => {
     if (!enabled) {
@@ -71,7 +71,7 @@ export default function LobbyMouseButtonControls({
         return;
       }
       if (held.right) {
-        inputRef.current.forward = fallbackSpinMode ? 1 : -1;
+        inputRef.current.forward = -1;
         return;
       }
       inputRef.current.forward = 0;
@@ -88,10 +88,6 @@ export default function LobbyMouseButtonControls({
       if (event.pointerType !== "mouse") return;
       if (shouldIgnoreMouseTarget(event.target)) return;
       if (event.button === 0) {
-        if (fallbackSpinMode && leftSpinHeldRef) {
-          leftSpinHeldRef.current = true;
-          return;
-        }
         if (movementEnabled) {
           held.left = true;
           syncForward();
@@ -104,6 +100,7 @@ export default function LobbyMouseButtonControls({
       if (now - lastRightDownAt < DOUBLE_RIGHT_CLICK_MS) {
         cancelRightWalkTimer();
         held.right = false;
+        if (orbitSpinHeldRef) orbitSpinHeldRef.current = false;
         syncForward();
         lastRightDownAt = 0;
         onEscape?.();
@@ -114,9 +111,8 @@ export default function LobbyMouseButtonControls({
       if (!movementEnabled) return;
 
       lastRightDownAt = now;
-      if (fallbackSpinMode) {
-        held.right = true;
-        syncForward();
+      if (fallbackSpinMode && orbitSpinHeldRef) {
+        orbitSpinHeldRef.current = true;
         return;
       }
       cancelRightWalkTimer();
@@ -130,16 +126,16 @@ export default function LobbyMouseButtonControls({
     const onPointerUp = (event: PointerEvent) => {
       if (event.pointerType !== "mouse") return;
       if (event.button === 0) {
-        if (fallbackSpinMode && leftSpinHeldRef) {
-          leftSpinHeldRef.current = false;
-          return;
-        }
         held.left = false;
         syncForward();
         return;
       }
       if (event.button !== 2) return;
       cancelRightWalkTimer();
+      if (fallbackSpinMode && orbitSpinHeldRef) {
+        orbitSpinHeldRef.current = false;
+        return;
+      }
       held.right = false;
       syncForward();
     };
@@ -153,7 +149,7 @@ export default function LobbyMouseButtonControls({
       cancelRightWalkTimer();
       held.left = false;
       held.right = false;
-      if (leftSpinHeldRef) leftSpinHeldRef.current = false;
+      if (orbitSpinHeldRef) orbitSpinHeldRef.current = false;
       inputRef.current.forward = 0;
     };
 
@@ -166,25 +162,25 @@ export default function LobbyMouseButtonControls({
       cancelRightWalkTimer();
       held.left = false;
       held.right = false;
-      if (leftSpinHeldRef) leftSpinHeldRef.current = false;
+      if (orbitSpinHeldRef) orbitSpinHeldRef.current = false;
       inputRef.current.forward = 0;
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("contextmenu", onContextMenu);
       window.removeEventListener("blur", onBlur);
     };
-  }, [enabled, movementEnabled, inputRef, onEscape, fallbackSpinMode, leftSpinHeldRef]);
+  }, [enabled, movementEnabled, inputRef, onEscape, fallbackSpinMode, orbitSpinHeldRef]);
 
   return null;
 }
 
 const MOBILE_MOUSE_LOOK_SENSITIVITY = 0.0045;
-const LEFT_CLICK_ORBIT_SPEED = 1.15;
+const RIGHT_CLICK_ORBIT_SPEED = 1.15;
 
 /**
- * Respaldo en móvil (p. ej. pantalla dividida): mantener clic izquierdo = giro 360° horizontal.
+ * Respaldo en móvil (p. ej. pantalla dividida): mantener clic derecho = giro 360° horizontal.
  */
-export function LobbyLeftClickOrbitSpin({
+export function LobbyRightClickOrbitSpin({
   enabled,
   spinHeldRef,
 }: {
@@ -196,7 +192,7 @@ export function LobbyLeftClickOrbitSpin({
   useFrame((_, delta) => {
     if (!enabled || !spinHeldRef.current) return;
     camera.rotation.order = "YXZ";
-    camera.rotation.y += delta * LEFT_CLICK_ORBIT_SPEED;
+    camera.rotation.y += delta * RIGHT_CLICK_ORBIT_SPEED;
     camera.up.set(0, 1, 0);
   });
 
