@@ -15,7 +15,6 @@ import MobileLobbyMovePad, {
   createMobileMoveInput,
   type MobileMoveInput,
 } from "@/components/lobby/MobileLobbyMovePad";
-import VirtualCursorLook from "@/components/lobby/VirtualCursorLook";
 import LobbyDeviceOrientationLook from "@/components/lobby/LobbyDeviceOrientationLook";
 import LobbyDecorEarthMoon from "@/components/lobby/LobbyDecorEarthMoon";
 import LobbyDecorArchitectWall from "@/components/lobby/LobbyDecorArchitectWall";
@@ -1021,7 +1020,7 @@ export default function NeonRoom() {
 
   const mixedRealityActive = mixedRealityEnabled;
   const gyroLookActive = gyroLookEnabled && focusedScreen === null;
-  const virtualCursorLookActive = isMobileTouch && focusedScreen === null && !gyroLookEnabled;
+  const mobileTouchLookActive = isMobileTouch && focusedScreen === null && !gyroLookEnabled;
 
   return (
     <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : "bg-black"}`}>
@@ -1144,7 +1143,7 @@ export default function NeonRoom() {
           mouseInputRef={mouseMoveInput}
         />
         <LobbyDeviceOrientationLook enabled={gyroLookActive} recenterToken={gyroRecenterToken} />
-        <VirtualCursorLook enabled={virtualCursorLookActive} />
+        <MobileTouchLook enabled={mobileTouchLookActive} />
 
         {focusedScreen === null && !isMobileTouch && (
           <PointerLockControls

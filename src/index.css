@@ -86,31 +86,6 @@
     overflow-x: clip;
   }
 
-  /* Cursor virtual en lobby (el nativo oculto) */
-  body.virtual-cursor-active,
-  body.virtual-cursor-active *:not(canvas) {
-    cursor: none !important;
-  }
-
-  #cursor-virtual {
-    position: fixed;
-    z-index: 99999;
-    width: 15px;
-    height: 15px;
-    margin: 0;
-    padding: 0;
-    pointer-events: none;
-    transform: translate(-1px, -1px);
-    will-change: left, top;
-  }
-
-  #cursor-virtual svg {
-    display: block;
-    width: 15px;
-    height: 15px;
-    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.85));
-  }
-
   h1, h2, h3, h4, h5, h6 {
     @apply font-display;
   }
