@@ -10,6 +10,7 @@ import {
   isMobileCoarseDevice,
   MAX_WEBGL_PIXEL_RATIO,
 } from "@/lib/webglRendererPrefs";
+import LobbyMouseButtonControls, { createMouseMoveInput } from "@/components/lobby/LobbyMouseControls";
 import MobileLobbyMovePad, {
   createMobileMoveInput,
   type MobileMoveInput,
@@ -645,9 +646,11 @@ const MOBILE_TOUCH_LOOK_SENSITIVITY = 0.0045;
 function FirstPersonController({
   enabled,
   mobileInputRef,
+  mouseInputRef,
 }: {
   enabled: boolean;
   mobileInputRef?: React.MutableRefObject<MobileMoveInput>;
+  mouseInputRef?: React.MutableRefObject<ReturnType<typeof createMouseMoveInput>>;
 }) {
   const { camera } = useThree();
   const keys = useRef<Record<string, boolean>>({});
@@ -681,7 +684,11 @@ function FirstPersonController({
     camera.up.set(0, 1, 0);
 
     const k = keys.current;
-    let moveForward = (k["KeyW"] ? 1 : 0) - (k["KeyS"] ? 1 : 0) + (mobileInputRef?.current.forward ?? 0);
+    let moveForward =
+      (k["KeyW"] ? 1 : 0) -
+      (k["KeyS"] ? 1 : 0) +
+      (mobileInputRef?.current.forward ?? 0) +
+      (mouseInputRef?.current.forward ?? 0);
     let moveRight = (k["KeyD"] ? 1 : 0) - (k["KeyA"] ? 1 : 0) + (mobileInputRef?.current.right ?? 0);
     const moveMagnitude = Math.hypot(moveForward, moveRight);
     if (moveMagnitude > 1) {
@@ -795,6 +802,7 @@ export default function NeonRoom() {
   const navigate = useNavigate();
   const isMobileTouch = useMemo(() => isMobileCoarseDevice(), []);
   const mobileMoveInput = useRef(createMobileMoveInput());
+  const mouseMoveInput = useRef(createMouseMoveInput());
   const [locked, setLocked] = useState(false);
   const [escapeBarVisible, setEscapeBarVisible] = useState(true);
   const [focusedScreen, setFocusedScreen] = useState<number | null>(null);
@@ -814,6 +822,7 @@ export default function NeonRoom() {
     if (focusedScreen === null) return;
     mobileMoveInput.current.forward = 0;
     mobileMoveInput.current.right = 0;
+    mouseMoveInput.current.forward = 0;
   }, [focusedScreen]);
 
   useEffect(() => {
@@ -851,6 +860,22 @@ export default function NeonRoom() {
       void canvas.requestPointerLock?.();
     });
   };
+
+  const handleLobbyEscape = useCallback(() => {
+    if (focusedScreenRef.current !== null) {
+      setFocusedScreen(null);
+      setEscapeBarVisible(true);
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+      return;
+    }
+
+    if (document.pointerLockElement) {
+      setEscapeBarVisible(true);
+      document.exitPointerLock();
+    }
+  }, []);
 
   const focusScreen = (label: number) => {
     if (document.pointerLockElement) {
@@ -1100,6 +1125,7 @@ export default function NeonRoom() {
           <ambientLight intensity={0.55} />
           {/* Subtle directional fill for depth on the white walls */}
           <directionalLight position={[5, 8, 5]} intensity={0.4} color="#ffffff" />
+          <pointLight position={[-8.5, 5.5, 0]} intensity={1.8} distance={14} decay={2} color="#fff4dc" />
 
           <Room structureVisible={!mixedRealityActive} />
           <HoloScreens focusedScreen={focusedScreen} onFocusScreen={focusScreen} />
@@ -1110,9 +1136,13 @@ export default function NeonRoom() {
         <Suspense fallback={null}>
           <LobbyDecorEarthMoon position={[ROOM_SIZE / 2 - 2.15, WALL_HEIGHT * 0.45, 0]} scale={1.26} />
           <LobbyDecorHeartWall position={[0, WALL_HEIGHT / 2, ROOM_SIZE / 2 - 0.45]} />
-          <LobbyDecorArchitectWall position={[-ROOM_SIZE / 2 + 0.45, WALL_HEIGHT / 2, 0]} />
+          <LobbyDecorArchitectWall position={[-ROOM_SIZE / 2 + 0.7, WALL_HEIGHT / 2, 0]} scaleMultiplier={1.35} />
         </Suspense>
-        <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
+        <FirstPersonController
+          enabled={focusedScreen === null}
+          mobileInputRef={mobileMoveInput}
+          mouseInputRef={mouseMoveInput}
+        />
         <LobbyDeviceOrientationLook enabled={gyroLookActive} recenterToken={gyroRecenterToken} />
         <VirtualCursorLook enabled={virtualCursorLookActive} />
 
@@ -1130,6 +1160,13 @@ export default function NeonRoom() {
       <MobileLobbyMovePad
         enabled={isMobileTouch && focusedScreen === null}
         inputRef={mobileMoveInput}
+      />
+
+      <LobbyMouseButtonControls
+        enabled={!isMobileTouch}
+        movementEnabled={focusedScreen === null}
+        inputRef={mouseMoveInput}
+        onEscape={handleLobbyEscape}
       />
 
       {isMobileTouch && (
