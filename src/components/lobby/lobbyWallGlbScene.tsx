@@ -54,6 +54,7 @@ export function WallSceneGlb({
   scaleMultiplier = 1,
   fitDepth = true,
   spin = true,
+  spinSpeed = 0.35,
   prepareModel,
 }: {
   url: string;
@@ -64,13 +65,15 @@ export function WallSceneGlb({
   fitDepth?: boolean;
   /** Rotación lenta en Y (corazón). Desactivar para objetos fijos como faroles. */
   spin?: boolean;
+  /** Velocidad de giro en rad/s (Tierra del lobby ≈ 0.08). */
+  spinSpeed?: number;
   prepareModel?: (root: THREE.Object3D) => void;
 }) {
   const spinRef = useRef<THREE.Group>(null);
 
   useFrame((_, delta) => {
     if (!spin || !spinRef.current) return;
-    spinRef.current.rotation.y += delta * 0.35;
+    spinRef.current.rotation.y += delta * spinSpeed;
   });
 
   return (

@@ -2,12 +2,20 @@ import { Text } from "@react-three/drei";
 import LobbyDecorEarthMoon from "@/components/lobby/LobbyDecorEarthMoon";
 import LobbyDecorHeartWall from "@/components/lobby/LobbyDecorHeartWall";
 import LobbyDecorBrainWall from "@/components/lobby/LobbyDecorBrainWall";
+import LobbyDecorDinosaurWall, {
+  DINO_DIPLO_COLORS,
+  DINO_DIPLO_URL,
+  DINO_GENERIC_COLORS,
+  DINO_GENERIC_URL,
+  DINO_TREX_COLORS,
+  DINO_TREX_URL,
+} from "@/components/lobby/LobbyDecorDinosaurWall";
+import AulaVirtualLibraryWallCards from "@/components/lobby/AulaVirtualLibraryWallCards";
 
 const WOOD = "#8B6914";
 const WOOD_DARK = "#5C4A1E";
 const METAL = "#6B7280";
 const CHAIR = "#4A5568";
-const BOOK_COLORS = ["#B91C1C", "#1D4ED8", "#15803D", "#7C3AED", "#C2410C"];
 
 type DeskRowProps = {
   z: number;
@@ -130,31 +138,6 @@ function Chalkboard({ position, rotation }: { position: [number, number, number]
   );
 }
 
-function Bookshelf({ position, rotation }: { position: [number, number, number]; rotation: [number, number, number] }) {
-  return (
-    <group position={position} rotation={rotation}>
-      <mesh position={[0, 1.35, 0]} castShadow>
-        <boxGeometry args={[1.6, 2.7, 0.42]} />
-        <meshStandardMaterial color={WOOD} roughness={0.7} metalness={0.05} />
-      </mesh>
-      {[0.55, 1.35, 2.15].map((y) => (
-        <mesh key={y} position={[0, y, 0]}>
-          <boxGeometry args={[1.48, 0.05, 0.38]} />
-          <meshStandardMaterial color={WOOD_DARK} roughness={0.75} />
-        </mesh>
-      ))}
-      {BOOK_COLORS.flatMap((color, shelf) =>
-        [-0.45, 0, 0.45].map((x, i) => (
-          <mesh key={`${shelf}-${i}`} position={[x, 0.55 + shelf * 0.8, 0.06]} castShadow>
-            <boxGeometry args={[0.22, 0.55 + (i % 2) * 0.08, 0.12]} />
-            <meshStandardMaterial color={color} roughness={0.85} />
-          </mesh>
-        )),
-      )}
-    </group>
-  );
-}
-
 function CeilingLights({ roomSize, wallHeight }: { roomSize: number; wallHeight: number }) {
   const positions: [number, number, number][] = [
     [-4, wallHeight - 0.15, -3],
@@ -210,7 +193,29 @@ export default function AulaVirtualClassroomDecor({ roomSize, wallHeight }: Aula
       <DeskRow z={1.2} deskCount={3} />
       <DeskRow z={-0.8} deskCount={3} />
       <DeskRow z={-2.8} deskCount={3} />
-      <Bookshelf position={[-half + 0.85, 0, -1.5]} rotation={[0, Math.PI / 2, 0]} />
+      {/* Pared izquierda: tarjetas Biblioteca + dinosaurios */}
+      <AulaVirtualLibraryWallCards roomSize={roomSize} />
+      <LobbyDecorDinosaurWall
+        url={DINO_TREX_URL}
+        position={[-half + 0.42, wallHeight * 0.38, 1.05]}
+        rotation={[0, Math.PI / 2, 0]}
+        scaleMultiplier={0.46}
+        colors={DINO_TREX_COLORS}
+      />
+      <LobbyDecorDinosaurWall
+        url={DINO_GENERIC_URL}
+        position={[-half + 0.42, wallHeight * 0.35, 2.65]}
+        rotation={[0, Math.PI / 2, 0]}
+        scaleMultiplier={0.42}
+        colors={DINO_GENERIC_COLORS}
+      />
+      <LobbyDecorDinosaurWall
+        url={DINO_DIPLO_URL}
+        position={[-half + 0.42, wallHeight * 0.38, 4.25]}
+        rotation={[0, Math.PI / 2, 0]}
+        scaleMultiplier={0.4}
+        colors={DINO_DIPLO_COLORS}
+      />
       <mesh position={[-half + 0.08, wallHeight * 0.72, 2.2]} rotation={[0, Math.PI / 2, 0]}>
         <circleGeometry args={[0.35, 32]} />
         <meshStandardMaterial color="#F8FAFC" roughness={0.35} metalness={0.15} />

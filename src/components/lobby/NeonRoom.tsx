@@ -183,10 +183,6 @@ function wall1PanelCenters(): [number, number, number] {
   }) as [number, number, number];
 }
 
-function lobbyWallScreenCaption(label: number): string {
-  return String(label);
-}
-
 type HoloScreenKind = "hub" | "salas" | "webpage";
 
 const MIXED_REALITY_CAMERA_ERROR =
@@ -404,28 +400,6 @@ function HoloScreen({
               }}
             />
           )}
-        </div>
-      </Html>
-      <Html
-        transform
-        position={[0, -((h / 2 + 0.35) * 1.1), 0.05]}
-        scale={htmlScale * 1.575}
-        zIndexRange={htmlZIndexRange}
-        style={{ pointerEvents: "none" }}
-      >
-        <div
-          style={{
-            color: "#020617",
-            fontSize: "86px",
-            fontWeight: 900,
-            lineHeight: 1,
-            textAlign: "center",
-            letterSpacing: "0.02em",
-            textShadow: "0 0 18px rgba(255,255,255,0.65), 0 2px 10px rgba(15,23,42,0.35)",
-            WebkitTextStroke: "2px rgba(255,255,255,0.75)",
-          }}
-        >
-          {lobbyWallScreenCaption(label)}
         </div>
       </Html>
       {/* Dark holographic panel so stars/content read on light walls */}

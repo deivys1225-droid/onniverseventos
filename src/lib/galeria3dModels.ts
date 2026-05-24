@@ -38,17 +38,6 @@ export const GALERIA_3D_MODELS: Galeria3DModel[] = [
     modelUrl:
       "https://res.cloudinary.com/dfsabdxup/image/upload/v1778502215/modelo_geoquimico_lwbh6v.glb",
   },
-  {
-    id: "dinosaurio",
-    title: "Dinosaurio",
-    description:
-      "Explora un velociraptor en realidad aumentada. Rótalo y estúdialo como un holograma en tu espacio.",
-    detail: "Modelo 3D interactivo",
-    image:
-      "https://images.unsplash.com/photo-1578321272176-b7bbc0679853?auto=format&fit=crop&w=1200&q=80",
-    modelUrl:
-      "https://res.cloudinary.com/dfsabdxup/image/upload/v1778555954/Idle_JWR_Velociraptor_kcvi1i.usdz",
-  },
 ];
 
 export function openImmersiveModel(modelUrl: string, title: string) {
