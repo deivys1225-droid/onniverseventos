@@ -13,6 +13,7 @@ import {
 import { useLobbyFinePointer } from "@/lib/useLobbyFinePointer";
 import LobbyMouseButtonControls, {
   createMouseMoveInput,
+  LobbyLeftClickOrbitSpin,
   LobbyMobileMouseLook,
 } from "@/components/lobby/LobbyMouseControls";
 import MobileLobbyMovePad, {
@@ -808,6 +809,9 @@ export default function NeonRoom() {
   const isTouchOnlyLobby = isMobileCoarse && !usesFinePointer;
   const mobileMoveInput = useRef(createMobileMoveInput());
   const mouseMoveInput = useRef(createMouseMoveInput());
+  const leftSpinHeldRef = useRef(false);
+  const mobileLookFallbackRef = useRef(false);
+  const [mobileLookFallback, setMobileLookFallback] = useState(false);
   const [locked, setLocked] = useState(false);
   const [escapeBarVisible, setEscapeBarVisible] = useState(true);
   const [focusedScreen, setFocusedScreen] = useState<number | null>(null);
@@ -833,6 +837,77 @@ export default function NeonRoom() {
     mobileMoveInput.current.forward = 0;
     mobileMoveInput.current.right = 0;
   }, [usesFinePointer]);
+
+  useEffect(() => {
+    mobileLookFallbackRef.current = mobileLookFallback;
+  }, [mobileLookFallback]);
+
+  /** Móvil + ratón: intentar pointer-lock; si falla → giro con clic izquierdo. */
+  useEffect(() => {
+    if (!isMobileCoarse || !usesFinePointer) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let failTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearFailTimer = () => {
+      if (failTimer !== null) {
+        clearTimeout(failTimer);
+        failTimer = null;
+      }
+    };
+
+    const onLockChange = () => {
+      if (document.pointerLockElement === canvas) {
+        clearFailTimer();
+        setMobileLookFallback(false);
+        mobileLookFallbackRef.current = false;
+        setLocked(true);
+        setEscapeBarVisible(false);
+        return;
+      }
+      setLocked(false);
+    };
+
+    const markFallback = () => {
+      clearFailTimer();
+      setMobileLookFallback(true);
+      mobileLookFallbackRef.current = true;
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+    };
+
+    const tryPointerLock = () => {
+      if (focusedScreenRef.current !== null || mobileLookFallbackRef.current) return;
+      clearFailTimer();
+      const result = canvas.requestPointerLock?.();
+      if (result && typeof (result as Promise<void>).catch === "function") {
+        (result as Promise<void>).catch(markFallback);
+      }
+      failTimer = setTimeout(() => {
+        if (document.pointerLockElement !== canvas) markFallback();
+      }, 700);
+    };
+
+    const onCanvasPointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return;
+      if (focusedScreenRef.current !== null) return;
+      if (mobileLookFallbackRef.current) return;
+      tryPointerLock();
+    };
+
+    document.addEventListener("pointerlockchange", onLockChange);
+    document.addEventListener("pointerlockerror", markFallback);
+    canvas.addEventListener("pointerdown", onCanvasPointerDown);
+
+    return () => {
+      clearFailTimer();
+      document.removeEventListener("pointerlockchange", onLockChange);
+      document.removeEventListener("pointerlockerror", markFallback);
+      canvas.removeEventListener("pointerdown", onCanvasPointerDown);
+    };
+  }, [isMobileCoarse, usesFinePointer]);
 
   useEffect(() => {
     if (focusedScreen === null) return;
@@ -1038,8 +1113,11 @@ export default function NeonRoom() {
   const mixedRealityActive = mixedRealityEnabled;
   const gyroLookActive = gyroLookEnabled && focusedScreen === null;
   const mobileTouchLookActive = isTouchOnlyLobby && focusedScreen === null && !gyroLookEnabled;
-  const usesPointerLock = !isMobileCoarse && usesFinePointer;
-  const mobileMouseLookActive = isMobileCoarse && usesFinePointer && focusedScreen === null;
+  const usesPointerLockControls = usesFinePointer && focusedScreen === null && !mobileLookFallback;
+  const mobileMouseLookActive =
+    isMobileCoarse && usesFinePointer && !mobileLookFallback && focusedScreen === null && !locked;
+  const mobileFallbackSpinActive =
+    isMobileCoarse && usesFinePointer && mobileLookFallback && focusedScreen === null;
 
   return (
     <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : "bg-black"}`}>
@@ -1164,8 +1242,9 @@ export default function NeonRoom() {
         <LobbyDeviceOrientationLook enabled={gyroLookActive} recenterToken={gyroRecenterToken} />
         <MobileTouchLook enabled={mobileTouchLookActive} />
         <LobbyMobileMouseLook enabled={mobileMouseLookActive} />
+        <LobbyLeftClickOrbitSpin enabled={mobileFallbackSpinActive} spinHeldRef={leftSpinHeldRef} />
 
-        {focusedScreen === null && usesPointerLock && (
+        {usesPointerLockControls && (
           <PointerLockControls
             onLock={() => {
               setLocked(true);
@@ -1186,6 +1265,8 @@ export default function NeonRoom() {
         movementEnabled={focusedScreen === null}
         inputRef={mouseMoveInput}
         onEscape={handleLobbyEscape}
+        fallbackSpinMode={mobileFallbackSpinActive}
+        leftSpinHeldRef={leftSpinHeldRef}
       />
 
       {isTouchOnlyLobby && (
@@ -1206,7 +1287,7 @@ export default function NeonRoom() {
         siguen ahí pero ahora son no-ops visuales).
       */}
 
-      {(locked || mobileMouseLookActive) && focusedScreen === null && (
+      {(locked || mobileMouseLookActive || mobileFallbackSpinActive) && focusedScreen === null && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference" />
       )}
     </div>

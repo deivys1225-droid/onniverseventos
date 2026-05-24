@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { useThree } from "@react-three/fiber";
+import { useEffect, useRef, type MutableRefObject } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 /** -1 atrás (clic derecho), 0 quieto, 1 adelante (clic izquierdo). */
@@ -32,6 +32,9 @@ type LobbyMouseButtonControlsProps = {
   inputRef: React.MutableRefObject<MouseMoveInput>;
   /** Misma acción que la tecla Escape (doble clic derecho). */
   onEscape?: () => void;
+  /** Móvil sin pointer-lock: izquierdo = girar, derecho = adelante. */
+  fallbackSpinMode?: boolean;
+  leftSpinHeldRef?: MutableRefObject<boolean>;
 };
 
 /**
@@ -45,6 +48,8 @@ export default function LobbyMouseButtonControls({
   movementEnabled = true,
   inputRef,
   onEscape,
+  fallbackSpinMode = false,
+  leftSpinHeldRef,
 }: LobbyMouseButtonControlsProps) {
   useEffect(() => {
     if (!enabled) {
@@ -66,7 +71,7 @@ export default function LobbyMouseButtonControls({
         return;
       }
       if (held.right) {
-        inputRef.current.forward = -1;
+        inputRef.current.forward = fallbackSpinMode ? 1 : -1;
         return;
       }
       inputRef.current.forward = 0;
@@ -83,6 +88,10 @@ export default function LobbyMouseButtonControls({
       if (event.pointerType !== "mouse") return;
       if (shouldIgnoreMouseTarget(event.target)) return;
       if (event.button === 0) {
+        if (fallbackSpinMode && leftSpinHeldRef) {
+          leftSpinHeldRef.current = true;
+          return;
+        }
         if (movementEnabled) {
           held.left = true;
           syncForward();
@@ -105,6 +114,11 @@ export default function LobbyMouseButtonControls({
       if (!movementEnabled) return;
 
       lastRightDownAt = now;
+      if (fallbackSpinMode) {
+        held.right = true;
+        syncForward();
+        return;
+      }
       cancelRightWalkTimer();
       rightWalkTimer = setTimeout(() => {
         rightWalkTimer = null;
@@ -116,6 +130,10 @@ export default function LobbyMouseButtonControls({
     const onPointerUp = (event: PointerEvent) => {
       if (event.pointerType !== "mouse") return;
       if (event.button === 0) {
+        if (fallbackSpinMode && leftSpinHeldRef) {
+          leftSpinHeldRef.current = false;
+          return;
+        }
         held.left = false;
         syncForward();
         return;
@@ -135,6 +153,7 @@ export default function LobbyMouseButtonControls({
       cancelRightWalkTimer();
       held.left = false;
       held.right = false;
+      if (leftSpinHeldRef) leftSpinHeldRef.current = false;
       inputRef.current.forward = 0;
     };
 
@@ -147,22 +166,45 @@ export default function LobbyMouseButtonControls({
       cancelRightWalkTimer();
       held.left = false;
       held.right = false;
+      if (leftSpinHeldRef) leftSpinHeldRef.current = false;
       inputRef.current.forward = 0;
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("contextmenu", onContextMenu);
       window.removeEventListener("blur", onBlur);
     };
-  }, [enabled, movementEnabled, inputRef, onEscape]);
+  }, [enabled, movementEnabled, inputRef, onEscape, fallbackSpinMode, leftSpinHeldRef]);
 
   return null;
 }
 
 const MOBILE_MOUSE_LOOK_SENSITIVITY = 0.0045;
+const LEFT_CLICK_ORBIT_SPEED = 1.15;
 
 /**
- * Celular/tablet con ratón: el pointer-lock del WebView suele fallar;
- * giramos la cámara con el movimiento del ratón (como PC con lock activo).
+ * Respaldo en móvil (p. ej. pantalla dividida): mantener clic izquierdo = giro 360° horizontal.
+ */
+export function LobbyLeftClickOrbitSpin({
+  enabled,
+  spinHeldRef,
+}: {
+  enabled: boolean;
+  spinHeldRef: MutableRefObject<boolean>;
+}) {
+  const { camera } = useThree();
+
+  useFrame((_, delta) => {
+    if (!enabled || !spinHeldRef.current) return;
+    camera.rotation.order = "YXZ";
+    camera.rotation.y += delta * LEFT_CLICK_ORBIT_SPEED;
+    camera.up.set(0, 1, 0);
+  });
+
+  return null;
+}
+
+/**
+ * Celular/tablet con ratón: intento de pointer-lock; si no hay lock, movimiento del ratón.
  */
 export function LobbyMobileMouseLook({ enabled }: { enabled: boolean }) {
   const { camera } = useThree();
