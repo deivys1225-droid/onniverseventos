@@ -29,6 +29,15 @@ import LobbyGyroToggleButton from "@/components/lobby/LobbyGyroToggleButton";
 import { requestDeviceOrientationPermission } from "@/lib/deviceOrientationCamera";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
 import { LobbyScreenThreeSalasPlayer } from "@/components/lobby/LobbyScreenThreeSalasPlayer";
+import AulaVirtualClassroomDecor from "@/components/lobby/AulaVirtualClassroomDecor";
+import AulaVirtualWallGallery from "@/components/lobby/AulaVirtualWallGallery";
+import { ROOM_THEMES, type ImmersiveRoomVariant } from "@/components/lobby/aulaVirtualTheme";
+
+export type { ImmersiveRoomVariant };
+
+export type NeonRoomProps = {
+  variant?: ImmersiveRoomVariant;
+};
 
 const ROOM_SIZE = 20;
 const WALL_HEIGHT = 8;
@@ -230,18 +239,20 @@ function Wall({
   width,
   height,
   visible,
+  color = WALL_COLOR,
 }: {
   position: [number, number, number];
   rotation: [number, number, number];
   width: number;
   height: number;
   visible: boolean;
+  color?: string;
 }) {
   return (
     <mesh position={position} rotation={rotation} receiveShadow visible={visible}>
       <planeGeometry args={[width, height]} />
       <meshStandardMaterial
-        color={WALL_COLOR}
+        color={color}
         roughness={0.2}
         metalness={0.1}
         side={THREE.DoubleSide}
@@ -251,44 +262,64 @@ function Wall({
 }
 
 // ---------- Ceiling ----------
-function Ceiling({ visible }: { visible: boolean }) {
+function Ceiling({ visible, color = "#F0F0F0" }: { visible: boolean; color?: string }) {
   return (
     <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, WALL_HEIGHT, 0]} receiveShadow visible={visible}>
       <planeGeometry args={[ROOM_SIZE, ROOM_SIZE]} />
-      <meshStandardMaterial color="#F0F0F0" roughness={0.3} metalness={0.1} />
+      <meshStandardMaterial color={color} roughness={0.3} metalness={0.1} />
     </mesh>
   );
 }
 
-// ---------- Floor with cyan neon grid ----------
-function Floor({ visible }: { visible: boolean }) {
+// ---------- Floor ----------
+function Floor({
+  visible,
+  floorColor = "#1a1d24",
+  gridColor = "#00ffff",
+}: {
+  visible: boolean;
+  floorColor?: string;
+  gridColor?: string | null;
+}) {
   return (
     <>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow visible={visible}>
         <planeGeometry args={[ROOM_SIZE, ROOM_SIZE]} />
-        <meshStandardMaterial color="#1a1d24" roughness={0.4} metalness={0.3} />
+        <meshStandardMaterial color={floorColor} roughness={0.4} metalness={0.3} />
       </mesh>
-      <gridHelper
-        args={[ROOM_SIZE, ROOM_SIZE, "#00ffff", "#00ffff"]}
-        position={[0, 0.01, 0]}
-        visible={visible}
-      />
+      {gridColor && (
+        <gridHelper
+          args={[ROOM_SIZE, ROOM_SIZE, gridColor, gridColor]}
+          position={[0, 0.01, 0]}
+          visible={visible}
+        />
+      )}
     </>
   );
 }
 
 // ---------- Room with 4 walls ----------
-function Room({ structureVisible }: { structureVisible: boolean }) {
+function Room({
+  structureVisible,
+  theme,
+}: {
+  structureVisible: boolean;
+  theme: (typeof ROOM_THEMES)[ImmersiveRoomVariant];
+}) {
   const half = ROOM_SIZE / 2;
   const midY = WALL_HEIGHT / 2;
   return (
     <>
-      <Floor visible={structureVisible} />
-      <Ceiling visible={structureVisible} />
-      <Wall position={[0, midY, -half]} rotation={[0, 0, 0]} width={ROOM_SIZE} height={WALL_HEIGHT} visible={structureVisible} />
-      <Wall position={[0, midY, half]} rotation={[0, Math.PI, 0]} width={ROOM_SIZE} height={WALL_HEIGHT} visible={structureVisible} />
-      <Wall position={[-half, midY, 0]} rotation={[0, Math.PI / 2, 0]} width={ROOM_SIZE} height={WALL_HEIGHT} visible={structureVisible} />
-      <Wall position={[half, midY, 0]} rotation={[0, -Math.PI / 2, 0]} width={ROOM_SIZE} height={WALL_HEIGHT} visible={structureVisible} />
+      <Floor
+        visible={structureVisible}
+        floorColor={theme.floorColor}
+        gridColor={theme.floorGridColor}
+      />
+      <Ceiling visible={structureVisible} color={theme.ceilingColor} />
+      <Wall position={[0, midY, -half]} rotation={[0, 0, 0]} width={ROOM_SIZE} height={WALL_HEIGHT} visible={structureVisible} color={theme.wallColor} />
+      <Wall position={[0, midY, half]} rotation={[0, Math.PI, 0]} width={ROOM_SIZE} height={WALL_HEIGHT} visible={structureVisible} color={theme.wallColor} />
+      <Wall position={[-half, midY, 0]} rotation={[0, Math.PI / 2, 0]} width={ROOM_SIZE} height={WALL_HEIGHT} visible={structureVisible} color={theme.wallColor} />
+      <Wall position={[half, midY, 0]} rotation={[0, -Math.PI / 2, 0]} width={ROOM_SIZE} height={WALL_HEIGHT} visible={structureVisible} color={theme.wallColor} />
     </>
   );
 }
@@ -422,9 +453,11 @@ function HoloScreen({
 function HoloScreens({
   focusedScreen,
   onFocusScreen,
+  frameColor = "#00ffff",
 }: {
   focusedScreen: number | null;
   onFocusScreen: (label: number) => void;
+  frameColor?: string;
 }) {
   const half = ROOM_SIZE / 2;
   const y = WALL_HEIGHT / 2;
@@ -451,6 +484,7 @@ function HoloScreens({
       focused={focusedScreen === label}
       interactionMode={interactionMode}
       onFocus={() => onFocusScreen(label)}
+      frameColor={frameColor}
     />
   );
 
@@ -803,8 +837,10 @@ function MobileTouchLook({ enabled }: { enabled: boolean }) {
   return null;
 }
 
-export default function NeonRoom() {
+export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
   const navigate = useNavigate();
+  const isAulaVirtual = variant === "aula-virtual";
+  const theme = ROOM_THEMES[variant];
   const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
   const usesFinePointer = useLobbyFinePointer();
   const isTouchOnlyLobby = isMobileCoarse && !usesFinePointer;
@@ -1126,7 +1162,7 @@ export default function NeonRoom() {
     isMobileCoarse && usesFinePointer && !mobileLookFallback && focusedScreen === null && !locked;
 
   return (
-    <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : "bg-black"}`}>
+    <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : isAulaVirtual ? "bg-[#EDE8DF]" : "bg-black"}`}>
       <video
         ref={cameraVideoRef}
         playsInline
@@ -1157,9 +1193,13 @@ export default function NeonRoom() {
       <button
         type="button"
         data-lobby-ui
-        onClick={() => navigate("/")}
-        aria-label="Volver al perfil"
-        className="pointer-events-auto fixed left-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/60 bg-slate-950/95 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:border-cyan-300 hover:bg-slate-900 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
+        onClick={() => navigate(isAulaVirtual ? "/3d" : "/")}
+        aria-label={isAulaVirtual ? "Volver a modelos 3D" : "Volver al perfil"}
+        className={`pointer-events-auto fixed left-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 backdrop-blur-md transition disabled:cursor-wait disabled:opacity-70 ${
+          isAulaVirtual
+            ? "border-amber-400/60 text-amber-100 shadow-[0_0_24px_-6px_rgba(251,191,36,0.75)] hover:border-amber-300 hover:bg-slate-900 hover:text-white"
+            : "border-cyan-400/60 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] hover:border-cyan-300 hover:bg-slate-900 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
+        }`}
         style={{
           top: "max(1rem, env(safe-area-inset-top))",
           left: "max(1rem, env(safe-area-inset-left))",
@@ -1173,10 +1213,12 @@ export default function NeonRoom() {
         onClick={() => void toggleMixedReality()}
         disabled={mixedRealityLoading}
         aria-label={mixedRealityEnabled ? "Desactivar modo realidad mixta" : "Activar modo realidad mixta"}
-        className={`pointer-events-auto fixed right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:bg-slate-900 hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)] disabled:cursor-wait disabled:opacity-70 ${
+        className={`pointer-events-auto fixed right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 backdrop-blur-md transition hover:bg-slate-900 disabled:cursor-wait disabled:opacity-70 ${
           mixedRealityEnabled
             ? "border-violet-400/70 text-violet-200 hover:border-violet-300 hover:text-white"
-            : "border-cyan-400/60 text-cyan-200 hover:border-cyan-300 hover:text-white"
+            : isAulaVirtual
+              ? "border-amber-400/60 text-amber-100 shadow-[0_0_24px_-6px_rgba(251,191,36,0.75)] hover:border-amber-300 hover:text-white"
+              : "border-cyan-400/60 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] hover:border-cyan-300 hover:text-white hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)]"
         }`}
         style={{
           top: "max(1rem, env(safe-area-inset-top))",
@@ -1208,10 +1250,9 @@ export default function NeonRoom() {
         }}
       >
           <MixedRealityScene active={mixedRealityActive} />
-          {!mixedRealityActive && <color attach="background" args={["#050510"]} />}
+          {!mixedRealityActive && <color attach="background" args={[theme.backgroundColor]} />}
 
-          {/* Background stars (still visible through the holographic window) */}
-          {!mixedRealityActive && (
+          {!mixedRealityActive && !isAulaVirtual && (
           <Stars
             radius={80}
             depth={50}
@@ -1223,23 +1264,38 @@ export default function NeonRoom() {
           />
           )}
 
-          {/* Soft fill so pearly walls read clean */}
-          <ambientLight intensity={0.55} />
-          {/* Subtle directional fill for depth on the white walls */}
-          <directionalLight position={[5, 8, 5]} intensity={0.4} color="#ffffff" />
-          <pointLight position={[-8.5, 5.5, 0]} intensity={1.8} distance={14} decay={2} color="#fff4dc" />
+          <ambientLight intensity={theme.ambientLightIntensity} />
+          <directionalLight position={[5, 8, 5]} intensity={theme.directionalLightIntensity} color={theme.directionalLightColor} />
+          <pointLight position={[-8.5, 5.5, 0]} intensity={theme.fillLightIntensity} distance={14} decay={2} color={theme.fillLightColor} />
 
-          <Room structureVisible={!mixedRealityActive} />
-          <HoloScreens focusedScreen={focusedScreen} onFocusScreen={focusScreen} />
-          <NeonAccents />
-          <LoungeSet />
-          <LoungeSpotlight />
+          <Room structureVisible={!mixedRealityActive} theme={theme} />
+          <HoloScreens
+            focusedScreen={focusedScreen}
+            onFocusScreen={focusScreen}
+            frameColor={theme.screenFrameColor}
+          />
+          {!isAulaVirtual && (
+            <>
+              <NeonAccents />
+              <LoungeSet />
+              <LoungeSpotlight />
+            </>
+          )}
 
         <Suspense fallback={null}>
-          <LobbyDecorEarthMoon position={[ROOM_SIZE / 2 - 2.15, WALL_HEIGHT * 0.45, 0]} scale={1.26} />
-          <LobbyDecorHeartWall position={[0, WALL_HEIGHT / 2, ROOM_SIZE / 2 - 0.45]} />
-          <LobbyDecorArchitectWall position={[-ROOM_SIZE / 2 + 0.7, WALL_HEIGHT / 2, 0]} scaleMultiplier={1.35} />
-          <LobbyDecorFarolLantern position={[-5, WALL_HEIGHT * 0.55, -ROOM_SIZE / 2 + 0.45]} />
+          {isAulaVirtual ? (
+            <>
+              <AulaVirtualClassroomDecor roomSize={ROOM_SIZE} wallHeight={WALL_HEIGHT} />
+              <AulaVirtualWallGallery roomSize={ROOM_SIZE} wallHeight={WALL_HEIGHT} />
+            </>
+          ) : (
+            <>
+              <LobbyDecorEarthMoon position={[ROOM_SIZE / 2 - 2.15, WALL_HEIGHT * 0.45, 0]} scale={1.26} />
+              <LobbyDecorHeartWall position={[0, WALL_HEIGHT / 2, ROOM_SIZE / 2 - 0.45]} />
+              <LobbyDecorArchitectWall position={[-ROOM_SIZE / 2 + 0.7, WALL_HEIGHT / 2, 0]} scaleMultiplier={1.35} />
+              <LobbyDecorFarolLantern position={[-5, WALL_HEIGHT * 0.55, -ROOM_SIZE / 2 + 0.45]} />
+            </>
+          )}
         </Suspense>
         <FirstPersonController
           enabled={focusedScreen === null}

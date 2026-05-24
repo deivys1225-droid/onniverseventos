@@ -1,9 +1,12 @@
-﻿import { Box } from "lucide-react";
+﻿import { Box, GraduationCap } from "lucide-react";
+import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SectionHeader from "@/components/salas/SectionHeader";
 import Galeria3DModelsGrid from "@/components/galeria3d/Galeria3DModelsGrid";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
+import { Button } from "@/components/ui/button";
+import { AULA_VIRTUAL_PATH } from "@/lib/aulaVirtual";
 
 const Galeria3DPage = () => {
   return (
@@ -36,6 +39,36 @@ const Galeria3DPage = () => {
               subtitle="Explora hologramas 3D gratuitos. Rótalos y estúdialos en tu espacio o en AR."
               accent="border-cyan-400/40 bg-cyan-500/10 text-cyan-200"
             />
+
+            <article className="mb-10 overflow-hidden rounded-2xl border border-amber-400/35 bg-gradient-to-br from-amber-500/10 via-card/50 to-cyan-500/10 p-5 backdrop-blur-xl sm:p-6">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
+                <div className="relative h-44 shrink-0 overflow-hidden rounded-xl border border-white/10 sm:h-48 lg:w-72">
+                  <img
+                    src={`${import.meta.env.BASE_URL}educacion-inmersiva.jpeg`}
+                    alt="Aula virtual inmersiva OnniVers"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent" />
+                </div>
+                <div className="flex-1">
+                  <p className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-100">
+                    <GraduationCap className="h-3.5 w-3.5" aria-hidden />
+                    Nuevo espacio inmersivo
+                  </p>
+                  <h2 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                    Aula Virtual
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                    Entra a la sala 3D caminable con pupitres, pizarra y luz de aula. Mismos controles
+                    que el lobby inmersivo.
+                  </p>
+                  <Button asChild variant="heroOutline" size="sm" className="mt-4 touch-manipulation">
+                    <Link to={AULA_VIRTUAL_PATH}>Entrar al Aula Virtual</Link>
+                  </Button>
+                </div>
+              </div>
+            </article>
+
             <Galeria3DModelsGrid />
           </section>
         </div>
