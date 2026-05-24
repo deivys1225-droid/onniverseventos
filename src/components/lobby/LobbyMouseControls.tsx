@@ -1,5 +1,5 @@
-import { useEffect, useRef, type MutableRefObject } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
+import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 /** -1 atrás (clic derecho), 0 quieto, 1 adelante (clic izquierdo). */
@@ -32,9 +32,6 @@ type LobbyMouseButtonControlsProps = {
   inputRef: React.MutableRefObject<MouseMoveInput>;
   /** Misma acción que la tecla Escape (doble clic derecho). */
   onEscape?: () => void;
-  /** Móvil sin pointer-lock: derecho = girar, izquierdo = adelante. */
-  fallbackSpinMode?: boolean;
-  orbitSpinHeldRef?: MutableRefObject<boolean>;
 };
 
 /**
@@ -48,8 +45,6 @@ export default function LobbyMouseButtonControls({
   movementEnabled = true,
   inputRef,
   onEscape,
-  fallbackSpinMode = false,
-  orbitSpinHeldRef,
 }: LobbyMouseButtonControlsProps) {
   useEffect(() => {
     if (!enabled) {
@@ -100,7 +95,6 @@ export default function LobbyMouseButtonControls({
       if (now - lastRightDownAt < DOUBLE_RIGHT_CLICK_MS) {
         cancelRightWalkTimer();
         held.right = false;
-        if (orbitSpinHeldRef) orbitSpinHeldRef.current = false;
         syncForward();
         lastRightDownAt = 0;
         onEscape?.();
@@ -111,10 +105,6 @@ export default function LobbyMouseButtonControls({
       if (!movementEnabled) return;
 
       lastRightDownAt = now;
-      if (fallbackSpinMode && orbitSpinHeldRef) {
-        orbitSpinHeldRef.current = true;
-        return;
-      }
       cancelRightWalkTimer();
       rightWalkTimer = setTimeout(() => {
         rightWalkTimer = null;
@@ -132,10 +122,6 @@ export default function LobbyMouseButtonControls({
       }
       if (event.button !== 2) return;
       cancelRightWalkTimer();
-      if (fallbackSpinMode && orbitSpinHeldRef) {
-        orbitSpinHeldRef.current = false;
-        return;
-      }
       held.right = false;
       syncForward();
     };
@@ -149,7 +135,6 @@ export default function LobbyMouseButtonControls({
       cancelRightWalkTimer();
       held.left = false;
       held.right = false;
-      if (orbitSpinHeldRef) orbitSpinHeldRef.current = false;
       inputRef.current.forward = 0;
     };
 
@@ -162,39 +147,42 @@ export default function LobbyMouseButtonControls({
       cancelRightWalkTimer();
       held.left = false;
       held.right = false;
-      if (orbitSpinHeldRef) orbitSpinHeldRef.current = false;
       inputRef.current.forward = 0;
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("contextmenu", onContextMenu);
       window.removeEventListener("blur", onBlur);
     };
-  }, [enabled, movementEnabled, inputRef, onEscape, fallbackSpinMode, orbitSpinHeldRef]);
+  }, [enabled, movementEnabled, inputRef, onEscape]);
 
   return null;
 }
 
 const MOBILE_MOUSE_LOOK_SENSITIVITY = 0.0045;
-const RIGHT_CLICK_ORBIT_SPEED = 1.15;
+const WHEEL_ORBIT_FACTOR = 0.0028;
 
 /**
- * Respaldo en móvil (p. ej. pantalla dividida): mantener clic derecho = giro 360° horizontal.
+ * Celular + ratón: rueda del ratón = giro horizontal 360° (eje Y, tipo Tierra).
  */
-export function LobbyRightClickOrbitSpin({
-  enabled,
-  spinHeldRef,
-}: {
-  enabled: boolean;
-  spinHeldRef: MutableRefObject<boolean>;
-}) {
+export function LobbyMobileWheelOrbitSpin({ enabled }: { enabled: boolean }) {
   const { camera } = useThree();
 
-  useFrame((_, delta) => {
-    if (!enabled || !spinHeldRef.current) return;
-    camera.rotation.order = "YXZ";
-    camera.rotation.y += delta * RIGHT_CLICK_ORBIT_SPEED;
-    camera.up.set(0, 1, 0);
-  });
+  useEffect(() => {
+    if (!enabled) return;
+
+    const onWheel = (event: WheelEvent) => {
+      if (shouldIgnoreMouseTarget(event.target)) return;
+      event.preventDefault();
+      const delta = (event.deltaY + event.deltaX) * WHEEL_ORBIT_FACTOR;
+      if (delta === 0) return;
+      camera.rotation.order = "YXZ";
+      camera.rotation.y += delta;
+      camera.up.set(0, 1, 0);
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, [camera, enabled]);
 
   return null;
 }

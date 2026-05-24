@@ -13,8 +13,8 @@ import {
 import { useLobbyFinePointer } from "@/lib/useLobbyFinePointer";
 import LobbyMouseButtonControls, {
   createMouseMoveInput,
-  LobbyRightClickOrbitSpin,
   LobbyMobileMouseLook,
+  LobbyMobileWheelOrbitSpin,
 } from "@/components/lobby/LobbyMouseControls";
 import MobileLobbyMovePad, {
   createMobileMoveInput,
@@ -809,7 +809,6 @@ export default function NeonRoom() {
   const isTouchOnlyLobby = isMobileCoarse && !usesFinePointer;
   const mobileMoveInput = useRef(createMobileMoveInput());
   const mouseMoveInput = useRef(createMouseMoveInput());
-  const orbitSpinHeldRef = useRef(false);
   const mobileLookFallbackRef = useRef(false);
   const [mobileLookFallback, setMobileLookFallback] = useState(false);
   const [locked, setLocked] = useState(false);
@@ -1114,10 +1113,9 @@ export default function NeonRoom() {
   const gyroLookActive = gyroLookEnabled && focusedScreen === null;
   const mobileTouchLookActive = isTouchOnlyLobby && focusedScreen === null && !gyroLookEnabled;
   const usesPointerLockControls = usesFinePointer && focusedScreen === null && !mobileLookFallback;
+  const mobileWheelSpinActive = isMobileCoarse && usesFinePointer && focusedScreen === null;
   const mobileMouseLookActive =
     isMobileCoarse && usesFinePointer && !mobileLookFallback && focusedScreen === null && !locked;
-  const mobileFallbackSpinActive =
-    isMobileCoarse && usesFinePointer && mobileLookFallback && focusedScreen === null;
 
   return (
     <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : "bg-black"}`}>
@@ -1242,7 +1240,7 @@ export default function NeonRoom() {
         <LobbyDeviceOrientationLook enabled={gyroLookActive} recenterToken={gyroRecenterToken} />
         <MobileTouchLook enabled={mobileTouchLookActive} />
         <LobbyMobileMouseLook enabled={mobileMouseLookActive} />
-        <LobbyRightClickOrbitSpin enabled={mobileFallbackSpinActive} spinHeldRef={orbitSpinHeldRef} />
+        <LobbyMobileWheelOrbitSpin enabled={mobileWheelSpinActive} />
 
         {usesPointerLockControls && (
           <PointerLockControls
@@ -1265,8 +1263,6 @@ export default function NeonRoom() {
         movementEnabled={focusedScreen === null}
         inputRef={mouseMoveInput}
         onEscape={handleLobbyEscape}
-        fallbackSpinMode={mobileFallbackSpinActive}
-        orbitSpinHeldRef={orbitSpinHeldRef}
       />
 
       {isTouchOnlyLobby && (
@@ -1287,7 +1283,7 @@ export default function NeonRoom() {
         siguen ahí pero ahora son no-ops visuales).
       */}
 
-      {(locked || mobileMouseLookActive || mobileFallbackSpinActive) && focusedScreen === null && (
+      {(locked || mobileMouseLookActive || mobileWheelSpinActive) && focusedScreen === null && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference" />
       )}
     </div>
