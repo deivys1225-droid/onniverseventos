@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Camera } from "lucide-react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, PointerLockControls, Stars, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -31,14 +31,6 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const WALL_COLOR = "#EAECEE";
 const LOBBY_SCREEN_HTML_Z_INDEX: [number, number] = [10000, 0];
 
-function lobbyAndroidUsesNativePantalla2WebView(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    Capacitor.getPlatform() === "android" &&
-    typeof window.Android?.showLobbyPantalla2WebView === "function" &&
-    typeof window.Android?.hideLobbyPantalla2WebView === "function"
-  );
-}
 /**
  * Google Maps embebido (`output=embed`) — suele verse bien en iframe en web y en el WebView de Capacitor.
  * Pantallas 2 y 3 del lobby usan la misma URL por defecto.
@@ -150,107 +142,34 @@ function isGlbSource(url: string): boolean {
 const WALL_SCREEN_WIDTH = 8;
 const WALL_SCREEN_HEIGHT = 4.5;
 
+/** Tres paneles en la pared 1 (fondo): ocupan casi todo el ancho; salas (2) es la más ancha. */
+const WALL1_SIDE_MARGIN = 0.35;
+const WALL1_PANEL_GAP = 0.1;
+const WALL1_USABLE_WIDTH = ROOM_SIZE - WALL1_SIDE_MARGIN * 2;
+const WALL1_PANELS_TOTAL = WALL1_USABLE_WIDTH - WALL1_PANEL_GAP * 2;
+/** Reparto: hub ~28 % · salas ~44 % · web ~28 % */
+const WALL1_HUB_WIDTH = WALL1_PANELS_TOTAL * 0.28;
+const WALL1_SALAS_WIDTH = WALL1_PANELS_TOTAL * 0.44;
+const WALL1_WEB_WIDTH = WALL1_PANELS_TOTAL * 0.28;
+const WALL1_PANEL_HEIGHT = WALL_SCREEN_HEIGHT;
+const LOBBY_WEB_EMBED_URL = "https://onnivers.com/nuestras-salas";
+
+function wall1PanelCenters(): [number, number, number] {
+  const widths = [WALL1_HUB_WIDTH, WALL1_SALAS_WIDTH, WALL1_WEB_WIDTH];
+  const total = widths.reduce((sum, w) => sum + w, 0) + WALL1_PANEL_GAP * 2;
+  let cursor = -total / 2;
+  return widths.map((w) => {
+    const center = cursor + w / 2;
+    cursor += w + WALL1_PANEL_GAP;
+    return center;
+  }) as [number, number, number];
+}
+
 function lobbyWallScreenCaption(label: number): string {
   return String(label);
 }
 
-/** Cuatro iconos en cuadrícula 2×2 a la derecha del panel de la pantalla 2 (cada uno ~¼ del bloque). */
-function LobbyScreen2SocialDecor({
-  htmlScale,
-  htmlZIndexRange,
-  w,
-  embedHeight,
-}: {
-  htmlScale: number;
-  htmlZIndexRange: [number, number];
-  w: number;
-  embedHeight: number;
-}) {
-  const captionScale = htmlScale * 1.575;
-  const gapPx = 11;
-  const padPx = 10;
-  const gridW = Math.round(Math.min(420, Math.round(embedHeight * 0.95) + 40) * 0.5);
-  const gridH = Math.round(Math.min(Math.round(embedHeight * 1.02), 480) * 0.5);
-
-  const cell: CSSProperties = {
-    borderRadius: 12,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 0,
-    minHeight: 0,
-    width: "100%",
-    height: "100%",
-    boxShadow:
-      "0 8px 18px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.2), inset 0 -2px 0 rgba(0,0,0,0.2)",
-  };
-
-  const iconSize = Math.min(48, Math.floor((gridW - padPx * 2 - gapPx) / 2) - 9);
-
-  return (
-    <Html
-      transform
-      position={[w / 2 + 2.1 * 1.15, 0, 0.12]}
-      center
-      scale={captionScale}
-      zIndexRange={htmlZIndexRange}
-      style={{ pointerEvents: "none" }}
-    >
-      <div
-        role="presentation"
-        aria-hidden
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "1fr 1fr",
-          width: gridW,
-          height: gridH,
-          gap: gapPx,
-          padding: padPx,
-          boxSizing: "border-box",
-          background: "rgba(2,6,23,0.35)",
-          borderRadius: 14,
-          border: "1px solid rgba(34,211,238,0.22)",
-          boxShadow: "0 0 24px -8px rgba(34,211,238,0.25)",
-        }}
-      >
-        <div style={{ ...cell, background: "linear-gradient(180deg, #0866FF 0%, #044bd9 100%)" }}>
-          <svg viewBox="0 0 24 24" width={iconSize} height={iconSize} aria-hidden>
-            <path
-              fill="#fff"
-              d="M13.5 22v-9.2h3.1l.5-3.6H13.5V7.3c0-1 .3-1.7 1.7-1.7h1.9V2.2c-.3 0-1.5-.1-2.9-.1-2.9 0-4.9 1.8-4.9 5v2.8H6.5v3.6h3.8V22h3.2z"
-            />
-          </svg>
-        </div>
-        <div
-          style={{
-            ...cell,
-            background:
-              "radial-gradient(circle at 32% 110%, #fdf497 0%, #fdf497 6%, #fd5949 42%, #d6249f 58%, #285aeb 92%)",
-          }}
-        >
-          <svg viewBox="0 0 24 24" width={iconSize} height={iconSize} aria-hidden>
-            <rect x="3" y="3" width="18" height="18" rx="5" fill="rgba(255,255,255,0.22)" />
-            <circle cx="12" cy="12" r="4.2" fill="none" stroke="#fff" strokeWidth="1.65" />
-            <circle cx="17.2" cy="6.8" r="1.35" fill="#fff" />
-          </svg>
-        </div>
-        <div style={{ ...cell, background: "linear-gradient(145deg, #0f0f0f 0%, #1c1c1c 100%)" }}>
-          <svg viewBox="0 0 24 24" width={iconSize} height={iconSize} aria-hidden>
-            <circle cx="10.2" cy="12" r="3.6" fill="#25F4EE" />
-            <circle cx="14.2" cy="11.2" r="3.6" fill="#FE2C55" opacity="0.92" />
-            <circle cx="12.2" cy="12.4" r="2.1" fill="#fff" opacity="0.12" />
-          </svg>
-        </div>
-        <div style={{ ...cell, background: "linear-gradient(180deg, #FF0000 0%, #c80000 100%)" }}>
-          <svg viewBox="0 0 24 24" width={iconSize} height={iconSize} aria-hidden>
-            <path fill="#fff" d="M9.8 7.4v9.2L17.8 12 9.8 7.4z" />
-          </svg>
-        </div>
-      </div>
-    </Html>
-  );
-}
+type HoloScreenKind = "hub" | "salas" | "webpage";
 
 function WallSceneGlbModel({
   url,
@@ -328,13 +247,6 @@ function WallSceneGlb({
   );
 }
 
-const CENTER_SCREEN_EMBED_URL = "https://onnivers.com/nuestras-salas";
-/** Tamaño grande del panel Nuestras Salas (antes flotaba en el centro). */
-const NUESTRAS_SALAS_EMBED_WIDTH = 1024;
-const NUESTRAS_SALAS_EMBED_HEIGHT = 576;
-const NUESTRAS_SALAS_HTML_SCALE = 0.5;
-const NUESTRAS_SALAS_PANEL_WIDTH = WALL_SCREEN_WIDTH * (NUESTRAS_SALAS_EMBED_WIDTH / 800);
-const NUESTRAS_SALAS_PANEL_HEIGHT = WALL_SCREEN_HEIGHT * (NUESTRAS_SALAS_EMBED_HEIGHT / 450);
 
 const MIXED_REALITY_CAMERA_ERROR =
   "No se pudo acceder a la camara trasera. Revisa los permisos del navegador y vuelve a intentarlo.";
@@ -453,18 +365,20 @@ function Room({ structureVisible }: { structureVisible: boolean }) {
 function HoloScreen({
   position,
   rotation,
+  kind,
   embedUrl,
   label,
   focused,
   interactionMode,
   onFocus,
-  width = 8,
-  height = 4.5,
+  width = WALL_SCREEN_WIDTH,
+  height = WALL_SCREEN_HEIGHT,
   frameColor = "#00ffff",
 }: {
   position: [number, number, number];
   rotation: [number, number, number];
-  embedUrl: string;
+  kind: HoloScreenKind;
+  embedUrl?: string;
   label: number;
   focused: boolean;
   interactionMode: boolean;
@@ -475,16 +389,14 @@ function HoloScreen({
 }) {
   const w = width;
   const h = height;
-  const embedWidth = 800;
+  const embedWidth =
+    kind === "webpage"
+      ? Math.round(560 * (w / WALL_SCREEN_WIDTH))
+      : Math.round(800 * (w / WALL_SCREEN_WIDTH));
   const embedHeight = Math.round((embedWidth * h) / w);
   const htmlScale = (w / embedWidth) * 36.225;
   const htmlZIndexRange = LOBBY_SCREEN_HTML_Z_INDEX;
   const screenPointerEvents = !interactionMode || focused ? "auto" : "none";
-
-  const isPantalla1 = label === 1;
-  const isPantalla3Salas = label === 3;
-  const useNativeTikTokWebViewForP2 =
-    !isPantalla1 && !isPantalla3Salas && label === 2 && lobbyAndroidUsesNativePantalla2WebView();
 
   return (
     <group position={position} rotation={rotation}>
@@ -506,37 +418,18 @@ function HoloScreen({
             pointerEvents: screenPointerEvents,
           }}
         >
-          {isPantalla1 ? (
-            <LobbyScreenOneHub
-              width={embedWidth}
-              height={embedHeight}
-            />
-          ) : isPantalla3Salas ? (
+          {kind === "hub" ? (
+            <LobbyScreenOneHub width={embedWidth} height={embedHeight} />
+          ) : kind === "salas" ? (
             <LobbyScreenThreeSalasPlayer width={embedWidth} height={embedHeight} />
-          ) : useNativeTikTokWebViewForP2 && focused ? (
-            <div
-              style={{
-                width: `${embedWidth}px`,
-                height: `${embedHeight}px`,
-                background: "#02030a",
-                pointerEvents: screenPointerEvents,
-              }}
-              aria-hidden
-            />
           ) : (
             <iframe
               key={embedUrl}
-              src={embedUrl}
+              src={embedUrl ?? LOBBY_WEB_EMBED_URL}
               width={embedWidth}
               height={embedHeight}
-              title={
-                label === 4
-                  ? "Zona GLB / GLTF"
-                  : embedUrl.includes("google.com/maps")
-                    ? "Google Maps"
-                    : `Pantalla ${label}`
-              }
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              title="onnivers.com — Nuestras salas"
+              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
               style={{
                 border: "0",
@@ -550,14 +443,6 @@ function HoloScreen({
           )}
         </div>
       </Html>
-      {label === 2 && (
-        <LobbyScreen2SocialDecor
-          htmlScale={htmlScale}
-          htmlZIndexRange={htmlZIndexRange}
-          w={w}
-          embedHeight={embedHeight}
-        />
-      )}
       <Html
         transform
         position={[0, -((h / 2 + 0.35) * 1.1), 0.05]}
@@ -601,88 +486,48 @@ function HoloScreen({
   );
 }
 
-// ---------- 4 holographic screens, one centered on each wall ----------
+// ---------- 3 pantallas en la pared 1 (fondo) ----------
 function HoloScreens({
   focusedScreen,
   onFocusScreen,
-  screenUrls,
 }: {
   focusedScreen: number | null;
   onFocusScreen: (label: number) => void;
-  screenUrls: LobbyScreenUrls;
 }) {
   const half = ROOM_SIZE / 2;
   const y = WALL_HEIGHT / 2;
   const off = 0.03;
+  const rot: [number, number, number] = [0, 0, 0];
+  const [xHub, xSalas, xWeb] = wall1PanelCenters();
   const interactionMode = focusedScreen !== null;
-  const screenProps = (label: number, embedUrl: string, position: [number, number, number], rotation: [number, number, number]) => ({
-    position,
-    rotation,
-    embedUrl,
-    label,
-    focused: focusedScreen === label,
-    interactionMode,
-    onFocus: () => onFocusScreen(label),
-  });
+
+  const panel = (
+    kind: HoloScreenKind,
+    label: number,
+    x: number,
+    width: number,
+    embedUrl?: string,
+  ) => (
+    <HoloScreen
+      kind={kind}
+      label={label}
+      embedUrl={embedUrl}
+      position={[x, y, -half + off]}
+      rotation={rot}
+      width={width}
+      height={WALL1_PANEL_HEIGHT}
+      focused={focusedScreen === label}
+      interactionMode={interactionMode}
+      onFocus={() => onFocusScreen(label)}
+    />
+  );
 
   return (
     <>
-      {/* Back wall (-Z) */}
-      <HoloScreen
-        {...screenProps(1, screenUrls[0], [0, y, -half + off], [0, 0, 0])}
-      />
-      {/* Front wall (+Z) */}
-      <HoloScreen
-        {...screenProps(2, screenUrls[1], [0, y, half - off], [0, Math.PI, 0])}
-      />
-      {/* Left wall (-X) */}
-      <HoloScreen
-        {...screenProps(3, screenUrls[2], [-half + off, y, 0], [0, Math.PI / 2, 0])}
-      />
-      {/* Right wall (+X): pantalla 4 retirada; Nuestras Salas va en ForcedFloatingVideoScreen */}
+      {panel("hub", 1, xHub, WALL1_HUB_WIDTH)}
+      {panel("salas", 2, xSalas, WALL1_SALAS_WIDTH)}
+      {panel("webpage", 3, xWeb, WALL1_WEB_WIDTH, LOBBY_WEB_EMBED_URL)}
     </>
-  );
-}
-
-/** Iframe fijo a onnivers.com en la pared derecha (sin leyenda «4»). */
-function ForcedFloatingVideoScreen({
-  position,
-  rotation,
-}: {
-  position: [number, number, number];
-  rotation: [number, number, number];
-}) {
-  return (
-    <group position={position} rotation={rotation}>
-      <Html
-        transform
-        position={[0, 0, 0.05]}
-        scale={NUESTRAS_SALAS_HTML_SCALE}
-        zIndexRange={LOBBY_SCREEN_HTML_Z_INDEX}
-        style={{ pointerEvents: "auto" }}
-      >
-        <iframe
-          src={CENTER_SCREEN_EMBED_URL}
-          width={NUESTRAS_SALAS_EMBED_WIDTH}
-          height={NUESTRAS_SALAS_EMBED_HEIGHT}
-          title="onnivers.com — Nuestras salas"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-          style={{
-            border: "0",
-            display: "block",
-            width: `${NUESTRAS_SALAS_EMBED_WIDTH}px`,
-            height: `${NUESTRAS_SALAS_EMBED_HEIGHT}px`,
-            background: "#02030a",
-            pointerEvents: "auto",
-          }}
-        />
-      </Html>
-      <mesh position={[0, 0, -0.01]}>
-        <planeGeometry args={[NUESTRAS_SALAS_PANEL_WIDTH, NUESTRAS_SALAS_PANEL_HEIGHT]} />
-        <meshBasicMaterial color="#02030a" toneMapped={false} />
-      </mesh>
-    </group>
   );
 }
 
@@ -1093,9 +938,6 @@ export default function NeonRoom() {
   const mixedRealityStartInFlightRef = useRef(false);
   const [gyroLookEnabled, setGyroLookEnabled] = useState(false);
   const [gyroError, setGyroError] = useState<string | null>(null);
-  const [screenUrls] = useState<LobbyScreenUrls>(
-    () => readStoredLobbyScreenUrls() ?? defaultLobbyScreenUrls(),
-  );
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const focusedScreenRef = useRef<number | null>(null);
@@ -1111,25 +953,6 @@ export default function NeonRoom() {
     focusedScreenRef.current = focusedScreen;
   }, [focusedScreen]);
 
-  useEffect(() => {
-    if (Capacitor.getPlatform() !== "android") return;
-    const bridge = window.Android;
-    if (
-      bridge == null ||
-      typeof bridge.showLobbyPantalla2WebView !== "function" ||
-      typeof bridge.hideLobbyPantalla2WebView !== "function"
-    ) {
-      return;
-    }
-    if (focusedScreen === 2) {
-      bridge.showLobbyPantalla2WebView();
-    } else {
-      bridge.hideLobbyPantalla2WebView();
-    }
-    return () => {
-      bridge.hideLobbyPantalla2WebView();
-    };
-  }, [focusedScreen]);
 
   useEffect(() => {
     escapeBarVisibleRef.current = escapeBarVisible;
@@ -1356,7 +1179,7 @@ export default function NeonRoom() {
         onClick={() => void toggleMixedReality()}
         disabled={mixedRealityLoading}
         aria-label={mixedRealityEnabled ? "Desactivar modo realidad mixta" : "Activar modo realidad mixta"}
-        className={`pointer-events-auto fixed right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 font-display text-xs font-bold tracking-[0.18em] shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:bg-slate-900 hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)] disabled:cursor-wait disabled:opacity-70 ${
+        className={`pointer-events-auto fixed right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:bg-slate-900 hover:shadow-[0_0_34px_-2px_rgba(34,211,238,1)] disabled:cursor-wait disabled:opacity-70 ${
           mixedRealityEnabled
             ? "border-violet-400/70 text-violet-200 hover:border-violet-300 hover:text-white"
             : "border-cyan-400/60 text-cyan-200 hover:border-cyan-300 hover:text-white"
@@ -1366,7 +1189,7 @@ export default function NeonRoom() {
           right: "max(1rem, env(safe-area-inset-right))",
         }}
       >
-        RM
+        <Camera className="h-5 w-5" aria-hidden />
       </button>
       {mixedRealityError && (
         <p
@@ -1412,15 +1235,7 @@ export default function NeonRoom() {
           <directionalLight position={[5, 8, 5]} intensity={0.4} color="#ffffff" />
 
           <Room structureVisible={!mixedRealityActive} />
-          <HoloScreens
-            focusedScreen={focusedScreen}
-            onFocusScreen={focusScreen}
-            screenUrls={screenUrls}
-          />
-          <ForcedFloatingVideoScreen
-            position={[ROOM_SIZE / 2 - 0.03, WALL_HEIGHT / 2, 0]}
-            rotation={[0, -Math.PI / 2, 0]}
-          />
+          <HoloScreens focusedScreen={focusedScreen} onFocusScreen={focusScreen} />
           <NeonAccents />
           <LoungeSet />
           <LoungeSpotlight />
