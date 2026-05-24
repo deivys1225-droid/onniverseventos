@@ -14,6 +14,7 @@ import {
 } from "@/lib/audiencePlayback";
 import { muxPlaybackIdFromHlsUrl } from "@/lib/muxPlaybackId";
 import { handoffSalaCardOnAndroid } from "@/lib/salaOpenDirect";
+import { shuffleArray } from "@/lib/shuffleArray";
 import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { Button } from "@/components/ui/button";
@@ -154,7 +155,7 @@ const NuestrasSalasPage = () => {
       priceUsd: 0,
       mp4Url: SALA_MP4_URL_BY_ID[streamer.id],
     }));
-    return [
+    return shuffleArray([
       ...streamerRooms,
       {
         id: "hablando-huevadas",
@@ -180,7 +181,7 @@ const NuestrasSalasPage = () => {
         priceUsd: 0,
         mp4Url: SALA_MP4_URL_BY_ID["michael-jackson"],
       },
-    ];
+    ]);
   }, []);
 
   const beginRoomSession = async (
