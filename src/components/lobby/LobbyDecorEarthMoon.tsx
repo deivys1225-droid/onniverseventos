@@ -10,8 +10,8 @@ const EARTH_SPECULAR = `${EARTH_TEXTURES_BASE}/earth_specular_2048.jpg`;
 const EARTH_CLOUDS = `${EARTH_TEXTURES_BASE}/earth_clouds_1024.png`;
 const MOON_TEXTURE = "/assets/textures/moon/moon_1024.jpg";
 
-/** Misma escala visual que el inicio (Mi Mundo), anclada al centro del lobby. */
-const EARTH_RADIUS = 0.925;
+/** Decoración central del lobby: más compacta que el inicio. */
+const EARTH_RADIUS = 0.72;
 const MOON_RADIUS = EARTH_RADIUS * 0.27;
 const MOON_ORBIT_RADIUS = EARTH_RADIUS * 1.95;
 const EARTH_SPIN_SPEED = 0.08;
@@ -176,17 +176,20 @@ function LobbyDecorEarth({ simpleGpu }: { simpleGpu: boolean }) {
 }
 
 /**
- * Tierra + Luna del inicio, solo decoración en el centro del lobby (sin abrir lobby ni deep links).
+ * Tierra + Luna decorativas en el lobby (sin interacción).
+ * Por defecto junto a la pared derecha (+X), fuera del centro de las pantallas.
  */
 export default function LobbyDecorEarthMoon({
-  position = [0, 1.88, 0],
+  position = [7.85, 3.6, 0],
+  scale = 1.26,
 }: {
   position?: [number, number, number];
+  scale?: number;
 }) {
   const simpleGpu = isMobileCoarseDevice();
 
   return (
-    <group position={position} scale={0.5}>
+    <group position={position} scale={scale}>
       <LobbyDecorEarth simpleGpu={simpleGpu} />
       <LobbyDecorMoon simpleGpu={simpleGpu} />
     </group>

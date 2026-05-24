@@ -3,7 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Camera } from "lucide-react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Html, PointerLockControls, Stars, useGLTF } from "@react-three/drei";
+import { Html, PointerLockControls, Stars } from "@react-three/drei";
 import * as THREE from "three";
 import {
   applyPixelRatioCap,
@@ -16,6 +16,9 @@ import MobileLobbyMovePad, {
 } from "@/components/lobby/MobileLobbyMovePad";
 import VirtualCursorLook from "@/components/lobby/VirtualCursorLook";
 import LobbyDeviceOrientationLook from "@/components/lobby/LobbyDeviceOrientationLook";
+import LobbyDecorEarthMoon from "@/components/lobby/LobbyDecorEarthMoon";
+import LobbyDecorArchitectWall from "@/components/lobby/LobbyDecorArchitectWall";
+import LobbyDecorHeartWall from "@/components/lobby/LobbyDecorHeartWall";
 import LobbyGyroToggleButton from "@/components/lobby/LobbyGyroToggleButton";
 import { requestDeviceOrientationPermission } from "@/lib/deviceOrientationCamera";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
@@ -170,83 +173,6 @@ function lobbyWallScreenCaption(label: number): string {
 }
 
 type HoloScreenKind = "hub" | "salas" | "webpage";
-
-function WallSceneGlbModel({
-  url,
-  width,
-  height,
-}: {
-  url: string;
-  width: number;
-  height: number;
-}) {
-  const { scene } = useGLTF(url, false, false, (loader) => {
-    loader.setCrossOrigin("anonymous");
-  });
-  const model = useMemo(() => {
-    const root = scene.clone(true);
-    root.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(root);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    root.position.sub(center);
-    const fitScale = Math.min(
-      (width * 0.92) / Math.max(size.x, 1e-6),
-      (height * 0.92) / Math.max(size.y, 1e-6),
-      (width * 0.92) / Math.max(size.z, 1e-6),
-    );
-    root.scale.setScalar(fitScale);
-    return root;
-  }, [scene, url, width, height]);
-
-  return <primitive object={model} />;
-}
-
-function WallSceneGlb({
-  url,
-  position,
-  rotation,
-  scaleMultiplier = 1,
-}: {
-  url: string;
-  position: [number, number, number];
-  rotation: [number, number, number];
-  /**
-   * Multiplicador uniforme aplicado DESPUÉS del fit-to-WALL_SCREEN_WIDTH
-   * interno. Default 1 (tamaño completo, como se ve en la pared).
-   *
-   * Cuando movemos el GLB al centro de la sala usamos `0.5` para que no
-   * solape visualmente con las pantallas de las paredes (Y=4, tamaño 8x4.5):
-   * el modelo a tamaño completo ocupaba de Y=-1.75 a Y=6.25 y quedaba justo
-   * en la línea de vista del jugador (Y=3.045) hacia las pantallas. A
-   * la mitad ocupa de Y=0.25 a Y=4.25 y deja la vista de las pantallas
-   * más despejada. En el centro de la sala se coloca un poco más bajo (Y≈1.88).
-   */
-  scaleMultiplier?: number;
-}) {
-  const spinRef = useRef<THREE.Group>(null);
-
-  useFrame((_, delta) => {
-    if (!spinRef.current) return;
-    spinRef.current.rotation.y += delta * 0.42;
-  });
-
-  return (
-    <group position={position} rotation={rotation}>
-      <group ref={spinRef} scale={scaleMultiplier}>
-        <Suspense fallback={null}>
-          <WallSceneGlbModel
-            key={url}
-            url={url}
-            width={WALL_SCREEN_WIDTH}
-            height={WALL_SCREEN_HEIGHT}
-          />
-        </Suspense>
-      </group>
-    </group>
-  );
-}
-
 
 const MIXED_REALITY_CAMERA_ERROR =
   "No se pudo acceder a la camara trasera. Revisa los permisos del navegador y vuelve a intentarlo.";
@@ -693,67 +619,7 @@ function NeonAccents() {
   );
 }
 
-// ---------- Earth + Moon attached to the camera ----------
-function EarthMoonAnchor() {
-  const { camera } = useThree();
-  const groupRef = useRef<THREE.Group>(null!);
-  const moonPivotRef = useRef<THREE.Group>(null!);
-
-  useEffect(() => {
-    const group = groupRef.current;
-    if (!group) return;
-    camera.add(group);
-    return () => {
-      camera.remove(group);
-    };
-  }, [camera]);
-
-  useFrame((_, delta) => {
-    if (moonPivotRef.current) {
-      moonPivotRef.current.rotation.y += delta * 0.8;
-    }
-  });
-
-  return (
-    <group ref={groupRef} position={[0, 0, -5]}>
-      {/* Earth */}
-      <mesh>
-        <sphereGeometry args={[0.7, 48, 48]} />
-        <meshStandardMaterial
-          color="#1e6fff"
-          roughness={0.55}
-          metalness={0.15}
-          emissive="#0a2a6b"
-          emissiveIntensity={0.4}
-        />
-      </mesh>
-
-      {/* Soft halo to keep Earth readable against bright walls */}
-      <mesh>
-        <sphereGeometry args={[0.78, 32, 32]} />
-        <meshBasicMaterial color="#3aa0ff" transparent opacity={0.12} />
-      </mesh>
-
-      {/* Key light at the Earth */}
-      <pointLight color="#ffffff" intensity={3.2} distance={9} decay={2} />
-
-      {/* Moon orbiting */}
-      <group ref={moonPivotRef}>
-        <mesh position={[1.6, 0.2, 0]}>
-          <sphereGeometry args={[0.18, 32, 32]} />
-          <meshStandardMaterial
-            color="#ffffff"
-            roughness={0.9}
-            metalness={0}
-            emissive="#bcd4ff"
-            emissiveIntensity={0.15}
-          />
-        </mesh>
-      </group>
-    </group>
-  );
-}
-
+// ---------- Tierra + Luna decorativas en el centro de la sala ----------
 function MixedRealityScene({ active }: { active: boolean }) {
   const { gl, scene } = useThree();
 
@@ -1241,7 +1107,11 @@ export default function NeonRoom() {
           <LoungeSet />
           <LoungeSpotlight />
 
-        <EarthMoonAnchor />
+        <Suspense fallback={null}>
+          <LobbyDecorEarthMoon position={[ROOM_SIZE / 2 - 2.15, WALL_HEIGHT * 0.45, 0]} scale={1.26} />
+          <LobbyDecorHeartWall position={[0, WALL_HEIGHT / 2, ROOM_SIZE / 2 - 0.45]} />
+          <LobbyDecorArchitectWall position={[-ROOM_SIZE / 2 + 0.45, WALL_HEIGHT / 2, 0]} />
+        </Suspense>
         <FirstPersonController enabled={focusedScreen === null} mobileInputRef={mobileMoveInput} />
         <LobbyDeviceOrientationLook enabled={gyroLookActive} recenterToken={gyroRecenterToken} />
         <VirtualCursorLook enabled={virtualCursorLookActive} />
