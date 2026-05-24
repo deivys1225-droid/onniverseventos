@@ -1090,6 +1090,13 @@ export default function NeonRoom() {
     await startMixedReality();
   }, [mixedRealityEnabled, startMixedReality, stopMixedReality]);
 
+  const autoMobileCameraStartedRef = useRef(false);
+  useEffect(() => {
+    if (!isMobileCoarse || autoMobileCameraStartedRef.current) return;
+    autoMobileCameraStartedRef.current = true;
+    void startMixedReality();
+  }, [isMobileCoarse, startMixedReality]);
+
   const activateGyroLook = useCallback(async () => {
     setGyroError(null);
     const permission = await requestDeviceOrientationPermission();

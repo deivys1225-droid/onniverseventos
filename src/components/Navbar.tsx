@@ -1,6 +1,19 @@
 import { Button } from "@/components/ui/button";
 import OnniVersoLogo from "@/components/branding/OnniVersoLogo";
-import { LogIn, LogOut, Menu, X } from "lucide-react";
+import {
+  Building2,
+  Box,
+  FolderOpen,
+  LogIn,
+  LogOut,
+  Menu,
+  MessageCircle,
+  Radio,
+  ShoppingBag,
+  Sparkles,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -11,15 +24,15 @@ import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
 const APP_APK_DOWNLOAD_URL =
   "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
 
-const NAV_ITEMS = [
-  { label: "VIVEVR", path: "/inicio-2" },
-  { label: "SALAS", path: "/nuestras-salas" },
-  { label: "COMUNIDAD", path: "/comunidad" },
-  { label: "3D", path: "/3d" },
-  { label: "REPRODUCTOR GALERIA", path: "/reproductor-galeria" },
-  { label: "TIENDA", path: "/tienda" },
-  { label: "QUIENES SOMOS", path: "/quienes-somos" },
-] as const;
+const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
+  { label: "ONNIVERSO", path: "/inicio-2", icon: Sparkles },
+  { label: "CONCIERTOS LIVE", path: "/nuestras-salas", icon: Radio },
+  { label: "CHAT", path: "/comunidad", icon: MessageCircle },
+  { label: "3D", path: "/3d", icon: Box },
+  { label: "REPRODUCTOR LOCAL", path: "/reproductor-galeria", icon: FolderOpen },
+  { label: "TIENDA", path: "/tienda", icon: ShoppingBag },
+  { label: "QUIENES SOMOS", path: "/quienes-somos", icon: Building2 },
+];
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
@@ -110,16 +123,20 @@ const Navbar = () => {
               Navegación
             </p>
             <div className="flex flex-col gap-2">
-              {NAV_ITEMS.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={(event) => handleNavItemClick(item.path, event)}
-                  className="flex min-h-[48px] w-full items-center rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-left text-sm font-display font-semibold tracking-wide text-primary transition hover:bg-primary/15"
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={(event) => handleNavItemClick(item.path, event)}
+                    className="flex min-h-[48px] w-full items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-left text-sm font-display font-semibold tracking-wide text-primary transition hover:bg-primary/15"
+                  >
+                    <Icon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
             </div>
             {user ? (
               <div className="mt-4 space-y-3 border-t border-border/40 pt-4 sm:hidden">

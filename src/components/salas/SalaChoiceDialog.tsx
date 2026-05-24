@@ -35,7 +35,7 @@ export function SalaChoiceDialog({ choice, onSelect, onClose }: SalaChoiceDialog
                 onClick={() => onSelect("OPEN_SALA_DIVIDIDA")}
               >
                 <MonitorPlay className="h-5 w-5 shrink-0" aria-hidden />
-                Pantalla dividida
+                CINE
               </Button>
               <Button
                 type="button"
@@ -43,7 +43,7 @@ export function SalaChoiceDialog({ choice, onSelect, onClose }: SalaChoiceDialog
                 onClick={() => onSelect("OPEN_SALA_MIXTA")}
               >
                 <LayoutGrid className="h-5 w-5 shrink-0" aria-hidden />
-                Pantalla mixta
+                CINE CAM
               </Button>
               <Button
                 type="button"
@@ -51,7 +51,7 @@ export function SalaChoiceDialog({ choice, onSelect, onClose }: SalaChoiceDialog
                 onClick={() => onSelect("OPEN_SALA_360")}
               >
                 <Orbit className="h-5 w-5 shrink-0" aria-hidden />
-                Escena 360
+                CINE 360
               </Button>
             </div>
             <div className="mt-3 flex justify-end">
