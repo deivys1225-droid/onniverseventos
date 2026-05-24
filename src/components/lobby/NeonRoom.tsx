@@ -24,6 +24,7 @@ import LobbyDeviceOrientationLook from "@/components/lobby/LobbyDeviceOrientatio
 import LobbyDecorEarthMoon from "@/components/lobby/LobbyDecorEarthMoon";
 import LobbyDecorArchitectWall from "@/components/lobby/LobbyDecorArchitectWall";
 import LobbyDecorHeartWall from "@/components/lobby/LobbyDecorHeartWall";
+import LobbyDecorFarolLantern from "@/components/lobby/LobbyDecorFarolLantern";
 import LobbyGyroToggleButton from "@/components/lobby/LobbyGyroToggleButton";
 import { requestDeviceOrientationPermission } from "@/lib/deviceOrientationCamera";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
@@ -1238,6 +1239,7 @@ export default function NeonRoom() {
           <LobbyDecorEarthMoon position={[ROOM_SIZE / 2 - 2.15, WALL_HEIGHT * 0.45, 0]} scale={1.26} />
           <LobbyDecorHeartWall position={[0, WALL_HEIGHT / 2, ROOM_SIZE / 2 - 0.45]} />
           <LobbyDecorArchitectWall position={[-ROOM_SIZE / 2 + 0.7, WALL_HEIGHT / 2, 0]} scaleMultiplier={1.35} />
+          <LobbyDecorFarolLantern position={[-5, WALL_HEIGHT * 0.55, -ROOM_SIZE / 2 + 0.45]} />
         </Suspense>
         <FirstPersonController
           enabled={focusedScreen === null}

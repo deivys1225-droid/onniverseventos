@@ -53,6 +53,7 @@ export function WallSceneGlb({
   rotation,
   scaleMultiplier = 1,
   fitDepth = true,
+  spin = true,
   prepareModel,
 }: {
   url: string;
@@ -61,12 +62,14 @@ export function WallSceneGlb({
   scaleMultiplier?: number;
   /** true = escala original (corazón); false = solo ancho/alto de pared (modelos alargados). */
   fitDepth?: boolean;
+  /** Rotación lenta en Y (corazón). Desactivar para objetos fijos como faroles. */
+  spin?: boolean;
   prepareModel?: (root: THREE.Object3D) => void;
 }) {
   const spinRef = useRef<THREE.Group>(null);
 
   useFrame((_, delta) => {
-    if (!spinRef.current) return;
+    if (!spin || !spinRef.current) return;
     spinRef.current.rotation.y += delta * 0.35;
   });
 
