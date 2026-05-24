@@ -22,10 +22,13 @@ export function isMobileCoarseDevice(): boolean {
   return false;
 }
 
-/** Ratón USB/Bluetooth en teléfono o tablet — `(pointer: fine)`. */
+/** Ratón USB/Bluetooth en teléfono o tablet. */
 export function hasFinePointerInput(): boolean {
   if (typeof window === "undefined") return false;
-  return window.matchMedia("(pointer: fine)").matches;
+  return (
+    window.matchMedia("(pointer: fine)").matches ||
+    window.matchMedia("(any-pointer: fine)").matches
+  );
 }
 
 /** PC: pointer-lock. Móvil con ratón: igual que PC; solo táctil: arrastre en canvas. */

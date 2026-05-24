@@ -10,6 +10,7 @@ import {
   isMobileCoarseDevice,
   MAX_WEBGL_PIXEL_RATIO,
 } from "@/lib/webglRendererPrefs";
+import { useLobbyFinePointer } from "@/lib/useLobbyFinePointer";
 import LobbyMouseButtonControls, { createMouseMoveInput } from "@/components/lobby/LobbyMouseControls";
 import MobileLobbyMovePad, {
   createMobileMoveInput,
@@ -799,7 +800,9 @@ function MobileTouchLook({ enabled }: { enabled: boolean }) {
 
 export default function NeonRoom() {
   const navigate = useNavigate();
-  const isMobileTouch = useMemo(() => isMobileCoarseDevice(), []);
+  const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
+  const usesFinePointer = useLobbyFinePointer();
+  const isTouchOnlyLobby = isMobileCoarse && !usesFinePointer;
   const mobileMoveInput = useRef(createMobileMoveInput());
   const mouseMoveInput = useRef(createMouseMoveInput());
   const [locked, setLocked] = useState(false);
@@ -816,6 +819,17 @@ export default function NeonRoom() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const focusedScreenRef = useRef<number | null>(null);
   const escapeBarVisibleRef = useRef(true);
+
+  useEffect(() => {
+    if (!usesFinePointer || !gyroLookEnabled) return;
+    setGyroLookEnabled(false);
+  }, [usesFinePointer, gyroLookEnabled]);
+
+  useEffect(() => {
+    if (!usesFinePointer) return;
+    mobileMoveInput.current.forward = 0;
+    mobileMoveInput.current.right = 0;
+  }, [usesFinePointer]);
 
   useEffect(() => {
     if (focusedScreen === null) return;
@@ -852,7 +866,7 @@ export default function NeonRoom() {
   }, [mixedRealityEnabled]);
 
   const requestMovementLock = () => {
-    if (isMobileTouch) return;
+    if (!usesFinePointer) return;
     window.requestAnimationFrame(() => {
       const canvas = canvasRef.current;
       if (!canvas || focusedScreenRef.current !== null) return;
@@ -1020,7 +1034,7 @@ export default function NeonRoom() {
 
   const mixedRealityActive = mixedRealityEnabled;
   const gyroLookActive = gyroLookEnabled && focusedScreen === null;
-  const mobileTouchLookActive = isMobileTouch && focusedScreen === null && !gyroLookEnabled;
+  const mobileTouchLookActive = isTouchOnlyLobby && focusedScreen === null && !gyroLookEnabled;
 
   return (
     <div className={`relative h-screen w-screen ${mixedRealityActive ? "bg-transparent" : "bg-black"}`}>
@@ -1145,7 +1159,7 @@ export default function NeonRoom() {
         <LobbyDeviceOrientationLook enabled={gyroLookActive} recenterToken={gyroRecenterToken} />
         <MobileTouchLook enabled={mobileTouchLookActive} />
 
-        {focusedScreen === null && !isMobileTouch && (
+        {focusedScreen === null && usesFinePointer && (
           <PointerLockControls
             onLock={() => {
               setLocked(true);
@@ -1157,18 +1171,18 @@ export default function NeonRoom() {
       </Canvas>
 
       <MobileLobbyMovePad
-        enabled={isMobileTouch && focusedScreen === null}
+        enabled={isTouchOnlyLobby && focusedScreen === null}
         inputRef={mobileMoveInput}
       />
 
       <LobbyMouseButtonControls
-        enabled={!isMobileTouch}
+        enabled={usesFinePointer}
         movementEnabled={focusedScreen === null}
         inputRef={mouseMoveInput}
         onEscape={handleLobbyEscape}
       />
 
-      {isMobileTouch && (
+      {isTouchOnlyLobby && (
         <LobbyGyroToggleButton
           active={gyroLookEnabled}
           onActivate={() => void activateGyroLook()}
