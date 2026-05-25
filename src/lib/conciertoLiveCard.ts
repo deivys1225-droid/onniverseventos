@@ -59,11 +59,16 @@ const DEFAULT_SUBTITLE = "Live Premium";
 const DEFAULT_DESCRIPTION = "Crea tu evento live y transmite en modo premium.";
 const DEFAULT_TIMEZONE = "America/Lima";
 
-/** En `npm run dev`: flujo completo como si ya hubiera pagado (no aplica en build de producción). */
+/**
+ * Modo prueba (emitir/publicar sin pago): activo en dev, en onnivers.com o con
+ * VITE_CONCIERTO_LIVE_DEV_ACCESS=true. Desactivar en producción final: =false.
+ */
 export function isConciertoLiveTestMode(): boolean {
-  if (import.meta.env.VITE_CONCIERTO_LIVE_DEV_ACCESS === "true") return true;
   if (import.meta.env.VITE_CONCIERTO_LIVE_DEV_ACCESS === "false") return false;
-  return Boolean(import.meta.env.DEV);
+  if (import.meta.env.VITE_CONCIERTO_LIVE_DEV_ACCESS === "true") return true;
+  if (import.meta.env.DEV) return true;
+  const site = (import.meta.env.VITE_SITE_URL ?? "").toLowerCase();
+  return site.includes("onnivers.com");
 }
 
 export function displayNameFromProfile(row: Pick<ConciertoLiveProfileRow, "full_name">): string {
