@@ -44,7 +44,7 @@ export const LOCKED_MOON = {
 
 /** Wrapper de ProfileCard sobre el canvas 3D. */
 export const LOCKED_PROFILE_CARD_WRAPPER_CLASS =
-  "pointer-events-auto w-full max-w-[min(92vw,280px)] origin-bottom scale-x-[0.605] scale-y-[0.6655] -translate-y-[calc(clamp(2rem,11.2vh,5.2rem)+15.8%)] md:-translate-y-[calc(clamp(4.16rem,20vh,10.8rem)+15.8%)]";
+  "pointer-events-auto w-full max-w-[min(92vw,280px)] origin-bottom scale-x-[0.605] scale-y-[0.6655] -translate-y-[calc(clamp(2rem,11.2vh,5.2rem)+20.8%)] md:-translate-y-[calc(clamp(4.16rem,20vh,10.8rem)+20.8%)]";
 
 /** Altura de la barra fija superior. */
 export const LOCKED_NAVBAR_HEIGHT_CLASS = "h-12";

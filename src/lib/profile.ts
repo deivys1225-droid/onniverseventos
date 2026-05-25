@@ -55,10 +55,7 @@ export async function upsertProfile(params: {
     payload.avatar_url = params.avatarUrl;
   }
 
-  const { error } = await supabase.from("profiles").upsert(
-    payload,
-    { onConflict: "id" },
-  );
+  const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
   if (error) throw error;
 }
 

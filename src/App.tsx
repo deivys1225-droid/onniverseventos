@@ -24,6 +24,8 @@ import EventosPage from "./pages/EventosPage.tsx";
 import RedSocialInmersivaPage from "./pages/RedSocialInmersivaPage.tsx";
 import InicioPage from "./pages/InicioPage.tsx";
 import NuestrasSalasPage from "./pages/NuestrasSalasPage.tsx";
+import ConciertosLiveConfigPage from "./pages/ConciertosLiveConfigPage.tsx";
+import ConciertosLiveEmitirPage from "./pages/ConciertosLiveEmitirPage.tsx";
 import ComunidadPage from "./pages/ComunidadPage.tsx";
 import Galeria3DPage from "./pages/Galeria3DPage.tsx";
 import ReproductorGaleriaPage from "./pages/ReproductorGaleriaPage.tsx";
@@ -157,6 +159,22 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <NuestrasSalasPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/conciertos-live/config"
+              element={
+                <PrivateRoute>
+                  <ConciertosLiveConfigPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/conciertos-live/emitir"
+              element={
+                <PrivateRoute>
+                  <ConciertosLiveEmitirPage />
                 </PrivateRoute>
               }
             />

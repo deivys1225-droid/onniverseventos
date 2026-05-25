@@ -14,6 +14,8 @@ import {
 } from "@/lib/audiencePlayback";
 import { muxPlaybackIdFromHlsUrl } from "@/lib/muxPlaybackId";
 import { handoffSalaCardOnAndroid } from "@/lib/salaOpenDirect";
+import { fetchPublishedConciertoCards } from "@/lib/conciertoLiveCard";
+import { getRoomActiveStream, type ActiveStreamRow, type RoomCard } from "@/lib/salaRoomCards";
 import { shuffleArray } from "@/lib/shuffleArray";
 import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
@@ -70,62 +72,25 @@ const SectionHeader = ({
   </motion.div>
 );
 
-type ActiveStreamRow = {
-  is_live: boolean;
-  title: string;
-  stream_url: string;
-  playback_url: string | null;
-  privacy_mode: string;
-  ticket_price: number | null;
-  user_id: string;
-  updated_at?: string;
-};
-
-type RoomCard = {
-  id: string;
-  name: string;
-  image: string;
-  subtitle: string;
-  description: string;
-  status: string;
-  liveStatus?: string;
-  channel: string;
-  isPremium: boolean;
-  priceUsd: number;
-  ownerUserId?: string;
-  mp4Url?: string;
-};
-
-function getRoomActiveStream(room: RoomCard, streams: ActiveStreamRow[]): ActiveStreamRow | null {
-  if (room.ownerUserId) {
-    const direct = streams.find((s) => s.is_live && s.user_id === room.ownerUserId);
-    if (direct) return direct;
-  }
-  const roomId = room.id.toLowerCase();
-  const roomName = room.name.toLowerCase();
-  const channel = room.channel.toLowerCase();
-  const matched = streams.find((s) => {
-    if (!s.is_live) return false;
-    const haystack = `${s.title} ${s.stream_url} ${s.playback_url ?? ""}`.toLowerCase();
-    return haystack.includes(roomId) || haystack.includes(roomName) || haystack.includes(channel);
-  });
-  return matched ?? null;
-}
-
 const NuestrasSalasPage = () => {
   const navigate = useNavigate();
+  const [userConciertoRooms, setUserConciertoRooms] = useState<RoomCard[]>([]);
   const [activeStreams, setActiveStreams] = useState<ActiveStreamRow[]>([]);
   const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
   const { requestSalaChoice, dialog: salaChoiceDialog } = useSalaChoiceModal();
 
   useEffect(() => {
     const loadData = async () => {
-      const { data: activeData } = await supabase
-        .from("active_streams")
-        .select("user_id,is_live,title,stream_url,playback_url,playback_id,privacy_mode,ticket_price,updated_at")
-        .eq("is_live", true);
+      const [{ data: activeData }, conciertoRooms] = await Promise.all([
+        supabase
+          .from("active_streams")
+          .select("user_id,is_live,title,stream_url,playback_url,playback_id,privacy_mode,ticket_price,updated_at")
+          .eq("is_live", true),
+        fetchPublishedConciertoCards(),
+      ]);
 
       setActiveStreams((activeData ?? []) as ActiveStreamRow[]);
+      setUserConciertoRooms(conciertoRooms);
     };
 
     void loadData();
@@ -133,6 +98,9 @@ const NuestrasSalasPage = () => {
     const channel = supabase
       .channel("public:nuestras-salas")
       .on("postgres_changes", { event: "*", schema: "public", table: "active_streams" }, () => {
+        void loadData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
         void loadData();
       })
       .subscribe();
@@ -155,7 +123,7 @@ const NuestrasSalasPage = () => {
       priceUsd: 0,
       mp4Url: SALA_MP4_URL_BY_ID[streamer.id],
     }));
-    return shuffleArray([
+    return [...userConciertoRooms, ...shuffleArray([
       ...streamerRooms,
       {
         id: "hablando-huevadas",
@@ -181,8 +149,8 @@ const NuestrasSalasPage = () => {
         priceUsd: 0,
         mp4Url: SALA_MP4_URL_BY_ID["michael-jackson"],
       },
-    ]);
-  }, []);
+    ])];
+  }, [userConciertoRooms]);
 
   const beginRoomSession = async (
     room: RoomCard,

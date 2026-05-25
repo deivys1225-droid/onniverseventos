@@ -192,6 +192,14 @@ export type Database = {
           live_status: string
           playback_id: string | null
           updated_at: string | null
+          concierto_card_title: string | null
+          concierto_card_subtitle: string | null
+          concierto_card_description: string | null
+          concierto_card_image_url: string | null
+          concierto_card_published: boolean
+          concierto_live_access: boolean
+          concierto_event_at: string | null
+          concierto_event_timezone: string | null
         }
         Insert: {
           id: string
@@ -202,6 +210,14 @@ export type Database = {
           live_status?: string
           playback_id?: string | null
           updated_at?: string | null
+          concierto_card_title?: string | null
+          concierto_card_subtitle?: string | null
+          concierto_card_description?: string | null
+          concierto_card_image_url?: string | null
+          concierto_card_published?: boolean
+          concierto_live_access?: boolean
+          concierto_event_at?: string | null
+          concierto_event_timezone?: string | null
         }
         Update: {
           id?: string
@@ -212,6 +228,14 @@ export type Database = {
           live_status?: string
           playback_id?: string | null
           updated_at?: string | null
+          concierto_card_title?: string | null
+          concierto_card_subtitle?: string | null
+          concierto_card_description?: string | null
+          concierto_card_image_url?: string | null
+          concierto_card_published?: boolean
+          concierto_live_access?: boolean
+          concierto_event_at?: string | null
+          concierto_event_timezone?: string | null
         }
         Relationships: []
       }

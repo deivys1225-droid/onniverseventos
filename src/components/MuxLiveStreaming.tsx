@@ -39,7 +39,20 @@ type EventSetup = {
   isFree: boolean;
 };
 
-const MuxLiveStreaming = () => {
+export type MuxLiveStreamingProps = {
+  variant?: "default" | "conciertos-live";
+  /** Evento precargado (Conciertos Live: título y canal desde la tarjeta). */
+  initialEventSetup?: EventSetup | null;
+  streamCategory?: string;
+};
+
+const MuxLiveStreaming = ({
+  variant = "default",
+  initialEventSetup = null,
+  streamCategory,
+}: MuxLiveStreamingProps) => {
+  const isConciertosLive = variant === "conciertos-live";
+  const activeCategory = streamCategory ?? (isConciertosLive ? "ConciertosLive" : "Musica");
   const { user } = useAuth();
   const [connecting, setConnecting] = useState(false);
   const [status, setStatus] = useState("Pulsa Live para obtener credenciales OBS");
@@ -48,7 +61,7 @@ const MuxLiveStreaming = () => {
   const [isEmitterOpen, setIsEmitterOpen] = useState(false);
   const [ticketInput, setTicketInput] = useState("0");
   const [isFreeEvent, setIsFreeEvent] = useState(true);
-  const [eventSetup, setEventSetup] = useState<EventSetup | null>(null);
+  const [eventSetup, setEventSetup] = useState<EventSetup | null>(initialEventSetup);
   const [streamConfig, setStreamConfig] = useState<StreamConfig | null>(null);
   const [signalLive, setSignalLive] = useState(false);
   const [muxSignal, setMuxSignal] = useState<MuxStreamSignalState>("idle");
@@ -71,7 +84,7 @@ const MuxLiveStreaming = () => {
         {
           user_id: user.id,
           title: config.title,
-          category: "Musica",
+          category: activeCategory,
           is_live: isLive,
           stream_url: config.rtmpUrl,
           playback_url: config.playbackUrl,
@@ -100,7 +113,7 @@ const MuxLiveStreaming = () => {
         .eq("id", user.id);
       if (profileErr) throw profileErr;
     },
-    [user?.id],
+    [activeCategory, user?.id],
   );
 
   const stopLive = useCallback(async () => {
@@ -224,9 +237,20 @@ const MuxLiveStreaming = () => {
     };
   }, [streamConfig, handleSignalActive]);
 
+  useEffect(() => {
+    if (initialEventSetup) {
+      setEventSetup(initialEventSetup);
+      setStatus("Evento Conciertos Live listo · pulsa Live");
+    }
+  }, [initialEventSetup]);
+
   const openEventSetup = () => {
     if (!user?.id) {
       setError("Debes iniciar sesión.");
+      return;
+    }
+    if (isConciertosLive && initialEventSetup) {
+      toast.info("El evento ya está vinculado a tu tarjeta de Conciertos Live.");
       return;
     }
     setError(null);
@@ -278,9 +302,21 @@ const MuxLiveStreaming = () => {
 
       <div className="relative z-10 mb-4 text-center md:mb-5">
         <h2 className="font-display text-xl font-bold tracking-tight text-foreground md:text-2xl">
-          Evento <span className="text-gradient-neon">Live</span> en Al Universo
+          {isConciertosLive ? (
+            <>
+              Emitir <span className="text-gradient-neon">Conciertos Live</span>
+            </>
+          ) : (
+            <>
+              Evento <span className="text-gradient-neon">Live</span> en Al Universo
+            </>
+          )}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">Emisión RTMP con OBS → Mux · Espectadores vía playback_id</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {isConciertosLive
+            ? "OBS → Mux · Tu tarjeta en Conciertos Live mostrará el HLS al detectar señal."
+            : "Emisión RTMP con OBS → Mux · Espectadores vía playback_id"}
+        </p>
       </div>
 
       <div className="relative z-10 mb-3 flex justify-center">
@@ -320,9 +356,11 @@ const MuxLiveStreaming = () => {
             <Button type="button" variant="hero" onClick={() => void handleOpenLive()} disabled={connecting || !user?.id}>
               {connecting ? "Creando en Mux…" : "Live"}
             </Button>
-            <Button type="button" variant="outline" onClick={openEventSetup} disabled={!canOpenSetup}>
-              {eventSetup ? "Reconfigurar evento" : "Configurar evento"}
-            </Button>
+            {!isConciertosLive && (
+              <Button type="button" variant="outline" onClick={openEventSetup} disabled={!canOpenSetup}>
+                {eventSetup ? "Reconfigurar evento" : "Configurar evento"}
+              </Button>
+            )}
             {streamConfig && (
               <Button type="button" variant="outline" onClick={() => void stopLive()}>
                 Cerrar sesión

@@ -32,6 +32,7 @@ import {
 } from "@/lib/webglRendererPrefs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
+import ConciertosLiveHomeCard from "@/components/ConciertosLiveHomeCard";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
 import {
   LOCKED_CAMERA_FOV,
@@ -832,9 +833,7 @@ const MiMundoVRSection = ({
       </div>
       {!vrStereoActive && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
-          <div
-            className={LOCKED_PROFILE_CARD_WRAPPER_CLASS}
-          >
+          <div className={LOCKED_PROFILE_CARD_WRAPPER_CLASS}>
             <ProfileCard
               initialName={cardDisplayName}
               initialAvatarSrc={cardAvatarSrc}
@@ -842,6 +841,11 @@ const MiMundoVRSection = ({
               onConfirm={onProfileConfirm}
               liveNavPath="/pc"
             />
+          </div>
+          <div
+            className="pointer-events-auto absolute bottom-[calc(clamp(2rem,11.2vh,5.2rem)+15.8%)] right-2 w-[min(40vw,10.25rem)] origin-bottom-right scale-[0.76] sm:bottom-[calc(clamp(4.16rem,20vh,10.8rem)+15.8%)] sm:w-[10.75rem] sm:scale-[0.79] md:w-[11.25rem] md:scale-[0.83]"
+          >
+            <ConciertosLiveHomeCard />
           </div>
         </div>
       )}
