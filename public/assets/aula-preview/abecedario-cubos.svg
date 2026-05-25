@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Cubos con letras y números">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <text x="320" y="42" text-anchor="middle" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="18" font-weight="600">ABECEDARIO Y NÚMEROS EN CUBOS 3D</text>
+  <!-- Fila letras -->
+  <g transform="translate(48,72)">
+    <rect x="0" y="0" width="52" height="52" rx="6" fill="#E63946"/>
+    <text x="26" y="36" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="28" font-weight="700">A</text>
+    <rect x="58" y="0" width="52" height="52" rx="6" fill="#F4A261"/>
+    <text x="84" y="36" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="28" font-weight="700">B</text>
+    <rect x="116" y="0" width="52" height="52" rx="6" fill="#E9C46A"/>
+    <text x="142" y="36" text-anchor="middle" fill="#1e293b" font-family="system-ui,sans-serif" font-size="28" font-weight="700">C</text>
+    <rect x="174" y="0" width="52" height="52" rx="6" fill="#2A9D8F"/>
+    <text x="200" y="36" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="28" font-weight="700">D</text>
+    <rect x="232" y="0" width="52" height="52" rx="6" fill="#457B9D"/>
+    <text x="258" y="36" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="28" font-weight="700">E</text>
+    <rect x="290" y="0" width="52" height="52" rx="6" fill="#7209B7"/>
+    <text x="316" y="36" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="28" font-weight="700">F</text>
+    <rect x="348" y="0" width="52" height="52" rx="6" fill="#F72585"/>
+    <text x="374" y="36" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="28" font-weight="700">G</text>
+    <rect x="406" y="0" width="52" height="52" rx="6" fill="#4CC9F0"/>
+    <text x="432" y="36" text-anchor="middle" fill="#1e293b" font-family="system-ui,sans-serif" font-size="28" font-weight="700">H</text>
+    <rect x="464" y="0" width="52" height="52" rx="6" fill="#80B918"/>
+    <text x="490" y="36" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="28" font-weight="700">I</text>
+  </g>
+  <g transform="translate(80,140)">
+    <rect x="0" y="0" width="52" height="52" rx="6" fill="#06D6A0"/>
+    <text x="26" y="36" text-anchor="middle" fill="#1e293b" font-family="system-ui,sans-serif" font-size="26" font-weight="700">J</text>
+    <rect x="58" y="0" width="52" height="52" rx="6" fill="#118AB2"/>
+    <text x="84" y="36" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="26" font-weight="700">K</text>
+    <rect x="116" y="0" width="52" height="52" rx="6" fill="#8338EC"/>
+    <text x="142" y="36" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="26" font-weight="700">L</text>
+    <rect x="174" y="0" width="52" height="52" rx="6" fill="#FF595E"/>
+    <text x="200" y="36" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="26" font-weight="700">M</text>
+    <rect x="232" y="0" width="52" height="52" rx="6" fill="#FF924C"/>
+    <text x="258" y="36" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="26" font-weight="700">N</text>
+    <rect x="290" y="0" width="52" height="52" rx="6" fill="#FFCA3A"/>
+    <text x="316" y="36" text-anchor="middle" fill="#1e293b" font-family="system-ui,sans-serif" font-size="26" font-weight="700">O</text>
+    <rect x="348" y="0" width="52" height="52" rx="6" fill="#8AC926"/>
+    <text x="374" y="36" text-anchor="middle" fill="#1e293b" font-family="system-ui,sans-serif" font-size="26" font-weight="700">P</text>
+  </g>
+  <!-- Números -->
+  <text x="320" y="228" text-anchor="middle" fill="#cbd5e1" font-family="system-ui,sans-serif" font-size="14">NÚMEROS 0  9</text>
+  <g transform="translate(72,244)">
+    <rect x="0" y="0" width="48" height="48" rx="6" fill="#FF595E"/>
+    <text x="24" y="34" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="26" font-weight="700">0</text>
+    <rect x="54" y="0" width="48" height="48" rx="6" fill="#FF924C"/>
+    <text x="78" y="34" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="26" font-weight="700">1</text>
+    <rect x="108" y="0" width="48" height="48" rx="6" fill="#FFCA3A"/>
+    <text x="132" y="34" text-anchor="middle" fill="#1e293b" font-family="system-ui,sans-serif" font-size="26" font-weight="700">2</text>
+    <rect x="162" y="0" width="48" height="48" rx="6" fill="#8AC926"/>
+    <text x="186" y="34" text-anchor="middle" fill="#1e293b" font-family="system-ui,sans-serif" font-size="26" font-weight="700">3</text>
+    <rect x="216" y="0" width="48" height="48" rx="6" fill="#1982C4"/>
+    <text x="240" y="34" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="26" font-weight="700">4</text>
+    <rect x="270" y="0" width="48" height="48" rx="6" fill="#6A4C93"/>
+    <text x="294" y="34" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="26" font-weight="700">5</text>
+    <rect x="324" y="0" width="48" height="48" rx="6" fill="#F15BB5"/>
+    <text x="348" y="34" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="26" font-weight="700">6</text>
+    <rect x="378" y="0" width="48" height="48" rx="6" fill="#00BBF9"/>
+    <text x="402" y="34" text-anchor="middle" fill="#1e293b" font-family="system-ui,sans-serif" font-size="26" font-weight="700">7</text>
+    <rect x="432" y="0" width="48" height="48" rx="6" fill="#00F5D4"/>
+    <text x="456" y="34" text-anchor="middle" fill="#1e293b" font-family="system-ui,sans-serif" font-size="26" font-weight="700">8</text>
+    <rect x="486" y="0" width="48" height="48" rx="6" fill="#FEE440"/>
+    <text x="510" y="34" text-anchor="middle" fill="#1e293b" font-family="system-ui,sans-serif" font-size="26" font-weight="700">9</text>
+  </g>
+  <text x="320" y="330" text-anchor="middle" fill="#64748b" font-family="system-ui,sans-serif" font-size="13">Como en la pared derecha del Aula Virtual</text>
+</svg>

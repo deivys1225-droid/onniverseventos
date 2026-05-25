@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Dinosaurios 3D">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#87CEEB"/>
+      <stop offset="100%" stop-color="#E8F4E8"/>
+    </linearGradient>
+    <linearGradient id="dino" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3D7C47"/>
+      <stop offset="100%" stop-color="#1B4332"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#sky)"/>
+  <ellipse cx="320" cy="310" rx="280" ry="28" fill="#94A684" opacity="0.5"/>
+  <text x="320" y="36" text-anchor="middle" fill="#1B4332" font-family="system-ui,sans-serif" font-size="20" font-weight="700">DINOSAURIOS 3D EN LA PARED</text>
+  <g transform="translate(72,88)">
+    <path fill="url(#dino)" d="M40 180c-8-50 20-95 72-100 38-4 62 12 78 42 14 26 10 58-8 82l28 48H88l-18-36c-22 8-48 4-62-16-18-24-14-58 4-76 12-12 28-18 40-16z"/>
+    <circle cx="118" cy="72" r="10" fill="#fff"/><circle cx="121" cy="72" r="5" fill="#1e293b"/>
+    <path fill="#2D6A4F" d="M148 58l32-18 8 14-28 12z"/>
+    <text x="70" y="218" text-anchor="middle" fill="#1B4332" font-family="system-ui,sans-serif" font-size="13" font-weight="600">T-Rex</text>
+  </g>
+  <g transform="translate(248,118)">
+    <ellipse cx="100" cy="118" rx="52" ry="38" fill="#52B788"/>
+    <rect x="20" y="90" width="120" height="28" rx="14" fill="#40916C"/>
+    <path fill="#2D6A4F" d="M0 108 Q-40 40 30 20 Q50 8 55 50 Q58 85 20 108z"/>
+    <path fill="#2D6A4F" d="M140 108 Q200 60 175 25 Q165 10 155 55 Q148 90 140 108z"/>
+    <circle cx="168" cy="48" r="7" fill="#1e293b"/>
+    <text x="100" y="168" text-anchor="middle" fill="#1B4332" font-family="system-ui,sans-serif" font-size="13" font-weight="600">Diplodocus</text>
+  </g>
+  <g transform="translate(430,100)">
+    <path fill="#74C69D" d="M20 120c0-40 28-72 64-76 30-4 52 16 58 44 6 30-10 56-36 68l12 44H48l-8-32c-18 6-40 0-48-20-10-26 4-56 28-68 14-8 32-10 48-4z"/>
+    <circle cx="72" cy="52" r="8" fill="#fff"/><circle cx="74" cy="52" r="4" fill="#1e293b"/>
+    <text x="56" y="200" text-anchor="middle" fill="#1B4332" font-family="system-ui,sans-serif" font-size="12" font-weight="600">Dinosaurio</text>
+  </g>
+  <text x="320" y="330" text-anchor="middle" fill="#52796F" font-family="system-ui,sans-serif" font-size="13">Modelos .glb giratorios - pared izquierda</text>
+</svg>

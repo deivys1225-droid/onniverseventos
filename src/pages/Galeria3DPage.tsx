@@ -49,12 +49,12 @@ const Galeria3DPage = () => {
           </div>
           <section id="galeria-3d" className="scroll-mt-24">
             <SectionHeader
-              badge="Galería OnniVers"
+              badge="Aula Virtual"
               icon={Box}
-              title="MODELOS"
+              title="CONTENIDO"
               highlight="3D"
-              subtitle="Explora hologramas 3D gratuitos. Rótalos y estúdialos en tu espacio o en AR."
-              accent="border-cyan-400/40 bg-cyan-500/10 text-cyan-200"
+              subtitle="Vista previa de lo que encontrarás dentro del Aula Virtual: abecedario, dinosaurios, Tierra, anatomía y más. Las tarjetas son solo informativas."
+              accent="border-amber-400/40 bg-amber-500/10 text-amber-100"
             />
 
             <article
