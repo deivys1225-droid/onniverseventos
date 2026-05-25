@@ -1,7 +1,18 @@
 import { motion } from "framer-motion";
-import { Box, Check, Clock, Mic2, UserPlus, UserRoundCheck } from "lucide-react";
+import { Box, Clock, Mic2, UserPlus, UserRoundCheck, UserX } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import type { FriendshipPairState } from "@/lib/friendships";
+import type { FriendshipPairInfo } from "@/lib/friendships";
 import {
   salaRoomCardPadding,
   salaRoomCtaIcon,
@@ -23,19 +34,21 @@ import { getRoomActiveStream, isCommunityMemberOnline, type ActiveStreamRow, typ
 type ComunidadRoomsGridProps = {
   communityRooms: RoomCard[];
   activeStreams: ActiveStreamRow[];
-  friendshipStates: Map<string, FriendshipPairState>;
+  friendshipPairInfo: Map<string, FriendshipPairInfo>;
   currentUserId?: string;
   onEnterRoom: (room: RoomCard, online: boolean) => void;
   onSendFriendRequest: (receiverId: string, displayName: string) => void;
+  onRemoveFriend: (friendshipId: string, targetUserId: string, displayName: string) => void;
 };
 
 export default function ComunidadRoomsGrid({
   communityRooms,
   activeStreams,
-  friendshipStates,
+  friendshipPairInfo,
   currentUserId,
   onEnterRoom,
   onSendFriendRequest,
+  onRemoveFriend,
 }: ComunidadRoomsGridProps) {
   return (
     <motion.div className={salaRoomGridClass}>
@@ -49,9 +62,9 @@ export default function ComunidadRoomsGrid({
       {communityRooms.map((room, index) => {
         const linkedStream = getRoomActiveStream(room, activeStreams);
         const online = room.ownerUserId ? isCommunityMemberOnline(room.ownerUserId, activeStreams) : false;
-        const pairState: FriendshipPairState = room.ownerUserId
-          ? friendshipStates.get(room.ownerUserId) ?? "none"
-          : "none";
+        const pair = room.ownerUserId
+          ? friendshipPairInfo.get(room.ownerUserId) ?? { state: "none" as const, friendshipId: null }
+          : { state: "none" as const, friendshipId: null };
 
         return (
           <motion.div
@@ -63,19 +76,45 @@ export default function ComunidadRoomsGrid({
             transition={{ delay: index * 0.05 }}
           >
             {currentUserId && room.ownerUserId && room.ownerUserId !== currentUserId && (
-              pairState === "friends" ? (
-                <div
-                  className={`${salaRoomFriendBtn} flex items-center justify-center border border-emerald-400/50 bg-black/40 text-emerald-400 shadow-[0_0_14px_-4px_rgba(52,211,153,0.75)]`}
-                  title="Ya son contactos"
-                  aria-hidden
-                >
-                  <Check className={salaRoomFriendIcon} />
-                </div>
-              ) : pairState === "pending_out" ? (
+              pair.state === "friends" && pair.friendshipId ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="secondary"
+                      className={`${salaRoomFriendBtn} border border-rose-400/45 bg-black/35 text-rose-200 shadow-[0_0_14px_-4px_rgba(244,63,94,0.65)] hover:bg-black/50`}
+                      onClick={(e) => e.stopPropagation()}
+                      title="Eliminar contacto"
+                      aria-label={`Eliminar contacto ${room.name}`}
+                    >
+                      <UserX className={salaRoomFriendIcon} />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="border-cyan-300/30 bg-card" onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar contacto?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Dejarás de ver a {room.name} en tu lista de contactos. Los mensajes de esta conversación también
+                        se eliminarán.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-rose-600 hover:bg-rose-700"
+                        onClick={() => onRemoveFriend(pair.friendshipId!, room.ownerUserId!, room.name)}
+                      >
+                        Eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : pair.state === "pending_out" ? (
                 <div
                   className={`${salaRoomFriendBtn} flex items-center justify-center border border-cyan-300/30 bg-black/35 text-cyan-200/60`}
-                  title="Solicitud enviada · pendiente"
-                  aria-hidden
+                  title="Solicitud pendiente"
+                  aria-label="Solicitud pendiente"
                 >
                   <Clock className={salaRoomFriendIcon} />
                 </div>
@@ -91,17 +130,17 @@ export default function ComunidadRoomsGrid({
                     onSendFriendRequest(room.ownerUserId!, room.name);
                   }}
                   title={
-                    pairState === "pending_in"
-                      ? "Te enviaron solicitud · pulsa para aceptar (se guarda en Supabase)"
-                      : "Enviar solicitud de amistad"
+                    pair.state === "pending_in"
+                      ? "Aceptar solicitud de amistad"
+                      : "Agregar contacto"
                   }
                   aria-label={
-                    pairState === "pending_in"
+                    pair.state === "pending_in"
                       ? `Aceptar solicitud de ${room.name}`
-                      : `Enviar solicitud de amistad a ${room.name}`
+                      : `Agregar contacto ${room.name}`
                   }
                 >
-                  {pairState === "pending_in" ? (
+                  {pair.state === "pending_in" ? (
                     <UserRoundCheck className={salaRoomFriendIcon} />
                   ) : (
                     <UserPlus className={salaRoomFriendIcon} />

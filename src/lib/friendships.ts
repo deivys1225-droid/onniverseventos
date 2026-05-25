@@ -10,6 +10,13 @@ export type RespondFriendshipOutcome =
   | { ok: true; status: string; id: string }
   | { ok: false; message: string };
 
+export type RemoveFriendshipOutcome = { ok: true } | { ok: false; message: string };
+
+export type FriendshipPairInfo = {
+  state: FriendshipPairState;
+  friendshipId: string | null;
+};
+
 type FriendshipRecord = {
   id: string;
   status: string;
@@ -158,50 +165,95 @@ export async function respondFriendshipRequest(
   return { ok: false, message: error.message };
 }
 
-/** Estado visual por usuario objetivo (tarjetas comunidad / buscador). */
-export async function loadFriendshipPairStates(
+function pairInfoFromRows(
+  targetId: string,
+  outgoing: { id: string; receiver_id: string; status: string }[],
+  incoming: { id: string; sender_id: string; status: string }[],
+): FriendshipPairInfo {
+  const out = outgoing.find((r) => r.receiver_id === targetId);
+  const inc = incoming.find((r) => r.sender_id === targetId);
+  const accepted = out?.status === "accepted" ? out : inc?.status === "accepted" ? inc : null;
+  if (accepted) {
+    return { state: "friends", friendshipId: accepted.id };
+  }
+  if (out?.status === "pending") {
+    return { state: "pending_out", friendshipId: out.id };
+  }
+  if (inc?.status === "pending") {
+    return { state: "pending_in", friendshipId: inc.id };
+  }
+  return { state: "none", friendshipId: null };
+}
+
+/** Estado e id de amistad por usuario objetivo (tarjetas comunidad / buscador). */
+export async function loadFriendshipPairInfo(
   myUserId: string,
   targetUserIds: string[],
-): Promise<Map<string, FriendshipPairState>> {
-  const map = new Map<string, FriendshipPairState>();
+): Promise<Map<string, FriendshipPairInfo>> {
+  const map = new Map<string, FriendshipPairInfo>();
   const unique = [...new Set(targetUserIds)].filter((id) => id && id !== myUserId);
-  unique.forEach((id) => map.set(id, "none"));
+  unique.forEach((id) => map.set(id, { state: "none", friendshipId: null }));
   if (unique.length === 0) return map;
 
   const [outRes, inRes] = await Promise.all([
     supabase
       .from("friendships")
-      .select("receiver_id,status")
+      .select("id,receiver_id,status")
       .eq("sender_id", myUserId)
       .in("receiver_id", unique),
     supabase
       .from("friendships")
-      .select("sender_id,status")
+      .select("id,sender_id,status")
       .eq("receiver_id", myUserId)
       .in("sender_id", unique),
   ]);
 
-  const outgoing = (outRes.data ?? []) as { receiver_id: string; status: string }[];
-  const incoming = (inRes.data ?? []) as { sender_id: string; status: string }[];
+  const outgoing = (outRes.data ?? []) as { id: string; receiver_id: string; status: string }[];
+  const incoming = (inRes.data ?? []) as { id: string; sender_id: string; status: string }[];
 
   for (const id of unique) {
-    const out = outgoing.find((r) => r.receiver_id === id);
-    const inc = incoming.find((r) => r.sender_id === id);
-
-    if (out?.status === "accepted" || inc?.status === "accepted") {
-      map.set(id, "friends");
-      continue;
-    }
-    if (out?.status === "pending") {
-      map.set(id, "pending_out");
-      continue;
-    }
-    if (inc?.status === "pending") {
-      map.set(id, "pending_in");
-      continue;
-    }
-    map.set(id, "none");
+    map.set(id, pairInfoFromRows(id, outgoing, incoming));
   }
 
   return map;
+}
+
+/** Estado visual por usuario objetivo (tarjetas comunidad / buscador). */
+export async function loadFriendshipPairStates(
+  myUserId: string,
+  targetUserIds: string[],
+): Promise<Map<string, FriendshipPairState>> {
+  const info = await loadFriendshipPairInfo(myUserId, targetUserIds);
+  const map = new Map<string, FriendshipPairState>();
+  info.forEach((v, k) => map.set(k, v.state));
+  return map;
+}
+
+async function removeFriendshipDirect(friendshipId: string): Promise<RemoveFriendshipOutcome> {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return { ok: false, message: "Debes iniciar sesión." };
+  }
+
+  const { error } = await supabase
+    .from("friendships")
+    .delete()
+    .eq("id", friendshipId)
+    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+  if (error) {
+    return { ok: false, message: error.message };
+  }
+  return { ok: true };
+}
+
+/** Elimina un contacto aceptado (borra la fila en friendships y mensajes en cascada). */
+export async function removeFriendship(friendshipId: string): Promise<RemoveFriendshipOutcome> {
+  const { error } = await supabase.rpc("remove_friendship", { p_friendship_id: friendshipId });
+  if (!error) {
+    return { ok: true };
+  }
+  if (isMissingRpcError(error.message, "remove_friendship")) {
+    return removeFriendshipDirect(friendshipId);
+  }
+  return { ok: false, message: error.message };
 }

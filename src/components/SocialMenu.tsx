@@ -1,15 +1,27 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, MessageCircle, Search, UserPlus, X } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Check, Clock, MessageCircle, Search, UserPlus, UserX, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
-  loadFriendshipPairStates,
+  loadFriendshipPairInfo,
+  removeFriendship,
   respondFriendshipRequest,
   sendFriendshipRequest,
-  type FriendshipPairState,
+  type FriendshipPairInfo,
 } from "@/lib/friendships";
 
 type FriendshipRow = {
@@ -82,70 +94,71 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
   const [busyRequestId, setBusyRequestId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [searchStates, setSearchStates] = useState<Map<string, FriendshipPairState>>(new Map());
+  const [searchPairInfo, setSearchPairInfo] = useState<Map<string, FriendshipPairInfo>>(new Map());
   const [searchBusyId, setSearchBusyId] = useState<string | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"messages" | "requests">("messages");
+  const [activeTab, setActiveTab] = useState<"contacts" | "requests">("contacts");
+  const [removeBusyId, setRemoveBusyId] = useState<string | null>(null);
   const [selectedFriend, setSelectedFriend] = useState<ConnectedFriend | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageText, setMessageText] = useState("");
+
+  const reloadFriendships = useCallback(async () => {
+    const { data } = await supabase
+      .from("friendships")
+      .select("*")
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+      .order("created_at", { ascending: false });
+    const rows = (data ?? []) as FriendshipRow[];
+    setFriendships(rows);
+    const ids = new Set<string>();
+    rows.forEach((row) => {
+      ids.add(row.sender_id);
+      ids.add(row.receiver_id);
+    });
+
+    if (ids.size === 0) {
+      setProfilesById({});
+      return;
+    }
+
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id,full_name,avatar_url,live_status,is_live")
+      .in("id", Array.from(ids));
+    const map: Record<string, { name: string; avatarUrl: string | null; isOnline: boolean }> = {};
+    (profiles as ProfileRow[] | null)?.forEach((p) => {
+      map[p.id] = {
+        name: profileName(p),
+        avatarUrl: p.avatar_url ?? null,
+        isOnline: profileOnline(p),
+      };
+    });
+    setProfilesById(map);
+  }, [userId]);
 
   useEffect(() => {
     if (!open) {
       setSearchQuery("");
       setSearchResults([]);
       setSelectedFriend(null);
-      setActiveTab("messages");
+      setActiveTab("contacts");
       return;
     }
 
-    const load = async () => {
-      const { data } = await supabase
-        .from("friendships")
-        .select("*")
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-        .order("created_at", { ascending: false });
-      const rows = (data ?? []) as FriendshipRow[];
-      setFriendships(rows);
-      const ids = new Set<string>();
-      rows.forEach((row) => {
-        ids.add(row.sender_id);
-        ids.add(row.receiver_id);
-      });
-
-      if (ids.size === 0) {
-        setProfilesById({});
-        return;
-      }
-
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id,full_name,avatar_url,live_status,is_live")
-        .in("id", Array.from(ids));
-      const map: Record<string, { name: string; avatarUrl: string | null; isOnline: boolean }> = {};
-      (profiles as ProfileRow[] | null)?.forEach((p) => {
-        map[p.id] = {
-          name: profileName(p),
-          avatarUrl: p.avatar_url ?? null,
-          isOnline: profileOnline(p),
-        };
-      });
-      setProfilesById(map);
-    };
-
-    void load();
+    void reloadFriendships();
 
     const friendshipChannel = supabase
       .channel(`social-friendships-${userId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "friendships" }, () => {
-        void load();
+        void reloadFriendships();
       })
       .subscribe();
 
     const profileChannel = supabase
       .channel(`social-profiles-${userId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
-        void load();
+        void reloadFriendships();
       })
       .subscribe();
 
@@ -153,14 +166,14 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
       void supabase.removeChannel(friendshipChannel);
       void supabase.removeChannel(profileChannel);
     };
-  }, [open, userId]);
+  }, [open, userId, reloadFriendships]);
 
   useEffect(() => {
     if (!open) return;
     const q = searchQuery.trim();
     if (q.length < 2) {
       setSearchResults([]);
-      setSearchStates(new Map());
+      setSearchPairInfo(new Map());
       setSearchLoading(false);
       return;
     }
@@ -195,11 +208,11 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
           isOnline: profileOnline(p),
         }));
         setSearchResults(normalized);
-        const states = await loadFriendshipPairStates(
+        const info = await loadFriendshipPairInfo(
           userId,
           normalized.map((row) => row.id),
         );
-        setSearchStates(states);
+        setSearchPairInfo(info);
       } finally {
         setSearchLoading(false);
       }
@@ -279,8 +292,13 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
       return;
     }
     setFriendships((prev) => prev.map((f) => (f.id === friendshipId ? { ...f, status } : f)));
+    void reloadFriendships();
+    if (searchQuery.trim().length >= 2) {
+      const info = await loadFriendshipPairInfo(userId, searchResults.map((r) => r.id));
+      setSearchPairInfo(info);
+    }
     setBusyRequestId(null);
-    toast.success(status === "accepted" ? "Solicitud aceptada." : "Solicitud rechazada.");
+    toast.success(status === "accepted" ? "Contacto agregado." : "Solicitud rechazada.");
   };
 
   const sendRequest = async (targetId: string) => {
@@ -291,10 +309,41 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
       setSearchBusyId(null);
       return;
     }
-    const states = await loadFriendshipPairStates(userId, [targetId]);
-    setSearchStates(states);
+    await reloadFriendships();
+    const info = await loadFriendshipPairInfo(userId, [targetId]);
+    setSearchPairInfo((prev) => {
+      const next = new Map(prev);
+      next.set(targetId, info.get(targetId) ?? { state: "pending_out", friendshipId: result.id });
+      return next;
+    });
     setSearchBusyId(null);
-    toast.success("Solicitud enviada.");
+    if (result.status === "accepted") {
+      toast.success("Ya son contactos.");
+    } else {
+      toast.success("Solicitud pendiente enviada.");
+    }
+  };
+
+  const removeContact = async (friendshipId: string, targetUserId: string, displayName: string) => {
+    setRemoveBusyId(friendshipId);
+    const result = await removeFriendship(friendshipId);
+    if (!result.ok) {
+      toast.error(result.message);
+      setRemoveBusyId(null);
+      return;
+    }
+    if (selectedFriend?.friendshipId === friendshipId) {
+      setSelectedFriend(null);
+    }
+    await reloadFriendships();
+    const info = await loadFriendshipPairInfo(userId, [targetUserId]);
+    setSearchPairInfo((prev) => {
+      const next = new Map(prev);
+      next.set(targetUserId, info.get(targetUserId) ?? { state: "none", friendshipId: null });
+      return next;
+    });
+    setRemoveBusyId(null);
+    toast.success(`Eliminaste a ${displayName} de tus contactos.`);
   };
 
   const onSendMessage = async (e: FormEvent) => {
@@ -313,16 +362,66 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
     }
   };
 
-  const renderSearchAction = (targetId: string) => {
-    const state = searchStates.get(targetId) ?? "none";
-    if (state === "friends") {
-      return <span className="text-[11px] font-semibold text-emerald-300">Amigos</span>;
+  const renderSearchAction = (targetId: string, displayName: string) => {
+    const pair = searchPairInfo.get(targetId) ?? { state: "none" as const, friendshipId: null };
+    if (pair.state === "friends" && pair.friendshipId) {
+      return (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 border-rose-400/40 px-2.5 text-[11px] text-rose-200 hover:bg-rose-500/10"
+              disabled={removeBusyId === pair.friendshipId}
+            >
+              <UserX className="mr-1 h-3.5 w-3.5" />
+              Eliminar contacto
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="border-cyan-300/30 bg-card">
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar contacto?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Dejarás de ver a {displayName} en tu lista de contactos. Los mensajes de esta conversación también se
+                eliminarán.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-rose-600 hover:bg-rose-700"
+                onClick={() => void removeContact(pair.friendshipId!, targetId, displayName)}
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      );
     }
-    if (state === "pending_out") {
-      return <span className="text-[11px] font-semibold text-amber-200">Pendiente</span>;
+    if (pair.state === "pending_out") {
+      return (
+        <Button type="button" size="sm" variant="secondary" className="h-8 px-2.5 text-[11px]" disabled>
+          <Clock className="mr-1 h-3.5 w-3.5" />
+          Solicitud pendiente
+        </Button>
+      );
     }
-    if (state === "pending_in") {
-      return <span className="text-[11px] font-semibold text-cyan-200">Te envió solicitud</span>;
+    if (pair.state === "pending_in" && pair.friendshipId) {
+      return (
+        <Button
+          type="button"
+          size="sm"
+          variant="heroOutline"
+          className="h-8 px-2.5 text-[11px]"
+          disabled={busyRequestId === pair.friendshipId}
+          onClick={() => void respond(pair.friendshipId, "accepted")}
+        >
+          <Check className="mr-1 h-3.5 w-3.5" />
+          Aceptar solicitud
+        </Button>
+      );
     }
     return (
       <Button
@@ -334,7 +433,7 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
         onClick={() => void sendRequest(targetId)}
       >
         <UserPlus className="mr-1 h-3.5 w-3.5" />
-        Enviar solicitud
+        Agregar
       </Button>
     );
   };
@@ -365,21 +464,26 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
 
       <Tabs
         value={activeTab}
-        onValueChange={(value) => setActiveTab(value as "messages" | "requests")}
+        onValueChange={(value) => setActiveTab(value as "contacts" | "requests")}
         className="flex min-h-0 flex-1 flex-col"
       >
         <TabsList className="mx-3 mt-2 grid h-10 w-auto grid-cols-2 rounded-xl border border-white/10 bg-black/25 p-1 sm:mx-4">
-          <TabsTrigger value="messages" className="text-xs font-semibold uppercase tracking-wide">
-            Mensajes
+          <TabsTrigger value="contacts" className="text-xs font-semibold uppercase tracking-wide">
+            Contactos
           </TabsTrigger>
           <TabsTrigger value="requests" className="text-xs font-semibold uppercase tracking-wide">
             Solicitudes de amistad
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="messages" className="mt-0 min-h-0 flex-1 data-[state=active]:flex">
+        <TabsContent value="contacts" className="mt-0 min-h-0 flex-1 data-[state=active]:flex">
           <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(220px,34%)_1fr]">
             <div className={`min-h-0 border-white/10 md:border-r ${selectedFriend ? "hidden md:flex" : "flex"} flex-col`}>
+              {!showSearchResults && (
+                <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-200/80">
+                  Tus contactos
+                </p>
+              )}
               <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 sm:px-3">
                 {showSearchResults ? (
                   <div className="space-y-1.5">
@@ -408,14 +512,16 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
                           <p className="truncate text-sm font-medium text-white">{result.name}</p>
                           <p className="truncate text-[10px] text-white/50">{result.id}</p>
                         </div>
-                        {renderSearchAction(result.id)}
+                        {renderSearchAction(result.id, result.name)}
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="space-y-1.5">
                     {connected.length === 0 && (
-                      <p className="px-2 py-2 text-xs text-white/60">Aún no tienes amigos aceptados.</p>
+                      <p className="px-2 py-2 text-xs text-white/60">
+                        Aún no tienes contactos. Busca usuarios arriba o acepta solicitudes.
+                      </p>
                     )}
                     {connected.map((friend) => (
                       <button

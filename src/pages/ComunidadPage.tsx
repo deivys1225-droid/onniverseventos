@@ -18,8 +18,10 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useLiveStreamChoiceModal } from "@/hooks/useLiveStreamChoiceModal";
 import {
-  loadFriendshipPairStates,
+  loadFriendshipPairInfo,
+  removeFriendship,
   sendFriendshipRequest,
+  type FriendshipPairInfo,
   type FriendshipPairState,
 } from "@/lib/friendships";
 import { getRoomActiveStream, type ActiveStreamRow, type RoomCard } from "@/lib/salaRoomCards";
@@ -36,7 +38,12 @@ const ComunidadPage = () => {
   const [activeStreams, setActiveStreams] = useState<ActiveStreamRow[]>([]);
   const [premiumModalRoom, setPremiumModalRoom] = useState<RoomCard | null>(null);
   const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
-  const [friendshipStates, setFriendshipStates] = useState<Map<string, FriendshipPairState>>(new Map());
+  const [friendshipPairInfo, setFriendshipPairInfo] = useState<Map<string, FriendshipPairInfo>>(new Map());
+  const friendshipStates = useMemo(() => {
+    const map = new Map<string, FriendshipPairState>();
+    friendshipPairInfo.forEach((info, id) => map.set(id, info.state));
+    return map;
+  }, [friendshipPairInfo]);
   const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const { requestChoice, dialog: liveStreamChoiceDialog } = useLiveStreamChoiceModal();
 
@@ -107,13 +114,13 @@ const ComunidadPage = () => {
 
   useEffect(() => {
     if (!user?.id || communityProfiles.length === 0) {
-      setFriendshipStates(new Map());
+      setFriendshipPairInfo(new Map());
       return;
     }
     const ids = communityProfiles.map((p) => p.id);
     let cancelled = false;
-    void loadFriendshipPairStates(user.id, ids).then((m) => {
-      if (!cancelled) setFriendshipStates(m);
+    void loadFriendshipPairInfo(user.id, ids).then((m) => {
+      if (!cancelled) setFriendshipPairInfo(m);
     });
     return () => {
       cancelled = true;
@@ -126,7 +133,7 @@ const ComunidadPage = () => {
     const ch = supabase
       .channel("comunidad-friendships")
       .on("postgres_changes", { event: "*", schema: "public", table: "friendships" }, () => {
-        void loadFriendshipPairStates(user.id, ids).then(setFriendshipStates);
+        void loadFriendshipPairInfo(user.id, ids).then(setFriendshipPairInfo);
       })
       .subscribe();
     return () => {
@@ -242,13 +249,30 @@ const ComunidadPage = () => {
       return;
     }
     if (result.status === "accepted") {
-      toast.success(`Ya son contactos en OnniVers con ${displayName}.`);
+      toast.success(`Ya son contactos con ${displayName}.`);
     } else {
-      toast.success(`Solicitud enviada a ${displayName}. Queda guardada en Supabase hasta que la acepten.`);
+      toast.success(`Solicitud pendiente enviada a ${displayName}.`);
     }
     const ids = communityProfiles.map((p) => p.id);
-    const next = await loadFriendshipPairStates(user.id, ids);
-    setFriendshipStates(next);
+    const next = await loadFriendshipPairInfo(user.id, ids);
+    setFriendshipPairInfo(next);
+  };
+
+  const removeFriendFromCommunity = async (
+    friendshipId: string,
+    targetUserId: string,
+    displayName: string,
+  ) => {
+    if (!user) return;
+    const result = await removeFriendship(friendshipId);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success(`Eliminaste a ${displayName} de tus contactos.`);
+    const ids = communityProfiles.map((p) => p.id);
+    const next = await loadFriendshipPairInfo(user.id, ids);
+    setFriendshipPairInfo(next);
   };
 
   return (
@@ -298,11 +322,14 @@ const ComunidadPage = () => {
             <ComunidadRoomsGrid
               communityRooms={communityRooms}
               activeStreams={activeStreams}
-              friendshipStates={friendshipStates}
+              friendshipPairInfo={friendshipPairInfo}
               currentUserId={user?.id}
               onEnterRoom={handleRoomAccess}
               onSendFriendRequest={(receiverId, displayName) => {
                 void sendFriendRequestToCommunityMember(receiverId, displayName);
+              }}
+              onRemoveFriend={(friendshipId, targetUserId, displayName) => {
+                void removeFriendFromCommunity(friendshipId, targetUserId, displayName);
               }}
             />
           </section>
