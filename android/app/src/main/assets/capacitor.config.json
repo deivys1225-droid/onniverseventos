@@ -1,23 +1,23 @@
 {
-	"appId": "com.vivevr.app",
-	"appName": "ViveVR",
-	"webDir": "dist",
-	"server": {
-		"androidScheme": "https",
-		"allowNavigation": [
-			"onniverso.com",
-			"www.onniverso.com",
-			"supabase.co",
-			"*.supabase.co",
-			"paypal.com",
-			"*.paypal.com",
-			"*.paypalobjects.com",
-			"google.com",
-			"*.google.com",
-			"*.googleapis.com",
-			"cloudinary.com",
-			"*.cloudinary.com",
-			"*.r2.dev"
-		]
-	}
+  "appId": "com.vivevr.app",
+  "appName": "ViveVR",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": [
+      "onniverso.com",
+      "www.onniverso.com",
+      "supabase.co",
+      "*.supabase.co",
+      "paypal.com",
+      "*.paypal.com",
+      "*.paypalobjects.com",
+      "google.com",
+      "*.google.com",
+      "*.googleapis.com",
+      "cloudinary.com",
+      "*.cloudinary.com",
+      "*.r2.dev"
+    ]
+  }
 }
