@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { getSiteUrl } from "@/lib/siteUrl";
+import RegisterTermsAcceptance from "@/components/auth/RegisterTermsAcceptance";
 
 const glassPanel =
   "rounded-2xl border border-border/50 bg-card/40 p-8 shadow-[0_0_45px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl";
@@ -22,6 +23,7 @@ const RegisterPage = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -43,6 +45,10 @@ const RegisterPage = () => {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!termsAccepted) {
+      toast.error("Debes aceptar los Términos y Condiciones y la Política de Privacidad.");
+      return;
+    }
     setLoading(true);
 
     try {
@@ -190,7 +196,18 @@ const RegisterPage = () => {
               </div>
             </div>
 
-            <Button type="submit" variant="hero" className="w-full min-h-12 font-display font-bold uppercase" disabled={loading}>
+            <RegisterTermsAcceptance
+              checked={termsAccepted}
+              onCheckedChange={setTermsAccepted}
+              disabled={loading}
+            />
+
+            <Button
+              type="submit"
+              variant="hero"
+              className="w-full min-h-12 font-display font-bold uppercase"
+              disabled={loading || !termsAccepted}
+            >
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Registrarme"}
             </Button>
           </form>
