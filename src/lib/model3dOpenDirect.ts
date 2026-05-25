@@ -1,7 +1,7 @@
 import { isAndroidLiveStreamChoicePlatform } from "@/lib/liveStreamOpenDirect";
 import { toast } from "sonner";
 
-/** @deprecated Solo compatibilidad de firma; Android abre siempre Aula Virtual nativa. */
+/** @deprecated Solo compatibilidad de firma; Android abre AulaVirtualActivity. */
 export type Model3DDirectAction = "OPEN_MODEL_3D" | "OPEN_MODEL_INMERSIVO";
 
 export type Model3DChoicePayload = {
@@ -36,8 +36,8 @@ export function buildModel3DChoicePayload(model: {
 }
 
 /**
- * Puente Android: {@code openModelDirect} → AulaVirtualActivity (estéreo, un WebView).
- * Los argumentos legacy se envían vacíos; el nativo ignora URL .glb y visores antiguos.
+ * Puente Android (tarjeta Aula / selector de modelo .glb):
+ * {@code openModelDirect} → AulaVirtualActivity.
  */
 export function invokeOpenModelDirect(
   _glbUrl = "",
@@ -51,7 +51,7 @@ export function invokeOpenModelDirect(
   return false;
 }
 
-/** En APK: cualquier tarjeta de galería abre Aula Virtual nativa (no visores .glb). */
-export function shouldHandoffModel3DOnAndroid(_modelUrl?: string): boolean {
-  return isAndroidLiveStreamChoicePlatform();
+/** Solo tarjetas .glb en galería (selector de visor), no la tarjeta promocional de Aula. */
+export function shouldHandoffModel3DOnAndroid(modelUrl: string): boolean {
+  return isGlbModelUrl(modelUrl) && isAndroidLiveStreamChoicePlatform();
 }

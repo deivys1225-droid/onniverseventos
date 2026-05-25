@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { LOCKED_NAVBAR_HEIGHT_CLASS, LOCKED_NAVBAR_MENU_OFFSET_CLASS } from "@/config/lockedHomeLayout";
 import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
+import { GALERIA_AULA_SECTION_HREF } from "@/lib/aulaVirtual";
 
 const APP_APK_DOWNLOAD_URL =
   "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
@@ -28,7 +29,8 @@ const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
   { label: "ONNIVERSO", path: "/inicio-2", icon: Sparkles },
   { label: "CONCIERTOS LIVE", path: "/nuestras-salas", icon: Radio },
   { label: "CHAT", path: "/comunidad", icon: MessageCircle },
-  { label: "AULA VIRTUAL", path: "/3d", icon: Box },
+  /** Sección galería + tarjeta Aula (solo navegación web; no abre lobby nativo). */
+  { label: "AULA VIRTUAL", path: GALERIA_AULA_SECTION_HREF, icon: Box },
   { label: "REPRODUCTOR LOCAL", path: "/reproductor-galeria", icon: FolderOpen },
   { label: "TIENDA", path: "/tienda", icon: ShoppingBag },
   { label: "QUIENES SOMOS", path: "/quienes-somos", icon: Building2 },

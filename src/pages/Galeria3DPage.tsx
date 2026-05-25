@@ -1,18 +1,33 @@
-﻿import { Box, GraduationCap } from "lucide-react";
-import { Link } from "react-router-dom";
+﻿import { useEffect } from "react";
+import { Box, GraduationCap } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SectionHeader from "@/components/salas/SectionHeader";
 import Galeria3DModelsGrid from "@/components/galeria3d/Galeria3DModelsGrid";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
 import { Button } from "@/components/ui/button";
+import { useAulaVirtualCardChoice } from "@/hooks/useAulaVirtualCardChoice";
 import { isAndroidLiveStreamChoicePlatform } from "@/lib/liveStreamOpenDirect";
-import { AULA_VIRTUAL_PATH, openAulaVirtualOnAndroid } from "@/lib/aulaVirtual";
+import {
+  AULA_VIRTUAL_LOBBY_PATH,
+  GALERIA_AULA_CARD_HASH,
+} from "@/lib/aulaVirtual";
 
 const Galeria3DPage = () => {
+  const location = useLocation();
+  const { requestAulaVirtualEntry, dialog: aulaCardDialog } = useAulaVirtualCardChoice();
   const onAndroid = isAndroidLiveStreamChoicePlatform();
+
+  useEffect(() => {
+    if (location.hash !== `#${GALERIA_AULA_CARD_HASH}`) return;
+    const el = document.getElementById(GALERIA_AULA_CARD_HASH);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [location.hash]);
+
   return (
     <div className="relative min-h-screen w-full max-w-full overflow-x-clip overflow-y-auto bg-background" data-camera-page-root>
+      {aulaCardDialog}
       <Navbar />
 
       <div className="pointer-events-none fixed inset-0" data-camera-decorative-bg>
@@ -42,7 +57,10 @@ const Galeria3DPage = () => {
               accent="border-cyan-400/40 bg-cyan-500/10 text-cyan-200"
             />
 
-            <article className="mb-10 overflow-hidden rounded-2xl border border-amber-400/35 bg-gradient-to-br from-amber-500/10 via-card/50 to-cyan-500/10 p-5 backdrop-blur-xl sm:p-6">
+            <article
+              id={GALERIA_AULA_CARD_HASH}
+              className="mb-10 scroll-mt-28 overflow-hidden rounded-2xl border border-amber-400/35 bg-gradient-to-br from-amber-500/10 via-card/50 to-cyan-500/10 p-5 backdrop-blur-xl sm:p-6"
+            >
               <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
                 <div className="relative h-44 shrink-0 overflow-hidden rounded-xl border border-white/10 sm:h-48 lg:w-72">
                   <img
@@ -61,8 +79,8 @@ const Galeria3DPage = () => {
                     Aula Virtual
                   </h2>
                   <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-                    Entra a la sala 3D caminable con pupitres, pizarra y luz de aula. Mismos controles
-                    que el lobby inmersivo.
+                    Lobby 3D caminable: en la app elige VR estéreo nativo o la sala web. El menú
+                    «AULA VIRTUAL» solo muestra esta sección.
                   </p>
                   {onAndroid ? (
                     <Button
@@ -70,13 +88,13 @@ const Galeria3DPage = () => {
                       variant="heroOutline"
                       size="sm"
                       className="mt-4 touch-manipulation"
-                      onClick={() => openAulaVirtualOnAndroid()}
+                      onClick={() => requestAulaVirtualEntry()}
                     >
                       Entrar al Aula Virtual
                     </Button>
                   ) : (
                     <Button asChild variant="heroOutline" size="sm" className="mt-4 touch-manipulation">
-                      <Link to={AULA_VIRTUAL_PATH}>Entrar al Aula Virtual</Link>
+                      <Link to={AULA_VIRTUAL_LOBBY_PATH}>Entrar al Aula Virtual</Link>
                     </Button>
                   )}
                 </div>
