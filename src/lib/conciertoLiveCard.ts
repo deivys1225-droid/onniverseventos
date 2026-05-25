@@ -59,16 +59,62 @@ const DEFAULT_SUBTITLE = "Live Premium";
 const DEFAULT_DESCRIPTION = "Crea tu evento live y transmite en modo premium.";
 const DEFAULT_TIMEZONE = "America/Lima";
 
+export const CONCIERTO_EMIT_DRAFT_SESSION_KEY = "onniverso.conciertos-live.emit-draft";
+
+export type ConciertoEmitDraft = ConciertoLiveCardConfig & { userId: string };
+
 /**
- * Modo prueba (emitir/publicar sin pago): activo en dev, en onnivers.com o con
- * VITE_CONCIERTO_LIVE_DEV_ACCESS=true. Desactivar en producción final: =false.
+ * Modo prueba (emitir/publicar sin pago). En el navegador también detecta onnivers.com
+ * aunque el build no traiga VITE_SITE_URL correcto.
  */
 export function isConciertoLiveTestMode(): boolean {
   if (import.meta.env.VITE_CONCIERTO_LIVE_DEV_ACCESS === "false") return false;
   if (import.meta.env.VITE_CONCIERTO_LIVE_DEV_ACCESS === "true") return true;
   if (import.meta.env.DEV) return true;
   const site = (import.meta.env.VITE_SITE_URL ?? "").toLowerCase();
-  return site.includes("onnivers.com");
+  if (site.includes("onnivers.com")) return true;
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1") return true;
+    if (host === "onnivers.com" || host.endsWith(".onnivers.com")) return true;
+  }
+  return false;
+}
+
+export function saveConciertoEmitDraft(draft: ConciertoEmitDraft): void {
+  try {
+    sessionStorage.setItem(CONCIERTO_EMIT_DRAFT_SESSION_KEY, JSON.stringify(draft));
+  } catch {
+    /* sessionStorage no disponible */
+  }
+}
+
+export function loadConciertoEmitDraft(userId: string): ConciertoEmitDraft | null {
+  try {
+    const raw = sessionStorage.getItem(CONCIERTO_EMIT_DRAFT_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ConciertoEmitDraft;
+    if (parsed.userId !== userId) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Listo para abrir el panel Mux (formulario completo, borrador o tarjeta guardada). */
+export function canOpenConciertoEmitPanel(params: {
+  userId: string | undefined;
+  title: string;
+  eventLocal: string;
+  emitStatus: ConciertoEmitStatus | null;
+}): boolean {
+  if (!params.userId) return false;
+  if (params.emitStatus?.isLiveNow) return true;
+  if (params.emitStatus?.canEmit) return true;
+  const hasForm = Boolean(params.title.trim() && params.eventLocal.trim());
+  if (hasForm) return true;
+  if (loadConciertoEmitDraft(params.userId)) return true;
+  return false;
 }
 
 export function displayNameFromProfile(row: Pick<ConciertoLiveProfileRow, "full_name">): string {
@@ -289,30 +335,38 @@ export async function fetchConciertoEmitStatus(userId: string): Promise<Conciert
   const emitWindow = canEmitConciertoLive(eventAt);
   const isLiveNow = Boolean(stream?.is_live);
 
+  const draft = typeof window !== "undefined" ? loadConciertoEmitDraft(userId) : null;
   const canEmit = isLiveNow
     ? true
-    : testMode
-      ? access
-      : access && saved && emitWindow.allowed;
+    : Boolean(draft)
+      ? true
+      : testMode
+        ? access && (saved || Boolean(eventAt))
+        : access && saved && emitWindow.allowed;
 
   return {
     hasAccess: access,
-    hasSavedCard: saved,
-    eventAt,
-    formattedEvent: formatConciertoEventDisplay(eventAt, row.concierto_event_timezone ?? DEFAULT_TIMEZONE),
+    hasSavedCard: saved || Boolean(draft),
+    eventAt: eventAt ?? draft?.eventAt ?? null,
+    formattedEvent: formatConciertoEventDisplay(
+      eventAt ?? draft?.eventAt ?? null,
+      row.concierto_event_timezone ?? DEFAULT_TIMEZONE,
+    ),
     isLiveNow,
     canEmit,
-    message: testMode
-      ? isLiveNow
-        ? "Ya estás en vivo."
-        : "Modo prueba: listo para emitir live."
-      : !access
-        ? "Activa tu plan premium para emitir."
-        : !saved
-          ? "Guarda tu tarjeta antes de emitir."
-          : isLiveNow
-            ? "Ya estás en vivo."
-            : emitWindow.message
+    message: isLiveNow
+      ? "Ya estás en vivo."
+      : draft
+        ? "Listo para emitir live (mismo panel Mux/OBS que en PC)."
+        : testMode
+          ? saved
+            ? "Listo para emitir live."
+            : "Completa título y fecha, guarda si quieres, y pulsa Emitir live."
+          : !access
+            ? "Activa tu plan premium para emitir."
+            : !saved
+              ? "Completa título y fecha del evento para emitir."
+              : emitWindow.message
   };
 }
 

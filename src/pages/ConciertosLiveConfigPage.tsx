@@ -16,11 +16,13 @@ import { compressProfileImage } from "@/lib/compressProfileImage";
 import {
   datetimeLocalValueToIso,
   draftConciertoCardFromProfile,
+  canOpenConciertoEmitPanel,
   fetchConciertoEmitStatus,
   fetchConciertoLiveState,
   formatConciertoEventDisplay,
   isConciertoLiveTestMode,
   isoToDatetimeLocalValue,
+  saveConciertoEmitDraft,
   saveConciertoLiveCard,
   uploadConciertoCardImage,
   type ConciertoEmitStatus,
@@ -178,10 +180,35 @@ const ConciertosLiveConfigPage = () => {
 
   const previewImage = previewBlob ?? imageUrl;
   const testMode = isConciertoLiveTestMode();
-  const canEmitLive =
-    Boolean(emitStatus?.isLiveNow) ||
-    Boolean(emitStatus?.canEmit) ||
-    (testMode && Boolean(title.trim()));
+  const canEmitLive = canOpenConciertoEmitPanel({
+    userId: user?.id,
+    title,
+    eventLocal,
+    emitStatus,
+  });
+
+  const goToEmitirLive = () => {
+    if (!user?.id || !title.trim() || !eventLocal) {
+      toast.error("Escribe título y fecha del evento antes de emitir.");
+      return;
+    }
+    const eventAt = datetimeLocalValueToIso(eventLocal);
+    if (!eventAt) {
+      toast.error("Fecha del evento no válida.");
+      return;
+    }
+    saveConciertoEmitDraft({
+      userId: user.id,
+      title: title.trim(),
+      subtitle: subtitle.trim() || "Live Premium",
+      description: description.trim(),
+      imageUrl: previewImage,
+      published,
+      eventAt,
+      eventTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Lima",
+    });
+    navigate("/conciertos-live/emitir");
+  };
 
   const onSave = async () => {
     if (!user?.id) return;
@@ -264,7 +291,7 @@ const ConciertosLiveConfigPage = () => {
 
           {isConciertoLiveTestMode() && (
             <p className="mb-4 rounded-lg border border-emerald-400/35 bg-emerald-500/10 px-4 py-2 text-center text-xs text-emerald-100">
-              Modo prueba activo: premium, publicar y emitir live habilitados (solo en desarrollo).
+              Modo prueba activo: premium, publicar y emitir live habilitados en onnivers.com.
             </p>
           )}
 
@@ -341,7 +368,9 @@ const ConciertosLiveConfigPage = () => {
                         className="border-amber-400/25"
                       />
                       <p className="text-xs text-muted-foreground">
-                        El botón Emitir live se activa el día del evento (2 h antes hasta 6 h después).
+                        {testMode
+                          ? "Modo prueba: puedes emitir cuando quieras con el panel Mux/OBS."
+                          : "En producción, la emisión también se habilita el día del evento (2 h antes hasta 6 h después)."}
                       </p>
                     </div>
 
@@ -375,16 +404,18 @@ const ConciertosLiveConfigPage = () => {
                     <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
                       <p className="text-sm font-medium text-amber-50">Emitir live</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {emitStatus?.message ??
-                          (formatConciertoEventDisplay(datetimeLocalValueToIso(eventLocal)) ??
-                            "Guarda la fecha de tu evento.")}
+                        {canEmitLive
+                          ? testMode
+                            ? "Listo para emitir con el mismo flujo live de la plataforma."
+                            : emitStatus?.message ?? "Listo para abrir el panel de emisión."
+                          : "Escribe título y fecha del evento para activar Emitir live."}
                       </p>
                       <Button
                         type="button"
                         variant="hero"
                         className="mt-3 w-full gap-2 sm:w-auto"
                         disabled={!canEmitLive}
-                        onClick={() => navigate("/conciertos-live/emitir")}
+                        onClick={goToEmitirLive}
                       >
                         <Mic2 className="h-4 w-4" />
                         {emitStatus?.isLiveNow ? "Ir al panel en vivo" : "Emitir live"}
