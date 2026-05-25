@@ -14,7 +14,6 @@ import {
 } from "@/components/salas/salaRoomCardStyles";
 import { useModel3DChoiceModal } from "@/hooks/useModel3DChoiceModal";
 import { GALERIA_3D_MODELS, openImmersiveModel, type Galeria3DModel } from "@/lib/galeria3dModels";
-import { shouldHandoffModel3DOnAndroid } from "@/lib/model3dOpenDirect";
 
 function ModelCard({
   model,
@@ -95,7 +94,6 @@ export default function Galeria3DModelsGrid() {
 
   const handleOpenModel = (model: Galeria3DModel) => {
     if (requestModelChoice(model)) return;
-    if (shouldHandoffModel3DOnAndroid(model.modelUrl)) return;
     openImmersiveModel(model.modelUrl, model.title);
   };
 

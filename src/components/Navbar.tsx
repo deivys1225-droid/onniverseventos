@@ -28,7 +28,7 @@ const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
   { label: "ONNIVERSO", path: "/inicio-2", icon: Sparkles },
   { label: "CONCIERTOS LIVE", path: "/nuestras-salas", icon: Radio },
   { label: "CHAT", path: "/comunidad", icon: MessageCircle },
-  { label: "3D", path: "/3d", icon: Box },
+  { label: "AULA VIRTUAL", path: "/3d", icon: Box },
   { label: "REPRODUCTOR LOCAL", path: "/reproductor-galeria", icon: FolderOpen },
   { label: "TIENDA", path: "/tienda", icon: ShoppingBag },
   { label: "QUIENES SOMOS", path: "/quienes-somos", icon: Building2 },

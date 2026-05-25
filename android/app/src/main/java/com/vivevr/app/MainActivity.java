@@ -93,6 +93,8 @@ public class MainActivity extends BridgeActivity {
   private static final String NATIVE_ACTIVITY_LOBBY_VR = "com.vivevr.app.LobbyVrActivity";
   /** Reproductor galería — actividad nativa; sin URL desde JS. */
   private static final String NATIVE_ACTIVITY_GALLERY = "com.vivevr.app.GalleryActivity";
+  /** Aula Virtual estéreo — un WebView duplicado por {@link StereoContainer}. */
+  private static final String NATIVE_ACTIVITY_AULA_VIRTUAL = "com.vivevr.app.AulaVirtualActivity";
   private static final String EXTRA_AGORA_PAYLOAD = "agoraPayload";
   private static final String EXTRA_AGORA_APP_ID = "agoraAppId";
   private static final String EXTRA_AGORA_CHANNEL = "agoraChannel";
@@ -169,36 +171,24 @@ public class MainActivity extends BridgeActivity {
    * Tarjeta EN VIVO ({@code openStreamDirect}): URL .m3u8 → {@link PlayerActivity} sin pasar por
    * la UI de {@link SelectorActivity}.
    */
-  /** Extras Galería 3D → actividades nativas de visor (.glb). */
-  public static final String EXTRA_MODEL_URL = "modelUrl";
-  public static final String EXTRA_MODEL_ACTION = "modelAction";
-
   /**
-   * Puente Galería 3D ({@link AndroidBridge#openModelDirect}). OPEN_MODEL_3D = visor dual VR;
-   * OPEN_MODEL_INMERSIVO = visor inmersivo.
+   * Puente Galería 3D / Aula ({@link AndroidBridge#openModelDirect}) →
+   * {@link AulaVirtualActivity} (estéreo, un solo WebView). Los parámetros legacy se ignoran.
    */
   private void deliverModelDirectToNative(String modelUrl, String action) {
-    String url = modelUrl != null ? modelUrl.trim() : "";
-    if (!StreamUrlResolver.isPlayableHttpUrl(url) || !url.toLowerCase(Locale.ROOT).contains(".glb")) {
-      Toast.makeText(this, "URL .glb inválida.", Toast.LENGTH_SHORT).show();
-      return;
-    }
-    String act = action != null ? action.trim().toUpperCase(Locale.ROOT) : "";
-    String activityClass =
-        "OPEN_MODEL_INMERSIVO".equals(act)
-            ? "com.vivevr.app.ModelImmersiveActivity"
-            : "com.vivevr.app.ModelDualVrActivity";
+    launchAulaVirtualDirect();
+  }
+
+  private void launchAulaVirtualDirect() {
     try {
       Intent intent = new Intent();
-      intent.setClassName(getPackageName(), activityClass);
-      intent.putExtra(EXTRA_MODEL_URL, url);
-      intent.putExtra(EXTRA_MODEL_ACTION, act);
+      intent.setClassName(getPackageName(), NATIVE_ACTIVITY_AULA_VIRTUAL);
       intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
       startActivity(intent);
     } catch (Exception e) {
       Toast.makeText(
               this,
-              "Visor 3D nativo no disponible en esta compilación.",
+              "Aula Virtual nativa no disponible en esta compilación.",
               Toast.LENGTH_LONG)
           .show();
     }
@@ -538,7 +528,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * Galería 3D: URL .glb + {@code OPEN_MODEL_3D} (visor dual VR) o {@code OPEN_MODEL_INMERSIVO}.
+     * Galería / modelos 3D → {@link AulaVirtualActivity} (estéreo). Parámetros legacy ignorados.
      */
     @JavascriptInterface
     public void openModelDirect(String modelUrl, String action) {

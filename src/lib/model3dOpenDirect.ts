@@ -1,6 +1,7 @@
 import { isAndroidLiveStreamChoicePlatform } from "@/lib/liveStreamOpenDirect";
 import { toast } from "sonner";
 
+/** @deprecated Solo compatibilidad de firma; Android abre siempre Aula Virtual nativa. */
 export type Model3DDirectAction = "OPEN_MODEL_3D" | "OPEN_MODEL_INMERSIVO";
 
 export type Model3DChoicePayload = {
@@ -34,16 +35,23 @@ export function buildModel3DChoicePayload(model: {
   return { glbUrl, title: model.title.trim() || "Modelo 3D" };
 }
 
-export function invokeOpenModelDirect(glbUrl: string, action: Model3DDirectAction): boolean {
+/**
+ * Puente Android: {@code openModelDirect} → AulaVirtualActivity (estéreo, un WebView).
+ * Los argumentos legacy se envían vacíos; el nativo ignora URL .glb y visores antiguos.
+ */
+export function invokeOpenModelDirect(
+  _glbUrl = "",
+  _action: Model3DDirectAction = "OPEN_MODEL_3D",
+): boolean {
   if (typeof window.AndroidBridge?.openModelDirect === "function") {
-    window.AndroidBridge.openModelDirect(glbUrl, action);
+    window.AndroidBridge.openModelDirect("", "");
     return true;
   }
   toast.error("AndroidBridge.openModelDirect no disponible.");
   return false;
 }
 
-/** Galería 3D en APK: modal de visor, sin AR legacy ni espectador. */
-export function shouldHandoffModel3DOnAndroid(modelUrl: string): boolean {
-  return isGlbModelUrl(modelUrl) && isAndroidLiveStreamChoicePlatform();
+/** En APK: cualquier tarjeta de galería abre Aula Virtual nativa (no visores .glb). */
+export function shouldHandoffModel3DOnAndroid(_modelUrl?: string): boolean {
+  return isAndroidLiveStreamChoicePlatform();
 }

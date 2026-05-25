@@ -6,9 +6,11 @@ import SectionHeader from "@/components/salas/SectionHeader";
 import Galeria3DModelsGrid from "@/components/galeria3d/Galeria3DModelsGrid";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
 import { Button } from "@/components/ui/button";
-import { AULA_VIRTUAL_PATH } from "@/lib/aulaVirtual";
+import { isAndroidLiveStreamChoicePlatform } from "@/lib/liveStreamOpenDirect";
+import { AULA_VIRTUAL_PATH, openAulaVirtualOnAndroid } from "@/lib/aulaVirtual";
 
 const Galeria3DPage = () => {
+  const onAndroid = isAndroidLiveStreamChoicePlatform();
   return (
     <div className="relative min-h-screen w-full max-w-full overflow-x-clip overflow-y-auto bg-background" data-camera-page-root>
       <Navbar />
@@ -62,9 +64,21 @@ const Galeria3DPage = () => {
                     Entra a la sala 3D caminable con pupitres, pizarra y luz de aula. Mismos controles
                     que el lobby inmersivo.
                   </p>
-                  <Button asChild variant="heroOutline" size="sm" className="mt-4 touch-manipulation">
-                    <Link to={AULA_VIRTUAL_PATH}>Entrar al Aula Virtual</Link>
-                  </Button>
+                  {onAndroid ? (
+                    <Button
+                      type="button"
+                      variant="heroOutline"
+                      size="sm"
+                      className="mt-4 touch-manipulation"
+                      onClick={() => openAulaVirtualOnAndroid()}
+                    >
+                      Entrar al Aula Virtual
+                    </Button>
+                  ) : (
+                    <Button asChild variant="heroOutline" size="sm" className="mt-4 touch-manipulation">
+                      <Link to={AULA_VIRTUAL_PATH}>Entrar al Aula Virtual</Link>
+                    </Button>
+                  )}
                 </div>
               </div>
             </article>
