@@ -14,7 +14,8 @@ import {
 } from "@/lib/audiencePlayback";
 import { muxPlaybackIdFromHlsUrl } from "@/lib/muxPlaybackId";
 import { handoffSalaCardOnAndroid } from "@/lib/salaOpenDirect";
-import { fetchPublishedConciertoCards } from "@/lib/conciertoLiveCard";
+import { handoffAudienceLiveCardOnAndroid } from "@/lib/liveStreamOpenDirect";
+import { fetchPublishedConciertoCards, isConciertoRoomCard } from "@/lib/conciertoLiveCard";
 import { getRoomActiveStream, type ActiveStreamRow, type RoomCard } from "@/lib/salaRoomCards";
 import { shuffleArray } from "@/lib/shuffleArray";
 import { handleStreamCardPlay } from "@/lib/streamCardNavigation";
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import { useSalaChoiceModal } from "@/hooks/useSalaChoiceModal";
+import { useLiveStreamChoiceModal } from "@/hooks/useLiveStreamChoiceModal";
 import {
   salaRoomCardPadding,
   salaRoomCtaIcon,
@@ -78,6 +80,7 @@ const NuestrasSalasPage = () => {
   const [activeStreams, setActiveStreams] = useState<ActiveStreamRow[]>([]);
   const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
   const { requestSalaChoice, dialog: salaChoiceDialog } = useSalaChoiceModal();
+  const { requestChoice: requestLiveStreamChoice, dialog: liveStreamChoiceDialog } = useLiveStreamChoiceModal();
 
   useEffect(() => {
     const loadData = async () => {
@@ -158,6 +161,7 @@ const NuestrasSalasPage = () => {
     options?: { fromSalaCard?: boolean },
   ) => {
     const fromSalaCard = Boolean(options?.fromSalaCard);
+    const audienceTappedLive = fromSalaCard || Boolean(activeStream?.is_live);
     const useLoadingOverlay = !fromSalaCard;
     if (useLoadingOverlay) setLoadingRoomId(room.id);
     try {
@@ -168,7 +172,11 @@ const NuestrasSalasPage = () => {
         playbackUrlCandidate && !isStreamPlaybackUrl(playbackUrlCandidate) ? playbackUrlCandidate : "";
       const resolvedTitle = activeStream?.title?.trim() || room.name;
 
-      if (handoffSalaCardOnAndroid(room, activeStream, resolvedTitle, requestSalaChoice)) {
+      if (isConciertoRoomCard(room)) {
+        if (handoffAudienceLiveCardOnAndroid(activeStream, resolvedTitle, requestLiveStreamChoice, audienceTappedLive)) {
+          return;
+        }
+      } else if (handoffSalaCardOnAndroid(room, activeStream, resolvedTitle, requestSalaChoice)) {
         return;
       }
 
@@ -346,6 +354,7 @@ const NuestrasSalasPage = () => {
       <Footer />
 
       {salaChoiceDialog}
+      {liveStreamChoiceDialog}
 
       <AnimatePresence>
         {loadingRoomId && (

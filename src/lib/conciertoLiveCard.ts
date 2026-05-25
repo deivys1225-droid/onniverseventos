@@ -245,6 +245,11 @@ export function conciertoLiveStateFromProfile(row: ConciertoLiveProfileRow): Con
   };
 }
 
+/** Tarjetas publicadas en Nuestras salas (`id` = `concierto-{userId}`). */
+export function isConciertoRoomCard(room: Pick<RoomCard, "id">): boolean {
+  return room.id.startsWith("concierto-");
+}
+
 export function profileRowToConciertoRoomCard(row: ConciertoLiveProfileRow): RoomCard | null {
   const accessOk = hasConciertoLiveAccess(row);
   if (!accessOk || !hasSavedConciertoCard(row) || row.concierto_card_published !== true) {
