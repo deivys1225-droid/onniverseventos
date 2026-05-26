@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OnniAvatar, { type OnniAvatarState } from "@/components/OnniAvatar";
 import { dispatchOpCommand } from "@/lib/opCommandBus";
+import { getOnniIntroduction } from "@/data/onniBrain";
 import { getOpAssistantHint, resolveOpCommand } from "@/lib/opAssistantResolver";
 import { useOnniVoice, useOnniVoicePrefs } from "@/hooks/useOnniVoice";
 import { toast } from "sonner";
@@ -12,16 +13,15 @@ import { cn } from "@/lib/utils";
 
 type UiMessage = { role: "user" | "assistant"; text: string };
 
-const ONNI_GREETING = `¡Hola! Soy Onni, estoy aquí para ayudarte.\nDime si quieres ir al lobby, abrir salas, conciertos, reproductor mp4 o el menú.\nDi "Onni" o "Oni" y tu comando. Ejemplo: "Onni, llévame al lobby".`;
-
 export default function OpAiAssistant() {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<UiMessage[]>([
-    { role: "assistant", text: ONNI_GREETING },
+    { role: "assistant", text: getOnniIntroduction() },
   ]);
+  const sessionRef = useRef<{ lastAnswer?: string }>({});
 
   const { listenEnabled, setListenEnabled, speakEnabled, setSpeakEnabled } = useOnniVoicePrefs();
   const hint = useMemo(() => getOpAssistantHint(location.pathname), [location.pathname]);
@@ -36,8 +36,14 @@ export default function OpAiAssistant() {
         { role: "user", text: source === "voice" ? `🎤 ${trimmed}` : trimmed },
       ]);
 
-      const result = resolveOpCommand(trimmed, location.pathname);
-      if (result.navigateTo) {
+      const result = resolveOpCommand(trimmed, location.pathname, {
+        lastAnswer: sessionRef.current.lastAnswer,
+      });
+      sessionRef.current.lastAnswer = result.answer;
+
+      if (result.navigateBack) {
+        navigate(-1);
+      } else if (result.navigateTo) {
         const [path, hash] = result.navigateTo.split("#");
         if (hash) {
           navigate(path);
@@ -69,7 +75,7 @@ export default function OpAiAssistant() {
   const onWakeWithoutCommand = useCallback(() => {
     setOpen(true);
     const msg =
-      "Te escucho. ¿Quieres ir al lobby, abrir salas, conciertos o el reproductor mp4? Dime qué hacemos.";
+      "Te escucho. Pregúntame «¿dónde estoy?», «ayuda», o dime lobby, conciertos, reproductor mp4… tú mandas.";
     setMessages((prev) => [...prev, { role: "assistant", text: msg }]);
     speakRef.current(msg);
   }, []);
@@ -91,7 +97,7 @@ export default function OpAiAssistant() {
     if (!open || greetedRef.current || !speakEnabled || !supported) return;
     greetedRef.current = true;
     speak(
-      "Hola, soy Onni. Estoy aquí para ayudarte. Dime si quieres ir al lobby, abrir salas, conciertos o el reproductor mp4.",
+      "Hola, soy Onni. Pregúntame dónde estoy, ayuda, o dime lobby, conciertos, reproductor mp4. Di Onni y tu comando.",
     );
   }, [open, speakEnabled, supported, speak]);
 

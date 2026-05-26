@@ -54,4 +54,32 @@ describe("resolveOpCommand", () => {
     const r = resolveOpCommand("salir a conciertos", "/sala/espectador/al-universo-nova-byte");
     expect(r.navigateTo).toBe("/nuestras-salas");
   });
+
+  it("donde estoy no navega", () => {
+    const r = resolveOpCommand("donde estoy", "/lobby-inmersivo");
+    expect(r.navigateTo).toBeUndefined();
+    expect(r.answer.toLowerCase()).toContain("lobby");
+  });
+
+  it("ayuda incluye reproductor y voz", () => {
+    const r = resolveOpCommand("ayuda", "/");
+    expect(r.answer).toMatch(/reproductor|MP4|voz/i);
+  });
+
+  it("repite la ultima respuesta", () => {
+    const first = resolveOpCommand("hola", "/");
+    const r = resolveOpCommand("repite", "/", { lastAnswer: first.answer });
+    expect(r.answer).toBe(first.answer);
+  });
+
+  it("atras usa navigateBack", () => {
+    const r = resolveOpCommand("volver atras", "/nuestras-salas");
+    expect(r.navigateBack).toBe(true);
+  });
+
+  it("mi favorito es karol guarda sin navegar", () => {
+    const r = resolveOpCommand("mi favorito es karol", "/");
+    expect(r.navigateTo).toBeUndefined();
+    expect(r.answer.toLowerCase()).toContain("karol");
+  });
 });
