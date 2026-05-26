@@ -3,13 +3,10 @@ project_id = "rwyhakcsvdbsavignogh"
 
 [auth]
 enabled = true
-# URL principal del sitio (emails, fallback de OAuth)
-site_url = "https://onniverso.com"
+# URL principal del sitio (emails, OAuth redirect). Dominio activo: onnivers.com
+site_url = "https://onnivers.com"
 # URLs exactas permitidas tras login OAuth / magic link (debe coincidir con getOAuthRedirectUrl)
 additional_redirect_urls = [
-  "https://onniverso.com",
-  "https://onniverso.com/",
-  "https://onniverso.com/entrar",
   "https://onnivers.com",
   "https://onnivers.com/",
   "https://onnivers.com/entrar",

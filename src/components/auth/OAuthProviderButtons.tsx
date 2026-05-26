@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { signInWithOAuthProvider, type OAuthProvider } from "@/lib/oauthAuth";
+import { signInWithOAuthProvider } from "@/lib/oauthAuth";
 import { formatSupabaseAuthError } from "@/lib/supabaseErrors";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -36,28 +36,19 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-function FacebookIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="#1877F2" aria-hidden>
-      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-    </svg>
-  );
-}
-
 const OAuthProviderButtons = ({ disabled, className, onBeforeSignIn }: OAuthProviderButtonsProps) => {
-  const [busyProvider, setBusyProvider] = useState<OAuthProvider | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const handleOAuth = async (provider: OAuthProvider) => {
-    if (disabled || busyProvider) return;
+  const handleGoogle = async () => {
+    if (disabled || busy) return;
     if (onBeforeSignIn && !onBeforeSignIn()) return;
 
-    setBusyProvider(provider);
+    setBusy(true);
     try {
-      await signInWithOAuthProvider(provider);
-      // La ventana redirige al proveedor; no hace falta toast aquí.
+      await signInWithOAuthProvider();
     } catch (err: unknown) {
       toast.error(formatSupabaseAuthError(err));
-      setBusyProvider(null);
+      setBusy(false);
     }
   };
 
@@ -67,29 +58,15 @@ const OAuthProviderButtons = ({ disabled, className, onBeforeSignIn }: OAuthProv
         type="button"
         variant="outline"
         className="h-11 w-full gap-3 border-border/60 bg-white/95 font-medium text-slate-900 shadow-sm hover:bg-white dark:bg-white/10 dark:text-foreground dark:hover:bg-white/15"
-        disabled={disabled || busyProvider !== null}
-        onClick={() => void handleOAuth("google")}
+        disabled={disabled || busy}
+        onClick={() => void handleGoogle()}
       >
-        {busyProvider === "google" ? (
+        {busy ? (
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
         ) : (
           <GoogleIcon className="h-5 w-5 shrink-0" />
         )}
         Continuar con Google
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        className="h-11 w-full gap-3 border-[#1877F2]/40 bg-[#1877F2]/10 font-medium text-foreground hover:bg-[#1877F2]/20"
-        disabled={disabled || busyProvider !== null}
-        onClick={() => void handleOAuth("facebook")}
-      >
-        {busyProvider === "facebook" ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : (
-          <FacebookIcon className="h-5 w-5 shrink-0" />
-        )}
-        Continuar con Facebook
       </Button>
     </div>
   );

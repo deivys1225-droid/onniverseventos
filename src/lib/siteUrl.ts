@@ -2,10 +2,10 @@
  * URL canónica del sitio para enlaces de Supabase Auth (confirmación de correo, recuperación).
  * Debe coincidir con Auth → URL Configuration en el dashboard (Site URL + Redirect URLs).
  *
- * Producción: define `VITE_SITE_URL=https://onniverso.com` en el entorno de build.
+ * Producción: define `VITE_SITE_URL=https://onnivers.com` en el entorno de build (Vercel).
  * En desarrollo local, si no hay env, se usa `window.location.origin`.
  */
-const PRODUCTION_SITE = "https://onniverso.com";
+const PRODUCTION_SITE = "https://onnivers.com";
 
 function normalizeUrl(raw: string): string {
   const t = raw.trim().replace(/\/+$/, "");
@@ -14,13 +14,27 @@ function normalizeUrl(raw: string): string {
   return `https://${t.replace(/^\/+/, "")}`;
 }
 
+function siteUrlFromBrowser(): string | null {
+  if (typeof window === "undefined") return null;
+  const host = window.location.hostname.toLowerCase();
+  if (
+    host === "onnivers.com" ||
+    host === "www.onnivers.com" ||
+    host === "localhost" ||
+    host === "127.0.0.1"
+  ) {
+    return window.location.origin;
+  }
+  return null;
+}
+
 export function getSiteUrl(): string {
+  const fromBrowser = siteUrlFromBrowser();
+  if (fromBrowser) return fromBrowser;
+
   const fromEnv = import.meta.env.VITE_SITE_URL as string | undefined;
   if (fromEnv?.trim()) {
     return normalizeUrl(fromEnv);
-  }
-  if (import.meta.env.DEV && typeof window !== "undefined") {
-    return window.location.origin;
   }
   return PRODUCTION_SITE;
 }

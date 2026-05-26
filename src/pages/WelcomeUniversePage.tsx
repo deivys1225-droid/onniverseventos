@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Headset, Loader2, Lock, Mail, WifiOff } from "lucide-react";
+import { Headset, Loader2, Lock, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatSupabaseAuthError } from "@/lib/supabaseErrors";
 import { Button } from "@/components/ui/button";
@@ -9,14 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { getSiteUrl } from "@/lib/siteUrl";
-import { createLocalUser } from "@/lib/localAuth";
 import { isOAuthReturnUrl } from "@/lib/oauthAuth";
 import OAuthProviderButtons from "@/components/auth/OAuthProviderButtons";
 
 const glassPanel =
   "rounded-2xl border border-border/50 bg-card/40 p-8 shadow-[0_0_45px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl";
-const APP_APK_DOWNLOAD_URL =
-  "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
 
 const WelcomeUniversePage = () => {
   const [email, setEmail] = useState("");
@@ -81,23 +78,6 @@ const WelcomeUniversePage = () => {
       toast.error(formatSupabaseAuthError(err));
     } finally {
       setLoading(false);
-    }
-  };
-
-  /**
-   * Entrar SIN servidor. Crea un usuario local persistido en localStorage del dispositivo
-   * y abre la Tierra/Lobby al instante. No requiere red. Si más tarde el usuario se registra
-   * con correo, la sesión Supabase real reemplaza la local automáticamente.
-   */
-  const onEnterLocal = () => {
-    if (loading) return;
-    try {
-      createLocalUser();
-      toast.success("Modo local activado · tu progreso se guarda en este dispositivo");
-      navigate("/", { replace: true });
-    } catch (err) {
-      console.warn("[localAuth] no se pudo crear usuario local:", err);
-      toast.error("No se pudo activar el modo local.");
     }
   };
 
@@ -210,30 +190,6 @@ const WelcomeUniversePage = () => {
             </Button>
           </form>
 
-          <div className="mt-6 flex items-center gap-3">
-            <span className="h-px flex-1 bg-border/50" />
-            <span className="text-[10px] font-display uppercase tracking-[0.24em] text-muted-foreground">
-              o
-            </span>
-            <span className="h-px flex-1 bg-border/50" />
-          </div>
-
-          <Button
-            type="button"
-            variant="heroOutline"
-            className="mt-4 w-full min-h-12 gap-2 font-display font-semibold uppercase tracking-wide"
-            onClick={onEnterLocal}
-            disabled={loading}
-            aria-label="Entrar en modo local sin cuenta ni servidor"
-          >
-            <WifiOff className="h-4 w-4" />
-            Entrar sin cuenta (modo local)
-          </Button>
-          <p className="mt-2 text-center text-[11px] leading-snug text-muted-foreground">
-            Acceso directo a Tierra, Luna y Lobby sin internet. Tu progreso se guarda en este
-            dispositivo y puede sincronizarse cuando crees tu cuenta.
-          </p>
-
           <p className="mt-6 text-center text-sm">
             <Link to="/inicio-2" className="text-muted-foreground underline-offset-4 transition hover:text-primary hover:underline">
               ← Volver a la portada (Mundial VR)
@@ -249,11 +205,6 @@ const WelcomeUniversePage = () => {
               Regístrate
             </Link>
           </p>
-          <Button variant="hero" size="sm" asChild className="mt-3 hidden w-full md:inline-flex">
-            <a href={APP_APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
-              Descargar app
-            </a>
-          </Button>
             </>
           )}
         </motion.div>
