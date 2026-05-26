@@ -103,6 +103,9 @@ public class MainActivity extends BridgeActivity {
   private static final String EXTRA_NATIVE_STREAM_URL = "streamUrl";
 
   private ActivityResultLauncher<String[]> webkitMediaPermissionLauncher;
+  /** Onni — permiso RECORD_AUDIO antes de SpeechRecognition en el WebView. */
+  private ActivityResultLauncher<String[]> onniMicPermissionLauncher;
+  private String pendingOnniMicCallback;
   /** Legacy: sin uso para reproducción (flujo nativo vía {@link #openStreamSelector}). */
   private ActivityResultLauncher<Intent> selectorActivityLauncher;
   /** Maleta HLS/playback activo para botones 360 / Mixta / Inmersiva ({@link AndroidBridge}). */
@@ -319,6 +322,10 @@ public class MainActivity extends BridgeActivity {
   protected void onCreate(Bundle savedInstanceState) {
     webkitMediaPermissionLauncher =
         registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), this::finishWebKitPermissionPrompt);
+
+    onniMicPermissionLauncher =
+        registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(), this::finishOnniMicPermission);
 
     selectorActivityLauncher =
         registerForActivityResult(
@@ -551,6 +558,15 @@ public class MainActivity extends BridgeActivity {
     @JavascriptInterface
     public void openGalleryDirect() {
       activity.runOnUiThread(() -> activity.launchGalleryDirect());
+    }
+
+    /**
+     * Onni — pide {@link Manifest.permission#RECORD_AUDIO} y llama
+     * {@code window[callbackName](grantedBoolean)}.
+     */
+    @JavascriptInterface
+    public void requestOnniMicrophonePermission(String callbackName) {
+      activity.runOnUiThread(() -> activity.launchOnniMicrophonePermissionFlow(callbackName));
     }
   }
 
@@ -1165,6 +1181,57 @@ public class MainActivity extends BridgeActivity {
     public int getMusicCount() {
       return activity.pickedMusicUris.size();
     }
+  }
+
+  /**
+   * Flujo Onni: si ya hay micrófono concedido, responde al JS de inmediato; si no, muestra el
+   * diálogo del sistema (Android 6+).
+   */
+  private void launchOnniMicrophonePermissionFlow(String callbackName) {
+    if (callbackName == null || callbackName.isEmpty()) {
+      return;
+    }
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+        == PackageManager.PERMISSION_GRANTED) {
+      dispatchOnniMicResult(callbackName, true);
+      return;
+    }
+    pendingOnniMicCallback = callbackName;
+    try {
+      onniMicPermissionLauncher.launch(new String[] {Manifest.permission.RECORD_AUDIO});
+    } catch (Exception ignored) {
+      pendingOnniMicCallback = null;
+      dispatchOnniMicResult(callbackName, false);
+    }
+  }
+
+  private void finishOnniMicPermission(Map<String, Boolean> result) {
+    String cb = pendingOnniMicCallback;
+    pendingOnniMicCallback = null;
+    if (cb == null || cb.isEmpty()) {
+      return;
+    }
+    boolean granted =
+        Boolean.TRUE.equals(result.get(Manifest.permission.RECORD_AUDIO))
+            || ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED;
+    dispatchOnniMicResult(cb, granted);
+  }
+
+  private void dispatchOnniMicResult(String callbackName, boolean granted) {
+    Bridge bridge = getBridge();
+    WebView webView = bridge != null ? bridge.getWebView() : null;
+    if (webView == null) {
+      return;
+    }
+    String escCb = callbackName.replace("\\", "\\\\").replace("'", "\\'");
+    String code =
+        "(function(){ try { var cb = window['"
+            + escCb
+            + "']; if (typeof cb === 'function') cb("
+            + (granted ? "true" : "false")
+            + "); } catch(e) { console.warn('onni mic callback failed', e); } })();";
+    webView.evaluateJavascript(code, null);
   }
 
   private void finishWebKitPermissionPrompt(Map<String, Boolean> result) {

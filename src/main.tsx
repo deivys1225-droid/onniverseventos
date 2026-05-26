@@ -23,6 +23,8 @@ declare global {
       openLobbyDirect?: () => void;
       /** Abre reproductor galería nativo; sin URL. */
       openGalleryDirect?: () => void;
+      /** Onni: pide RECORD_AUDIO; llama window[callbackName](granted: boolean). */
+      requestOnniMicrophonePermission?: (callbackName: string) => void;
     };
     /** Puente AR: registrado en MainActivity como {@code Android}. */
     Android?: {

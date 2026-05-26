@@ -8,6 +8,7 @@ import { dispatchOpCommand } from "@/lib/opCommandBus";
 import { getOnniIntroduction } from "@/data/onniBrain";
 import { getOpAssistantHint, resolveOpCommand } from "@/lib/opAssistantResolver";
 import { useOnniVoice, useOnniVoicePrefs } from "@/hooks/useOnniVoice";
+import { onniMicDeniedMessage, requestOnniMicrophoneAccess } from "@/lib/requestOnniMicrophone";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -22,8 +23,17 @@ export default function OpAiAssistant() {
     { role: "assistant", text: getOnniIntroduction() },
   ]);
   const sessionRef = useRef<{ lastAnswer?: string }>({});
+  const micPromptedRef = useRef(false);
 
   const { listenEnabled, setListenEnabled, speakEnabled, setSpeakEnabled } = useOnniVoicePrefs();
+
+  const promptMicrophone = useCallback(async () => {
+    if (!listenEnabled) return;
+    const status = await requestOnniMicrophoneAccess();
+    if (status === "denied") {
+      toast.error(onniMicDeniedMessage());
+    }
+  }, [listenEnabled]);
   const hint = useMemo(() => getOpAssistantHint(location.pathname), [location.pathname]);
 
   const runCommand = useCallback(
@@ -92,6 +102,12 @@ export default function OpAiAssistant() {
     speakRef.current = speak;
   }, [speak]);
 
+  useEffect(() => {
+    if (!open || !listenEnabled || !supported || micPromptedRef.current) return;
+    micPromptedRef.current = true;
+    void promptMicrophone();
+  }, [open, listenEnabled, supported, promptMicrophone]);
+
   const greetedRef = useRef(false);
   useEffect(() => {
     if (!open || greetedRef.current || !speakEnabled || !supported) return;
@@ -140,7 +156,9 @@ export default function OpAiAssistant() {
           <button
             type="button"
             className="pointer-events-auto group flex flex-col items-center gap-1.5 rounded-2xl border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              setOpen(true);
+            }}
             aria-label="Abrir Onni, asistente de voz"
           >
             <OnniAvatar size="lg" state={avatarState} />
@@ -161,7 +179,16 @@ export default function OpAiAssistant() {
                 variant="ghost"
                 className="h-8 w-8"
                 aria-label={listenEnabled ? "Desactivar escucha" : "Activar escucha"}
-                onClick={() => setListenEnabled((v) => !v)}
+                onClick={() => {
+                  setListenEnabled((v) => {
+                    const next = !v;
+                    if (next) {
+                      micPromptedRef.current = false;
+                      void promptMicrophone();
+                    }
+                    return next;
+                  });
+                }}
                 disabled={!supported}
               >
                 {listenEnabled ? <Mic className="h-4 w-4 text-cyan-300" /> : <MicOff className="h-4 w-4" />}
