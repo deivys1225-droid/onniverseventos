@@ -143,4 +143,73 @@
       0 0 35px -14px hsl(190 100% 60% / 0.8);
   }
 
+  /* Onni — robot (imagen + anillos al escuchar/hablar) */
+  .onni-avatar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    animation: onni-float 3.2s ease-in-out infinite;
+  }
+
+  .onni-avatar__ring {
+    border: 1px solid hsl(195 50% 72% / 0.45);
+    animation: onni-pulse-ring 2.4s ease-out infinite;
+  }
+
+  .onni-avatar__ring--delay {
+    animation-delay: 1.1s;
+  }
+
+  .onni-avatar__img {
+    filter: drop-shadow(0 0 10px hsl(190 80% 50% / 0.35));
+    transition: filter 0.25s ease, transform 0.25s ease;
+  }
+
+  .onni-avatar[data-state="listening"] .onni-avatar__img {
+    filter: drop-shadow(0 0 14px hsl(185 95% 55% / 0.9)) brightness(1.06);
+    transform: scale(1.03);
+  }
+
+  .onni-avatar[data-state="listening"] .onni-avatar__ring {
+    border-color: hsl(190 75% 78% / 0.9);
+    animation-duration: 1.35s;
+  }
+
+  .onni-avatar[data-state="speaking"] .onni-avatar__img {
+    filter: drop-shadow(0 0 12px hsl(195 70% 62% / 0.85)) brightness(1.04);
+    animation: onni-speak-bob 0.35s ease-in-out infinite;
+  }
+
 }
+
+@keyframes onni-speak-bob {
+  0%,
+  100% {
+    transform: translateY(0) scale(1.02);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.05);
+  }
+}
+
+@keyframes onni-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes onni-pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.42);
+    opacity: 0;
+  }
+}
+

@@ -1,12 +1,14 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bot, Mic, MicOff, Send, Volume2, VolumeX } from "lucide-react";
+import { Mic, MicOff, Send, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import OnniAvatar, { type OnniAvatarState } from "@/components/OnniAvatar";
 import { dispatchOpCommand } from "@/lib/opCommandBus";
 import { getOpAssistantHint, resolveOpCommand } from "@/lib/opAssistantResolver";
 import { useOnniVoice, useOnniVoicePrefs } from "@/hooks/useOnniVoice";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type UiMessage = { role: "user" | "assistant"; text: string };
 
@@ -102,48 +104,49 @@ export default function OpAiAssistant() {
     if (answer && speakEnabled) speak(answer);
   };
 
+  const avatarState: OnniAvatarState = isSpeaking ? "speaking" : isListening ? "listening" : "idle";
+
   const listenLabel = !supported
     ? "Voz no disponible en este navegador"
     : listenEnabled
       ? isListening
-        ? "Onni escuchando… di: Onni, …"
+        ? "Escuchando… di: Onni, …"
         : "Reconectando micrófono…"
       : "Escucha desactivada";
 
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[80] w-[min(92vw,360px)]">
+    <div className="pointer-events-none fixed bottom-8 left-10 z-[80] w-[min(92vw,380px)]">
       {!open ? (
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-start gap-2">
           {listenEnabled && supported && (
             <span
-              className={`pointer-events-none rounded-full border px-2.5 py-1 text-[10px] font-medium backdrop-blur-md ${
+              className={cn(
+                "pointer-events-none rounded-full border px-2.5 py-1 text-[10px] font-medium backdrop-blur-md",
                 isListening
                   ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-100"
-                  : "border-white/15 bg-black/40 text-muted-foreground"
-              }`}
+                  : "border-white/15 bg-black/40 text-muted-foreground",
+              )}
             >
-              {isListening ? "Onni escuchando" : "Onni…"}
+              {isListening ? "Onni escuchando" : "Di: Onni…"}
               {isSpeaking ? " · hablando" : ""}
             </span>
           )}
-          <Button
+          <button
             type="button"
-            className={`pointer-events-auto h-11 rounded-full gap-2 shadow-[0_10px_30px_-12px_rgba(34,211,238,0.65)] ${
-              isListening ? "ring-2 ring-cyan-400/70 ring-offset-2 ring-offset-background" : ""
-            }`}
-            variant="hero"
+            className="pointer-events-auto group flex flex-col items-center gap-1.5 rounded-2xl border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
             onClick={() => setOpen(true)}
+            aria-label="Abrir Onni, asistente de voz"
           >
-            <Bot className="h-4 w-4" />
-            Onni
-          </Button>
+            <OnniAvatar size="lg" state={avatarState} />
+          </button>
         </div>
       ) : (
         <div className="pointer-events-auto rounded-2xl border border-cyan-300/35 bg-card/90 backdrop-blur-xl shadow-[0_0_45px_-16px_rgba(34,211,238,0.8)]">
-          <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
-            <div className="min-w-0">
+          <div className="flex items-start gap-3 border-b border-white/10 px-3 py-3">
+            <OnniAvatar size="md" state={avatarState} className="mt-0.5" />
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-cyan-100">Onni</p>
-              <p className="truncate text-[10px] text-muted-foreground">{listenLabel}</p>
+              <p className="text-[10px] text-muted-foreground">{listenLabel}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <Button
