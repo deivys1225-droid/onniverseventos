@@ -9,6 +9,7 @@ import { PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { isPayPalConfigured, paypalScriptOptions } from "@/config/payments";
 import GuestRoute from "@/components/auth/GuestRoute";
 import PrivateRoute from "@/components/auth/PrivateRoute";
+import OpAiAssistant from "@/components/OpAiAssistant";
 import Index from "./pages/Index.tsx";
 import EventPage from "./pages/EventPage.tsx";
 import AuthPage from "./pages/AuthPage.tsx";
@@ -77,6 +78,7 @@ const App = () => {
         <BrowserRouter>
           <CameraBackgroundProvider>
           <Suspense fallback={<PageLoader />}>
+          <OpAiAssistant />
           <Routes>
             <Route
               path="/"

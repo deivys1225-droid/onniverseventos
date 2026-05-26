@@ -32,6 +32,7 @@ import { LobbyScreenThreeSalasPlayer } from "@/components/lobby/LobbyScreenThree
 import AulaVirtualClassroomDecor from "@/components/lobby/AulaVirtualClassroomDecor";
 import AulaVirtualWallGallery from "@/components/lobby/AulaVirtualWallGallery";
 import { ROOM_THEMES, type ImmersiveRoomVariant } from "@/components/lobby/aulaVirtualTheme";
+import { onOpCommand } from "@/lib/opCommandBus";
 
 export type { ImmersiveRoomVariant };
 
@@ -851,6 +852,29 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
   useEffect(() => {
     mobileLookFallbackRef.current = mobileLookFallback;
   }, [mobileLookFallback]);
+
+  useEffect(() => {
+    return onOpCommand((cmd) => {
+      if (cmd.type === "lobby.focusScreen") {
+        setFocusedScreen(cmd.screen);
+      }
+      if (cmd.type === "lobby.unfocusScreen") {
+        setFocusedScreen(null);
+      }
+      if (cmd.type === "lobby.gyro.enable") {
+        setGyroLookEnabled(true);
+      }
+      if (cmd.type === "lobby.gyro.disable") {
+        setGyroLookEnabled(false);
+      }
+      if (cmd.type === "lobby.gyro.toggle") {
+        setGyroLookEnabled((p) => !p);
+      }
+      if (cmd.type === "lobby.gyro.recenter") {
+        setGyroRecenterToken((t) => t + 1);
+      }
+    });
+  }, []);
 
   /** Móvil + ratón: intentar pointer-lock; si falla → giro con clic izquierdo. */
   useEffect(() => {

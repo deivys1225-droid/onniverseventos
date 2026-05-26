@@ -17,10 +17,11 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LOCKED_NAVBAR_HEIGHT_CLASS, LOCKED_NAVBAR_MENU_OFFSET_CLASS } from "@/config/lockedHomeLayout";
 import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
 import { GALERIA_AULA_SECTION_HREF } from "@/lib/aulaVirtual";
+import { onOpCommand } from "@/lib/opCommandBus";
 
 const APP_APK_DOWNLOAD_URL =
   "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
@@ -40,6 +41,14 @@ const Navbar = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    return onOpCommand((cmd) => {
+      if (cmd.type === "ui.menu.open") setIsMenuOpen(true);
+      if (cmd.type === "ui.menu.close") setIsMenuOpen(false);
+      if (cmd.type === "ui.menu.toggle") setIsMenuOpen((p) => !p);
+    });
+  }, []);
 
   const handleLogout = async () => {
     await signOut();
