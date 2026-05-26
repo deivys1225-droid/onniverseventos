@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Headset, Loader2, Lock, Mail, WifiOff } from "lucide-react";
@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { getSiteUrl } from "@/lib/siteUrl";
 import { createLocalUser } from "@/lib/localAuth";
+import { isOAuthReturnUrl } from "@/lib/oauthAuth";
+import OAuthProviderButtons from "@/components/auth/OAuthProviderButtons";
 
 const glassPanel =
   "rounded-2xl border border-border/50 bg-card/40 p-8 shadow-[0_0_45px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl";
@@ -20,7 +22,29 @@ const WelcomeUniversePage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [oauthReturning, setOauthReturning] = useState(() => isOAuthReturnUrl());
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!oauthReturning) return;
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        toast.success("Bienvenido al universo");
+        navigate("/", { replace: true });
+      }
+    });
+
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        navigate("/", { replace: true });
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [oauthReturning, navigate]);
 
   const sendRecovery = async () => {
     if (!email.trim()) {
@@ -108,6 +132,23 @@ const WelcomeUniversePage = () => {
             <p className="mt-3 text-sm text-muted-foreground">
               Entra con tu cuenta OnniVers para explorar la Tierra y tus salas inmersivas.
             </p>
+          </div>
+
+          {oauthReturning ? (
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Completando inicio de sesión…</p>
+            </div>
+          ) : (
+            <>
+          <OAuthProviderButtons disabled={loading} className="mb-1" />
+
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-border/50" />
+            <span className="text-[10px] font-display uppercase tracking-[0.24em] text-muted-foreground">
+              o con correo
+            </span>
+            <span className="h-px flex-1 bg-border/50" />
           </div>
 
           <form onSubmit={onSubmit} className="space-y-5">
@@ -213,6 +254,8 @@ const WelcomeUniversePage = () => {
               Descargar app
             </a>
           </Button>
+            </>
+          )}
         </motion.div>
       </main>
     </div>

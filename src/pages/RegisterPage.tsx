@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { getSiteUrl } from "@/lib/siteUrl";
 import RegisterTermsAcceptance from "@/components/auth/RegisterTermsAcceptance";
+import OAuthProviderButtons from "@/components/auth/OAuthProviderButtons";
 
 const glassPanel =
   "rounded-2xl border border-border/50 bg-card/40 p-8 shadow-[0_0_45px_-12px_hsl(var(--primary)/0.45)] backdrop-blur-xl";
@@ -122,6 +123,32 @@ const RegisterPage = () => {
             </h1>
           </div>
 
+          <RegisterTermsAcceptance
+            checked={termsAccepted}
+            onCheckedChange={setTermsAccepted}
+            disabled={loading}
+          />
+
+          <OAuthProviderButtons
+            disabled={loading || !termsAccepted}
+            className="mt-4"
+            onBeforeSignIn={() => {
+              if (!termsAccepted) {
+                toast.error("Debes aceptar los Términos y Condiciones y la Política de Privacidad.");
+                return false;
+              }
+              return true;
+            }}
+          />
+
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-border/50" />
+            <span className="text-[10px] font-display uppercase tracking-[0.24em] text-muted-foreground">
+              o con correo
+            </span>
+            <span className="h-px flex-1 bg-border/50" />
+          </div>
+
           <form onSubmit={onSubmit} className="space-y-5">
             <div className="flex flex-col items-center gap-3">
               <div className="relative h-24 w-24">
@@ -195,12 +222,6 @@ const RegisterPage = () => {
                 />
               </div>
             </div>
-
-            <RegisterTermsAcceptance
-              checked={termsAccepted}
-              onCheckedChange={setTermsAccepted}
-              disabled={loading}
-            />
 
             <Button
               type="submit"
