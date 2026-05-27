@@ -20,7 +20,17 @@ export type HomeSocialIconConfig = {
 
 const STORAGE_KEY = "onniverso.homeSocialRedes.v1";
 
-const WHATSAPP_DEFAULT = "https://wa.me/573117486855";
+/** Sitio genérico; sin chat a un número concreto (configurable en Redes / Redes Cam). */
+const WHATSAPP_DEFAULT = "https://web.whatsapp.com";
+
+/** wa.me del desarrollador — no debe persistir como destino global del icono en inicio. */
+const LEGACY_HOME_WHATSAPP_PERSONAL = "573117486855";
+
+function normalizeHomeWhatsAppUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.includes(LEGACY_HOME_WHATSAPP_PERSONAL)) return WHATSAPP_DEFAULT;
+  return trimmed;
+}
 
 export const DEFAULT_HOME_SOCIAL_ICONS: HomeSocialIconConfig[] = [
   {
@@ -74,12 +84,20 @@ function mergeWithDefaults(parsed: unknown): HomeSocialIconConfig[] {
     const row = parsed.find((p) => p && typeof p === "object" && (p as HomeSocialIconConfig).id === def.id) as
       | Partial<HomeSocialIconConfig>
       | undefined;
-    return {
-      ...def,
-      redesUrl: typeof row?.redesUrl === "string" && row.redesUrl.trim() ? row.redesUrl.trim() : def.redesUrl,
-      redesCamUrl:
-        typeof row?.redesCamUrl === "string" && row.redesCamUrl.trim() ? row.redesCamUrl.trim() : def.redesCamUrl,
-    };
+    const redesUrl =
+      typeof row?.redesUrl === "string" && row.redesUrl.trim() ? row.redesUrl.trim() : def.redesUrl;
+    const redesCamUrl =
+      typeof row?.redesCamUrl === "string" && row.redesCamUrl.trim() ? row.redesCamUrl.trim() : def.redesCamUrl;
+
+    if (def.id === "whatsapp") {
+      return {
+        ...def,
+        redesUrl: normalizeHomeWhatsAppUrl(redesUrl),
+        redesCamUrl: normalizeHomeWhatsAppUrl(redesCamUrl),
+      };
+    }
+
+    return { ...def, redesUrl, redesCamUrl };
   });
 }
 

@@ -65,7 +65,7 @@ export default function OpAiAssistant() {
   };
 
   return (
-    <div className="pointer-events-none fixed bottom-8 left-10 z-[80] w-[min(92vw,380px)]">
+    <div className="pointer-events-none fixed bottom-14 left-10 z-[80] w-[min(92vw,380px)] sm:bottom-8">
       {showSocialIcons && <HomeSocialRedesRow />}
       {!open ? (
         <button
