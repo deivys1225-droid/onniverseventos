@@ -16,7 +16,9 @@ import { useNavigate } from "react-router-dom";
 import {
   LOBBY_IMMERSIVE_PATH,
   LOBBY_OPEN_TRANSITION_MS,
+  shouldUseWebLobbyRoute,
 } from "@/lib/lobbyImmersive";
+import { invokeOpenLobbyDirect } from "@/lib/lobbyOpenDirect";
 import {
   getRoomMode,
   type MiMundoEnvironmentId,
@@ -728,6 +730,10 @@ const MiMundoVRSection = ({
   );
   const handleLobbyOpen = () => {
     if (lobbyOpening || vrStereoActive) return;
+
+    // APK: puente nativo primero; NUNCA navegar si existe AndroidBridge/Android.
+    if (invokeOpenLobbyDirect()) return;
+    if (!shouldUseWebLobbyRoute()) return;
 
     setLobbyOpening(true);
     window.setTimeout(() => {

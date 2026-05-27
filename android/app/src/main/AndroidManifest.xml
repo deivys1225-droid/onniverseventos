@@ -75,6 +75,12 @@
             android:exported="false"
             android:theme="@style/AppTheme.NoActionBarLaunch" />
 
+        <activity
+            android:name="com.vivevr.app.LobbyVrActivity"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:exported="false"
+            android:theme="@style/AppTheme.NoActionBarLaunch" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
