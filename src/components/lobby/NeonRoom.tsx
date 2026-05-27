@@ -31,6 +31,7 @@ import { LobbyScreenThreeSalasPlayer } from "@/components/lobby/LobbyScreenThree
 import { LobbyScreenFourWebViewSlot } from "@/components/lobby/LobbyScreenFourWebViewSlot";
 import AulaVirtualClassroomDecor from "@/components/lobby/AulaVirtualClassroomDecor";
 import AulaVirtualWallGallery from "@/components/lobby/AulaVirtualWallGallery";
+import { AULA_VIRTUAL_MAIN_WALL_URL } from "@/lib/aulaVirtual";
 import { ROOM_THEMES, type ImmersiveRoomVariant } from "@/components/lobby/aulaVirtualTheme";
 import { onOpCommand } from "@/lib/opCommandBus";
 import { invokeAndroidOnVrClick } from "@/lib/androidLobbyReturn";
@@ -502,6 +503,38 @@ function SideWallScreen4({
       focused={focusedScreen === 4}
       interactionMode={interactionMode}
       onFocus={() => onFocusScreen(4)}
+      frameColor={frameColor}
+    />
+  );
+}
+
+/** Aula Virtual: una sola web a pantalla casi completa (pared del fondo). */
+function AulaVirtualMainWebWall({
+  focusedScreen,
+  onFocusScreen,
+  frameColor = "#d97706",
+}: {
+  focusedScreen: number | null;
+  onFocusScreen: (label: number) => void;
+  frameColor?: string;
+}) {
+  const half = ROOM_SIZE / 2;
+  const y = WALL_HEIGHT / 2;
+  const off = 0.03;
+  const interactionMode = focusedScreen !== null;
+
+  return (
+    <HoloScreen
+      kind="webpage"
+      label={2}
+      embedUrl={AULA_VIRTUAL_MAIN_WALL_URL}
+      position={[0, y, -half + off]}
+      rotation={[0, 0, 0]}
+      width={SIDE_WALL_SCREEN3_WIDTH}
+      height={SIDE_WALL_SCREEN3_HEIGHT}
+      focused={focusedScreen === 2}
+      interactionMode={interactionMode}
+      onFocus={() => onFocusScreen(2)}
       frameColor={frameColor}
     />
   );
@@ -1309,21 +1342,31 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
           <pointLight position={[-8.5, 5.5, 0]} intensity={theme.fillLightIntensity} distance={14} decay={2} color={theme.fillLightColor} />
 
           <Room structureVisible={!mixedRealityActive} theme={theme} />
-          <HoloScreens
-            focusedScreen={focusedScreen}
-            onFocusScreen={focusScreen}
-            frameColor={theme.screenFrameColor}
-          />
-          <SideWallScreen3
-            focusedScreen={focusedScreen}
-            onFocusScreen={focusScreen}
-            frameColor={theme.screenFrameColor}
-          />
-          <SideWallScreen4
-            focusedScreen={focusedScreen}
-            onFocusScreen={focusScreen}
-            frameColor={theme.screenFrameColor}
-          />
+          {isAulaVirtual ? (
+            <AulaVirtualMainWebWall
+              focusedScreen={focusedScreen}
+              onFocusScreen={focusScreen}
+              frameColor={theme.screenFrameColor}
+            />
+          ) : (
+            <>
+              <HoloScreens
+                focusedScreen={focusedScreen}
+                onFocusScreen={focusScreen}
+                frameColor={theme.screenFrameColor}
+              />
+              <SideWallScreen3
+                focusedScreen={focusedScreen}
+                onFocusScreen={focusScreen}
+                frameColor={theme.screenFrameColor}
+              />
+              <SideWallScreen4
+                focusedScreen={focusedScreen}
+                onFocusScreen={focusScreen}
+                frameColor={theme.screenFrameColor}
+              />
+            </>
+          )}
           {!isAulaVirtual && (
             <>
               <NeonAccents />

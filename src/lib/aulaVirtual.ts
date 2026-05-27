@@ -15,6 +15,9 @@ export const AULA_VIRTUAL_LOBBY_PATH = "/aula-virtual";
 /** URL cargada por {@code AulaVirtualActivity} en Android. */
 export const AULA_VIRTUAL_PRODUCTION_URL = "https://onnivers.com/aula-virtual";
 
+/** Pared web del aula 3D (iframe casi a tamaño completo en la pared del fondo). */
+export const AULA_VIRTUAL_MAIN_WALL_URL = "https://onnivers.com/";
+
 /** @deprecated Usar {@link GALERIA_AULA_SECTION_PATH} o {@link AULA_VIRTUAL_LOBBY_PATH}. */
 export const AULA_VIRTUAL_PATH = AULA_VIRTUAL_LOBBY_PATH;
 
