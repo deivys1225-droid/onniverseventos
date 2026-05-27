@@ -14,11 +14,15 @@ import {
   verifyDirReadPermission,
 } from "@/lib/lobbyLocalVideoPicker";
 
-import { isLobbyNativeAndroid, useLobbyNativeOverlay } from "@/lib/lobbyNativeWebViewBridge";
+declare global {
+  interface Window {
+    __onniversoGetNativeWebViewSlotRect?: (slotId?: string) => { x: number; y: number; w: number; h: number } | null;
+    __onniversoGetLobbyScreen2Rect?: () => { x: number; y: number; w: number; h: number } | null;
+  }
+}
 
 const LOBBY_NATIVE_WEBVIEW_SLOT_ID = "lobby-screen-2";
 const LOBBY_NATIVE_WEBVIEW_SLOT_LEGACY_ID = "onni-native-webview-lobby-screen-2";
-const LOBBY_SCREEN2_YOUTUBE_URL = "https://m.youtube.com";
 
 const lobbyBtnStyle: CSSProperties = {
   flex: 1,
@@ -56,6 +60,13 @@ function defaultPlaylistItems(): LocalVideoItem[] {
   }));
 }
 
+function isNativeAndroidLobby(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    (typeof window.Android !== "undefined" || typeof window.AndroidBridge !== "undefined")
+  );
+}
+
 export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPlayer({
   width,
   height,
@@ -64,27 +75,49 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
   height: number;
 }) {
   const nativeSlotRef = useRef<HTMLDivElement | null>(null);
-  const isNativeAndroidSlot = isLobbyNativeAndroid();
+  const isNativeAndroidSlot = isNativeAndroidLobby();
 
-  useLobbyNativeOverlay({
-    active: isNativeAndroidSlot,
-    slotId: LOBBY_NATIVE_WEBVIEW_SLOT_ID,
-    legacyId: LOBBY_NATIVE_WEBVIEW_SLOT_LEGACY_ID,
-    setRectGlobal: (getter) => {
-      window.__onniversoGetLobbyScreen2Rect = getter;
-    },
-    url: LOBBY_SCREEN2_YOUTUBE_URL,
-    setUrl: (u) => window.Android?.setLobbyScreen2Url?.(u),
-    onShow: () => {
-      window.Android?.showLobbyScreen?.();
-    },
-    onHide: () => {
-      window.Android?.hideLobbyScreen?.();
-    },
-    onUpdateBounds: () => {
-      window.Android?.updateLobbyBounds?.();
-    },
-  });
+  // Android: API original que ya funcionaba (showLobbyPantalla2WebView).
+  useEffect(() => {
+    if (!isNativeAndroidSlot) return;
+    window.Android?.showLobbyPantalla2WebView?.();
+    return () => {
+      window.Android?.hideLobbyPantalla2WebView?.();
+    };
+  }, [isNativeAndroidSlot]);
+
+  useEffect(() => {
+    if (!isNativeAndroidSlot) return;
+    const getRect = () => {
+      const el =
+        document.getElementById(LOBBY_NATIVE_WEBVIEW_SLOT_ID) ??
+        document.getElementById(LOBBY_NATIVE_WEBVIEW_SLOT_LEGACY_ID) ??
+        nativeSlotRef.current;
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      if (r.width < 8 || r.height < 8) return null;
+      return {
+        x: Math.round(r.left),
+        y: Math.round(r.top),
+        w: Math.round(r.width),
+        h: Math.round(r.height),
+      };
+    };
+    window.__onniversoGetLobbyScreen2Rect = getRect;
+    window.__onniversoGetNativeWebViewSlotRect = (slotId?: string) => {
+      if (
+        slotId &&
+        slotId !== LOBBY_NATIVE_WEBVIEW_SLOT_ID &&
+        slotId !== LOBBY_NATIVE_WEBVIEW_SLOT_LEGACY_ID
+      ) {
+        return null;
+      }
+      return getRect();
+    };
+    return () => {
+      nativeSlotRef.current = null;
+    };
+  }, [isNativeAndroidSlot]);
 
   if (isNativeAndroidSlot) {
     return (
@@ -92,7 +125,6 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
         ref={nativeSlotRef}
         id={LOBBY_NATIVE_WEBVIEW_SLOT_ID}
         data-native-webview-slot={LOBBY_NATIVE_WEBVIEW_SLOT_ID}
-        data-lobby-native-url={LOBBY_SCREEN2_YOUTUBE_URL}
         style={{
           width,
           height,
@@ -110,10 +142,11 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
           boxSizing: "border-box",
           userSelect: "none",
           contain: "strict",
+          visibility: "hidden",
+          pointerEvents: "none",
         }}
-      >
-        WebView nativo (YouTube)
-      </div>
+        aria-hidden
+      />
     );
   }
 

@@ -42,19 +42,9 @@ declare global {
       openLobby?(): void;
       /** Mismo que {@code AndroidBridge.openLobbyDirect} (Tierra / lobby nativo). */
       openLobbyDirect?: () => void;
-      /** Solo lobby Pantalla 2 (YouTube en WebView nativo). */
+      /** Lobby Pantalla 2 — WebView nativo YouTube (implementación original del APK). */
       showLobbyPantalla2WebView?(): void;
       hideLobbyPantalla2WebView?(): void;
-      /** Pantalla 2 — WebView nativo posicionado con {@code updateLobbyBounds}. */
-      showLobbyScreen?(): void;
-      updateLobbyBounds?(): void;
-      hideLobbyScreen?(): void;
-      setLobbyScreen2Url?(url: string): void;
-      /** Pantalla 4 — WebView nativo (Facebook) con {@code updateLobby4Bounds}. */
-      showLobbyScreen4?(): void;
-      updateLobby4Bounds?(): void;
-      hideLobbyScreen4?(): void;
-      setLobbyScreen4Url?(url: string): void;
     };
   }
 }

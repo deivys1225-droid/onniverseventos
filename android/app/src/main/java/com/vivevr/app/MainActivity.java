@@ -70,10 +70,6 @@ public class MainActivity extends BridgeActivity {
   /** Lobby Pantalla 2 — YouTube móvil en WebView nativo sobre el slot 3D. */
   private static final String LOBBY_SCREEN2_DEFAULT_URL = "https://m.youtube.com";
 
-  /** Lobby Pantalla 4 — Facebook en WebView nativo (pared izquierda). */
-  private static final String LOBBY_SCREEN4_DEFAULT_URL =
-      "https://www.facebook.com/profile.php?id=61588834621279";
-
   private static final String LOBBY_SCREEN_MOBILE_UA =
       "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
 
@@ -117,22 +113,10 @@ public class MainActivity extends BridgeActivity {
   private PermissionRequest pendingWebkitPermissionRequest;
   /** Permisos de Android lanzados junto con {@link #pendingWebkitPermissionRequest} */
   private String[] pendingAndroidPermissionNames;
-  /** WebViews nativos del lobby (pantallas 2 y 4); no afectan al WebView principal de Capacitor. */
+  /** WebView exclusivo Pantalla 2 (YouTube); no afecta al WebView principal de Capacitor. */
   private WebView lobbyPantalla2WebView;
 
-  private WebView lobbyPantalla4WebView;
-
   private boolean lobbyPantalla2WebViewUrlLoaded;
-
-  private boolean lobbyPantalla4WebViewUrlLoaded;
-
-  private String lobbyScreen2Url = LOBBY_SCREEN2_DEFAULT_URL;
-
-  private String lobbyScreen4Url = LOBBY_SCREEN4_DEFAULT_URL;
-
-  private static final String TAG_LOBBY_SCREEN2_WV = "lobby_screen2_wv";
-
-  private static final String TAG_LOBBY_SCREEN4_WV = "lobby_screen4_wv";
 
   // ----- Lobby Pantalla 1 — reproductor MP3/MP4 desde carpeta del dispositivo (SAF) -----
   /** Límite defensivo para no inflar memoria al recorrer carpetas enormes. */
@@ -366,7 +350,6 @@ public class MainActivity extends BridgeActivity {
   @Override
   public void onDestroy() {
     destroyLobbyPantalla2WebViewIfPresent();
-    destroyLobbyPantalla4WebViewIfPresent();
     super.onDestroy();
   }
 
@@ -625,57 +608,18 @@ public class MainActivity extends BridgeActivity {
       activity.runOnUiThread(() -> activity.launchLobbyVrDirect());
     }
 
-    /** Lobby Pantalla 2 — alias de {@link #showLobbyScreen()}. */
+    /**
+     * Lobby Pantalla 2 — WebView nativo (YouTube). Implementación original que ya funcionaba en el
+     * APK; no usar el posicionamiento por slot que dejaba el overlay arriba o en 1×1 px.
+     */
     @JavascriptInterface
     public void showLobbyPantalla2WebView() {
-      showLobbyScreen();
+      activity.runOnUiThread(() -> activity.attachAndShowLobbyPantalla2WebView());
     }
 
     @JavascriptInterface
     public void hideLobbyPantalla2WebView() {
-      hideLobbyScreen();
-    }
-
-    /** Lobby Pantalla 2 — WebView nativo (YouTube) alineado al slot {@code lobby-screen-2}. */
-    @JavascriptInterface
-    public void showLobbyScreen() {
-      activity.runOnUiThread(() -> activity.attachAndShowLobbyScreen(2));
-    }
-
-    @JavascriptInterface
-    public void updateLobbyBounds() {
-      activity.runOnUiThread(() -> activity.updateLobbyScreenBounds(2));
-    }
-
-    @JavascriptInterface
-    public void hideLobbyScreen() {
-      activity.runOnUiThread(() -> activity.hideLobbyScreenInternal(2));
-    }
-
-    @JavascriptInterface
-    public void setLobbyScreen2Url(String url) {
-      activity.runOnUiThread(() -> activity.setLobbyScreenUrl(2, url));
-    }
-
-    /** Lobby Pantalla 4 — WebView nativo (Facebook) alineado al slot {@code lobby-screen-4}. */
-    @JavascriptInterface
-    public void showLobbyScreen4() {
-      activity.runOnUiThread(() -> activity.attachAndShowLobbyScreen(4));
-    }
-
-    @JavascriptInterface
-    public void updateLobby4Bounds() {
-      activity.runOnUiThread(() -> activity.updateLobbyScreenBounds(4));
-    }
-
-    @JavascriptInterface
-    public void hideLobbyScreen4() {
-      activity.runOnUiThread(() -> activity.hideLobbyScreenInternal(4));
-    }
-
-    @JavascriptInterface
-    public void setLobbyScreen4Url(String url) {
-      activity.runOnUiThread(() -> activity.setLobbyScreenUrl(4, url));
+      activity.runOnUiThread(() -> activity.hideLobbyPantalla2WebViewInternal());
     }
 
     /**
@@ -795,35 +739,30 @@ public class MainActivity extends BridgeActivity {
     }
   }
 
-  private WebView ensureLobbyOverlayWebView(int screen) {
-    final String tag = screen == 2 ? TAG_LOBBY_SCREEN2_WV : TAG_LOBBY_SCREEN4_WV;
-    if (screen == 2 && lobbyPantalla2WebView != null) {
-      return lobbyPantalla2WebView;
-    }
-    if (screen == 4 && lobbyPantalla4WebView != null) {
-      return lobbyPantalla4WebView;
+  private void ensureLobbyPantalla2WebViewCreated() {
+    if (lobbyPantalla2WebView != null) {
+      return;
     }
     ViewGroup content = findViewById(android.R.id.content);
     if (content == null) {
-      return null;
+      return;
     }
-    View existing = content.findViewWithTag(tag);
-    if (existing instanceof WebView) {
-      if (screen == 2) {
-        lobbyPantalla2WebView = (WebView) existing;
-      } else {
-        lobbyPantalla4WebView = (WebView) existing;
-      }
-      return (WebView) existing;
+    if (content.findViewWithTag("lobby_pantalla2_wv") != null) {
+      return;
     }
 
     WebView wv = new WebView(this);
-    wv.setTag(tag);
-    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(1, 1);
-    lp.gravity = Gravity.TOP | Gravity.START;
+    wv.setTag("lobby_pantalla2_wv");
+    float density = getResources().getDisplayMetrics().density;
+    int topMargin = (int) (72f * density);
+
+    FrameLayout.LayoutParams lp =
+        new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+    lp.topMargin = topMargin;
     wv.setLayoutParams(lp);
     wv.setVisibility(View.GONE);
-    wv.setElevation(screen == 2 ? 80f : 79f);
+    wv.setElevation(80f);
     wv.setBackgroundColor(0xff02030a);
 
     WebSettings settings = wv.getSettings();
@@ -842,175 +781,40 @@ public class MainActivity extends BridgeActivity {
     wv.setWebViewClient(new WebViewClient());
     wv.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
-    if (screen == 2) {
-      lobbyPantalla2WebView = wv;
-    } else {
-      lobbyPantalla4WebView = wv;
-    }
+    lobbyPantalla2WebView = wv;
     content.addView(wv);
-    return wv;
   }
 
-  private void attachAndShowLobbyScreen(int screen) {
-    WebView wv = ensureLobbyOverlayWebView(screen);
-    if (wv == null) {
+  private void attachAndShowLobbyPantalla2WebView() {
+    ensureLobbyPantalla2WebViewCreated();
+    if (lobbyPantalla2WebView == null) {
       return;
     }
-    final String url = screen == 2 ? lobbyScreen2Url : lobbyScreen4Url;
-    final boolean loaded =
-        screen == 2 ? lobbyPantalla2WebViewUrlLoaded : lobbyPantalla4WebViewUrlLoaded;
-    if (!loaded && url != null && !url.trim().isEmpty()) {
-      wv.loadUrl(url.trim());
-      if (screen == 2) {
-        lobbyPantalla2WebViewUrlLoaded = true;
-      } else {
-        lobbyPantalla4WebViewUrlLoaded = true;
-      }
+    if (!lobbyPantalla2WebViewUrlLoaded) {
+      lobbyPantalla2WebView.loadUrl(LOBBY_SCREEN2_DEFAULT_URL);
+      lobbyPantalla2WebViewUrlLoaded = true;
     }
-    wv.setVisibility(View.VISIBLE);
-    wv.bringToFront();
-    updateLobbyScreenBounds(screen);
-    scheduleLobbyScreenBoundsRetries(screen, wv);
+    lobbyPantalla2WebView.setVisibility(View.VISIBLE);
+    lobbyPantalla2WebView.bringToFront();
   }
 
-  /** Reintenta leer el slot 3D hasta que JS devuelva un rect válido en la pared. */
-  private void scheduleLobbyScreenBoundsRetries(int screen, WebView overlay) {
-    final int[] delaysMs = {100, 250, 500, 1000, 2000, 3500};
-    for (int delay : delaysMs) {
-      overlay.postDelayed(() -> updateLobbyScreenBounds(screen), delay);
-    }
-  }
-
-  private void updateLobbyScreenBounds(int screen) {
-    WebView overlay = screen == 2 ? lobbyPantalla2WebView : lobbyPantalla4WebView;
-    if (overlay == null) {
-      return;
-    }
-    final String rectJs =
-        screen == 2
-            ? "(window.__onniversoGetLobbyScreen2Rect&&window.__onniversoGetLobbyScreen2Rect())"
-                + "||(window.__onniversoGetNativeWebViewSlotRect&&window.__onniversoGetNativeWebViewSlotRect('lobby-screen-2'))"
-            : "(window.__onniversoGetLobbyScreen4Rect&&window.__onniversoGetLobbyScreen4Rect())"
-                + "||(window.__onniversoGetNativeWebViewSlotRect&&window.__onniversoGetNativeWebViewSlotRect('lobby-screen-4'))";
-    applyJsRectToOverlayWebView(overlay, rectJs, screen);
-  }
-
-  private void applyJsRectToOverlayWebView(WebView overlay, String rectExpression, int screen) {
-    Bridge bridge = getBridge();
-    WebView main = bridge != null ? bridge.getWebView() : null;
-    if (main == null) {
-      return;
-    }
-    String code =
-        "(function(){try{var r="
-            + rectExpression
-            + ";if(!r)return null;return JSON.stringify(r);}catch(e){return null;}})();";
-    main.evaluateJavascript(
-        code,
-        value ->
-            runOnUiThread(
-                () -> {
-                  JSONObject rect = parseEvaluateJsonObject(value);
-                  if (rect == null) {
-                    return;
-                  }
-                  try {
-                    int w = rect.getInt("w");
-                    int h = rect.getInt("h");
-                    int x = rect.getInt("x");
-                    int y = rect.getInt("y");
-                    if (w < 48 || h < 48) {
-                      return;
-                    }
-                    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w, h);
-                    lp.leftMargin = x;
-                    lp.topMargin = y;
-                    lp.gravity = Gravity.TOP | Gravity.START;
-                    overlay.setLayoutParams(lp);
-                  } catch (Exception ignored) {
-                    // Sin rect válido: no mover el overlay (evita pantalla completa arriba).
-                  }
-                }));
-  }
-
-  private JSONObject parseEvaluateJsonObject(String value) {
-    if (value == null || value.isEmpty() || "null".equals(value)) {
-      return null;
-    }
-    try {
-      String json = value.trim();
-      if (json.startsWith("\"") && json.endsWith("\"")) {
-        json = new org.json.JSONTokener(json).nextValue().toString();
-      }
-      return new JSONObject(json);
-    } catch (Exception e) {
-      return null;
-    }
-  }
-
-  private void hideLobbyScreenInternal(int screen) {
-    WebView wv = screen == 2 ? lobbyPantalla2WebView : lobbyPantalla4WebView;
-    if (wv != null) {
-      wv.setVisibility(View.GONE);
-    }
-  }
-
-  private void setLobbyScreenUrl(int screen, String url) {
-    if (url == null) {
-      return;
-    }
-    String trimmed = url.trim();
-    if (trimmed.isEmpty()) {
-      return;
-    }
-    if (screen == 2) {
-      if (trimmed.equals(lobbyScreen2Url)) {
-        return;
-      }
-      lobbyScreen2Url = trimmed;
-      lobbyPantalla2WebViewUrlLoaded = false;
-      if (lobbyPantalla2WebView != null) {
-        lobbyPantalla2WebView.loadUrl(trimmed);
-        lobbyPantalla2WebViewUrlLoaded = true;
-      }
-      return;
-    }
-    if (trimmed.equals(lobbyScreen4Url)) {
-      return;
-    }
-    lobbyScreen4Url = trimmed;
-    lobbyPantalla4WebViewUrlLoaded = false;
-    if (lobbyPantalla4WebView != null) {
-      lobbyPantalla4WebView.loadUrl(trimmed);
-      lobbyPantalla4WebViewUrlLoaded = true;
+  private void hideLobbyPantalla2WebViewInternal() {
+    if (lobbyPantalla2WebView != null) {
+      lobbyPantalla2WebView.setVisibility(View.GONE);
     }
   }
 
   private void destroyLobbyPantalla2WebViewIfPresent() {
-    destroyLobbyOverlayWebView(2);
-  }
-
-  private void destroyLobbyPantalla4WebViewIfPresent() {
-    destroyLobbyOverlayWebView(4);
-  }
-
-  private void destroyLobbyOverlayWebView(int screen) {
-    WebView wv = screen == 2 ? lobbyPantalla2WebView : lobbyPantalla4WebView;
-    if (wv == null) {
+    if (lobbyPantalla2WebView == null) {
       return;
     }
-    ViewGroup parent = (ViewGroup) wv.getParent();
+    ViewGroup parent = (ViewGroup) lobbyPantalla2WebView.getParent();
     if (parent != null) {
-      parent.removeView(wv);
+      parent.removeView(lobbyPantalla2WebView);
     }
-    wv.destroy();
-    if (screen == 2) {
-      lobbyPantalla2WebView = null;
-      lobbyPantalla2WebViewUrlLoaded = false;
-    } else {
-      lobbyPantalla4WebView = null;
-      lobbyPantalla4WebViewUrlLoaded = false;
-    }
+    lobbyPantalla2WebView.destroy();
+    lobbyPantalla2WebView = null;
+    lobbyPantalla2WebViewUrlLoaded = false;
   }
 
   private boolean isPlaybackTarget(Uri uri) {
