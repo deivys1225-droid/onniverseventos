@@ -260,14 +260,14 @@ function matchLobby(text: string, onLobbyPage: boolean): OpResolveResult | null 
   if (!lobbyContext) return null;
 
   if (/\b(pantalla|screen)\b/.test(text)) {
-    if (/\b(uno|1|primera)\b/.test(text)) {
-      return { command: { type: "lobby.focusScreen", screen: 1 }, answer: sayOnni("Listo, pantalla 1.") };
-    }
     if (/\b(dos|2|segunda)\b/.test(text)) {
       return { command: { type: "lobby.focusScreen", screen: 2 }, answer: sayOnni("Listo, pantalla 2.") };
     }
     if (/\b(tres|3|tercera)\b/.test(text)) {
       return { command: { type: "lobby.focusScreen", screen: 3 }, answer: sayOnni("Listo, pantalla 3.") };
+    }
+    if (/\b(cuatro|4|cuarta)\b/.test(text)) {
+      return { command: { type: "lobby.focusScreen", screen: 4 }, answer: sayOnni("Listo, pantalla 4.") };
     }
     if (/\b(salir|cerrar|quitar|atras)\b/.test(text)) {
       return { command: { type: "lobby.unfocusScreen" }, answer: sayOnni("Listo, salí de la pantalla.") };

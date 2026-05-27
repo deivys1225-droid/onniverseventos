@@ -163,28 +163,13 @@ const WALL_SCREEN_HEIGHT = 4.5;
 const SIDE_WALL_SCREEN4_WIDTH = ROOM_SIZE - 0.9;
 const SIDE_WALL_SCREEN4_HEIGHT = WALL_HEIGHT - 0.9;
 
-/** Tres paneles en la pared 1 (fondo): ocupan casi todo el ancho; salas (2) es la más ancha. */
-const WALL1_SIDE_MARGIN = 0.35;
-const WALL1_PANEL_GAP = 0.1;
-const WALL1_USABLE_WIDTH = ROOM_SIZE - WALL1_SIDE_MARGIN * 2;
-const WALL1_PANELS_TOTAL = WALL1_USABLE_WIDTH - WALL1_PANEL_GAP * 2;
-/** Reparto: hub ~28 % · salas ~44 % · web ~28 % */
-const WALL1_HUB_WIDTH = WALL1_PANELS_TOTAL * 0.28;
-const WALL1_SALAS_WIDTH = WALL1_PANELS_TOTAL * 0.44;
-const WALL1_WEB_WIDTH = WALL1_PANELS_TOTAL * 0.28;
-const WALL1_PANEL_HEIGHT = WALL_SCREEN_HEIGHT;
+/** Panel central en la pared del fondo (solo pantalla 2 / salas). */
+const WALL1_SIDE_MARGIN = 0.45;
+const WALL1_SALAS_WIDTH = ROOM_SIZE - WALL1_SIDE_MARGIN * 2;
+const WALL1_PANEL_HEIGHT = WALL_HEIGHT - 0.9;
 const LOBBY_WEB_EMBED_URL = "https://onnivers.com/nuestras-salas";
-
-function wall1PanelCenters(): [number, number, number] {
-  const widths = [WALL1_HUB_WIDTH, WALL1_SALAS_WIDTH, WALL1_WEB_WIDTH];
-  const total = widths.reduce((sum, w) => sum + w, 0) + WALL1_PANEL_GAP * 2;
-  let cursor = -total / 2;
-  return widths.map((w) => {
-    const center = cursor + w / 2;
-    cursor += w + WALL1_PANEL_GAP;
-    return center;
-  }) as [number, number, number];
-}
+const SIDE_WALL_SCREEN3_WIDTH = ROOM_SIZE - 0.9;
+const SIDE_WALL_SCREEN3_HEIGHT = WALL_HEIGHT - 0.9;
 
 type HoloScreenKind = "hub" | "salas" | "webpage" | "screen4";
 
@@ -428,7 +413,7 @@ function HoloScreen({
   );
 }
 
-// ---------- 3 pantallas en la pared 1 (fondo) ----------
+// ---------- Pantalla 2 en la pared del fondo ----------
 function HoloScreens({
   focusedScreen,
   onFocusScreen,
@@ -442,37 +427,51 @@ function HoloScreens({
   const y = WALL_HEIGHT / 2;
   const off = 0.03;
   const rot: [number, number, number] = [0, 0, 0];
-  const [xHub, xSalas, xWeb] = wall1PanelCenters();
   const interactionMode = focusedScreen !== null;
 
-  const panel = (
-    kind: HoloScreenKind,
-    label: number,
-    x: number,
-    width: number,
-    embedUrl?: string,
-  ) => (
+  return (
     <HoloScreen
-      kind={kind}
-      label={label}
-      embedUrl={embedUrl}
-      position={[x, y, -half + off]}
+      kind="salas"
+      label={2}
+      position={[0, y, -half + off]}
       rotation={rot}
-      width={width}
+      width={WALL1_SALAS_WIDTH}
       height={WALL1_PANEL_HEIGHT}
-      focused={focusedScreen === label}
+      focused={focusedScreen === 2}
       interactionMode={interactionMode}
-      onFocus={() => onFocusScreen(label)}
+      onFocus={() => onFocusScreen(2)}
       frameColor={frameColor}
     />
   );
+}
 
+function SideWallScreen3({
+  focusedScreen,
+  onFocusScreen,
+  frameColor = "#00ffff",
+}: {
+  focusedScreen: number | null;
+  onFocusScreen: (label: number) => void;
+  frameColor?: string;
+}) {
+  const half = ROOM_SIZE / 2;
+  const y = WALL_HEIGHT / 2;
+  const off = 0.03;
+  const interactionMode = focusedScreen !== null;
   return (
-    <>
-      {panel("hub", 1, xHub, WALL1_HUB_WIDTH)}
-      {panel("salas", 2, xSalas, WALL1_SALAS_WIDTH)}
-      {panel("webpage", 3, xWeb, WALL1_WEB_WIDTH, LOBBY_WEB_EMBED_URL)}
-    </>
+    <HoloScreen
+      kind="webpage"
+      label={3}
+      embedUrl={LOBBY_WEB_EMBED_URL}
+      position={[half - off, y, 0]}
+      rotation={[0, -Math.PI / 2, 0]}
+      width={SIDE_WALL_SCREEN3_WIDTH}
+      height={SIDE_WALL_SCREEN3_HEIGHT}
+      focused={focusedScreen === 3}
+      interactionMode={interactionMode}
+      onFocus={() => onFocusScreen(3)}
+      frameColor={frameColor}
+    />
   );
 }
 
@@ -1301,6 +1300,11 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
 
           <Room structureVisible={!mixedRealityActive} theme={theme} />
           <HoloScreens
+            focusedScreen={focusedScreen}
+            onFocusScreen={focusScreen}
+            frameColor={theme.screenFrameColor}
+          />
+          <SideWallScreen3
             focusedScreen={focusedScreen}
             onFocusScreen={focusScreen}
             frameColor={theme.screenFrameColor}

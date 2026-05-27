@@ -2,7 +2,7 @@ export type OpCommand =
   | { type: "ui.menu.open" }
   | { type: "ui.menu.close" }
   | { type: "ui.menu.toggle" }
-  | { type: "lobby.focusScreen"; screen: 1 | 2 | 3 }
+  | { type: "lobby.focusScreen"; screen: 2 | 3 | 4 }
   | { type: "lobby.unfocusScreen" }
   | { type: "lobby.gyro.enable" }
   | { type: "lobby.gyro.disable" }
