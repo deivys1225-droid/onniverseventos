@@ -16,9 +16,7 @@ import { useNavigate } from "react-router-dom";
 import {
   LOBBY_IMMERSIVE_PATH,
   LOBBY_OPEN_TRANSITION_MS,
-  shouldUseWebLobbyRoute,
 } from "@/lib/lobbyImmersive";
-import { invokeOpenLobbyDirect } from "@/lib/lobbyOpenDirect";
 import {
   getRoomMode,
   type MiMundoEnvironmentId,
@@ -32,7 +30,6 @@ import {
 } from "@/lib/webglRendererPrefs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useVrModeActive } from "@/hooks/useVrModeActive";
-import ConciertosLiveHomeCard from "@/components/ConciertosLiveHomeCard";
 import ProfileCard, { type ProfileCardConfirmPayload } from "@/components/ProfileCard";
 import {
   LOCKED_CAMERA_FOV,
@@ -76,7 +73,6 @@ function readStoredProfileName(): string | undefined {
     return undefined;
   }
 }
-const HOME_PROMO_BG_URL = "/onnivers-home-bg.png";
 const EARTH_DRAG_YAW = 0.0052;
 const EARTH_DRAG_PITCH = 0.0032;
 const EARTH_DRAG_PITCH_MAX = 0.42;
@@ -733,10 +729,6 @@ const MiMundoVRSection = ({
   const handleLobbyOpen = () => {
     if (lobbyOpening || vrStereoActive) return;
 
-    // APK: puente nativo primero; NUNCA navegar si existe AndroidBridge/Android.
-    if (invokeOpenLobbyDirect()) return;
-    if (!shouldUseWebLobbyRoute()) return;
-
     setLobbyOpening(true);
     window.setTimeout(() => {
       navigate(LOBBY_IMMERSIVE_PATH);
@@ -763,17 +755,6 @@ const MiMundoVRSection = ({
       id="mi-mundo-vr"
       className="relative h-full w-full max-w-full overflow-x-clip overflow-y-hidden bg-black"
     >
-      {!vrStereoActive && (
-        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
-          <img
-            src={HOME_PROMO_BG_URL}
-            alt=""
-            className="absolute inset-0 h-full w-full object-fill object-center md:object-cover"
-            draggable={false}
-            decoding="async"
-          />
-        </div>
-      )}
       <div className="absolute inset-0 z-[1] overflow-hidden">
         <div className="absolute inset-0 h-full w-full overflow-hidden">
         <Canvas
@@ -841,11 +822,6 @@ const MiMundoVRSection = ({
               onConfirm={onProfileConfirm}
               liveNavPath="/pc"
             />
-          </div>
-          <div
-            className="pointer-events-auto absolute bottom-[calc(clamp(2rem,11.2vh,5.2rem)+15.8%)] right-2 w-[min(40vw,10.25rem)] origin-bottom-right scale-[0.76] sm:bottom-[calc(clamp(4.16rem,20vh,10.8rem)+15.8%)] sm:w-[10.75rem] sm:scale-[0.79] md:w-[11.25rem] md:scale-[0.83]"
-          >
-            <ConciertosLiveHomeCard />
           </div>
         </div>
       )}

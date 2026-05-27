@@ -39,6 +39,7 @@ import {
   salaRoomTitle,
 } from "@/components/salas/salaRoomCardStyles";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
+import ConciertosLiveHomeCard from "@/components/ConciertosLiveHomeCard";
 
 const SectionHeader = ({
   badge,
@@ -277,6 +278,9 @@ const NuestrasSalasPage = () => {
               subtitle="Todas las salas de creadores en una sola cuadrícula. Clic en tarjeta y entras directo."
               accent="border-primary/40 bg-primary/10 text-primary"
             />
+            <div className="mx-auto mb-8 w-full max-w-md">
+              <ConciertosLiveHomeCard />
+            </div>
             <div className={salaRoomGridClass}>
               {creatorRooms.map((room, index) => {
                 const linkedStream = getRoomActiveStream(room, activeStreams);
