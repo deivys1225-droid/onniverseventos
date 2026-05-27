@@ -7,7 +7,7 @@ export type HomeSocialIconId =
   | "instagram"
   | "tiktok"
   | "google"
-  | "netflix"
+  | "mercadolibre"
   | "whatsapp";
 
 const ONNIVERS_LOBBY_URL = "https://onnivers.com/lobby-inmersivo";
@@ -73,10 +73,10 @@ export const DEFAULT_HOME_SOCIAL_ICONS: HomeSocialIconConfig[] = [
     redesCamUrl: "https://www.google.com",
   },
   {
-    id: "netflix",
-    label: "Netflix",
-    redesUrl: "https://www.netflix.com",
-    redesCamUrl: "https://www.netflix.com",
+    id: "mercadolibre",
+    label: "Mercado Play",
+    redesUrl: "https://play.mercadolibre.com.co/",
+    redesCamUrl: "https://play.mercadolibre.com.co/",
   },
   {
     id: "whatsapp",

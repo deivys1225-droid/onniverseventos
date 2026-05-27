@@ -54,12 +54,16 @@ const GoogleGlyph = () => (
   </svg>
 );
 
-const NetflixGlyph = () => (
+/** Mercado Libre / Mercado Play (películas). */
+const MercadoLibrePlayGlyph = () => (
   <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" aria-hidden xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="11" fill="#FFE600" />
+    <ellipse cx="12" cy="11.5" rx="7.2" ry="5.2" fill="#2D3277" />
     <path
-      fill="currentColor"
-      d="M5.398 0v.006c3.028 8.556 5.37 15.175 8.348 23.596 2.344.756 2.905.884 3.172.884V20.89c-.752.017-2.495.084-3.251-3.799-.318-1.683-.527-2.83-.783-4.251H12.39v15.79c-1.448-.047-2.313-.068-3.766-.122v-9.31c-1.358 3.618-2.074 5.655-3.958 9.122-1.506-.612-2.301-1.076-3.767-1.566V0h3.182z"
+      fill="#FFE600"
+      d="M8.2 11.4c1.6-1 3.2-1 4.8 0 .55.35.55 1.05 0 1.4-1.6 1-3.2 1-4.8 0-.55-.35-.55-1.05 0-1.4z"
     />
+    <path fill="#fff" d="M10.2 15.1h3.6v1.1h-3.6z" opacity="0.95" />
   </svg>
 );
 
@@ -137,11 +141,11 @@ const ICON_BUTTONS: {
     Glyph: GoogleGlyph,
   },
   {
-    id: "netflix",
-    label: "Netflix",
+    id: "mercadolibre",
+    label: "Mercado Play",
     className:
-      "border-red-600/70 bg-[#E50914] text-white shadow-[0_0_20px_-6px_rgba(229,9,20,0.95)]",
-    Glyph: NetflixGlyph,
+      "border-[#FFE600]/80 bg-[#FFE600] text-[#2D3277] shadow-[0_0_20px_-6px_rgba(255,230,0,0.95)]",
+    Glyph: MercadoLibrePlayGlyph,
   },
   {
     id: "whatsapp",
