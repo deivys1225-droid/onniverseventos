@@ -443,7 +443,7 @@ function fallback(text: string): OpResolveResult {
 
   return {
     answer: sayOnni(
-      'No pillé eso. Prueba: «¿dónde estoy?», «reproductor mp4», «conciertos», «lobby» o «ayuda». Recuerda: "Onni" + comando.',
+      'No pillé eso. Prueba: «¿dónde estoy?», «reproductor mp4», «conciertos», «lobby» o «ayuda».',
     ),
   };
 }
@@ -456,7 +456,7 @@ export function resolveOpCommand(
   const text = normalize(textRaw);
   if (!text) {
     return {
-      answer: sayOnni('Di "Onni" y tu pedido, o escribe aquí. Ejemplo: «¿dónde estoy?» o «llévame al lobby».'),
+      answer: sayOnni('Escribe aquí. Ejemplo: «¿dónde estoy?» o «llévame al lobby».'),
     };
   }
 
@@ -518,7 +518,7 @@ export function getOpAssistantHint(currentPath: string): string {
   if (currentPath.startsWith("/sala/espectador")) {
     return 'Di: "salir a conciertos", "reproductor mp4", "¿qué es esto?".';
   }
-  return 'Di: "conciertos", "¿dónde estoy?", "ayuda", "Onni, lobby".';
+  return 'Di: "conciertos", "¿dónde estoy?", "ayuda", "lobby".';
 }
 
 export { getOnniIntroduction };

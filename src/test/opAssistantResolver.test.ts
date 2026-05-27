@@ -61,9 +61,9 @@ describe("resolveOpCommand", () => {
     expect(r.answer.toLowerCase()).toContain("lobby");
   });
 
-  it("ayuda incluye reproductor y voz", () => {
+  it("ayuda incluye reproductor", () => {
     const r = resolveOpCommand("ayuda", "/");
-    expect(r.answer).toMatch(/reproductor|MP4|voz/i);
+    expect(r.answer).toMatch(/reproductor|MP4/i);
   });
 
   it("repite la ultima respuesta", () => {

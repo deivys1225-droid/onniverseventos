@@ -23,9 +23,8 @@ export const ONNI_PERSONALITY = {
 export function getOnniIntroduction(): string {
   return [
     "¡Hola! Soy Onni, tu copiloto en OnniVerso.",
-    "Hablo claro y te ayudo con lo de la app: lobby, salas, conciertos, MP4 local, menú y dudas.",
-    'Di "Onni" o "Oni" y tu pedido. Ejemplo: "Onni, llévame al lobby".',
-    'También puedes preguntar: "¿dónde estoy?", "¿qué es esto?", "ayuda" o "¿quién está en vivo?".',
+    "Te ayudo por texto con lobby, salas, conciertos, MP4 local, menú y dudas.",
+    'Escribe aquí, por ejemplo: «llévame al lobby», «¿dónde estoy?» o «ayuda».',
   ].join("\n");
 }
 
@@ -40,13 +39,13 @@ export const ONNI_FAQ: FaqEntry[] = [
     id: "quien-eres",
     patterns: [/\b(quien eres|que eres|que es onni|quien es onni)\b/],
     answer:
-      "Soy Onni: el asistente de voz y texto de OnniVerso. Te ubico en la app, respondo dudas y ejecuto comandos dentro del sitio (lobby, salas, menú…). No soy Google ni abro la web por fuera.",
+      "Soy Onni: el asistente de texto de OnniVerso. Te ubico en la app, respondo dudas y ejecuta comandos dentro del sitio (lobby, salas, menú…). No soy Google ni abro la web por fuera.",
   },
   {
     id: "como-voz",
     patterns: [/\b(como (te )?activo|usar) (la )?voz\b/, /\bcomo hablar contigo\b/, /\bpalabra onni\b/],
     answer:
-      'Activa el micrófono en mi panel. Di "Onni" u "Oni" y luego el comando: "llévame al lobby", "reproductor mp4", "abre el menú". También puedes escribir en el cuadro de texto.',
+      "Por ahora trabajo solo por texto en el chat (la voz la mejoraremos después). Escribe tu pedido: «llévame al lobby», «reproductor mp4», «abre el menú».",
   },
   {
     id: "mux-negro",
@@ -216,7 +215,7 @@ export function getOnniFullHelp(path: string): string {
     "Puedo llevarte por OnniVerso (lobby, conciertos, aula, tienda, comunidad…).",
     "MP4/MP3 local → reproductor de galería. Vivo → conciertos o «video de [artista]».",
     "Pregúntame: ¿dónde estoy?, ¿qué es esto?, favorito, app Android, soporte.",
-    'Voz: "Onni" + comando. Texto: escribe en el chat.',
+    "Escribe en el chat de Onni (voz desactivada por ahora).",
     "No abro sitios externos de internet; solo la app OnniVerso.",
   ];
   if (path.startsWith("/lobby-inmersivo")) {
