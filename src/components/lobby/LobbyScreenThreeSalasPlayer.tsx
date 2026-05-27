@@ -14,6 +14,14 @@ import {
   verifyDirReadPermission,
 } from "@/lib/lobbyLocalVideoPicker";
 
+declare global {
+  interface Window {
+    __onniversoGetNativeWebViewSlotRect?: (slotId: string) => { x: number; y: number; w: number; h: number } | null;
+  }
+}
+
+const LOBBY_NATIVE_WEBVIEW_SLOT_ID = "lobby-screen-2";
+
 const lobbyBtnStyle: CSSProperties = {
   flex: 1,
   minWidth: 0,
@@ -57,6 +65,58 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
   width: number;
   height: number;
 }) {
+  const nativeSlotRef = useRef<HTMLDivElement | null>(null);
+  const isAndroidBridge = typeof window !== "undefined" && typeof window.Android !== "undefined";
+
+  // Android: esta "pantalla 2" se renderiza como slot para que nativo monte su WebView.
+  // En web/PC se mantiene el reproductor actual.
+  useEffect(() => {
+    if (!isAndroidBridge) return;
+    const slotId = LOBBY_NATIVE_WEBVIEW_SLOT_ID;
+    window.__onniversoGetNativeWebViewSlotRect = (id: string) => {
+      if (id !== slotId) return null;
+      const el = nativeSlotRef.current;
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height };
+    };
+    return () => {
+      // no borramos la función global si otra pantalla la reutiliza en el futuro
+      // pero sí invalidamos el ref al desmontar.
+      nativeSlotRef.current = null;
+    };
+  }, [isAndroidBridge]);
+
+  if (isAndroidBridge) {
+    return (
+      <div
+        ref={nativeSlotRef}
+        id="onni-native-webview-lobby-screen-2"
+        data-native-webview-slot={LOBBY_NATIVE_WEBVIEW_SLOT_ID}
+        style={{
+          width,
+          height,
+          background: "#02030a",
+          borderRadius: 10,
+          border: "1px solid rgba(34,211,238,0.35)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#7dd3fc",
+          fontFamily: "system-ui, sans-serif",
+          fontSize: 11,
+          textAlign: "center",
+          padding: 10,
+          boxSizing: "border-box",
+          userSelect: "none",
+          contain: "strict",
+        }}
+      >
+        WebView nativo aquí (Android).
+      </div>
+    );
+  }
+
   const [playlist, setPlaylist] = useState<LocalVideoItem[]>(() => defaultPlaylistItems());
   const [index, setIndex] = useState(0);
   const [status, setStatus] = useState("");
