@@ -49,6 +49,7 @@ export default function OpAiAssistant() {
   const sessionRef = useRef<{ lastAnswer?: string }>({});
 
   const hint = useMemo(() => getOpAssistantHint(location.pathname), [location.pathname]);
+  const showSocialIcons = location.pathname === "/";
 
   const runCommand = useCallback(
     (raw: string) => {
@@ -92,6 +93,7 @@ export default function OpAiAssistant() {
 
   return (
     <div className="pointer-events-none fixed bottom-8 left-10 z-[80] w-[min(92vw,380px)]">
+      {showSocialIcons && (
       <div className="pointer-events-none absolute bottom-1 left-1/2 z-[81] flex -translate-x-1/2 items-center gap-2 sm:left-[14rem] sm:translate-x-0">
         <button
           type="button"
@@ -122,6 +124,7 @@ export default function OpAiAssistant() {
           <TikTokBrandGlyph />
         </button>
       </div>
+      )}
       {!open ? (
         <button
           type="button"
