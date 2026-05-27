@@ -3,6 +3,7 @@ import OnniVersoLogo from "@/components/branding/OnniVersoLogo";
 import {
   Building2,
   Box,
+  Download,
   FolderOpen,
   LogIn,
   LogOut,
@@ -18,13 +19,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
+import { APP_APK_DOWNLOAD_URL } from "@/config/appDownload";
 import { LOCKED_NAVBAR_HEIGHT_CLASS, LOCKED_NAVBAR_MENU_OFFSET_CLASS } from "@/config/lockedHomeLayout";
+import { isDesktopWebBrowser } from "@/lib/deviceDetection";
 import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
 import { GALERIA_AULA_SECTION_HREF } from "@/lib/aulaVirtual";
 import { onOpCommand } from "@/lib/opCommandBus";
-
-const APP_APK_DOWNLOAD_URL =
-  "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
 
 const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
   { label: "ONNIVERSO", path: "/inicio-2", icon: Sparkles },
@@ -41,6 +41,11 @@ const Navbar = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showAppDownload, setShowAppDownload] = useState(false);
+
+  useEffect(() => {
+    setShowAppDownload(isDesktopWebBrowser());
+  }, []);
 
   useEffect(() => {
     return onOpCommand((cmd) => {
@@ -99,11 +104,14 @@ const Navbar = () => {
                 <LogIn className="h-3.5 w-3.5" />
                 Entrar
               </Button>
-              <Button variant="hero" size="sm" asChild className="hidden md:inline-flex">
-                <a href={APP_APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
-                  App
-                </a>
-              </Button>
+              {showAppDownload ? (
+                <Button variant="hero" size="sm" asChild className="hidden md:inline-flex gap-1.5">
+                  <a href={APP_APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
+                    <Download className="h-3.5 w-3.5" aria-hidden />
+                    Descargar app
+                  </a>
+                </Button>
+              ) : null}
             </div>
           )}
 
