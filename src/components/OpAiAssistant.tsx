@@ -65,7 +65,7 @@ export default function OpAiAssistant() {
   };
 
   return (
-    <div className="pointer-events-none fixed bottom-7 left-4 z-[80] w-[min(92vw,380px)] max-sm:flex max-sm:flex-col max-sm:items-start max-sm:gap-2 sm:bottom-8 sm:left-10 sm:block">
+    <div className="pointer-events-none fixed bottom-10 left-4 z-[80] w-[min(92vw,380px)] max-sm:flex max-sm:flex-col max-sm:items-start max-sm:gap-2 sm:bottom-8 sm:left-10 sm:block">
       {!open ? (
         <button
           type="button"
