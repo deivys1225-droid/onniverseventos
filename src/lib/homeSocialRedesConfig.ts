@@ -1,6 +1,7 @@
 import { SOCIAL_LINKS } from "@/components/SocialFooterIcons";
 
 export type HomeSocialIconId =
+  | "onnivers"
   | "youtube"
   | "facebook"
   | "instagram"
@@ -8,6 +9,8 @@ export type HomeSocialIconId =
   | "google"
   | "netflix"
   | "whatsapp";
+
+const ONNIVERS_LOBBY_URL = "https://onnivers.com/lobby-inmersivo";
 
 export type HomeSocialRedesMode = "redes" | "redesCam";
 
@@ -33,6 +36,12 @@ function normalizeHomeWhatsAppUrl(url: string): string {
 }
 
 export const DEFAULT_HOME_SOCIAL_ICONS: HomeSocialIconConfig[] = [
+  {
+    id: "onnivers",
+    label: "OnniVers",
+    redesUrl: ONNIVERS_LOBBY_URL,
+    redesCamUrl: ONNIVERS_LOBBY_URL,
+  },
   {
     id: "youtube",
     label: "YouTube",

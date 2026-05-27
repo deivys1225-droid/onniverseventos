@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import { FacebookGlyph, InstagramGlyph } from "@/components/SocialFooterIcons";
 import {
   AlertDialog,
@@ -18,6 +18,23 @@ import {
 } from "@/lib/homeSocialRedesConfig";
 import { openHomeSocialRedes, openHomeSocialRedesCam } from "@/lib/homeSocialRedesOpen";
 import { cn } from "@/lib/utils";
+
+const OnniVersGlyph = () => {
+  const gradId = `onni-social-${useId().replace(/:/g, "")}`;
+  return (
+    <svg viewBox="0 0 48 48" className="h-[18px] w-[18px]" aria-hidden xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#22d3ee" />
+          <stop offset="100%" stopColor="#a855f7" />
+        </linearGradient>
+      </defs>
+      <circle cx="24" cy="24" r="21" fill="none" stroke={`url(#${gradId})`} strokeWidth="2.4" />
+      <ellipse cx="24" cy="24" rx="21" ry="10" fill="none" stroke={`url(#${gradId})`} strokeWidth="1.5" opacity="0.75" />
+      <circle cx="24" cy="24" r="7" fill="rgba(34,211,238,0.22)" stroke={`url(#${gradId})`} strokeWidth="1.4" />
+    </svg>
+  );
+};
 
 const YouTubeGlyph = () => (
   <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" aria-hidden xmlns="http://www.w3.org/2000/svg">
@@ -79,6 +96,13 @@ const ICON_BUTTONS: {
   className: string;
   Glyph: () => JSX.Element;
 }[] = [
+  {
+    id: "onnivers",
+    label: "OnniVers",
+    className:
+      "border-cyan-400/70 bg-slate-950 text-cyan-100 shadow-[0_0_20px_-6px_rgba(34,211,238,0.9)]",
+    Glyph: OnniVersGlyph,
+  },
   {
     id: "youtube",
     label: "YouTube",
