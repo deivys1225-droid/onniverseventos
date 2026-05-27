@@ -66,12 +66,14 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
   height: number;
 }) {
   const nativeSlotRef = useRef<HTMLDivElement | null>(null);
-  const isAndroidBridge = typeof window !== "undefined" && typeof window.Android !== "undefined";
+  const isNativeAndroidSlot =
+    typeof window !== "undefined" &&
+    (typeof window.Android !== "undefined" || typeof window.AndroidBridge !== "undefined");
 
   // Android: esta "pantalla 2" se renderiza como slot para que nativo monte su WebView.
   // En web/PC se mantiene el reproductor actual.
   useEffect(() => {
-    if (!isAndroidBridge) return;
+    if (!isNativeAndroidSlot) return;
     const slotId = LOBBY_NATIVE_WEBVIEW_SLOT_ID;
     window.__onniversoGetNativeWebViewSlotRect = (id: string) => {
       if (id !== slotId) return null;
@@ -85,9 +87,18 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
       // pero sí invalidamos el ref al desmontar.
       nativeSlotRef.current = null;
     };
-  }, [isAndroidBridge]);
+  }, [isNativeAndroidSlot]);
 
-  if (isAndroidBridge) {
+  useEffect(() => {
+    if (!isNativeAndroidSlot) return;
+    // Notifica a Android que puede montar el WebView nativo en pantalla 2.
+    window.Android?.showLobbyPantalla2WebView?.();
+    return () => {
+      window.Android?.hideLobbyPantalla2WebView?.();
+    };
+  }, [isNativeAndroidSlot]);
+
+  if (isNativeAndroidSlot) {
     return (
       <div
         ref={nativeSlotRef}
