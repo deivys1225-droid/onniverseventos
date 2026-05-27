@@ -22,13 +22,13 @@ import MobileLobbyMovePad, {
 } from "@/components/lobby/MobileLobbyMovePad";
 import LobbyDeviceOrientationLook from "@/components/lobby/LobbyDeviceOrientationLook";
 import LobbyDecorEarthMoon from "@/components/lobby/LobbyDecorEarthMoon";
-import LobbyDecorArchitectWall from "@/components/lobby/LobbyDecorArchitectWall";
 import LobbyDecorHeartWall from "@/components/lobby/LobbyDecorHeartWall";
 import LobbyDecorFarolLantern from "@/components/lobby/LobbyDecorFarolLantern";
 import LobbyGyroToggleButton from "@/components/lobby/LobbyGyroToggleButton";
 import { requestDeviceOrientationPermission } from "@/lib/deviceOrientationCamera";
 import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
 import { LobbyScreenThreeSalasPlayer } from "@/components/lobby/LobbyScreenThreeSalasPlayer";
+import { LobbyScreenFourWebViewSlot } from "@/components/lobby/LobbyScreenFourWebViewSlot";
 import AulaVirtualClassroomDecor from "@/components/lobby/AulaVirtualClassroomDecor";
 import AulaVirtualWallGallery from "@/components/lobby/AulaVirtualWallGallery";
 import { ROOM_THEMES, type ImmersiveRoomVariant } from "@/components/lobby/aulaVirtualTheme";
@@ -160,6 +160,8 @@ function isGlbSource(url: string): boolean {
 
 const WALL_SCREEN_WIDTH = 8;
 const WALL_SCREEN_HEIGHT = 4.5;
+const SIDE_WALL_SCREEN4_WIDTH = ROOM_SIZE - 0.9;
+const SIDE_WALL_SCREEN4_HEIGHT = WALL_HEIGHT - 0.9;
 
 /** Tres paneles en la pared 1 (fondo): ocupan casi todo el ancho; salas (2) es la más ancha. */
 const WALL1_SIDE_MARGIN = 0.35;
@@ -184,7 +186,7 @@ function wall1PanelCenters(): [number, number, number] {
   }) as [number, number, number];
 }
 
-type HoloScreenKind = "hub" | "salas" | "webpage";
+type HoloScreenKind = "hub" | "salas" | "webpage" | "screen4";
 
 const MIXED_REALITY_CAMERA_ERROR =
   "No se pudo acceder a la camara trasera. Revisa los permisos del navegador y vuelve a intentarlo.";
@@ -382,6 +384,8 @@ function HoloScreen({
             <LobbyScreenOneHub width={embedWidth} height={embedHeight} />
           ) : kind === "salas" ? (
             <LobbyScreenThreeSalasPlayer width={embedWidth} height={embedHeight} />
+          ) : kind === "screen4" ? (
+            <LobbyScreenFourWebViewSlot width={embedWidth} height={embedHeight} />
           ) : (
             <iframe
               key={embedUrl}
@@ -469,6 +473,35 @@ function HoloScreens({
       {panel("salas", 2, xSalas, WALL1_SALAS_WIDTH)}
       {panel("webpage", 3, xWeb, WALL1_WEB_WIDTH, LOBBY_WEB_EMBED_URL)}
     </>
+  );
+}
+
+function SideWallScreen4({
+  focusedScreen,
+  onFocusScreen,
+  frameColor = "#00ffff",
+}: {
+  focusedScreen: number | null;
+  onFocusScreen: (label: number) => void;
+  frameColor?: string;
+}) {
+  const half = ROOM_SIZE / 2;
+  const y = WALL_HEIGHT / 2;
+  const off = 0.03;
+  const interactionMode = focusedScreen !== null;
+  return (
+    <HoloScreen
+      kind="screen4"
+      label={4}
+      position={[-half + off, y, 0]}
+      rotation={[0, Math.PI / 2, 0]}
+      width={SIDE_WALL_SCREEN4_WIDTH}
+      height={SIDE_WALL_SCREEN4_HEIGHT}
+      focused={focusedScreen === 4}
+      interactionMode={interactionMode}
+      onFocus={() => onFocusScreen(4)}
+      frameColor={frameColor}
+    />
   );
 }
 
@@ -1272,6 +1305,11 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
             onFocusScreen={focusScreen}
             frameColor={theme.screenFrameColor}
           />
+          <SideWallScreen4
+            focusedScreen={focusedScreen}
+            onFocusScreen={focusScreen}
+            frameColor={theme.screenFrameColor}
+          />
           {!isAulaVirtual && (
             <>
               <NeonAccents />
@@ -1290,7 +1328,6 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
             <>
               <LobbyDecorEarthMoon position={[ROOM_SIZE / 2 - 2.15, WALL_HEIGHT * 0.45, 0]} scale={1.26} />
               <LobbyDecorHeartWall position={[0, WALL_HEIGHT / 2, ROOM_SIZE / 2 - 0.45]} />
-              <LobbyDecorArchitectWall position={[-ROOM_SIZE / 2 + 0.7, WALL_HEIGHT / 2, 0]} scaleMultiplier={1.35} />
               <LobbyDecorFarolLantern position={[-5, WALL_HEIGHT * 0.55, -ROOM_SIZE / 2 + 0.45]} />
             </>
           )}

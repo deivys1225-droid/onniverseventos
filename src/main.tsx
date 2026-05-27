@@ -48,6 +48,10 @@ declare global {
       /** API genérica para montar WebView nativo en lobby screen 2. */
       showLobbyScreen?(): void;
       updateLobbyBounds?(): void;
+      /** API dedicada opcional para pantalla 4 del lobby. */
+      showLobbyScreen4?(): void;
+      updateLobby4Bounds?(): void;
+      hideLobbyScreen4?(): void;
     };
   }
 }
