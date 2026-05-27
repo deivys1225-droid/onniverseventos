@@ -5,6 +5,7 @@ import android.view.ViewGroup;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
@@ -37,13 +38,14 @@ public class LobbyVrActivity extends AppCompatActivity {
         new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     configureWebView(webView);
+    webView.addJavascriptInterface(new LobbyReturnJsApi(this), "Android");
     webView.loadUrl(LOBBY_IMMERSIVE_URL);
     root.addView(webView);
 
     float density = getResources().getDisplayMetrics().density;
     int margin = (int) (12f * density);
     MaterialButton closeBtn = new MaterialButton(this);
-    closeBtn.setText("Cerrar");
+    closeBtn.setText("La Tierra");
     closeBtn.setAllCaps(false);
     FrameLayout.LayoutParams closeLp =
         new FrameLayout.LayoutParams(
@@ -84,5 +86,28 @@ public class LobbyVrActivity extends AppCompatActivity {
       webView = null;
     }
     super.onDestroy();
+  }
+
+  /**
+   * Puente mínimo para salir del lobby: {@code window.Android.onVrClick()} o
+   * {@code window.Android.openSelector()} cierran esta Activity y vuelven al menú (Tierra).
+   */
+  private static final class LobbyReturnJsApi {
+
+    private final LobbyVrActivity activity;
+
+    LobbyReturnJsApi(LobbyVrActivity activity) {
+      this.activity = activity;
+    }
+
+    @JavascriptInterface
+    public void onVrClick() {
+      activity.runOnUiThread(activity::finish);
+    }
+
+    @JavascriptInterface
+    public void openSelector() {
+      activity.runOnUiThread(activity::finish);
+    }
   }
 }

@@ -29,6 +29,10 @@ declare global {
     /** Puente AR: registrado en MainActivity como {@code Android}. */
     Android?: {
       onArClick(url?: string): void;
+      /** Salida del lobby / retorno al menú (LobbyVrActivity) o selector VR (MainActivity). */
+      onVrClick?(mp4Url?: string): void;
+      /** Misma maleta que {@code onVrClick} sin argumentos, o {@code openSelector(streamId)} con id. */
+      openSelector?(streamId?: string): void;
       /** HLS/URL → SelectorActivity (ExoPlayer nativo). */
       playStream?(streamUrl: string): void;
       /** @deprecated Usar playStream */

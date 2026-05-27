@@ -578,6 +578,62 @@ public class MainActivity extends BridgeActivity {
       this.activity = activity;
     }
 
+    /** {@code window.Android.onVrClick()} — Cine / pantalla dividida ({@link SelectorActivity}). */
+    @JavascriptInterface
+    public void onVrClick() {
+      onVrClick(null);
+    }
+
+    /** {@code window.Android.onVrClick(url)} */
+    @JavascriptInterface
+    public void onVrClick(String mp4Url) {
+      activity.runOnUiThread(
+          () -> {
+            if ((mp4Url == null || mp4Url.trim().isEmpty())
+                && activity.returnToHomeFromLobbyWebView()) {
+              return;
+            }
+            activity.openAudienceSelector("split", mp4Url, null);
+          });
+    }
+
+    /**
+     * {@code window.Android.openSelector()} o {@code openSelector(streamId)} — misma maleta HLS
+     * que las tarjetas en vivo.
+     */
+    @JavascriptInterface
+    public void openSelector() {
+      openSelector(null);
+    }
+
+    @JavascriptInterface
+    public void openSelector(String streamId) {
+      activity.runOnUiThread(
+          () -> {
+            String id = streamId != null ? streamId.trim() : "";
+            if (id.isEmpty() && activity.returnToHomeFromLobbyWebView()) {
+              return;
+            }
+            String url = activity.resolveNativePlaybackUrl(id.isEmpty() ? null : id);
+            if (!url.isEmpty()) {
+              activity.openStreamSelector(
+                  url,
+                  activity.activeAudiencePlaybackId != null ? activity.activeAudiencePlaybackId : "",
+                  "split");
+              return;
+            }
+            if (!id.isEmpty()) {
+              activity.openStreamSelector("", id, "split");
+              return;
+            }
+            Toast.makeText(
+                    activity,
+                    "Pulsa primero una tarjeta en vivo para cargar el stream.",
+                    Toast.LENGTH_SHORT)
+                .show();
+          });
+    }
+
     /** Coincide con {@code window.Android.onArClick()} desde JS (sin argumentos). */
     @JavascriptInterface
     public void onArClick() {
@@ -711,6 +767,21 @@ public class MainActivity extends BridgeActivity {
     if (target != null) {
       target.loadUrl(LOBBY_IMMERSIVE_URL);
     }
+  }
+
+  /** Botón «La Tierra» / volver al menú cuando el lobby carga en el WebView principal. */
+  private boolean returnToHomeFromLobbyWebView() {
+    Bridge bridge = getBridge();
+    WebView webView = bridge != null ? bridge.getWebView() : null;
+    if (webView == null) {
+      return false;
+    }
+    String current = webView.getUrl();
+    if (current == null || !current.contains("lobby-inmersivo")) {
+      return false;
+    }
+    webView.loadUrl("https://localhost/");
+    return true;
   }
 
   /** {@link AndroidBridge#openLobbyDirect} — abre LobbyVrActivity sin URL. */

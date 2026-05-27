@@ -33,6 +33,7 @@ import AulaVirtualClassroomDecor from "@/components/lobby/AulaVirtualClassroomDe
 import AulaVirtualWallGallery from "@/components/lobby/AulaVirtualWallGallery";
 import { ROOM_THEMES, type ImmersiveRoomVariant } from "@/components/lobby/aulaVirtualTheme";
 import { onOpCommand } from "@/lib/opCommandBus";
+import { invokeAndroidLobbyReturn } from "@/lib/androidLobbyReturn";
 
 export type { ImmersiveRoomVariant };
 
@@ -849,6 +850,12 @@ function MobileTouchLook({ enabled }: { enabled: boolean }) {
 export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
   const navigate = useNavigate();
   const isAulaVirtual = variant === "aula-virtual";
+
+  const handleLobbyReturn = useCallback(() => {
+    if (!isAulaVirtual && invokeAndroidLobbyReturn()) return;
+    navigate(isAulaVirtual ? "/3d" : "/");
+  }, [isAulaVirtual, navigate]);
+
   const theme = ROOM_THEMES[variant];
   const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
   const usesFinePointer = useLobbyFinePointer();
@@ -1225,8 +1232,9 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
       <button
         type="button"
         data-lobby-ui
-        onClick={() => navigate(isAulaVirtual ? "/3d" : "/")}
-        aria-label={isAulaVirtual ? "Volver a modelos 3D" : "Volver al perfil"}
+        onClick={handleLobbyReturn}
+        aria-label={isAulaVirtual ? "Volver a modelos 3D" : "La Tierra — volver al menú"}
+        title={isAulaVirtual ? undefined : "La Tierra"}
         className={`pointer-events-auto fixed left-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 backdrop-blur-md transition disabled:cursor-wait disabled:opacity-70 ${
           isAulaVirtual
             ? "border-amber-400/60 text-amber-100 shadow-[0_0_24px_-6px_rgba(251,191,36,0.75)] hover:border-amber-300 hover:bg-slate-900 hover:text-white"
