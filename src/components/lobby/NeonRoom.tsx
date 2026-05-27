@@ -160,13 +160,15 @@ function isGlbSource(url: string): boolean {
 
 const WALL_SCREEN_WIDTH = 8;
 const WALL_SCREEN_HEIGHT = 4.5;
-const SIDE_WALL_SCREEN4_WIDTH = ROOM_SIZE - 0.9;
-const SIDE_WALL_SCREEN4_HEIGHT = WALL_HEIGHT - 0.9;
+/** Pantallas 2 y 4: mitad del tamaño de pared completa. */
+const LOBBY_PANEL_HALF_WIDTH = (ROOM_SIZE - 0.9) / 2;
+const LOBBY_PANEL_HALF_HEIGHT = (WALL_HEIGHT - 0.9) / 2;
+const SIDE_WALL_SCREEN4_WIDTH = LOBBY_PANEL_HALF_WIDTH;
+const SIDE_WALL_SCREEN4_HEIGHT = LOBBY_PANEL_HALF_HEIGHT;
 
 /** Panel central en la pared del fondo (solo pantalla 2 / salas). */
-const WALL1_SIDE_MARGIN = 0.45;
-const WALL1_SALAS_WIDTH = ROOM_SIZE - WALL1_SIDE_MARGIN * 2;
-const WALL1_PANEL_HEIGHT = WALL_HEIGHT - 0.9;
+const WALL1_SALAS_WIDTH = LOBBY_PANEL_HALF_WIDTH;
+const WALL1_PANEL_HEIGHT = LOBBY_PANEL_HALF_HEIGHT;
 const LOBBY_WEB_EMBED_URL = "https://onnivers.com/nuestras-salas";
 const SIDE_WALL_SCREEN3_WIDTH = ROOM_SIZE - 0.9;
 const SIDE_WALL_SCREEN3_HEIGHT = WALL_HEIGHT - 0.9;
