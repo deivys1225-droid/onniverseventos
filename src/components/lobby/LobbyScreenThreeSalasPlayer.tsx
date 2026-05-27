@@ -77,11 +77,9 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
     setUrl: (u) => window.Android?.setLobbyScreen2Url?.(u),
     onShow: () => {
       window.Android?.showLobbyScreen?.();
-      window.Android?.showLobbyPantalla2WebView?.();
     },
     onHide: () => {
       window.Android?.hideLobbyScreen?.();
-      window.Android?.hideLobbyPantalla2WebView?.();
     },
     onUpdateBounds: () => {
       window.Android?.updateLobbyBounds?.();

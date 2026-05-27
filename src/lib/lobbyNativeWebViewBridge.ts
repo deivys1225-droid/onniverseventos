@@ -3,7 +3,8 @@ import { useEffect, useRef } from "react";
 export type LobbyNativeRect = { x: number; y: number; w: number; h: number };
 
 const MIN_SLOT_PX = 48;
-const BOUNDS_STABLE_MS = 900;
+const BOUNDS_STABLE_MS = 1000;
+const MIN_WALL_TOP_PX = 40;
 
 const slotGetters = new Map<string, () => LobbyNativeRect | null>();
 
@@ -43,6 +44,16 @@ export function readLobbyNativeSlotRect(slotId: string): LobbyNativeRect | null 
   };
 }
 
+/** Descarta rects de pantalla completa arriba (fallback viejo / layout aún no listo). */
+export function isPlausibleWallSlotRect(rect: LobbyNativeRect): boolean {
+  if (typeof window === "undefined") return true;
+  const maxH = window.innerHeight * 0.92;
+  const maxW = window.innerWidth * 0.92;
+  if (rect.h >= maxH && rect.w >= maxW * 0.85) return false;
+  if (rect.y < MIN_WALL_TOP_PX && rect.h > window.innerHeight * 0.45) return false;
+  return true;
+}
+
 function rectDelta(a: LobbyNativeRect, b: LobbyNativeRect): number {
   return Math.max(
     Math.abs(a.x - b.x),
@@ -71,11 +82,6 @@ type LobbyNativeOverlayConfig = {
   url?: string;
 };
 
-/**
- * WebView nativo en la pared: visible siempre en Android ({@code active}).
- * Congela el rect tras la primera lectura válida y solo re-sincroniza si el cambio es grande
- * (evita que “bailen” al caminar sin exigir tocar la pantalla).
- */
 export function useLobbyNativeOverlay({
   active,
   slotId,
@@ -87,7 +93,7 @@ export function useLobbyNativeOverlay({
   setUrl,
   url,
 }: LobbyNativeOverlayConfig) {
-  const frozenRectRef = useRef<LobbyNativeRect | null>(null);
+  const lastAppliedRef = useRef<LobbyNativeRect | null>(null);
   const onShowRef = useRef(onShow);
   const onHideRef = useRef(onHide);
   const onUpdateBoundsRef = useRef(onUpdateBounds);
@@ -103,9 +109,8 @@ export function useLobbyNativeOverlay({
 
   useEffect(() => {
     const getRect = () => {
-      if (frozenRectRef.current) return frozenRectRef.current;
       const fresh = readLobbyNativeSlotRect(slotId);
-      if (fresh) frozenRectRef.current = fresh;
+      if (!fresh || !isPlausibleWallSlotRect(fresh)) return null;
       return fresh;
     };
     registerLobbyNativeSlot(slotId, getRect, legacyId);
@@ -113,7 +118,7 @@ export function useLobbyNativeOverlay({
     return () => {
       unregisterLobbyNativeSlot(slotId, legacyId);
       setRectGlobalRef.current?.(undefined);
-      frozenRectRef.current = null;
+      lastAppliedRef.current = null;
       shownRef.current = false;
     };
   }, [slotId, legacyId]);
@@ -124,22 +129,22 @@ export function useLobbyNativeOverlay({
 
   useEffect(() => {
     if (!active) {
-      frozenRectRef.current = null;
+      lastAppliedRef.current = null;
       shownRef.current = false;
       onHideRef.current();
       return;
     }
 
-    const trySync = (allowRefreeze: boolean) => {
+    const trySync = (force: boolean) => {
       const fresh = readLobbyNativeSlotRect(slotId);
-      if (!fresh) return false;
+      if (!fresh || !isPlausibleWallSlotRect(fresh)) return false;
 
-      const frozen = frozenRectRef.current;
-      if (!frozen || allowRefreeze) {
-        if (!frozen || rectDelta(frozen, fresh) >= 12) {
-          frozenRectRef.current = fresh;
-        }
+      const last = lastAppliedRef.current;
+      if (!force && last && rectDelta(last, fresh) < 10) {
+        return shownRef.current;
       }
+
+      lastAppliedRef.current = fresh;
 
       if (!shownRef.current) {
         onShowRef.current();
@@ -150,13 +155,13 @@ export function useLobbyNativeOverlay({
     };
 
     trySync(true);
-    const delays = [80, 200, 450, 900, 1500, 2500];
+    const delays = [100, 250, 500, 1000, 2000, 3500];
     const timers = delays.map((ms) => window.setTimeout(() => trySync(false), ms));
 
     const intervalId = window.setInterval(() => trySync(false), BOUNDS_STABLE_MS);
 
     const onResize = () => {
-      frozenRectRef.current = null;
+      lastAppliedRef.current = null;
       trySync(true);
     };
     window.addEventListener("resize", onResize);
@@ -167,7 +172,7 @@ export function useLobbyNativeOverlay({
       window.clearInterval(intervalId);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("orientationchange", onResize);
-      frozenRectRef.current = null;
+      lastAppliedRef.current = null;
       shownRef.current = false;
       onHideRef.current();
     };
