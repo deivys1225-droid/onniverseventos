@@ -59,18 +59,15 @@ function defaultPlaylistItems(): LocalVideoItem[] {
 export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPlayer({
   width,
   height,
-  overlayActive = false,
 }: {
   width: number;
   height: number;
-  /** true cuando la pantalla 2 está enfocada — WebView nativo fijo, no sigue al caminar. */
-  overlayActive?: boolean;
 }) {
   const nativeSlotRef = useRef<HTMLDivElement | null>(null);
   const isNativeAndroidSlot = isLobbyNativeAndroid();
 
   useLobbyNativeOverlay({
-    active: isNativeAndroidSlot && overlayActive,
+    active: isNativeAndroidSlot,
     slotId: LOBBY_NATIVE_WEBVIEW_SLOT_ID,
     legacyId: LOBBY_NATIVE_WEBVIEW_SLOT_LEGACY_ID,
     setRectGlobal: (getter) => {
@@ -117,7 +114,7 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
           contain: "strict",
         }}
       >
-        {overlayActive ? null : "Toca para abrir"}
+        WebView nativo (YouTube)
       </div>
     );
   }

@@ -883,10 +883,21 @@ public class MainActivity extends BridgeActivity {
                 + "||(window.__onniversoGetNativeWebViewSlotRect&&window.__onniversoGetNativeWebViewSlotRect('lobby-screen-2'))"
             : "(window.__onniversoGetLobbyScreen4Rect&&window.__onniversoGetLobbyScreen4Rect())"
                 + "||(window.__onniversoGetNativeWebViewSlotRect&&window.__onniversoGetNativeWebViewSlotRect('lobby-screen-4'))";
-    applyJsRectToOverlayWebView(overlay, rectJs);
+    applyJsRectToOverlayWebView(overlay, rectJs, screen);
   }
 
-  private void applyJsRectToOverlayWebView(WebView overlay, String rectExpression) {
+  private void applyLobbyScreen2FullscreenFallback(WebView overlay) {
+    float density = getResources().getDisplayMetrics().density;
+    int topMargin = (int) (72f * density);
+    FrameLayout.LayoutParams lp =
+        new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+    lp.topMargin = topMargin;
+    lp.gravity = Gravity.TOP | Gravity.START;
+    overlay.setLayoutParams(lp);
+  }
+
+  private void applyJsRectToOverlayWebView(WebView overlay, String rectExpression, int screen) {
     Bridge bridge = getBridge();
     WebView main = bridge != null ? bridge.getWebView() : null;
     if (main == null) {
@@ -903,6 +914,9 @@ public class MainActivity extends BridgeActivity {
                 () -> {
                   JSONObject rect = parseEvaluateJsonObject(value);
                   if (rect == null) {
+                    if (screen == 2) {
+                      applyLobbyScreen2FullscreenFallback(overlay);
+                    }
                     return;
                   }
                   try {
@@ -910,7 +924,10 @@ public class MainActivity extends BridgeActivity {
                     int h = rect.getInt("h");
                     int x = rect.getInt("x");
                     int y = rect.getInt("y");
-                    if (w <= 0 || h <= 0) {
+                    if (w < 48 || h < 48) {
+                      if (screen == 2) {
+                        applyLobbyScreen2FullscreenFallback(overlay);
+                      }
                       return;
                     }
                     FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w, h);
@@ -919,7 +936,9 @@ public class MainActivity extends BridgeActivity {
                     lp.gravity = Gravity.TOP | Gravity.START;
                     overlay.setLayoutParams(lp);
                   } catch (Exception ignored) {
-                    // ignore malformed rect
+                    if (screen == 2) {
+                      applyLobbyScreen2FullscreenFallback(overlay);
+                    }
                   }
                 }));
   }

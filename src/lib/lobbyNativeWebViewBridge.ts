@@ -2,6 +2,9 @@ import { useEffect, useRef } from "react";
 
 export type LobbyNativeRect = { x: number; y: number; w: number; h: number };
 
+const MIN_SLOT_PX = 48;
+const BOUNDS_STABLE_MS = 900;
+
 const slotGetters = new Map<string, () => LobbyNativeRect | null>();
 
 function installGlobalSlotResolver() {
@@ -12,7 +15,6 @@ function installGlobalSlotResolver() {
   };
 }
 
-/** Registra un slot DOM para que Android lea su rect con {@code getNativeWebViewSlotRect(id)}. */
 export function registerLobbyNativeSlot(
   slotId: string,
   getRect: () => LobbyNativeRect | null,
@@ -32,13 +34,22 @@ export function readLobbyNativeSlotRect(slotId: string): LobbyNativeRect | null 
   const el = document.getElementById(slotId);
   if (!el) return null;
   const r = el.getBoundingClientRect();
-  if (r.width < 2 || r.height < 2) return null;
+  if (r.width < MIN_SLOT_PX || r.height < MIN_SLOT_PX) return null;
   return {
     x: Math.round(r.left),
     y: Math.round(r.top),
     w: Math.round(r.width),
     h: Math.round(r.height),
   };
+}
+
+function rectDelta(a: LobbyNativeRect, b: LobbyNativeRect): number {
+  return Math.max(
+    Math.abs(a.x - b.x),
+    Math.abs(a.y - b.y),
+    Math.abs(a.w - b.w),
+    Math.abs(a.h - b.h),
+  );
 }
 
 export function isLobbyNativeAndroid(): boolean {
@@ -48,24 +59,7 @@ export function isLobbyNativeAndroid(): boolean {
   );
 }
 
-/** Sincroniza bounds solo al enfocar y en resize; sin intervalo (no sigue la cámara al caminar). */
-function runLobbyNativeBoundsSyncOnce(syncBounds: () => void): () => void {
-  window.requestAnimationFrame(syncBounds);
-  const t1 = window.setTimeout(syncBounds, 80);
-  const t2 = window.setTimeout(syncBounds, 240);
-  const onResize = () => syncBounds();
-  window.addEventListener("resize", onResize);
-  window.addEventListener("orientationchange", onResize);
-  return () => {
-    window.clearTimeout(t1);
-    window.clearTimeout(t2);
-    window.removeEventListener("resize", onResize);
-    window.removeEventListener("orientationchange", onResize);
-  };
-}
-
 type LobbyNativeOverlayConfig = {
-  /** Pantalla enfocada (usuario tocó la pantalla); si false se oculta el WebView nativo. */
   active: boolean;
   slotId: string;
   legacyId?: string;
@@ -78,8 +72,9 @@ type LobbyNativeOverlayConfig = {
 };
 
 /**
- * WebView nativo fijo en la pared: solo visible con {@code active}, rect congelado al enfocar
- * para que no se mueva ni cambie de tamaño al caminar por el lobby.
+ * WebView nativo en la pared: visible siempre en Android ({@code active}).
+ * Congela el rect tras la primera lectura válida y solo re-sincroniza si el cambio es grande
+ * (evita que “bailen” al caminar sin exigir tocar la pantalla).
  */
 export function useLobbyNativeOverlay({
   active,
@@ -98,6 +93,7 @@ export function useLobbyNativeOverlay({
   const onUpdateBoundsRef = useRef(onUpdateBounds);
   const setRectGlobalRef = useRef(setRectGlobal);
   const setUrlRef = useRef(setUrl);
+  const shownRef = useRef(false);
 
   onShowRef.current = onShow;
   onHideRef.current = onHide;
@@ -118,6 +114,7 @@ export function useLobbyNativeOverlay({
       unregisterLobbyNativeSlot(slotId, legacyId);
       setRectGlobalRef.current?.(undefined);
       frozenRectRef.current = null;
+      shownRef.current = false;
     };
   }, [slotId, legacyId]);
 
@@ -128,23 +125,50 @@ export function useLobbyNativeOverlay({
   useEffect(() => {
     if (!active) {
       frozenRectRef.current = null;
+      shownRef.current = false;
       onHideRef.current();
       return;
     }
 
-    frozenRectRef.current = null;
-
-    const sync = () => {
+    const trySync = (allowRefreeze: boolean) => {
       const fresh = readLobbyNativeSlotRect(slotId);
-      if (fresh) frozenRectRef.current = fresh;
-      onShowRef.current();
+      if (!fresh) return false;
+
+      const frozen = frozenRectRef.current;
+      if (!frozen || allowRefreeze) {
+        if (!frozen || rectDelta(frozen, fresh) >= 12) {
+          frozenRectRef.current = fresh;
+        }
+      }
+
+      if (!shownRef.current) {
+        onShowRef.current();
+        shownRef.current = true;
+      }
       onUpdateBoundsRef.current();
+      return true;
     };
 
-    const stop = runLobbyNativeBoundsSyncOnce(sync);
-    return () => {
-      stop();
+    trySync(true);
+    const delays = [80, 200, 450, 900, 1500, 2500];
+    const timers = delays.map((ms) => window.setTimeout(() => trySync(false), ms));
+
+    const intervalId = window.setInterval(() => trySync(false), BOUNDS_STABLE_MS);
+
+    const onResize = () => {
       frozenRectRef.current = null;
+      trySync(true);
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+      window.clearInterval(intervalId);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      frozenRectRef.current = null;
+      shownRef.current = false;
       onHideRef.current();
     };
   }, [active, slotId]);

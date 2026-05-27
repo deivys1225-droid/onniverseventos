@@ -8,18 +8,15 @@ const LOBBY_SCREEN4_URL = "https://www.facebook.com/profile.php?id=6158883462127
 export const LobbyScreenFourWebViewSlot = memo(function LobbyScreenFourWebViewSlot({
   width,
   height,
-  overlayActive = false,
 }: {
   width: number;
   height: number;
-  /** true cuando la pantalla 4 está enfocada — WebView nativo fijo, no sigue al caminar. */
-  overlayActive?: boolean;
 }) {
   const slotRef = useRef<HTMLDivElement | null>(null);
   const isNativeAndroidSlot = isLobbyNativeAndroid();
 
   useLobbyNativeOverlay({
-    active: isNativeAndroidSlot && overlayActive,
+    active: isNativeAndroidSlot,
     slotId: LOBBY_SCREEN4_SLOT_ID,
     legacyId: LOBBY_SCREEN4_SLOT_LEGACY_ID,
     setRectGlobal: (getter) => {
@@ -75,7 +72,7 @@ export const LobbyScreenFourWebViewSlot = memo(function LobbyScreenFourWebViewSl
         contain: "strict",
       }}
     >
-      {overlayActive ? null : "Toca para abrir"}
+      WebView nativo (Facebook)
     </div>
   );
 });
