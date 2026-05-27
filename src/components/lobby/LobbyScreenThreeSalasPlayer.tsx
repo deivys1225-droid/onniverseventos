@@ -77,11 +77,14 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
   const nativeSlotRef = useRef<HTMLDivElement | null>(null);
   const isNativeAndroidSlot = isNativeAndroidLobby();
 
-  // Android: API original que ya funcionaba (showLobbyPantalla2WebView).
+  // Android: montar WebView nativo (reintentos por si el bridge aún no está listo).
   useEffect(() => {
     if (!isNativeAndroidSlot) return;
-    window.Android?.showLobbyPantalla2WebView?.();
+    const show = () => window.Android?.showLobbyPantalla2WebView?.();
+    show();
+    const retryIds = [150, 400, 900, 1800].map((ms) => window.setTimeout(show, ms));
     return () => {
+      retryIds.forEach((id) => window.clearTimeout(id));
       window.Android?.hideLobbyPantalla2WebView?.();
     };
   }, [isNativeAndroidSlot]);
@@ -128,21 +131,11 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
         style={{
           width,
           height,
-          background: "#02030a",
+          background: "transparent",
           borderRadius: 10,
-          border: "1px solid rgba(34,211,238,0.35)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#7dd3fc",
-          fontFamily: "system-ui, sans-serif",
-          fontSize: 11,
-          textAlign: "center",
-          padding: 10,
+          border: "1px solid rgba(34,211,238,0.2)",
           boxSizing: "border-box",
           userSelect: "none",
-          contain: "strict",
-          visibility: "hidden",
           pointerEvents: "none",
         }}
         aria-hidden

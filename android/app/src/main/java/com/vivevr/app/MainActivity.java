@@ -747,7 +747,9 @@ public class MainActivity extends BridgeActivity {
     if (content == null) {
       return;
     }
-    if (content.findViewWithTag("lobby_pantalla2_wv") != null) {
+    View existing = content.findViewWithTag("lobby_pantalla2_wv");
+    if (existing instanceof WebView) {
+      lobbyPantalla2WebView = (WebView) existing;
       return;
     }
 
@@ -768,8 +770,14 @@ public class MainActivity extends BridgeActivity {
     WebSettings settings = wv.getSettings();
     settings.setJavaScriptEnabled(true);
     settings.setDomStorageEnabled(true);
+    settings.setDatabaseEnabled(true);
+    settings.setLoadWithOverviewMode(true);
+    settings.setUseWideViewPort(true);
     settings.setMediaPlaybackRequiresUserGesture(false);
     settings.setUserAgentString(LOBBY_SCREEN_MOBILE_UA);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+    }
 
     wv.setWebChromeClient(
         new WebChromeClient() {
