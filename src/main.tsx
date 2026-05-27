@@ -42,9 +42,10 @@ declare global {
       openLobby?(): void;
       /** Mismo que {@code AndroidBridge.openLobbyDirect} (Tierra / lobby nativo). */
       openLobbyDirect?: () => void;
-      /** Lobby Pantalla 2 — WebView nativo YouTube (implementación original del APK). */
+      /** Lobby Pantalla 2 — WebView nativo YouTube sobre el slot 3D. */
       showLobbyPantalla2WebView?(): void;
       hideLobbyPantalla2WebView?(): void;
+      updateLobbyBounds?(): void;
     };
   }
 }

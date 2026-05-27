@@ -77,14 +77,25 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
   const nativeSlotRef = useRef<HTMLDivElement | null>(null);
   const isNativeAndroidSlot = isNativeAndroidLobby();
 
-  // Android: montar WebView nativo (reintentos por si el bridge aún no está listo).
+  // Android: WebView nativo encima del slot 3D (show + updateBounds como cuando funcionaba).
   useEffect(() => {
     if (!isNativeAndroidSlot) return;
-    const show = () => window.Android?.showLobbyPantalla2WebView?.();
-    show();
-    const retryIds = [150, 400, 900, 1800].map((ms) => window.setTimeout(show, ms));
+    const sync = () => {
+      if (!window.Android) return;
+      window.Android.showLobbyPantalla2WebView?.();
+      window.Android.updateLobbyBounds?.();
+    };
+    sync();
+    window.requestAnimationFrame(sync);
+    const retryIds = [120, 300, 600, 1200, 2400].map((ms) => window.setTimeout(sync, ms));
+    const intervalId = window.setInterval(sync, 200);
+    window.addEventListener("resize", sync);
+    window.addEventListener("orientationchange", sync);
     return () => {
       retryIds.forEach((id) => window.clearTimeout(id));
+      window.clearInterval(intervalId);
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("orientationchange", sync);
       window.Android?.hideLobbyPantalla2WebView?.();
     };
   }, [isNativeAndroidSlot]);

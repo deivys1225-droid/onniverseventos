@@ -622,6 +622,12 @@ public class MainActivity extends BridgeActivity {
       activity.runOnUiThread(() -> activity.hideLobbyPantalla2WebViewInternal());
     }
 
+    /** Actualiza posición/tamaño del WebView nativo al slot {@code lobby-screen-2} en la pared 3D. */
+    @JavascriptInterface
+    public void updateLobbyBounds() {
+      activity.runOnUiThread(() -> activity.updateLobbyPantalla2Bounds());
+    }
+
     /**
      * Reproduce stream en {@link SelectorActivity} (ExoPlayer). {@code window.Android.playStream(url)}.
      */
@@ -739,15 +745,25 @@ public class MainActivity extends BridgeActivity {
     }
   }
 
+  private ViewGroup resolveLobbyOverlayParent() {
+    Bridge bridge = getBridge();
+    WebView main = bridge != null ? bridge.getWebView() : null;
+    if (main != null && main.getParent() instanceof ViewGroup) {
+      return (ViewGroup) main.getParent();
+    }
+    ViewGroup content = findViewById(android.R.id.content);
+    return content;
+  }
+
   private void ensureLobbyPantalla2WebViewCreated() {
     if (lobbyPantalla2WebView != null) {
       return;
     }
-    ViewGroup content = findViewById(android.R.id.content);
-    if (content == null) {
+    ViewGroup parent = resolveLobbyOverlayParent();
+    if (parent == null) {
       return;
     }
-    View existing = content.findViewWithTag("lobby_pantalla2_wv");
+    View existing = parent.findViewWithTag("lobby_pantalla2_wv");
     if (existing instanceof WebView) {
       lobbyPantalla2WebView = (WebView) existing;
       return;
@@ -755,16 +771,14 @@ public class MainActivity extends BridgeActivity {
 
     WebView wv = new WebView(this);
     wv.setTag("lobby_pantalla2_wv");
-    float density = getResources().getDisplayMetrics().density;
-    int topMargin = (int) (72f * density);
-
-    FrameLayout.LayoutParams lp =
-        new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-    lp.topMargin = topMargin;
+    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(1, 1);
+    lp.gravity = Gravity.TOP | Gravity.START;
     wv.setLayoutParams(lp);
     wv.setVisibility(View.GONE);
-    wv.setElevation(80f);
+    wv.setElevation(10000f);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      wv.setZ(10000f);
+    }
     wv.setBackgroundColor(0xff02030a);
 
     WebSettings settings = wv.getSettings();
@@ -790,7 +804,7 @@ public class MainActivity extends BridgeActivity {
     wv.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
     lobbyPantalla2WebView = wv;
-    content.addView(wv);
+    parent.addView(wv);
   }
 
   private void attachAndShowLobbyPantalla2WebView() {
@@ -802,8 +816,90 @@ public class MainActivity extends BridgeActivity {
       lobbyPantalla2WebView.loadUrl(LOBBY_SCREEN2_DEFAULT_URL);
       lobbyPantalla2WebViewUrlLoaded = true;
     }
-    lobbyPantalla2WebView.setVisibility(View.VISIBLE);
+    updateLobbyPantalla2Bounds();
+    scheduleLobbyPantalla2BoundsRetries();
     lobbyPantalla2WebView.bringToFront();
+    ViewGroup parent = resolveLobbyOverlayParent();
+    if (parent != null) {
+      parent.requestLayout();
+    }
+  }
+
+  private void scheduleLobbyPantalla2BoundsRetries() {
+    if (lobbyPantalla2WebView == null) {
+      return;
+    }
+    final int[] delaysMs = {80, 200, 450, 900, 1800, 3000};
+    for (int delay : delaysMs) {
+      lobbyPantalla2WebView.postDelayed(this::updateLobbyPantalla2Bounds, delay);
+    }
+  }
+
+  private void updateLobbyPantalla2Bounds() {
+    if (lobbyPantalla2WebView == null) {
+      return;
+    }
+    final String rectJs =
+        "(window.__onniversoGetLobbyScreen2Rect&&window.__onniversoGetLobbyScreen2Rect())"
+            + "||(window.__onniversoGetNativeWebViewSlotRect&&window.__onniversoGetNativeWebViewSlotRect('lobby-screen-2'))";
+    applyJsRectToLobbyPantalla2WebView(rectJs);
+  }
+
+  private void applyJsRectToLobbyPantalla2WebView(String rectExpression) {
+    Bridge bridge = getBridge();
+    WebView main = bridge != null ? bridge.getWebView() : null;
+    if (main == null || lobbyPantalla2WebView == null) {
+      return;
+    }
+    String code =
+        "(function(){try{var r="
+            + rectExpression
+            + ";if(!r)return null;return JSON.stringify(r);}catch(e){return null;}})();";
+    main.evaluateJavascript(
+        code,
+        value ->
+            runOnUiThread(
+                () -> {
+                  JSONObject rect = parseEvaluateJsonObject(value);
+                  if (rect == null) {
+                    return;
+                  }
+                  try {
+                    float scale = main.getScale();
+                    int w = (int) (rect.getInt("w") * scale + 0.5f);
+                    int h = (int) (rect.getInt("h") * scale + 0.5f);
+                    int x = (int) (rect.getInt("x") * scale + 0.5f);
+                    int y = (int) (rect.getInt("y") * scale + 0.5f);
+                    if (w < 48 || h < 48) {
+                      return;
+                    }
+                    FrameLayout.LayoutParams lp =
+                        new FrameLayout.LayoutParams(w, h);
+                    lp.leftMargin = x;
+                    lp.topMargin = y;
+                    lp.gravity = Gravity.TOP | Gravity.START;
+                    lobbyPantalla2WebView.setLayoutParams(lp);
+                    lobbyPantalla2WebView.setVisibility(View.VISIBLE);
+                    lobbyPantalla2WebView.bringToFront();
+                  } catch (Exception ignored) {
+                    // ignore malformed rect
+                  }
+                }));
+  }
+
+  private JSONObject parseEvaluateJsonObject(String value) {
+    if (value == null || value.isEmpty() || "null".equals(value)) {
+      return null;
+    }
+    try {
+      String json = value.trim();
+      if (json.startsWith("\"") && json.endsWith("\"")) {
+        json = new org.json.JSONTokener(json).nextValue().toString();
+      }
+      return new JSONObject(json);
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   private void hideLobbyPantalla2WebViewInternal() {
