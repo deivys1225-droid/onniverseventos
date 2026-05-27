@@ -16,11 +16,13 @@ import {
 
 declare global {
   interface Window {
-    __onniversoGetNativeWebViewSlotRect?: (slotId: string) => { x: number; y: number; w: number; h: number } | null;
+    __onniversoGetNativeWebViewSlotRect?: (slotId?: string) => { x: number; y: number; w: number; h: number } | null;
+    __onniversoGetLobbyScreen2Rect?: () => { x: number; y: number; w: number; h: number } | null;
   }
 }
 
 const LOBBY_NATIVE_WEBVIEW_SLOT_ID = "lobby-screen-2";
+const LOBBY_NATIVE_WEBVIEW_SLOT_LEGACY_ID = "onni-native-webview-lobby-screen-2";
 
 const lobbyBtnStyle: CSSProperties = {
   flex: 1,
@@ -74,12 +76,23 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
   // En web/PC se mantiene el reproductor actual.
   useEffect(() => {
     if (!isNativeAndroidSlot) return;
-    window.__onniversoGetNativeWebViewSlotRect = (slotId: string) => {
-      const el = document.getElementById(slotId);
+    const getRectById = (requestedId?: string) => {
+      const normalizedId =
+        !requestedId || requestedId === LOBBY_NATIVE_WEBVIEW_SLOT_LEGACY_ID
+          ? LOBBY_NATIVE_WEBVIEW_SLOT_ID
+          : requestedId;
+      const el = document.getElementById(normalizedId);
       if (!el) return null;
       const r = el.getBoundingClientRect();
-      return { x: r.left, y: r.top, w: r.width, h: r.height };
+      return {
+        x: Math.round(r.left),
+        y: Math.round(r.top),
+        w: Math.round(r.width),
+        h: Math.round(r.height),
+      };
     };
+    window.__onniversoGetNativeWebViewSlotRect = (slotId?: string) => getRectById(slotId);
+    window.__onniversoGetLobbyScreen2Rect = () => getRectById(LOBBY_NATIVE_WEBVIEW_SLOT_ID);
     return () => {
       // no borramos la función global si otra pantalla la reutiliza en el futuro
       // pero sí invalidamos el ref al desmontar.
@@ -95,12 +108,16 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
       if (window.Android) window.Android.updateLobbyBounds?.();
     };
     syncBounds();
-    const intervalId = window.setInterval(syncBounds, 350);
+    const intervalId = window.setInterval(syncBounds, 120);
     window.addEventListener("resize", syncBounds);
+    window.addEventListener("scroll", syncBounds, true);
+    window.addEventListener("orientationchange", syncBounds);
 
     return () => {
       window.clearInterval(intervalId);
       window.removeEventListener("resize", syncBounds);
+      window.removeEventListener("scroll", syncBounds, true);
+      window.removeEventListener("orientationchange", syncBounds);
     };
   }, [isNativeAndroidSlot]);
 
