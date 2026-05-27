@@ -65,16 +65,15 @@ export default function OpAiAssistant() {
   };
 
   return (
-    <div className="pointer-events-none fixed bottom-16 left-10 z-[80] w-[min(92vw,380px)] max-sm:pb-12 sm:bottom-8 sm:pb-0">
-      {showSocialIcons && <HomeSocialRedesRow />}
+    <div className="pointer-events-none fixed bottom-3 left-4 z-[80] w-[min(92vw,380px)] max-sm:flex max-sm:flex-col max-sm:items-start max-sm:gap-2 sm:bottom-8 sm:left-10 sm:block">
       {!open ? (
         <button
           type="button"
-          className="pointer-events-auto relative z-[82] group flex flex-col items-center gap-1.5 rounded-2xl border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 max-sm:-translate-y-1"
+          className="pointer-events-auto relative z-[90] order-1 group flex flex-col items-center gap-1.5 rounded-2xl border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
           onClick={() => setOpen(true)}
           aria-label="Abrir Onni, asistente de texto"
         >
-          <OnniAvatar size="lg" state="idle" />
+          <OnniAvatar size="lg" state="idle" className="max-sm:h-16" />
         </button>
       ) : (
         <div className="pointer-events-auto rounded-2xl border border-cyan-300/35 bg-card/90 backdrop-blur-xl shadow-[0_0_45px_-16px_rgba(34,211,238,0.8)]">
@@ -114,6 +113,7 @@ export default function OpAiAssistant() {
           </form>
         </div>
       )}
+      {showSocialIcons && <HomeSocialRedesRow />}
     </div>
   );
 }
