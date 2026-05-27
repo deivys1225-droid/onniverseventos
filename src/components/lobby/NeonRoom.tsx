@@ -33,7 +33,7 @@ import AulaVirtualClassroomDecor from "@/components/lobby/AulaVirtualClassroomDe
 import AulaVirtualWallGallery from "@/components/lobby/AulaVirtualWallGallery";
 import { ROOM_THEMES, type ImmersiveRoomVariant } from "@/components/lobby/aulaVirtualTheme";
 import { onOpCommand } from "@/lib/opCommandBus";
-import { invokeAndroidLobbyReturn } from "@/lib/androidLobbyReturn";
+import { invokeAndroidLobbyReturnFromMobile } from "@/lib/androidLobbyReturn";
 
 export type { ImmersiveRoomVariant };
 
@@ -852,7 +852,7 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
   const isAulaVirtual = variant === "aula-virtual";
 
   const handleLobbyReturn = useCallback(() => {
-    if (!isAulaVirtual && invokeAndroidLobbyReturn()) return;
+    if (!isAulaVirtual && invokeAndroidLobbyReturnFromMobile()) return;
     navigate(isAulaVirtual ? "/3d" : "/");
   }, [isAulaVirtual, navigate]);
 

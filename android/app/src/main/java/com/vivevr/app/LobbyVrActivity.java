@@ -54,7 +54,20 @@ public class LobbyVrActivity extends AppCompatActivity {
     closeLp.setMargins(margin, margin, margin, margin);
     closeBtn.setLayoutParams(closeLp);
     closeBtn.setElevation(24f);
-    closeBtn.setOnClickListener(v -> finish());
+    closeBtn.setOnClickListener(
+        v -> {
+          if (webView != null) {
+            webView.evaluateJavascript(
+                "(function(){if(window.Android&&typeof window.Android.onVrClick==='function'){window.Android.onVrClick();return true;}return false;})()",
+                value -> {
+                  if (!"true".equals(String.valueOf(value))) {
+                    finish();
+                  }
+                });
+          } else {
+            finish();
+          }
+        });
     root.addView(closeBtn);
 
     setContentView(root);

@@ -16,7 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { APP_APK_DOWNLOAD_URL } from "@/config/appDownload";
@@ -24,6 +24,8 @@ import { LOCKED_NAVBAR_HEIGHT_CLASS, LOCKED_NAVBAR_MENU_OFFSET_CLASS } from "@/c
 import { isDesktopWebBrowser } from "@/lib/deviceDetection";
 import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
 import { GALERIA_AULA_SECTION_HREF } from "@/lib/aulaVirtual";
+import { invokeAndroidOnVrClick } from "@/lib/androidLobbyReturn";
+import { isMobileUserAgent } from "@/lib/deviceDetection";
 import { onOpCommand } from "@/lib/opCommandBus";
 
 const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
@@ -40,6 +42,7 @@ const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
 const Navbar = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showAppDownload, setShowAppDownload] = useState(false);
 
@@ -56,6 +59,11 @@ const Navbar = () => {
   }, []);
 
   const handleLogout = async () => {
+    const inLobbyImmersive = location.pathname.startsWith("/lobby-inmersivo");
+    if (inLobbyImmersive && isMobileUserAgent() && invokeAndroidOnVrClick()) {
+      setIsMenuOpen(false);
+      return;
+    }
     await signOut();
     toast.success("Sesión cerrada");
     setIsMenuOpen(false);
