@@ -42,16 +42,19 @@ declare global {
       openLobby?(): void;
       /** Mismo que {@code AndroidBridge.openLobbyDirect} (Tierra / lobby nativo). */
       openLobbyDirect?: () => void;
-      /** Solo lobby Pantalla 2 (TikTok en WebView nativo). */
+      /** Solo lobby Pantalla 2 (YouTube en WebView nativo). */
       showLobbyPantalla2WebView?(): void;
       hideLobbyPantalla2WebView?(): void;
-      /** API genérica para montar WebView nativo en lobby screen 2. */
+      /** Pantalla 2 — WebView nativo posicionado con {@code updateLobbyBounds}. */
       showLobbyScreen?(): void;
       updateLobbyBounds?(): void;
-      /** API dedicada opcional para pantalla 4 del lobby. */
+      hideLobbyScreen?(): void;
+      setLobbyScreen2Url?(url: string): void;
+      /** Pantalla 4 — WebView nativo (Facebook) con {@code updateLobby4Bounds}. */
       showLobbyScreen4?(): void;
       updateLobby4Bounds?(): void;
       hideLobbyScreen4?(): void;
+      setLobbyScreen4Url?(url: string): void;
     };
   }
 }

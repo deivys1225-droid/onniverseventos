@@ -14,15 +14,11 @@ import {
   verifyDirReadPermission,
 } from "@/lib/lobbyLocalVideoPicker";
 
-declare global {
-  interface Window {
-    __onniversoGetNativeWebViewSlotRect?: (slotId?: string) => { x: number; y: number; w: number; h: number } | null;
-    __onniversoGetLobbyScreen2Rect?: () => { x: number; y: number; w: number; h: number } | null;
-  }
-}
+import { isLobbyNativeAndroid, useLobbyNativeOverlay } from "@/lib/lobbyNativeWebViewBridge";
 
 const LOBBY_NATIVE_WEBVIEW_SLOT_ID = "lobby-screen-2";
 const LOBBY_NATIVE_WEBVIEW_SLOT_LEGACY_ID = "onni-native-webview-lobby-screen-2";
+const LOBBY_SCREEN2_YOUTUBE_URL = "https://m.youtube.com";
 
 const lobbyBtnStyle: CSSProperties = {
   flex: 1,
@@ -63,66 +59,37 @@ function defaultPlaylistItems(): LocalVideoItem[] {
 export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPlayer({
   width,
   height,
+  overlayActive = false,
 }: {
   width: number;
   height: number;
+  /** true cuando la pantalla 2 está enfocada — WebView nativo fijo, no sigue al caminar. */
+  overlayActive?: boolean;
 }) {
   const nativeSlotRef = useRef<HTMLDivElement | null>(null);
-  const isNativeAndroidSlot =
-    typeof window !== "undefined" &&
-    (typeof window.Android !== "undefined" || typeof window.AndroidBridge !== "undefined");
+  const isNativeAndroidSlot = isLobbyNativeAndroid();
 
-  // Android: esta "pantalla 2" se renderiza como slot para que nativo monte su WebView.
-  // En web/PC se mantiene el reproductor actual.
-  useEffect(() => {
-    if (!isNativeAndroidSlot) return;
-    const getRectById = (requestedId?: string) => {
-      const normalizedId =
-        !requestedId || requestedId === LOBBY_NATIVE_WEBVIEW_SLOT_LEGACY_ID
-          ? LOBBY_NATIVE_WEBVIEW_SLOT_ID
-          : requestedId;
-      const el = document.getElementById(normalizedId);
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      return {
-        x: Math.round(r.left),
-        y: Math.round(r.top),
-        w: Math.round(r.width),
-        h: Math.round(r.height),
-      };
-    };
-    window.__onniversoGetNativeWebViewSlotRect = (slotId?: string) => getRectById(slotId);
-    window.__onniversoGetLobbyScreen2Rect = () => getRectById(LOBBY_NATIVE_WEBVIEW_SLOT_ID);
-    return () => {
-      // no borramos la función global si otra pantalla la reutiliza en el futuro
-      // pero sí invalidamos el ref al desmontar.
-      nativeSlotRef.current = null;
-    };
-  }, [isNativeAndroidSlot]);
-
-  useEffect(() => {
-    if (!isNativeAndroidSlot) return;
-    const syncBounds = () => {
-      if (!window.Android) return;
-      // Forzamos show + update para evitar que Android se quede con un rect inicial inválido.
-      window.Android.showLobbyScreen?.();
-      window.Android.updateLobbyBounds?.();
-    };
-    window.requestAnimationFrame(syncBounds);
-    window.setTimeout(syncBounds, 120);
-    window.setTimeout(syncBounds, 420);
-    const intervalId = window.setInterval(syncBounds, 120);
-    window.addEventListener("resize", syncBounds);
-    window.addEventListener("scroll", syncBounds, true);
-    window.addEventListener("orientationchange", syncBounds);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("resize", syncBounds);
-      window.removeEventListener("scroll", syncBounds, true);
-      window.removeEventListener("orientationchange", syncBounds);
-    };
-  }, [isNativeAndroidSlot]);
+  useLobbyNativeOverlay({
+    active: isNativeAndroidSlot && overlayActive,
+    slotId: LOBBY_NATIVE_WEBVIEW_SLOT_ID,
+    legacyId: LOBBY_NATIVE_WEBVIEW_SLOT_LEGACY_ID,
+    setRectGlobal: (getter) => {
+      window.__onniversoGetLobbyScreen2Rect = getter;
+    },
+    url: LOBBY_SCREEN2_YOUTUBE_URL,
+    setUrl: (u) => window.Android?.setLobbyScreen2Url?.(u),
+    onShow: () => {
+      window.Android?.showLobbyScreen?.();
+      window.Android?.showLobbyPantalla2WebView?.();
+    },
+    onHide: () => {
+      window.Android?.hideLobbyScreen?.();
+      window.Android?.hideLobbyPantalla2WebView?.();
+    },
+    onUpdateBounds: () => {
+      window.Android?.updateLobbyBounds?.();
+    },
+  });
 
   if (isNativeAndroidSlot) {
     return (
@@ -130,6 +97,7 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
         ref={nativeSlotRef}
         id={LOBBY_NATIVE_WEBVIEW_SLOT_ID}
         data-native-webview-slot={LOBBY_NATIVE_WEBVIEW_SLOT_ID}
+        data-lobby-native-url={LOBBY_SCREEN2_YOUTUBE_URL}
         style={{
           width,
           height,
@@ -149,7 +117,7 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
           contain: "strict",
         }}
       >
-        WebView nativo aquí (Android).
+        {overlayActive ? null : "Toca para abrir"}
       </div>
     );
   }

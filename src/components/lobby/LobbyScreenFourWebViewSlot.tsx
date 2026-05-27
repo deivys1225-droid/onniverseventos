@@ -1,86 +1,61 @@
-import { memo, useEffect, useRef } from "react";
-
-declare global {
-  interface Window {
-    __onniversoGetNativeWebViewSlotRect?: (slotId?: string) => { x: number; y: number; w: number; h: number } | null;
-    __onniversoGetLobbyScreen4Rect?: () => { x: number; y: number; w: number; h: number } | null;
-  }
-}
+import { memo, useRef } from "react";
+import { isLobbyNativeAndroid, useLobbyNativeOverlay } from "@/lib/lobbyNativeWebViewBridge";
 
 const LOBBY_SCREEN4_SLOT_ID = "lobby-screen-4";
 const LOBBY_SCREEN4_SLOT_LEGACY_ID = "onni-native-webview-lobby-screen-4";
+const LOBBY_SCREEN4_URL = "https://www.facebook.com/profile.php?id=61588834621279";
 
 export const LobbyScreenFourWebViewSlot = memo(function LobbyScreenFourWebViewSlot({
   width,
   height,
+  overlayActive = false,
 }: {
   width: number;
   height: number;
+  /** true cuando la pantalla 4 está enfocada — WebView nativo fijo, no sigue al caminar. */
+  overlayActive?: boolean;
 }) {
   const slotRef = useRef<HTMLDivElement | null>(null);
-  const isNativeAndroidSlot =
-    typeof window !== "undefined" &&
-    (typeof window.Android !== "undefined" || typeof window.AndroidBridge !== "undefined");
+  const isNativeAndroidSlot = isLobbyNativeAndroid();
 
-  useEffect(() => {
-    if (!isNativeAndroidSlot) return;
-
-    const getRectById = (requestedId?: string) => {
-      const normalizedId =
-        !requestedId || requestedId === LOBBY_SCREEN4_SLOT_LEGACY_ID ? LOBBY_SCREEN4_SLOT_ID : requestedId;
-      const el = document.getElementById(normalizedId);
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      return {
-        x: Math.round(r.left),
-        y: Math.round(r.top),
-        w: Math.round(r.width),
-        h: Math.round(r.height),
-      };
-    };
-
-    window.__onniversoGetNativeWebViewSlotRect = (slotId?: string) => getRectById(slotId);
-    window.__onniversoGetLobbyScreen4Rect = () => getRectById(LOBBY_SCREEN4_SLOT_ID);
-
-    return () => {
-      slotRef.current = null;
-    };
-  }, [isNativeAndroidSlot]);
-
-  useEffect(() => {
-    if (!isNativeAndroidSlot) return;
-
-    const syncBounds = () => {
-      if (!window.Android) return;
-      // Compat: intenta API dedicada de pantalla 4 y luego fallback a la API genérica.
-      window.Android.showLobbyScreen4?.();
-      window.Android.showLobbyScreen?.();
-      window.Android.updateLobby4Bounds?.();
-      window.Android.updateLobbyBounds?.();
-    };
-
-    window.requestAnimationFrame(syncBounds);
-    window.setTimeout(syncBounds, 120);
-    window.setTimeout(syncBounds, 420);
-    const intervalId = window.setInterval(syncBounds, 120);
-    window.addEventListener("resize", syncBounds);
-    window.addEventListener("scroll", syncBounds, true);
-    window.addEventListener("orientationchange", syncBounds);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("resize", syncBounds);
-      window.removeEventListener("scroll", syncBounds, true);
-      window.removeEventListener("orientationchange", syncBounds);
+  useLobbyNativeOverlay({
+    active: isNativeAndroidSlot && overlayActive,
+    slotId: LOBBY_SCREEN4_SLOT_ID,
+    legacyId: LOBBY_SCREEN4_SLOT_LEGACY_ID,
+    setRectGlobal: (getter) => {
+      window.__onniversoGetLobbyScreen4Rect = getter;
+    },
+    url: LOBBY_SCREEN4_URL,
+    setUrl: (u) => window.Android?.setLobbyScreen4Url?.(u),
+    onShow: () => {
+      window.Android?.showLobbyScreen4?.();
+    },
+    onHide: () => {
       window.Android?.hideLobbyScreen4?.();
-    };
-  }, [isNativeAndroidSlot]);
+    },
+    onUpdateBounds: () => {
+      window.Android?.updateLobby4Bounds?.();
+    },
+  });
+
+  if (!isNativeAndroidSlot) {
+    return (
+      <iframe
+        src={LOBBY_SCREEN4_URL}
+        width={width}
+        height={height}
+        title="Facebook — OnniVers"
+        style={{ border: 0, display: "block", background: "#02030a" }}
+      />
+    );
+  }
 
   return (
     <div
       ref={slotRef}
       id={LOBBY_SCREEN4_SLOT_ID}
       data-native-webview-slot={LOBBY_SCREEN4_SLOT_ID}
+      data-lobby-native-url={LOBBY_SCREEN4_URL}
       style={{
         width,
         height,
@@ -100,8 +75,7 @@ export const LobbyScreenFourWebViewSlot = memo(function LobbyScreenFourWebViewSl
         contain: "strict",
       }}
     >
-      Pantalla 4: WebView nativo.
+      {overlayActive ? null : "Toca para abrir"}
     </div>
   );
 });
-

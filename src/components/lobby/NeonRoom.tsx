@@ -370,9 +370,17 @@ function HoloScreen({
           {kind === "hub" ? (
             <LobbyScreenOneHub width={embedWidth} height={embedHeight} />
           ) : kind === "salas" ? (
-            <LobbyScreenThreeSalasPlayer width={embedWidth} height={embedHeight} />
+            <LobbyScreenThreeSalasPlayer
+              width={embedWidth}
+              height={embedHeight}
+              overlayActive={focused}
+            />
           ) : kind === "screen4" ? (
-            <LobbyScreenFourWebViewSlot width={embedWidth} height={embedHeight} />
+            <LobbyScreenFourWebViewSlot
+              width={embedWidth}
+              height={embedHeight}
+              overlayActive={focused}
+            />
           ) : (
             <iframe
               key={embedUrl}
