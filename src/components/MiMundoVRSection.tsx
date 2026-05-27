@@ -13,11 +13,7 @@ import {
 import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { useNavigate } from "react-router-dom";
-import {
-  LOBBY_IMMERSIVE_PATH,
-  LOBBY_OPEN_TRANSITION_MS,
-  shouldUseWebLobbyRoute,
-} from "@/lib/lobbyImmersive";
+import { LOBBY_IMMERSIVE_PATH, LOBBY_OPEN_TRANSITION_MS } from "@/lib/lobbyImmersive";
 import { invokeOpenLobbyDirect } from "@/lib/lobbyOpenDirect";
 import {
   getRoomMode,
@@ -65,7 +61,9 @@ const MOON_ORBIT_RADIUS = CENTRAL_SPHERE_RADIUS * LOCKED_MOON.orbitRadiusFactor;
 const MOON_ORBIT_SPEED = 0.22;
 const EARTH_ROTATION_SPEED = 0.08;
 const EARTH_TAP_MAX_MOVE_PX = 14;
+const EARTH_TAP_MAX_MOVE_PX_MOBILE = 22;
 const EARTH_TAP_MAX_MS = 650;
+const EARTH_TAP_MAX_MS_MOBILE = 900;
 const PROFILE_NAME_STORAGE_KEY = "onniverso.profile.name";
 function readStoredProfileName(): string | undefined {
   try {
@@ -95,6 +93,8 @@ const EarthSceneInteractionContext = createContext<EarthSceneInteractionContextV
  */
 function useEarthMoonDrag(pivotRef: RefObject<THREE.Group | null>, enabled: boolean) {
   const { gl } = useThree();
+  const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
+  const dragMoveThreshold = isMobileCoarse ? 6 : 2;
   const draggingRef = useRef(false);
   const lastRef = useRef({ x: 0, y: 0 });
   const manualRef = useRef({ yaw: 0, pitch: 0 });
@@ -157,7 +157,7 @@ function useEarthMoonDrag(pivotRef: RefObject<THREE.Group | null>, enabled: bool
       if (!draggingRef.current) return;
       const dx = e.clientX - lastRef.current.x;
       const dy = e.clientY - lastRef.current.y;
-      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+      if (Math.abs(dx) > dragMoveThreshold || Math.abs(dy) > dragMoveThreshold) {
         userDraggedRef.current = true;
       }
       lastRef.current = { x: e.clientX, y: e.clientY };
@@ -170,7 +170,7 @@ function useEarthMoonDrag(pivotRef: RefObject<THREE.Group | null>, enabled: bool
       );
       applyPivotRotation();
     },
-    [applyPivotRotation, enabled],
+    [applyPivotRotation, dragMoveThreshold, enabled],
   );
 
   const onPointerEnd = useCallback((e: PointerEvent) => {
@@ -220,11 +220,11 @@ function useEarthMoonDrag(pivotRef: RefObject<THREE.Group | null>, enabled: bool
   };
 }
 
-/** Esfera invisible: ampliar zona de arrastre (órbita lunar) sin cambiar posición bloqueada. */
+/** Esfera invisible para arrastre; no intercepta taps (el raycast iría a la Tierra). */
 function EarthMoonDragHitShell() {
   const seg = 20;
   return (
-    <mesh renderOrder={-1}>
+    <mesh renderOrder={-1} raycast={() => null}>
       <sphereGeometry args={[EARTH_DRAG_HIT_RADIUS, seg, seg]} />
       <meshBasicMaterial transparent opacity={0} depthWrite={false} depthTest={false} />
     </mesh>
@@ -470,6 +470,7 @@ function useEarthTapPointerDown(
   }, []);
 
   const interaction = useContext(EarthSceneInteractionContext);
+  const isMobileCoarse = useMemo(() => isMobileCoarseDevice(), []);
 
   return useCallback(
     (event: ThreeEvent<PointerEvent>) => {
@@ -501,7 +502,9 @@ function useEarthTapPointerDown(
 
         const dist = Math.hypot(ev.clientX - x0, ev.clientY - y0);
         const dt = performance.now() - t0;
-        if (dist > EARTH_TAP_MAX_MOVE_PX || dt > EARTH_TAP_MAX_MS) return;
+        const maxMove = isMobileCoarse ? EARTH_TAP_MAX_MOVE_PX_MOBILE : EARTH_TAP_MAX_MOVE_PX;
+        const maxMs = isMobileCoarse ? EARTH_TAP_MAX_MS_MOBILE : EARTH_TAP_MAX_MS;
+        if (dist > maxMove || dt > maxMs) return;
         if (interaction?.userDraggedRef.current) return;
 
         if (typeof ev.preventDefault === "function") {
@@ -514,7 +517,7 @@ function useEarthTapPointerDown(
       window.addEventListener("pointerup", onPointerEnd);
       window.addEventListener("pointercancel", onPointerEnd);
     },
-    [interaction, vrStereo, onOpenLobby],
+    [interaction, isMobileCoarse, vrStereo, onOpenLobby],
   );
 }
 
@@ -728,18 +731,17 @@ const MiMundoVRSection = ({
     ],
     [isNarrowViewport],
   );
-  const handleLobbyOpen = () => {
+  const handleLobbyOpen = useCallback(() => {
     if (lobbyOpening || vrStereoActive) return;
 
-    // APK: puente nativo primero; NUNCA navegar si existe AndroidBridge/Android.
     if (invokeOpenLobbyDirect()) return;
-    if (!shouldUseWebLobbyRoute()) return;
 
     setLobbyOpening(true);
     window.setTimeout(() => {
       navigate(LOBBY_IMMERSIVE_PATH);
+      setLobbyOpening(false);
     }, LOBBY_OPEN_TRANSITION_MS);
-  };
+  }, [lobbyOpening, navigate, vrStereoActive]);
 
   const onProfileConfirm = async (payload: ProfileCardConfirmPayload) => {
     try {

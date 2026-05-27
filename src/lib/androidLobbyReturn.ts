@@ -23,8 +23,11 @@ export function invokeAndroidLobbyReturn(): boolean {
   return false;
 }
 
-/** En celular con puente Android: prioriza {@code onVrClick}. */
+/** Celular o APK: {@code onVrClick} si existe el puente (sin depender solo del user-agent). */
 export function invokeAndroidLobbyReturnFromMobile(): boolean {
-  if (!isMobileUserAgent() && typeof window.Android === "undefined") return false;
+  if (typeof window.Android !== "undefined") {
+    return invokeAndroidLobbyReturn();
+  }
+  if (!isMobileUserAgent()) return false;
   return invokeAndroidLobbyReturn();
 }
