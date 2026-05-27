@@ -102,12 +102,15 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
 
   useEffect(() => {
     if (!isNativeAndroidSlot) return;
-    if (window.Android) window.Android.showLobbyScreen?.();
-
     const syncBounds = () => {
-      if (window.Android) window.Android.updateLobbyBounds?.();
+      if (!window.Android) return;
+      // Forzamos show + update para evitar que Android se quede con un rect inicial inválido.
+      window.Android.showLobbyScreen?.();
+      window.Android.updateLobbyBounds?.();
     };
-    syncBounds();
+    window.requestAnimationFrame(syncBounds);
+    window.setTimeout(syncBounds, 120);
+    window.setTimeout(syncBounds, 420);
     const intervalId = window.setInterval(syncBounds, 120);
     window.addEventListener("resize", syncBounds);
     window.addEventListener("scroll", syncBounds, true);
