@@ -45,6 +45,9 @@ declare global {
       /** Solo lobby Pantalla 2 (TikTok en WebView nativo). */
       showLobbyPantalla2WebView?(): void;
       hideLobbyPantalla2WebView?(): void;
+      /** API genérica para montar WebView nativo en lobby screen 2. */
+      showLobbyScreen?(): void;
+      updateLobbyBounds?(): void;
     };
   }
 }

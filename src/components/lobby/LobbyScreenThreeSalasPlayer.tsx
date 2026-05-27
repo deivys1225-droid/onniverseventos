@@ -74,10 +74,8 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
   // En web/PC se mantiene el reproductor actual.
   useEffect(() => {
     if (!isNativeAndroidSlot) return;
-    const slotId = LOBBY_NATIVE_WEBVIEW_SLOT_ID;
-    window.__onniversoGetNativeWebViewSlotRect = (id: string) => {
-      if (id !== slotId) return null;
-      const el = nativeSlotRef.current;
+    window.__onniversoGetNativeWebViewSlotRect = (slotId: string) => {
+      const el = document.getElementById(slotId);
       if (!el) return null;
       const r = el.getBoundingClientRect();
       return { x: r.left, y: r.top, w: r.width, h: r.height };
@@ -91,10 +89,18 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
 
   useEffect(() => {
     if (!isNativeAndroidSlot) return;
-    // Notifica a Android que puede montar el WebView nativo en pantalla 2.
-    window.Android?.showLobbyPantalla2WebView?.();
+    if (window.Android) window.Android.showLobbyScreen?.();
+
+    const syncBounds = () => {
+      if (window.Android) window.Android.updateLobbyBounds?.();
+    };
+    syncBounds();
+    const intervalId = window.setInterval(syncBounds, 350);
+    window.addEventListener("resize", syncBounds);
+
     return () => {
-      window.Android?.hideLobbyPantalla2WebView?.();
+      window.clearInterval(intervalId);
+      window.removeEventListener("resize", syncBounds);
     };
   }, [isNativeAndroidSlot]);
 
@@ -102,7 +108,7 @@ export const LobbyScreenThreeSalasPlayer = memo(function LobbyScreenThreeSalasPl
     return (
       <div
         ref={nativeSlotRef}
-        id="onni-native-webview-lobby-screen-2"
+        id={LOBBY_NATIVE_WEBVIEW_SLOT_ID}
         data-native-webview-slot={LOBBY_NATIVE_WEBVIEW_SLOT_ID}
         style={{
           width,
