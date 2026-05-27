@@ -1,4 +1,5 @@
 import { useCallback, useId, useState } from "react";
+import { Camera, MonitorPlay } from "lucide-react";
 import { FacebookGlyph, InstagramGlyph } from "@/components/SocialFooterIcons";
 import {
   AlertDialog,
@@ -196,15 +197,25 @@ export default function HomeSocialRedesRow() {
           <AlertDialogHeader>
             <AlertDialogTitle>{picked?.label}</AlertDialogTitle>
             <AlertDialogDescription className="sr-only">
-              Elige Redes o Redes Cam
+              Elige Cine o Cine Cam
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
-            <AlertDialogAction type="button" className="w-full" onClick={onPickRedes}>
-              Redes
+            <AlertDialogAction
+              type="button"
+              className="inline-flex w-full items-center justify-center gap-2"
+              onClick={onPickRedes}
+            >
+              <MonitorPlay className="h-4 w-4 shrink-0" aria-hidden />
+              Cine
             </AlertDialogAction>
-            <AlertDialogAction type="button" className="w-full" onClick={onPickRedesCam}>
-              Redes Cam
+            <AlertDialogAction
+              type="button"
+              className="inline-flex w-full items-center justify-center gap-2"
+              onClick={onPickRedesCam}
+            >
+              <Camera className="h-4 w-4 shrink-0" aria-hidden />
+              Cine Cam
             </AlertDialogAction>
             <AlertDialogCancel type="button" className="w-full">
               Cancelar
