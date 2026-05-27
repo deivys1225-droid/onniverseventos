@@ -23,3 +23,13 @@ export function isAndroidNativeApp(): boolean {
   if (typeof window === "undefined") return false;
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 }
+
+/** Botón «Descargar app» en navbar: solo PC con navegador (no APK ni móvil). */
+export function isDesktopWebBrowser(): boolean {
+  if (typeof window === "undefined") return false;
+  if (isAndroidNativeApp()) return false;
+  if (typeof window.Android !== "undefined" || typeof window.AndroidBridge !== "undefined") {
+    return false;
+  }
+  return detectDeviceKind() === "desktop";
+}

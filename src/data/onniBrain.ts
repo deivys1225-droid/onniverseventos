@@ -1,7 +1,8 @@
 import { OP_LOBBY_HINTS, OP_ROUTES, OP_STREAMERS } from "@/data/opAssistantKnowledge";
 
-export const ONNI_APK_URL =
-  "https://drive.google.com/file/d/1dzJRInrQ2w6uS1wb_RVEHwLVtQTOIqoE/view?usp=sharing";
+import { APP_APK_DOWNLOAD_URL } from "@/config/appDownload";
+
+export const ONNI_APK_URL = APP_APK_DOWNLOAD_URL;
 
 export const ONNI_SUPPORT_EMAIL = "gerencia@onniverso.com";
 

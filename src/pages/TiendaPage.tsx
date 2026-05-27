@@ -8,7 +8,6 @@ import {
   Gem,
   ShieldCheck,
   TrendingUp,
-  Mail,
   Ticket,
   BookOpen,
   GraduationCap,
@@ -21,6 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import PricingSection from "@/components/PricingSection";
 import Footer from "@/components/Footer";
+import InvestmentContactDialog from "@/components/InvestmentContactDialog";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
 import StoreProductPayPal from "@/components/StoreProductPayPal";
 import { useAuth } from "@/hooks/useAuth";
@@ -211,6 +211,7 @@ const TiendaPage = () => {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [dynamicProducts, setDynamicProducts] = useState<DynamicStoreProduct[]>([]);
   const [sessionPurchases, setSessionPurchases] = useState<Set<string>>(() => new Set());
+  const [investmentDialogOpen, setInvestmentDialogOpen] = useState(false);
 
   useEffect(() => {
     const loadDynamicStore = async () => {
@@ -593,16 +594,20 @@ const TiendaPage = () => {
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button variant="hero" size="lg" className="text-base px-10 gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Contactar para Inversión
-                </Button>
-                <Button variant="heroOutline" size="lg" className="text-base px-10 gap-2">
-                  <Mail className="w-5 h-5" />
-                  Solicitar Pitch Deck
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="hero"
+                size="lg"
+                className="text-base px-10 gap-2"
+                onClick={() => setInvestmentDialogOpen(true)}
+              >
+                <TrendingUp className="w-5 h-5" />
+                Contactar para Inversión
+              </Button>
+              <InvestmentContactDialog
+                open={investmentDialogOpen}
+                onOpenChange={setInvestmentDialogOpen}
+              />
             </div>
 
             {/* Bottom accent */}
