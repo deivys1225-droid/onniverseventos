@@ -118,6 +118,12 @@ public class MainActivity extends BridgeActivity {
 
   private boolean lobbyPantalla2WebViewUrlLoaded;
 
+  /** Inicio — {@code window.Android.openVrRedes(url)}. */
+  private WebView vrRedesWebView;
+
+  /** Inicio — {@code window.Android.openRedesCamDirect(url)}. */
+  private WebView redesCamWebView;
+
   // ----- Lobby Pantalla 1 — reproductor MP3/MP4 desde carpeta del dispositivo (SAF) -----
   /** Límite defensivo para no inflar memoria al recorrer carpetas enormes. */
   private static final int MAX_MUSIC_FILES = 2000;
@@ -350,6 +356,7 @@ public class MainActivity extends BridgeActivity {
   @Override
   public void onDestroy() {
     destroyLobbyPantalla2WebViewIfPresent();
+    destroySocialRedesWebViews();
     super.onDestroy();
   }
 
@@ -684,6 +691,18 @@ public class MainActivity extends BridgeActivity {
       activity.runOnUiThread(() -> activity.updateLobbyPantalla2Bounds());
     }
 
+    /** {@code window.Android.openVrRedes(url)} — iconos Redes en inicio. */
+    @JavascriptInterface
+    public void openVrRedes(String url) {
+      activity.runOnUiThread(() -> activity.openSocialRedesOverlay(url, false));
+    }
+
+    /** {@code window.Android.openRedesCamDirect(url)} — iconos Redes Cam en inicio. */
+    @JavascriptInterface
+    public void openRedesCamDirect(String url) {
+      activity.runOnUiThread(() -> activity.openSocialRedesOverlay(url, true));
+    }
+
     /**
      * Reproduce stream en {@link SelectorActivity} (ExoPlayer). {@code window.Android.playStream(url)}.
      */
@@ -990,6 +1009,151 @@ public class MainActivity extends BridgeActivity {
     lobbyPantalla2WebView.destroy();
     lobbyPantalla2WebView = null;
     lobbyPantalla2WebViewUrlLoaded = false;
+  }
+
+  private void openSocialRedesOverlay(String url, boolean redesCam) {
+    String target = url != null ? url.trim() : "";
+    if (target.isEmpty()) {
+      Toast.makeText(this, "URL de red social vacía.", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    if (!target.startsWith("http://") && !target.startsWith("https://")) {
+      Toast.makeText(this, "URL inválida (usa https://).", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    if (redesCam) {
+      hideSocialRedesWebView(vrRedesWebView);
+      showSocialRedesWebView(target, true);
+    } else {
+      hideSocialRedesWebView(redesCamWebView);
+      showSocialRedesWebView(target, false);
+    }
+  }
+
+  private void showSocialRedesWebView(String url, boolean redesCam) {
+    WebView wv = ensureSocialRedesWebView(redesCam);
+    if (wv == null) {
+      return;
+    }
+    FrameLayout.LayoutParams lp =
+        new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+    lp.gravity = Gravity.TOP | Gravity.START;
+    wv.setLayoutParams(lp);
+    wv.setVisibility(View.VISIBLE);
+    wv.bringToFront();
+    wv.loadUrl(url);
+    ViewGroup parent = resolveLobbyOverlayParent();
+    if (parent != null) {
+      parent.requestLayout();
+    }
+  }
+
+  private WebView ensureSocialRedesWebView(boolean redesCam) {
+    WebView existing = redesCam ? redesCamWebView : vrRedesWebView;
+    if (existing != null) {
+      return existing;
+    }
+    ViewGroup parent = resolveLobbyOverlayParent();
+    if (parent == null) {
+      return null;
+    }
+    String tag = redesCam ? "redes_cam_wv" : "vr_redes_wv";
+    View found = parent.findViewWithTag(tag);
+    if (found instanceof WebView) {
+      if (redesCam) {
+        redesCamWebView = (WebView) found;
+      } else {
+        vrRedesWebView = (WebView) found;
+      }
+      return (WebView) found;
+    }
+
+    WebView wv = new WebView(this);
+    wv.setTag(tag);
+    wv.setVisibility(View.GONE);
+    wv.setElevation(10001f);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      wv.setZ(10001f);
+    }
+    wv.setBackgroundColor(0xff02030a);
+
+    WebSettings settings = wv.getSettings();
+    settings.setJavaScriptEnabled(true);
+    settings.setDomStorageEnabled(true);
+    settings.setLoadWithOverviewMode(true);
+    settings.setUseWideViewPort(true);
+    settings.setMediaPlaybackRequiresUserGesture(false);
+    settings.setUserAgentString(LOBBY_SCREEN_MOBILE_UA);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+    }
+
+    wv.setWebChromeClient(
+        new WebChromeClient() {
+          @Override
+          public void onPermissionRequest(final PermissionRequest request) {
+            MainActivity.this.runOnUiThread(() -> handleWebKitMediaPermission(request));
+          }
+        });
+    wv.setWebViewClient(
+        new WebViewClient() {
+          @Override
+          public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            Uri uri = request != null ? request.getUrl() : null;
+            if (uri == null) {
+              return false;
+            }
+            String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase(Locale.ROOT) : "";
+            return !"http".equals(scheme) && !"https".equals(scheme);
+          }
+        });
+    wv.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+    parent.addView(wv);
+    if (redesCam) {
+      redesCamWebView = wv;
+    } else {
+      vrRedesWebView = wv;
+    }
+    return wv;
+  }
+
+  private void hideSocialRedesWebView(WebView wv) {
+    if (wv != null) {
+      wv.setVisibility(View.GONE);
+    }
+  }
+
+  private void destroySocialRedesWebViews() {
+    destroySocialRedesWebView(vrRedesWebView, false);
+    destroySocialRedesWebView(redesCamWebView, true);
+    vrRedesWebView = null;
+    redesCamWebView = null;
+  }
+
+  private void destroySocialRedesWebView(WebView wv, boolean redesCam) {
+    if (wv == null) {
+      return;
+    }
+    ViewGroup parent = (ViewGroup) wv.getParent();
+    if (parent != null) {
+      parent.removeView(wv);
+    }
+    wv.destroy();
+  }
+
+  @Override
+  public void onBackPressed() {
+    if (redesCamWebView != null && redesCamWebView.getVisibility() == View.VISIBLE) {
+      hideSocialRedesWebView(redesCamWebView);
+      return;
+    }
+    if (vrRedesWebView != null && vrRedesWebView.getVisibility() == View.VISIBLE) {
+      hideSocialRedesWebView(vrRedesWebView);
+      return;
+    }
+    super.onBackPressed();
   }
 
   private boolean isPlaybackTarget(Uri uri) {

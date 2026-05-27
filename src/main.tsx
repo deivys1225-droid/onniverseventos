@@ -33,6 +33,10 @@ declare global {
       onVrClick?(mp4Url?: string): void;
       /** Misma maleta que {@code onVrClick} sin argumentos, o {@code openSelector(streamId)} con id. */
       openSelector?(streamId?: string): void;
+      /** Iconos Redes en inicio — WebView nativo pantalla completa. */
+      openVrRedes?(url: string): void;
+      /** Iconos Redes Cam — WebView nativo independiente. */
+      openRedesCamDirect?(url: string): void;
       /** HLS/URL → SelectorActivity (ExoPlayer nativo). */
       playStream?(streamUrl: string): void;
       /** @deprecated Usar playStream */
