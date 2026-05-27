@@ -50,6 +50,13 @@ export default function OpAiAssistant() {
 
   const hint = useMemo(() => getOpAssistantHint(location.pathname), [location.pathname]);
   const showSocialIcons = location.pathname === "/";
+  const openVrSocial = useCallback((url: string) => {
+    try {
+      window.Android?.openVrRedes?.(url);
+    } catch {
+      /* no-op: disponible solo en app Android */
+    }
+  }, []);
 
   const runCommand = useCallback(
     (raw: string) => {
@@ -99,6 +106,7 @@ export default function OpAiAssistant() {
           type="button"
           className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-red-500/65 bg-[#ff0000] text-white shadow-[0_0_20px_-6px_rgba(255,0,0,0.95)] backdrop-blur-md"
           aria-label="YouTube (pendiente)"
+          onClick={() => openVrSocial("https://www.youtube.com")}
         >
           <YouTubeGlyph />
         </button>
@@ -106,6 +114,7 @@ export default function OpAiAssistant() {
           type="button"
           className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-blue-500/65 bg-[#1877f2] text-white shadow-[0_0_20px_-6px_rgba(24,119,242,0.95)] backdrop-blur-md"
           aria-label="Facebook (pendiente)"
+          onClick={() => openVrSocial("https://www.facebook.com")}
         >
           <FacebookGlyph />
         </button>
@@ -113,6 +122,7 @@ export default function OpAiAssistant() {
           type="button"
           className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-fuchsia-500/65 bg-[linear-gradient(135deg,#f58529_0%,#feda77_18%,#dd2a7b_45%,#8134af_72%,#515bd4_100%)] text-white shadow-[0_0_20px_-6px_rgba(221,42,123,0.95)] backdrop-blur-md"
           aria-label="Instagram (pendiente)"
+          onClick={() => openVrSocial("https://www.instagram.com")}
         >
           <InstagramGlyph />
         </button>
@@ -120,6 +130,7 @@ export default function OpAiAssistant() {
           type="button"
           className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/65 bg-black text-white shadow-[0_0_20px_-6px_rgba(255,255,255,0.6)] backdrop-blur-md"
           aria-label="TikTok (pendiente)"
+          onClick={() => openVrSocial("https://www.tiktok.com")}
         >
           <TikTokBrandGlyph />
         </button>
