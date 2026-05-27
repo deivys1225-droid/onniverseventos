@@ -92,7 +92,7 @@ export default function OpAiAssistant() {
 
   return (
     <div className="pointer-events-none fixed bottom-8 left-10 z-[80] w-[min(92vw,380px)]">
-      <div className="pointer-events-none absolute left-[14rem] bottom-1 z-[81] flex items-center gap-2">
+      <div className="pointer-events-none absolute bottom-1 left-1/2 z-[81] flex -translate-x-1/2 items-center gap-2 sm:left-[14rem] sm:translate-x-0">
         <button
           type="button"
           className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-red-500/65 bg-[#ff0000] text-white shadow-[0_0_20px_-6px_rgba(255,0,0,0.95)] backdrop-blur-md"
