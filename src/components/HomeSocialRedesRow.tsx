@@ -146,7 +146,7 @@ export default function HomeSocialRedesRow() {
 
   return (
     <>
-      <div className="pointer-events-none absolute bottom-1 left-[42%] z-[81] flex -translate-x-1/2 items-center gap-2 sm:left-[11rem] sm:translate-x-0">
+      <div className="pointer-events-none absolute bottom-0 left-[42%] z-[81] flex -translate-x-1/2 items-center gap-2 max-sm:gap-1.5 sm:bottom-1 sm:left-[11rem] sm:translate-x-0 sm:gap-2">
         {ICON_BUTTONS.map(({ id, label, className, Glyph }) => (
           <button
             key={id}

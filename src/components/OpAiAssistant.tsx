@@ -65,12 +65,12 @@ export default function OpAiAssistant() {
   };
 
   return (
-    <div className="pointer-events-none fixed bottom-14 left-10 z-[80] w-[min(92vw,380px)] sm:bottom-8">
+    <div className="pointer-events-none fixed bottom-16 left-10 z-[80] w-[min(92vw,380px)] max-sm:pb-12 sm:bottom-8 sm:pb-0">
       {showSocialIcons && <HomeSocialRedesRow />}
       {!open ? (
         <button
           type="button"
-          className="pointer-events-auto group flex flex-col items-center gap-1.5 rounded-2xl border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
+          className="pointer-events-auto relative z-[82] group flex flex-col items-center gap-1.5 rounded-2xl border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 max-sm:-translate-y-1"
           onClick={() => setOpen(true)}
           aria-label="Abrir Onni, asistente de texto"
         >
