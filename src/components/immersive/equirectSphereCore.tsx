@@ -27,10 +27,11 @@ export function EquirectangularInterior({
   );
 }
 
-export function ImmersiveOrbitControls() {
+export function ImmersiveOrbitControls({ enabled = true }: { enabled?: boolean }) {
   return (
     <OrbitControls
       makeDefault
+      enabled={enabled}
       enablePan={false}
       enableZoom
       enableDamping

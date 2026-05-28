@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Calendar, Eye, Ticket } from "lucide-react";
+import { Box, Calendar, Eye, Landmark, Ticket } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { formatUsd, stableUsdInRange } from "@/lib/pricing";
@@ -7,6 +7,20 @@ import { formatUsd, stableUsdInRange } from "@/lib/pricing";
 /** Rutas reales de la app: hub teatro, eventos Supabase por id, podcast hub, educación. */
 const FeaturedEvents = () => {
   const events = [
+    {
+      id: "featured-coliseo-360",
+      title: "COLISEO ROMANO 360°",
+      genre: "Esfera inmersiva · Panorama del anfiteatro · YouTube flotante",
+      date: "Siempre disponible · Sala esférica",
+      viewers: "Explora en 360°",
+      image: "/coliseo.jpg",
+      live: true,
+      isFree: true,
+      ctaLabel: "Entrar al Coliseo",
+      to: "/coliseo",
+      featuredIcon: Landmark,
+      badge360: true,
+    },
     {
       id: "a1b2c3d4-0003-4000-8000-000000000003",
       title: "STAND-UP / TEATRO Royale OnniVers",
@@ -123,6 +137,16 @@ const FeaturedEvents = () => {
                       <span className="absolute top-2 left-2 sm:top-4 sm:left-4 flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-xs font-display font-semibold bg-destructive/90 text-destructive-foreground rounded-full">
                         <span className="w-1.5 h-1.5 bg-destructive-foreground rounded-full animate-pulse-glow" />
                         EN VIVO
+                      </span>
+                    )}
+                    {"badge360" in event && event.badge360 && (
+                      <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded-lg border border-amber-400/40 bg-black/55 px-2 py-1 text-[10px] font-display uppercase tracking-wider text-amber-100 backdrop-blur-md">
+                        {"featuredIcon" in event && event.featuredIcon ? (
+                          <event.featuredIcon className="h-3 w-3 text-amber-300" />
+                        ) : (
+                          <Box className="h-3 w-3 text-amber-300" />
+                        )}
+                        Esfera 360°
                       </span>
                     )}
                     <span

@@ -70,6 +70,9 @@ public class MainActivity extends BridgeActivity {
   /** Lobby Pantalla 2 — YouTube móvil en WebView nativo sobre el slot 3D. */
   private static final String LOBBY_SCREEN2_DEFAULT_URL = "https://m.youtube.com";
 
+  /** Coliseo — YouTube (móvil) en WebView nativo sobre la pantalla flotante 3D. */
+  private static final String COLOSSEO_BROWSER_DEFAULT_URL = "https://m.youtube.com";
+
   private static final String LOBBY_SCREEN_MOBILE_UA =
       "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
 
@@ -123,6 +126,9 @@ public class MainActivity extends BridgeActivity {
 
   /** Inicio — {@code window.Android.openRedesCamDirect(url)}. */
   private WebView redesCamWebView;
+
+  /** Coliseo — {@code window.Android.showColiseoBrowserWebView()} sobre slot 3D. */
+  private WebView coliseoBrowserWebView;
 
   // ----- Lobby Pantalla 1 — reproductor MP3/MP4 desde carpeta del dispositivo (SAF) -----
   /** Límite defensivo para no inflar memoria al recorrer carpetas enormes. */
@@ -356,6 +362,7 @@ public class MainActivity extends BridgeActivity {
   @Override
   public void onDestroy() {
     destroyLobbyPantalla2WebViewIfPresent();
+    destroyColiseoBrowserWebViewIfPresent();
     destroySocialRedesWebViews();
     super.onDestroy();
   }
@@ -691,6 +698,27 @@ public class MainActivity extends BridgeActivity {
       activity.runOnUiThread(() -> activity.updateLobbyPantalla2Bounds());
     }
 
+    /** Coliseo — WebView nativo YouTube sobre la pantalla flotante 3D. */
+    @JavascriptInterface
+    public void showColiseoBrowserWebView() {
+      activity.runOnUiThread(() -> activity.attachAndShowColiseoBrowserWebView());
+    }
+
+    @JavascriptInterface
+    public void hideColiseoBrowserWebView() {
+      activity.runOnUiThread(() -> activity.hideColiseoBrowserWebViewInternal());
+    }
+
+    @JavascriptInterface
+    public void updateColiseoBrowserBounds() {
+      activity.runOnUiThread(() -> activity.updateColiseoBrowserBounds());
+    }
+
+    @JavascriptInterface
+    public void loadColiseoBrowserUrl(String url) {
+      activity.runOnUiThread(() -> activity.loadColiseoBrowserUrlInternal(url));
+    }
+
     /** {@code window.Android.openVrRedes(url)} — iconos Redes en inicio. */
     @JavascriptInterface
     public void openVrRedes(String url) {
@@ -1009,6 +1037,169 @@ public class MainActivity extends BridgeActivity {
     lobbyPantalla2WebView.destroy();
     lobbyPantalla2WebView = null;
     lobbyPantalla2WebViewUrlLoaded = false;
+  }
+
+  private void ensureColiseoBrowserWebViewCreated() {
+    if (coliseoBrowserWebView != null) {
+      return;
+    }
+    ViewGroup parent = resolveLobbyOverlayParent();
+    if (parent == null) {
+      return;
+    }
+    View existing = parent.findViewWithTag("coliseo_browser_wv");
+    if (existing instanceof WebView) {
+      coliseoBrowserWebView = (WebView) existing;
+      return;
+    }
+
+    WebView wv = new WebView(this);
+    wv.setTag("coliseo_browser_wv");
+    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(1, 1);
+    lp.gravity = Gravity.TOP | Gravity.START;
+    wv.setLayoutParams(lp);
+    wv.setVisibility(View.GONE);
+    wv.setElevation(10001f);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      wv.setZ(10001f);
+    }
+    wv.setBackgroundColor(0xff0f0f0f);
+
+    WebSettings settings = wv.getSettings();
+    settings.setJavaScriptEnabled(true);
+    settings.setDomStorageEnabled(true);
+    settings.setDatabaseEnabled(true);
+    settings.setLoadWithOverviewMode(true);
+    settings.setUseWideViewPort(true);
+    settings.setMediaPlaybackRequiresUserGesture(false);
+    settings.setUserAgentString(LOBBY_SCREEN_MOBILE_UA);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+    }
+
+    wv.setWebChromeClient(
+        new WebChromeClient() {
+          @Override
+          public void onPermissionRequest(final PermissionRequest request) {
+            MainActivity.this.runOnUiThread(() -> handleWebKitMediaPermission(request));
+          }
+        });
+    wv.setWebViewClient(new WebViewClient());
+    wv.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+    coliseoBrowserWebView = wv;
+    parent.addView(wv);
+  }
+
+  private void attachAndShowColiseoBrowserWebView() {
+    ensureColiseoBrowserWebViewCreated();
+    if (coliseoBrowserWebView == null) {
+      return;
+    }
+    loadColiseoBrowserUrlInternal(COLOSSEO_BROWSER_DEFAULT_URL);
+    updateColiseoBrowserBounds();
+    scheduleColiseoBrowserBoundsRetries();
+    coliseoBrowserWebView.bringToFront();
+    ViewGroup parent = resolveLobbyOverlayParent();
+    if (parent != null) {
+      parent.requestLayout();
+    }
+  }
+
+  private void scheduleColiseoBrowserBoundsRetries() {
+    if (coliseoBrowserWebView == null) {
+      return;
+    }
+    final int[] delaysMs = {80, 200, 450, 900, 1800, 3000};
+    for (int delay : delaysMs) {
+      coliseoBrowserWebView.postDelayed(this::updateColiseoBrowserBounds, delay);
+    }
+  }
+
+  private void updateColiseoBrowserBounds() {
+    if (coliseoBrowserWebView == null) {
+      return;
+    }
+    final String rectJs =
+        "(window.__onniversoGetColiseoBrowserRect&&window.__onniversoGetColiseoBrowserRect())";
+    applyJsRectToColiseoBrowserWebView(rectJs);
+  }
+
+  private void applyJsRectToColiseoBrowserWebView(String rectExpression) {
+    Bridge bridge = getBridge();
+    WebView main = bridge != null ? bridge.getWebView() : null;
+    if (main == null || coliseoBrowserWebView == null) {
+      return;
+    }
+    String code =
+        "(function(){try{var r="
+            + rectExpression
+            + ";if(!r)return null;return JSON.stringify(r);}catch(e){return null;}})();";
+    main.evaluateJavascript(
+        code,
+        value ->
+            runOnUiThread(
+                () -> {
+                  JSONObject rect = parseEvaluateJsonObject(value);
+                  if (rect == null) {
+                    return;
+                  }
+                  try {
+                    float scale = main.getScale();
+                    int w = (int) (rect.getInt("w") * scale + 0.5f);
+                    int h = (int) (rect.getInt("h") * scale + 0.5f);
+                    int x = (int) (rect.getInt("x") * scale + 0.5f);
+                    int y = (int) (rect.getInt("y") * scale + 0.5f);
+                    if (w < 48 || h < 48) {
+                      return;
+                    }
+                    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w, h);
+                    lp.leftMargin = x;
+                    lp.topMargin = y;
+                    lp.gravity = Gravity.TOP | Gravity.START;
+                    coliseoBrowserWebView.setLayoutParams(lp);
+                    coliseoBrowserWebView.setVisibility(View.VISIBLE);
+                    coliseoBrowserWebView.bringToFront();
+                  } catch (Exception ignored) {
+                    // ignore malformed rect
+                  }
+                }));
+  }
+
+  private void hideColiseoBrowserWebViewInternal() {
+    if (coliseoBrowserWebView != null) {
+      coliseoBrowserWebView.setVisibility(View.GONE);
+    }
+  }
+
+  private void loadColiseoBrowserUrlInternal(String url) {
+    ensureColiseoBrowserWebViewCreated();
+    if (coliseoBrowserWebView == null) {
+      return;
+    }
+    String target = url != null ? url.trim() : "";
+    if (target.isEmpty()) {
+      target = COLOSSEO_BROWSER_DEFAULT_URL;
+    }
+    if ("https://www.youtube.com".equalsIgnoreCase(target)
+        || "https://www.youtube.com/".equalsIgnoreCase(target)
+        || "http://www.youtube.com".equalsIgnoreCase(target)
+        || "http://www.youtube.com/".equalsIgnoreCase(target)) {
+      target = COLOSSEO_BROWSER_DEFAULT_URL;
+    }
+    coliseoBrowserWebView.loadUrl(target);
+  }
+
+  private void destroyColiseoBrowserWebViewIfPresent() {
+    if (coliseoBrowserWebView == null) {
+      return;
+    }
+    ViewGroup parent = (ViewGroup) coliseoBrowserWebView.getParent();
+    if (parent != null) {
+      parent.removeView(coliseoBrowserWebView);
+    }
+    coliseoBrowserWebView.destroy();
+    coliseoBrowserWebView = null;
   }
 
   private void openSocialRedesOverlay(String url, boolean redesCam) {

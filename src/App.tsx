@@ -19,6 +19,7 @@ import PodcastRoomPage from "./pages/PodcastRoomPage.tsx";
 import TeatroHub from "./pages/TeatroHub.tsx";
 import SalaTeatro from "./pages/SalaTeatro.tsx";
 import LobbyGlobalPage from "./pages/LobbyGlobalPage.tsx";
+import ColiseoPage from "./pages/ColiseoPage.tsx";
 import LobbyImmersivePage from "./pages/LobbyImmersivePage.tsx";
 import AulaVirtualPage from "./pages/AulaVirtualPage.tsx";
 import EventosPage from "./pages/EventosPage.tsx";
@@ -289,6 +290,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <LobbyGlobalPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/coliseo"
+              element={
+                <PrivateRoute>
+                  <ColiseoPage />
                 </PrivateRoute>
               }
             />

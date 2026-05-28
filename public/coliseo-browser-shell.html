@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Coliseo navegador</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #02030a;
+        font-family: system-ui, sans-serif;
+      }
+      #layers {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+      .layer {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        background: #02030a;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.75);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+      .layer-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 6px;
+        background: rgba(15, 23, 42, 0.95);
+        border-bottom: 1px solid rgba(251, 191, 36, 0.25);
+        flex-shrink: 0;
+      }
+      .layer-bar button {
+        border: 1px solid rgba(251, 191, 36, 0.45);
+        background: rgba(0, 0, 0, 0.45);
+        color: #fde68a;
+        border-radius: 6px;
+        width: 26px;
+        height: 26px;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+      .layer-bar button:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      .layer-url {
+        flex: 1;
+        min-width: 0;
+        font-size: 10px;
+        color: #cbd5e1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .layer iframe {
+        flex: 1;
+        width: 100%;
+        border: 0;
+        background: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="layers"></div>
+    <script>
+      (function () {
+        var CHANNEL = "coliseo-browser";
+        var DEFAULT_URL = "https://www.youtube.com/";
+        var SANDBOX =
+          "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals allow-top-navigation-by-user-activation allow-presentation";
+
+        var layers = [];
+        var activeLayerId = 0;
+        var nextId = 0;
+        var root = document.getElementById("layers");
+
+        function normalizeUrl(raw) {
+          if (!raw || typeof raw !== "string") return DEFAULT_URL;
+          var trimmed = raw.trim();
+          if (!trimmed) return DEFAULT_URL;
+          try {
+            if (/^https?:\/\//i.test(trimmed)) return new URL(trimmed).href;
+            if (!trimmed.includes(" ") && (trimmed.includes(".") || trimmed.indexOf("localhost") === 0)) {
+              return new URL("https://" + trimmed).href;
+            }
+            return (
+              "https://www.youtube.com/results?search_query=" + encodeURIComponent(trimmed)
+            );
+          } catch (e) {
+            return DEFAULT_URL;
+          }
+        }
+
+        function notifyParent() {
+          var active = getActiveLayer();
+          var url = active ? active.history[active.historyIndex] : DEFAULT_URL;
+          try {
+            window.parent.postMessage(
+              {
+                channel: CHANNEL,
+                type: "stack-changed",
+                depth: layers.length,
+                url: url,
+                canGoBack: active ? active.historyIndex > 0 : false,
+                canGoForward: active
+                  ? active.historyIndex < active.history.length - 1
+                  : false,
+              },
+              "*",
+            );
+          } catch (e) {
+            /* ignore */
+          }
+        }
+
+        function getActiveLayer() {
+          for (var i = 0; i < layers.length; i++) {
+            if (layers[i].id === activeLayerId) return layers[i];
+          }
+          return layers[0] || null;
+        }
+
+        function updateLayerLayout() {
+          for (var i = 0; i < layers.length; i++) {
+            var layer = layers[i];
+            var isActive = layer.id === activeLayerId;
+            var depth = i;
+            layer.el.style.zIndex = String(20 + depth);
+            layer.el.style.pointerEvents = isActive ? "auto" : "none";
+            layer.el.style.opacity = isActive ? "1" : "0.72";
+            layer.el.style.transform =
+              "translate(" + depth * 8 + "px, " + depth * 8 + "px) scale(" + (1 - depth * 0.015) + ")";
+            layer.closeBtn.disabled = layers.length <= 1;
+          }
+        }
+
+        function setActiveLayer(id) {
+          activeLayerId = id;
+          updateLayerLayout();
+          notifyParent();
+        }
+
+        function navigateLayer(layer, url, pushHistory) {
+          if (!layer) return;
+          var next = normalizeUrl(url);
+          if (pushHistory) {
+            var base = layer.history.slice(0, layer.historyIndex + 1);
+            if (base[base.length - 1] !== next) {
+              layer.history = base.concat([next]);
+              layer.historyIndex = layer.history.length - 1;
+            }
+          }
+          layer.iframe.src = layer.history[layer.historyIndex];
+          layer.labelEl.textContent = layer.history[layer.historyIndex];
+          notifyParent();
+        }
+
+        function createLayer(url, activate) {
+          var id = ++nextId;
+          var wrap = document.createElement("div");
+          wrap.className = "layer";
+
+          var bar = document.createElement("div");
+          bar.className = "layer-bar";
+
+          var closeBtn = document.createElement("button");
+          closeBtn.type = "button";
+          closeBtn.title = "Cerrar esta capa";
+          closeBtn.textContent = "×";
+          closeBtn.addEventListener("click", function () {
+            closeLayer(id);
+          });
+
+          var label = document.createElement("span");
+          label.className = "layer-url";
+
+          bar.appendChild(closeBtn);
+          bar.appendChild(label);
+
+          var iframe = document.createElement("iframe");
+          iframe.title = "Capa navegador Coliseo";
+          iframe.sandbox = SANDBOX;
+          iframe.allow =
+            "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen";
+          iframe.referrerPolicy = "no-referrer-when-downgrade";
+
+          var start = normalizeUrl(url);
+          iframe.src = start;
+
+          wrap.appendChild(bar);
+          wrap.appendChild(iframe);
+          root.appendChild(wrap);
+
+          var layer = {
+            id: id,
+            history: [start],
+            historyIndex: 0,
+            el: wrap,
+            iframe: iframe,
+            labelEl: label,
+            closeBtn: closeBtn,
+          };
+          layers.push(layer);
+          label.textContent = start;
+
+          if (activate !== false) setActiveLayer(id);
+          else updateLayerLayout();
+
+          notifyParent();
+          return layer;
+        }
+
+        function closeLayer(id) {
+          if (layers.length <= 1) return;
+          var idx = -1;
+          for (var i = 0; i < layers.length; i++) {
+            if (layers[i].id === id) {
+              idx = i;
+              break;
+            }
+          }
+          if (idx < 0) return;
+          var removed = layers.splice(idx, 1)[0];
+          removed.el.remove();
+          if (activeLayerId === id) {
+            activeLayerId = layers[layers.length - 1].id;
+          }
+          updateLayerLayout();
+          notifyParent();
+        }
+
+        window.open = function (url) {
+          if (url) {
+            createLayer(url, true);
+          }
+          return null;
+        };
+
+        window.addEventListener("message", function (event) {
+          var data = event.data;
+          if (!data || data.channel !== CHANNEL) return;
+          var active = getActiveLayer();
+          if (!active && data.type !== "navigate") return;
+
+          switch (data.type) {
+            case "navigate":
+              navigateLayer(active, data.url, true);
+              break;
+            case "back":
+              if (active.historyIndex > 0) {
+                active.historyIndex -= 1;
+                active.iframe.src = active.history[active.historyIndex];
+                active.labelEl.textContent = active.history[active.historyIndex];
+                notifyParent();
+              }
+              break;
+            case "forward":
+              if (active.historyIndex < active.history.length - 1) {
+                active.historyIndex += 1;
+                active.iframe.src = active.history[active.historyIndex];
+                active.labelEl.textContent = active.history[active.historyIndex];
+                notifyParent();
+              }
+              break;
+            case "reload":
+              active.iframe.src = active.history[active.historyIndex];
+              break;
+            case "open-layer":
+              createLayer(data.url || active.history[active.historyIndex], true);
+              break;
+            case "close-top":
+              closeLayer(active.id);
+              break;
+            default:
+              break;
+          }
+        });
+
+        var params = new URLSearchParams(window.location.search);
+        createLayer(params.get("url") || DEFAULT_URL, true);
+      })();
+    </script>
+  </body>
+</html>

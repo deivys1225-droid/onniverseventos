@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YouTube</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0f0f0f;
+      }
+      #view {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #0f0f0f;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe
+      id="view"
+      title="YouTube"
+      referrerpolicy="origin-when-cross-origin"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+      allowfullscreen
+    ></iframe>
+    <script>
+      (function () {
+        var CHANNEL = "coliseo-browser";
+        var DEFAULT_URL = "https://www.youtube.com/";
+        var view = document.getElementById("view");
+
+        function setLocation(url) {
+          if (!url) return;
+          view.src = url;
+        }
+
+        window.addEventListener("message", function (event) {
+          var data = event.data;
+          if (!data || data.channel !== CHANNEL) return;
+          if (data.type === "navigate" && data.url) setLocation(data.url);
+          if (data.type === "reload") setLocation(view.src || DEFAULT_URL);
+        });
+
+        var params = new URLSearchParams(window.location.search);
+        setLocation(params.get("url") || DEFAULT_URL);
+      })();
+    </script>
+  </body>
+</html>
