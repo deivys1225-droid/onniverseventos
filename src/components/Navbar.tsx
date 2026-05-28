@@ -112,14 +112,6 @@ const Navbar = () => {
                 <LogIn className="h-3.5 w-3.5" />
                 Entrar
               </Button>
-              {showAppDownload ? (
-                <Button variant="hero" size="sm" asChild className="hidden md:inline-flex gap-1.5">
-                  <a href={APP_APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
-                    <Download className="h-3.5 w-3.5" aria-hidden />
-                    Descargar app
-                  </a>
-                </Button>
-              ) : null}
             </div>
           )}
 
@@ -164,6 +156,18 @@ const Navbar = () => {
                   </Link>
                 );
               })}
+              {showAppDownload ? (
+                <a
+                  href={APP_APK_DOWNLOAD_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={closeMenu}
+                  className="flex min-h-[48px] w-full items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-left text-sm font-display font-semibold tracking-wide text-primary transition hover:bg-primary/15"
+                >
+                  <Download className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+                  <span>DESCARGAR APP</span>
+                </a>
+              ) : null}
             </div>
             {user ? (
               <div className="mt-4 space-y-3 border-t border-border/40 pt-4 sm:hidden">
