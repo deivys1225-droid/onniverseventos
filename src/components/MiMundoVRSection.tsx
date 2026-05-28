@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { Landmark } from "lucide-react";
 import { COLOSSEO_PATH } from "@/data/coliseoScene";
 import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
+import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
 import { LOBBY_IMMERSIVE_PATH, LOBBY_OPEN_TRANSITION_MS } from "@/lib/lobbyImmersive";
 import { invokeOpenLobbyDirect } from "@/lib/lobbyOpenDirect";
 import {
@@ -751,6 +752,11 @@ const MiMundoVRSection = ({
     navigate(COLOSSEO_PATH);
   }, [navigate]);
 
+  const onLocalPlayerClick = useCallback(() => {
+    if (invokeOpenGalleryDirect()) return;
+    navigate("/reproductor-galeria");
+  }, [navigate]);
+
   const onProfileConfirm = async (payload: ProfileCardConfirmPayload) => {
     try {
       localStorage.setItem(PROFILE_NAME_STORAGE_KEY, payload.name);
@@ -843,15 +849,31 @@ const MiMundoVRSection = ({
       )}
       {!vrStereoActive && (
         <>
-          <button
-            type="button"
-            onClick={onColiseoClick}
-            className="pointer-events-auto absolute bottom-32 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/50 bg-black/70 text-amber-200 shadow-[0_0_24px_rgba(251,191,36,0.25)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-950/80 hover:text-amber-100 md:bottom-6"
-            aria-label="Entrar al Coliseo Romano 360°"
-            title="Coliseo Romano 360°"
-          >
-            <Landmark className="h-5 w-5" />
-          </button>
+          <div className="pointer-events-none absolute bottom-32 right-4 z-20 flex flex-col items-center gap-3 md:bottom-6">
+            <button
+              type="button"
+              onClick={onLocalPlayerClick}
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-blue-500/70 bg-[#1877f2] text-white shadow-[0_0_24px_rgba(24,119,242,0.55)] backdrop-blur-md transition hover:border-blue-300 hover:bg-[#2b82f6]"
+              aria-label="Abrir reproductor local"
+              title="Reproductor local"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden xmlns="http://www.w3.org/2000/svg">
+                <path
+                  fill="currentColor"
+                  d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.7 15.6V8.4L16 12l-6.3 3.6z"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={onColiseoClick}
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/50 bg-black/70 text-amber-200 shadow-[0_0_24px_rgba(251,191,36,0.25)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-950/80 hover:text-amber-100"
+              aria-label="Entrar al Coliseo Romano 360°"
+              title="Coliseo Romano 360°"
+            >
+              <Landmark className="h-5 w-5" />
+            </button>
+          </div>
         </>
       )}
     </section>
