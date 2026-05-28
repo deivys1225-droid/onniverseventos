@@ -70,11 +70,15 @@ public class MainActivity extends BridgeActivity {
   /** Lobby Pantalla 2 — YouTube móvil en WebView nativo sobre el slot 3D. */
   private static final String LOBBY_SCREEN2_DEFAULT_URL = "https://m.youtube.com";
 
-  /** Coliseo — YouTube (móvil) en WebView nativo sobre la pantalla flotante 3D. */
-  private static final String COLOSSEO_BROWSER_DEFAULT_URL = "https://m.youtube.com";
+  /** Coliseo — YouTube escritorio en WebView nativo (UA de PC para evitar bloqueos móviles). */
+  private static final String COLOSSEO_BROWSER_DEFAULT_URL = "https://www.youtube.com/";
 
   private static final String LOBBY_SCREEN_MOBILE_UA =
       "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
+
+  /** Coliseo — Chrome Windows; YouTube sirve la versión de escritorio. */
+  private static final String COLOSSEO_BROWSER_DESKTOP_UA =
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
   private static final String DEFAULT_AUDIENCE_CHANNEL = "main";
 
@@ -1072,7 +1076,7 @@ public class MainActivity extends BridgeActivity {
     settings.setLoadWithOverviewMode(true);
     settings.setUseWideViewPort(true);
     settings.setMediaPlaybackRequiresUserGesture(false);
-    settings.setUserAgentString(LOBBY_SCREEN_MOBILE_UA);
+    settings.setUserAgentString(COLOSSEO_BROWSER_DESKTOP_UA);
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
       settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
     }
@@ -1181,11 +1185,8 @@ public class MainActivity extends BridgeActivity {
     if (target.isEmpty()) {
       target = COLOSSEO_BROWSER_DEFAULT_URL;
     }
-    if ("https://www.youtube.com".equalsIgnoreCase(target)
-        || "https://www.youtube.com/".equalsIgnoreCase(target)
-        || "http://www.youtube.com".equalsIgnoreCase(target)
-        || "http://www.youtube.com/".equalsIgnoreCase(target)) {
-      target = COLOSSEO_BROWSER_DEFAULT_URL;
+    if (target.contains("m.youtube.com")) {
+      target = target.replace("m.youtube.com", "www.youtube.com");
     }
     coliseoBrowserWebView.loadUrl(target);
   }

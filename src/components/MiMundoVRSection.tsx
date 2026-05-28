@@ -838,7 +838,7 @@ const MiMundoVRSection = ({
       {!vrStereoActive && (
         <Link
           to={COLOSSEO_PATH}
-          className="pointer-events-auto absolute bottom-6 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/50 bg-black/70 text-amber-200 shadow-[0_0_24px_rgba(251,191,36,0.25)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-950/80 hover:text-amber-100"
+          className="pointer-events-auto absolute bottom-32 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/50 bg-black/70 text-amber-200 shadow-[0_0_24px_rgba(251,191,36,0.25)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-950/80 hover:text-amber-100 md:bottom-6"
           aria-label="Entrar al Coliseo Romano 360°"
           title="Coliseo Romano 360°"
         >

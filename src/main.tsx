@@ -54,7 +54,7 @@ declare global {
       showLobbyPantalla2WebView?(): void;
       hideLobbyPantalla2WebView?(): void;
       updateLobbyBounds?(): void;
-      /** Coliseo — WebView nativo YouTube (página principal) sobre la pantalla flotante 3D. */
+      /** Coliseo — WebView nativo YouTube (UA escritorio) sobre slot 2D en Android. */
       showColiseoBrowserWebView?(): void;
       hideColiseoBrowserWebView?(): void;
       updateColiseoBrowserBounds?(): void;

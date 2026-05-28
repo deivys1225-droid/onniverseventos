@@ -8,6 +8,7 @@ import {
   SPHERE_RADIUS,
 } from "@/components/immersive/equirectSphereCore";
 import { COLOSSEO_PANORAMA } from "@/data/coliseoScene";
+import { isColiseoNativeWebViewAvailable } from "@/lib/coliseoNativeWebView";
 import {
   MAX_WEBGL_PIXEL_RATIO,
   applyPixelRatioCap,
@@ -85,17 +86,23 @@ function ColiseoFloatingScreen({
           pointerEvents: screenFocused ? "auto" : "none",
         }}
       >
-        <ColiseoBrowserPanel screenFocused={screenFocused} onFocusScreen={onFocusScreen} />
+        <ColiseoBrowserPanel
+          variant="floating"
+          screenFocused={screenFocused}
+          onFocusScreen={onFocusScreen}
+        />
       </Html>
     </group>
   );
 }
 
 function ColiseoSceneContent({
+  showFloatingScreen,
   screenFocused,
   onFocusScreen,
   onUnfocusScreen,
 }: {
+  showFloatingScreen: boolean;
   screenFocused: boolean;
   onFocusScreen: () => void;
   onUnfocusScreen: () => void;
@@ -106,14 +113,17 @@ function ColiseoSceneContent({
         <EquirectangularInterior url={COLOSSEO_PANORAMA} />
       </Suspense>
       <ambientLight intensity={0.82} />
-      <ColiseoFloatingScreen screenFocused={screenFocused} onFocusScreen={onFocusScreen} />
+      {showFloatingScreen && (
+        <ColiseoFloatingScreen screenFocused={screenFocused} onFocusScreen={onFocusScreen} />
+      )}
       <ColiseoOutsideScreenUnfocus screenFocused={screenFocused} onUnfocus={onUnfocusScreen} />
     </>
   );
 }
 
 export default function ColiseoImmersiveScene() {
-  const [screenFocused, setScreenFocused] = useState(false);
+  const useNativeWebView = useMemo(() => isColiseoNativeWebViewAvailable(), []);
+  const [screenFocused, setScreenFocused] = useState(() => useNativeWebView);
   const [pointerLocked, setPointerLocked] = useState(false);
   const screenFocusedRef = useRef(false);
   const usesPointerLock = useMemo(() => lobbyUsesPointerLockControls(), []);
@@ -171,6 +181,7 @@ export default function ColiseoImmersiveScene() {
       >
         <Suspense fallback={null}>
           <ColiseoSceneContent
+            showFloatingScreen={!useNativeWebView}
             screenFocused={screenFocused}
             onFocusScreen={focusScreen}
             onUnfocusScreen={unfocusScreen}
@@ -188,15 +199,38 @@ export default function ColiseoImmersiveScene() {
         )}
       </Canvas>
 
+      {useNativeWebView && screenFocused && (
+        <div className="absolute inset-0 z-50 flex flex-col pt-[max(env(safe-area-inset-top),0.5rem)]">
+          <ColiseoBrowserPanel
+            variant="native"
+            screenFocused={screenFocused}
+            onFocusScreen={focusScreen}
+            onUnfocusScreen={unfocusScreen}
+          />
+        </div>
+      )}
+
+      {useNativeWebView && !screenFocused && (
+        <button
+          type="button"
+          onClick={focusScreen}
+          className="pointer-events-auto absolute bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full border border-amber-400/50 bg-black/75 px-4 py-2 text-xs font-display uppercase tracking-wider text-amber-200 backdrop-blur-md"
+        >
+          Abrir YouTube
+        </button>
+      )}
+
       {usesPointerLock && pointerLocked && !screenFocused && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference" />
       )}
 
       {!screenFocused && (
         <p className="pointer-events-none absolute bottom-4 left-1/2 z-10 max-w-md -translate-x-1/2 px-4 text-center text-[11px] text-slate-400">
-          {usesPointerLock
-            ? "Clic fuera de la pantalla: girar sin límite · Clic en la pantalla: usar el navegador"
-            : "Arrastra fuera de la pantalla para girar · Toca la pantalla para navegar"}
+          {useNativeWebView
+            ? "Arrastra para girar la vista 360°"
+            : usesPointerLock
+              ? "Clic fuera de la pantalla: girar sin límite · Clic en la pantalla: usar el navegador"
+              : "Arrastra fuera de la pantalla para girar · Toca la pantalla para navegar"}
         </p>
       )}
     </div>
