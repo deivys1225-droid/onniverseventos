@@ -14,10 +14,8 @@ import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-t
 import * as THREE from "three";
 import { useNavigate } from "react-router-dom";
 import { Landmark } from "lucide-react";
-import HomeSocialCinePickerDialog from "@/components/HomeSocialCinePickerDialog";
-import { COLOSSEO_PATH, COLOSSEO_PUBLIC_URL, COLOSSEO_SCENE_TITLE } from "@/data/coliseoScene";
+import { COLOSSEO_PATH } from "@/data/coliseoScene";
 import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
-import { openHomeSocialRedes, openHomeSocialRedesCam, shouldShowHomeSocialCinePicker } from "@/lib/homeSocialRedesOpen";
 import { LOBBY_IMMERSIVE_PATH, LOBBY_OPEN_TRANSITION_MS } from "@/lib/lobbyImmersive";
 import { invokeOpenLobbyDirect } from "@/lib/lobbyOpenDirect";
 import {
@@ -707,8 +705,6 @@ const MiMundoVRSection = ({
   const navigate = useNavigate();
   const [profileSaving, setProfileSaving] = useState(false);
   const [lobbyOpening, setLobbyOpening] = useState(false);
-  const [coliseoPickerOpen, setColiseoPickerOpen] = useState(false);
-  const showColiseoCinePicker = useMemo(() => shouldShowHomeSocialCinePicker(), []);
   const vrStereoActive = useVrModeActive();
   const environmentId = useMemo<MiMundoEnvironmentId>(() => "lobby", []);
   const storedProfileName = useMemo(
@@ -750,32 +746,10 @@ const MiMundoVRSection = ({
     }, LOBBY_OPEN_TRANSITION_MS);
   }, [lobbyOpening, navigate, vrStereoActive]);
 
-  const onColiseoPickCine = useCallback(() => {
-    if (invokeOpenColiceoDirect()) {
-      setColiseoPickerOpen(false);
-      return;
-    }
-    openHomeSocialRedes(COLOSSEO_PUBLIC_URL);
-    setColiseoPickerOpen(false);
-  }, []);
-
-  const onColiseoPickCineCam = useCallback(() => {
-    if (invokeOpenColiceoDirect()) {
-      setColiseoPickerOpen(false);
-      return;
-    }
-    openHomeSocialRedesCam(COLOSSEO_PUBLIC_URL);
-    setColiseoPickerOpen(false);
-  }, []);
-
   const onColiseoClick = useCallback(() => {
     if (invokeOpenColiceoDirect()) return;
-    if (showColiseoCinePicker) {
-      setColiseoPickerOpen(true);
-      return;
-    }
     navigate(COLOSSEO_PATH);
-  }, [showColiseoCinePicker, navigate]);
+  }, [navigate]);
 
   const onProfileConfirm = async (payload: ProfileCardConfirmPayload) => {
     try {
@@ -878,15 +852,6 @@ const MiMundoVRSection = ({
           >
             <Landmark className="h-5 w-5" />
           </button>
-          {showColiseoCinePicker && (
-            <HomeSocialCinePickerDialog
-              open={coliseoPickerOpen}
-              onOpenChange={setColiseoPickerOpen}
-              title={COLOSSEO_SCENE_TITLE}
-              onPickCine={onColiseoPickCine}
-              onPickCineCam={onColiseoPickCineCam}
-            />
-          )}
         </>
       )}
     </section>
