@@ -581,6 +581,12 @@ public class MainActivity extends BridgeActivity {
       activity.runOnUiThread(() -> activity.openColiceoActivity());
     }
 
+    /** Oído exclusivo web: {@code window.AndroidBridge.openColiseoVR()}. */
+    @JavascriptInterface
+    public void openColiseoVR() {
+      activity.runOnUiThread(() -> activity.openColiceoActivity());
+    }
+
     /** Compat: {@code window.AndroidBridge.openColiseoDirect(url, action)}. */
     @JavascriptInterface
     public void openColiseoDirect(String url, String action) {
@@ -738,6 +744,12 @@ public class MainActivity extends BridgeActivity {
     /** {@code window.Android.openColiceo()} — sala Coliseo nativa ({@link ColiceoActivity}). */
     @JavascriptInterface
     public void openColiceo() {
+      activity.runOnUiThread(() -> activity.openColiceoActivity());
+    }
+
+    /** Oído exclusivo web: {@code window.Android.openColiseoVR()}. */
+    @JavascriptInterface
+    public void openColiseoVR() {
       activity.runOnUiThread(() -> activity.openColiceoActivity());
     }
 

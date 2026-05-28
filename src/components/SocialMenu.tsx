@@ -86,6 +86,79 @@ function profileName(profile: Pick<ProfileRow, "full_name">): string {
   return profile.full_name?.trim() || "Usuario";
 }
 
+function isMissingIsLiveColumnError(error: { message?: string | null; details?: string | null } | null): boolean {
+  if (!error) return false;
+  const details = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+  return (
+    (details.includes("column") && details.includes("does not exist")) ||
+    (details.includes("could not find") && details.includes("schema cache")) ||
+    details.includes("'is_live'") ||
+    details.includes("is_live")
+  );
+}
+
+async function selectProfilesByIds(ids: string[]): Promise<ProfileRow[]> {
+  if (ids.length === 0) return [];
+  const withIsLive = await supabase
+    .from("profiles")
+    .select("id,full_name,avatar_url,live_status,is_live")
+    .in("id", ids);
+  if (!withIsLive.error) {
+    return (withIsLive.data ?? []) as ProfileRow[];
+  }
+  if (!isMissingIsLiveColumnError(withIsLive.error)) {
+    throw withIsLive.error;
+  }
+  const legacy = await supabase
+    .from("profiles")
+    .select("id,full_name,avatar_url,live_status")
+    .in("id", ids);
+  if (legacy.error) throw legacy.error;
+  return ((legacy.data ?? []) as Array<Omit<ProfileRow, "is_live">>).map((p) => ({
+    ...p,
+    is_live: null,
+  }));
+}
+
+async function selectProfilesByQuery(userId: string, q: string): Promise<ProfileRow[]> {
+  let withIsLive = supabase
+    .from("profiles")
+    .select("id,full_name,avatar_url,live_status,is_live")
+    .neq("id", userId)
+    .limit(12);
+
+  if (UUID_RE.test(q)) {
+    withIsLive = withIsLive.eq("id", q);
+  } else {
+    withIsLive = withIsLive.ilike("full_name", `%${q}%`);
+  }
+
+  const firstTry = await withIsLive;
+  if (!firstTry.error) {
+    return (firstTry.data ?? []) as ProfileRow[];
+  }
+  if (!isMissingIsLiveColumnError(firstTry.error)) {
+    throw firstTry.error;
+  }
+
+  let legacy = supabase
+    .from("profiles")
+    .select("id,full_name,avatar_url,live_status")
+    .neq("id", userId)
+    .limit(12);
+  if (UUID_RE.test(q)) {
+    legacy = legacy.eq("id", q);
+  } else {
+    legacy = legacy.ilike("full_name", `%${q}%`);
+  }
+  const legacyRes = await legacy;
+  if (legacyRes.error) throw legacyRes.error;
+  return ((legacyRes.data ?? []) as Array<Omit<ProfileRow, "is_live">>).map((p) => ({
+    ...p,
+    is_live: null,
+  }));
+}
+
 const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
   const [friendships, setFriendships] = useState<FriendshipRow[]>([]);
   const [profilesById, setProfilesById] = useState<
@@ -122,12 +195,14 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
       return;
     }
 
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id,full_name,avatar_url,live_status,is_live")
-      .in("id", Array.from(ids));
+    let profiles: ProfileRow[] = [];
+    try {
+      profiles = await selectProfilesByIds(Array.from(ids));
+    } catch {
+      profiles = [];
+    }
     const map: Record<string, { name: string; avatarUrl: string | null; isOnline: boolean }> = {};
-    (profiles as ProfileRow[] | null)?.forEach((p) => {
+    profiles.forEach((p) => {
       map[p.id] = {
         name: profileName(p),
         avatarUrl: p.avatar_url ?? null,
@@ -181,26 +256,15 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
     const timer = window.setTimeout(async () => {
       setSearchLoading(true);
       try {
-        let query = supabase
-          .from("profiles")
-          .select("id,full_name,avatar_url,live_status,is_live")
-          .neq("id", userId)
-          .limit(12);
-
-        if (UUID_RE.test(q)) {
-          query = query.eq("id", q);
-        } else {
-          query = query.ilike("full_name", `%${q}%`);
-        }
-
-        const { data, error } = await query;
-        if (error) {
-          toast.error(error.message);
+        let rows: ProfileRow[] = [];
+        try {
+          rows = await selectProfilesByQuery(userId, q);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "No se pudo cargar perfiles.";
+          toast.error(message);
           setSearchResults([]);
           return;
         }
-
-        const rows = (data ?? []) as ProfileRow[];
         const normalized = rows.map((p) => ({
           id: p.id,
           name: profileName(p),
