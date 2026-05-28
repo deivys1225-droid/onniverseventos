@@ -22,7 +22,7 @@ export function loadColiseoNativeBrowserUrl(url: string) {
   window.Android?.loadColiseoBrowserUrl?.(url);
 }
 
-/** WebView nativo Android sobre el slot 3D del Coliseo (YouTube página principal). */
+/** WebView nativo Android alineado al slot 2D del Coliseo (YouTube). */
 export function useColiseoNativeWebViewSlot(
   slotRef: RefObject<HTMLElement | null>,
   options: { enabled: boolean; url: string; reloadToken: number },
