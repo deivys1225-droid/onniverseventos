@@ -1,16 +1,7 @@
 import { useCallback, useId, useState } from "react";
-import { Camera, MonitorPlay } from "lucide-react";
+import { Landmark } from "lucide-react";
+import HomeSocialCinePickerDialog from "@/components/HomeSocialCinePickerDialog";
 import { FacebookGlyph, InstagramGlyph } from "@/components/SocialFooterIcons";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   getHomeSocialUrl,
   loadHomeSocialRedesConfig,
@@ -109,6 +100,13 @@ const ICON_BUTTONS: {
     Glyph: OnniVersGlyph,
   },
   {
+    id: "coliseo",
+    label: "Coliseo Romano 360°",
+    className:
+      "border-amber-400/60 bg-black/80 text-amber-200 shadow-[0_0_20px_-6px_rgba(251,191,36,0.5)]",
+    Glyph: () => <Landmark className="h-[18px] w-[18px]" aria-hidden />,
+  },
+  {
     id: "youtube",
     label: "YouTube",
     className:
@@ -192,37 +190,13 @@ export default function HomeSocialRedesRow() {
         ))}
       </div>
 
-      <AlertDialog open={picked !== null} onOpenChange={(open) => !open && setPicked(null)}>
-        <AlertDialogContent className="sm:max-w-xs">
-          <AlertDialogHeader>
-            <AlertDialogTitle>{picked?.label}</AlertDialogTitle>
-            <AlertDialogDescription className="sr-only">
-              Elige Cine o Cine Cam
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
-            <AlertDialogAction
-              type="button"
-              className="inline-flex w-full items-center justify-center gap-2"
-              onClick={onPickRedes}
-            >
-              <MonitorPlay className="h-4 w-4 shrink-0" aria-hidden />
-              Cine
-            </AlertDialogAction>
-            <AlertDialogAction
-              type="button"
-              className="inline-flex w-full items-center justify-center gap-2"
-              onClick={onPickRedesCam}
-            >
-              <Camera className="h-4 w-4 shrink-0" aria-hidden />
-              Cine Cam
-            </AlertDialogAction>
-            <AlertDialogCancel type="button" className="w-full">
-              Cancelar
-            </AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <HomeSocialCinePickerDialog
+        open={picked !== null}
+        onOpenChange={(open) => !open && setPicked(null)}
+        title={picked?.label ?? ""}
+        onPickCine={onPickRedes}
+        onPickCineCam={onPickRedesCam}
+      />
     </>
   );
 }

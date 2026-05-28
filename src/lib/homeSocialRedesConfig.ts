@@ -1,7 +1,9 @@
 import { SOCIAL_LINKS } from "@/components/SocialFooterIcons";
+import { COLOSSEO_PUBLIC_URL } from "@/data/coliseoScene";
 
 export type HomeSocialIconId =
   | "onnivers"
+  | "coliseo"
   | "youtube"
   | "facebook"
   | "instagram"
@@ -10,7 +12,8 @@ export type HomeSocialIconId =
   | "mercadolibre"
   | "whatsapp";
 
-const ONNIVERS_LOBBY_URL = "https://onnivers.com/lobby-inmersivo";
+const ONNIVERS_SITE_URL = "https://onnivers.com/";
+const LEGACY_ONNIVERS_LOBBY_PATH = "/lobby-inmersivo";
 
 export type HomeSocialRedesMode = "redes" | "redesCam";
 
@@ -35,12 +38,24 @@ function normalizeHomeWhatsAppUrl(url: string): string {
   return trimmed;
 }
 
+function normalizeOnniversHomeUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.includes(LEGACY_ONNIVERS_LOBBY_PATH)) return ONNIVERS_SITE_URL;
+  return trimmed;
+}
+
 export const DEFAULT_HOME_SOCIAL_ICONS: HomeSocialIconConfig[] = [
   {
     id: "onnivers",
     label: "OnniVers",
-    redesUrl: ONNIVERS_LOBBY_URL,
-    redesCamUrl: ONNIVERS_LOBBY_URL,
+    redesUrl: ONNIVERS_SITE_URL,
+    redesCamUrl: ONNIVERS_SITE_URL,
+  },
+  {
+    id: "coliseo",
+    label: "Coliseo Romano 360°",
+    redesUrl: COLOSSEO_PUBLIC_URL,
+    redesCamUrl: COLOSSEO_PUBLIC_URL,
   },
   {
     id: "youtube",
@@ -103,6 +118,14 @@ function mergeWithDefaults(parsed: unknown): HomeSocialIconConfig[] {
         ...def,
         redesUrl: normalizeHomeWhatsAppUrl(redesUrl),
         redesCamUrl: normalizeHomeWhatsAppUrl(redesCamUrl),
+      };
+    }
+
+    if (def.id === "onnivers") {
+      return {
+        ...def,
+        redesUrl: normalizeOnniversHomeUrl(redesUrl),
+        redesCamUrl: normalizeOnniversHomeUrl(redesCamUrl),
       };
     }
 
