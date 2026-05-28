@@ -1,9 +1,7 @@
 import { SOCIAL_LINKS } from "@/components/SocialFooterIcons";
-import { COLOSSEO_PUBLIC_URL } from "@/data/coliseoScene";
 
 export type HomeSocialIconId =
   | "onnivers"
-  | "coliseo"
   | "youtube"
   | "facebook"
   | "instagram"
@@ -50,12 +48,6 @@ export const DEFAULT_HOME_SOCIAL_ICONS: HomeSocialIconConfig[] = [
     label: "OnniVers",
     redesUrl: ONNIVERS_SITE_URL,
     redesCamUrl: ONNIVERS_SITE_URL,
-  },
-  {
-    id: "coliseo",
-    label: "Coliseo Romano 360°",
-    redesUrl: COLOSSEO_PUBLIC_URL,
-    redesCamUrl: COLOSSEO_PUBLIC_URL,
   },
   {
     id: "youtube",

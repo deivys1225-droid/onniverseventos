@@ -575,6 +575,12 @@ public class MainActivity extends BridgeActivity {
       activity.runOnUiThread(() -> activity.launchGalleryDirect());
     }
 
+    /** Icono Coliseo / Cine / Cine Cam → {@link ColiceoActivity}. */
+    @JavascriptInterface
+    public void openColiceo() {
+      activity.runOnUiThread(() -> activity.openColiceoActivity());
+    }
+
     /**
      * Onni — pide {@link Manifest.permission#RECORD_AUDIO} y llama
      * {@code window[callbackName](grantedBoolean)}.
@@ -723,6 +729,12 @@ public class MainActivity extends BridgeActivity {
       activity.runOnUiThread(() -> activity.loadColiseoBrowserUrlInternal(url));
     }
 
+    /** {@code window.Android.openColiceo()} — sala Coliseo nativa ({@link ColiceoActivity}). */
+    @JavascriptInterface
+    public void openColiceo() {
+      activity.runOnUiThread(() -> activity.openColiceoActivity());
+    }
+
     /** {@code window.Android.openVrRedes(url)} — iconos Redes en inicio. */
     @JavascriptInterface
     public void openVrRedes(String url) {
@@ -846,6 +858,21 @@ public class MainActivity extends BridgeActivity {
       Toast.makeText(
               this,
               "Lobby VR nativo no disponible en esta compilación.",
+              Toast.LENGTH_LONG)
+          .show();
+    }
+  }
+
+  /** {@link AndroidBridge#openColiceo} — sala Coliseo 360° nativa. */
+  void openColiceoActivity() {
+    try {
+      Intent intent = new Intent(this, ColiceoActivity.class);
+      intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+      startActivity(intent);
+    } catch (Exception e) {
+      Toast.makeText(
+              this,
+              "Coliseo nativo no disponible en esta compilación.",
               Toast.LENGTH_LONG)
           .show();
     }

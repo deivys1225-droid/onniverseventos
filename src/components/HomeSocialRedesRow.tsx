@@ -1,5 +1,4 @@
-import { useCallback, useId, useState } from "react";
-import { Landmark } from "lucide-react";
+import { useCallback, useId, useMemo, useState } from "react";
 import HomeSocialCinePickerDialog from "@/components/HomeSocialCinePickerDialog";
 import { FacebookGlyph, InstagramGlyph } from "@/components/SocialFooterIcons";
 import {
@@ -8,7 +7,11 @@ import {
   type HomeSocialIconConfig,
   type HomeSocialIconId,
 } from "@/lib/homeSocialRedesConfig";
-import { openHomeSocialRedes, openHomeSocialRedesCam } from "@/lib/homeSocialRedesOpen";
+import {
+  openHomeSocialRedes,
+  openHomeSocialRedesCam,
+  shouldShowHomeSocialCinePicker,
+} from "@/lib/homeSocialRedesOpen";
 import { cn } from "@/lib/utils";
 
 const OnniVersGlyph = () => {
@@ -100,13 +103,6 @@ const ICON_BUTTONS: {
     Glyph: OnniVersGlyph,
   },
   {
-    id: "coliseo",
-    label: "Coliseo Romano 360°",
-    className:
-      "border-amber-400/60 bg-black/80 text-amber-200 shadow-[0_0_20px_-6px_rgba(251,191,36,0.5)]",
-    Glyph: () => <Landmark className="h-[18px] w-[18px]" aria-hidden />,
-  },
-  {
     id: "youtube",
     label: "YouTube",
     className:
@@ -158,6 +154,7 @@ const ICON_BUTTONS: {
 export default function HomeSocialRedesRow() {
   const [icons] = useState(loadHomeSocialRedesConfig);
   const [picked, setPicked] = useState<HomeSocialIconConfig | null>(null);
+  const showCinePicker = useMemo(() => shouldShowHomeSocialCinePicker(), []);
 
   const onPickRedes = useCallback(() => {
     if (!picked) return;
@@ -183,20 +180,30 @@ export default function HomeSocialRedesRow() {
               className,
             )}
             aria-label={label}
-            onClick={() => setPicked(icons.find((i) => i.id === id) ?? null)}
+            onClick={() => {
+              const icon = icons.find((i) => i.id === id);
+              if (!icon) return;
+              if (showCinePicker) {
+                setPicked(icon);
+                return;
+              }
+              openHomeSocialRedes(getHomeSocialUrl(icons, id, "redes"));
+            }}
           >
             <Glyph />
           </button>
         ))}
       </div>
 
-      <HomeSocialCinePickerDialog
-        open={picked !== null}
-        onOpenChange={(open) => !open && setPicked(null)}
-        title={picked?.label ?? ""}
-        onPickCine={onPickRedes}
-        onPickCineCam={onPickRedesCam}
-      />
+      {showCinePicker && (
+        <HomeSocialCinePickerDialog
+          open={picked !== null}
+          onOpenChange={(open) => !open && setPicked(null)}
+          title={picked?.label ?? ""}
+          onPickCine={onPickRedes}
+          onPickCineCam={onPickRedesCam}
+        />
+      )}
     </>
   );
 }

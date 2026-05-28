@@ -1,7 +1,7 @@
 import { PointerLockControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import ColiseoAndroidWebViewSlot from "@/components/immersive/ColiseoBrowserPanel";
+import ColiseoFloatingWebViewScreen from "@/components/immersive/ColiseoFloatingWebViewScreen";
 import {
   EquirectangularInterior,
   ImmersiveOrbitControls,
@@ -23,6 +23,7 @@ function ColiseoSceneContent() {
         <EquirectangularInterior url={COLOSSEO_PANORAMA} />
       </Suspense>
       <ambientLight intensity={0.82} />
+      <ColiseoFloatingWebViewScreen />
     </>
   );
 }
@@ -50,7 +51,7 @@ export default function ColiseoImmersiveScene() {
   return (
     <div className="relative h-[100dvh] w-full bg-black [&_*]:outline-none">
       <Canvas
-        className={useNativeWebView ? "absolute inset-0 h-full w-full" : "touch-none"}
+        className="touch-none"
         gl={{ antialias: !mobileCoarse, alpha: false, powerPreference: "high-performance" }}
         camera={{ position: [0, 0, 0.12], fov: 78, far: SPHERE_RADIUS * 2 }}
         dpr={[1, MAX_WEBGL_PIXEL_RATIO]}
@@ -69,24 +70,16 @@ export default function ColiseoImmersiveScene() {
         )}
       </Canvas>
 
-      {useNativeWebView && (
-        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center px-2">
-          <div className="pointer-events-auto h-[min(42vh,340px)] w-[min(92vw,720px)]">
-            <ColiseoAndroidWebViewSlot />
-          </div>
-        </div>
-      )}
-
       {usesPointerLock && !useNativeWebView && pointerLocked && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 mix-blend-difference" />
       )}
 
       <p className="pointer-events-none absolute bottom-4 left-1/2 z-10 max-w-md -translate-x-1/2 px-4 text-center text-[11px] text-slate-400">
         {useNativeWebView
-          ? "Arrastra fuera del video para girar el Coliseo 360°"
+          ? "Arrastra fuera de la pantalla para girar el Coliseo 360°"
           : usesPointerLock
-            ? "Clic para girar la vista 360°"
-            : "Arrastra para girar la vista 360°"}
+            ? "Clic para girar la vista 360° · Marco = slot del WebView"
+            : "Arrastra para girar · Marco = slot del WebView"}
       </p>
     </div>
   );

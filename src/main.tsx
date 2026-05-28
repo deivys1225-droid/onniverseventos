@@ -23,6 +23,8 @@ declare global {
       openLobbyDirect?: () => void;
       /** Abre reproductor galería nativo; sin URL. */
       openGalleryDirect?: () => void;
+      /** Sala Coliseo 360° nativa ({@link ColiceoActivity}). */
+      openColiceo?: () => void;
       /** Onni: pide RECORD_AUDIO; llama window[callbackName](granted: boolean). */
       requestOnniMicrophonePermission?: (callbackName: string) => void;
     };
@@ -59,6 +61,8 @@ declare global {
       hideColiseoBrowserWebView?(): void;
       updateColiseoBrowserBounds?(): void;
       loadColiseoBrowserUrl?(url: string): void;
+      /** Icono Coliseo → ColiceoActivity (APK). */
+      openColiceo?(): void;
     };
   }
 }

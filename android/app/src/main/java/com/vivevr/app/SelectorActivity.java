@@ -49,11 +49,17 @@ public class SelectorActivity extends AppCompatActivity {
     MaterialButton vr = findViewById(R.id.btn_scene_immersive);
     MaterialButton cine = findViewById(R.id.btn_scene_split);
     MaterialButton liveCam = findViewById(R.id.btn_scene_mix);
+    MaterialButton coliceo = findViewById(R.id.btn_coliceo);
     MaterialButton cancel = findViewById(R.id.btn_selector_cancel);
 
     vr.setOnClickListener(v -> openPlayer("immersive", resolvedUrl, playbackId));
     cine.setOnClickListener(v -> openPlayer("split", resolvedUrl, playbackId));
     liveCam.setOnClickListener(v -> openPlayer("mix", resolvedUrl, playbackId));
+    coliceo.setOnClickListener(
+        v -> {
+          startActivity(new Intent(this, ColiceoActivity.class));
+          finish();
+        });
     cancel.setOnClickListener(v -> finish());
   }
 

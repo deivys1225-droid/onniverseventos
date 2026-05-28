@@ -7,8 +7,7 @@ import {
 } from "@/lib/coliseoNativeWebView";
 
 /**
- * Solo Android/APK: slot transparente para el WebView nativo (YouTube).
- * En PC/web no se renderiza nada.
+ * Slot de la pantalla flotante: WebView nativo en Android; vacío visible en PC para revisar posición.
  */
 export default function ColiseoAndroidWebViewSlot() {
   const nativeSlotRef = useRef<HTMLDivElement | null>(null);
@@ -20,15 +19,19 @@ export default function ColiseoAndroidWebViewSlot() {
     reloadToken: 0,
   });
 
-  if (!useNativeWebView) return null;
-
   return (
     <div
       ref={nativeSlotRef}
       id={COLOSSEO_NATIVE_BROWSER_SLOT_ID}
       data-native-webview-slot={COLOSSEO_NATIVE_BROWSER_SLOT_ID}
-      className="h-full w-full"
-      aria-hidden
-    />
+      className="flex h-full w-full items-center justify-center bg-black/15"
+      aria-hidden={useNativeWebView}
+    >
+      {!useNativeWebView && (
+        <span className="pointer-events-none px-2 text-center text-[10px] uppercase tracking-wider text-amber-200/50">
+          Aquí va el WebView (Android)
+        </span>
+      )}
+    </div>
   );
 }

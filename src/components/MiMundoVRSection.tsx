@@ -15,12 +15,9 @@ import * as THREE from "three";
 import { useNavigate } from "react-router-dom";
 import { Landmark } from "lucide-react";
 import HomeSocialCinePickerDialog from "@/components/HomeSocialCinePickerDialog";
-import { COLOSSEO_SCENE_TITLE } from "@/data/coliseoScene";
-import {
-  getHomeSocialUrl,
-  loadHomeSocialRedesConfig,
-} from "@/lib/homeSocialRedesConfig";
-import { openHomeSocialRedes, openHomeSocialRedesCam } from "@/lib/homeSocialRedesOpen";
+import { COLOSSEO_PATH, COLOSSEO_PUBLIC_URL, COLOSSEO_SCENE_TITLE } from "@/data/coliseoScene";
+import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
+import { openHomeSocialRedes, openHomeSocialRedesCam, shouldShowHomeSocialCinePicker } from "@/lib/homeSocialRedesOpen";
 import { LOBBY_IMMERSIVE_PATH, LOBBY_OPEN_TRANSITION_MS } from "@/lib/lobbyImmersive";
 import { invokeOpenLobbyDirect } from "@/lib/lobbyOpenDirect";
 import {
@@ -711,7 +708,7 @@ const MiMundoVRSection = ({
   const [profileSaving, setProfileSaving] = useState(false);
   const [lobbyOpening, setLobbyOpening] = useState(false);
   const [coliseoPickerOpen, setColiseoPickerOpen] = useState(false);
-  const homeSocialIcons = useMemo(() => loadHomeSocialRedesConfig(), []);
+  const showColiseoCinePicker = useMemo(() => shouldShowHomeSocialCinePicker(), []);
   const vrStereoActive = useVrModeActive();
   const environmentId = useMemo<MiMundoEnvironmentId>(() => "lobby", []);
   const storedProfileName = useMemo(
@@ -754,14 +751,31 @@ const MiMundoVRSection = ({
   }, [lobbyOpening, navigate, vrStereoActive]);
 
   const onColiseoPickCine = useCallback(() => {
-    openHomeSocialRedes(getHomeSocialUrl(homeSocialIcons, "coliseo", "redes"));
+    if (invokeOpenColiceoDirect()) {
+      setColiseoPickerOpen(false);
+      return;
+    }
+    openHomeSocialRedes(COLOSSEO_PUBLIC_URL);
     setColiseoPickerOpen(false);
-  }, [homeSocialIcons]);
+  }, []);
 
   const onColiseoPickCineCam = useCallback(() => {
-    openHomeSocialRedesCam(getHomeSocialUrl(homeSocialIcons, "coliseo", "redesCam"));
+    if (invokeOpenColiceoDirect()) {
+      setColiseoPickerOpen(false);
+      return;
+    }
+    openHomeSocialRedesCam(COLOSSEO_PUBLIC_URL);
     setColiseoPickerOpen(false);
-  }, [homeSocialIcons]);
+  }, []);
+
+  const onColiseoClick = useCallback(() => {
+    if (invokeOpenColiceoDirect()) return;
+    if (showColiseoCinePicker) {
+      setColiseoPickerOpen(true);
+      return;
+    }
+    navigate(COLOSSEO_PATH);
+  }, [showColiseoCinePicker, navigate]);
 
   const onProfileConfirm = async (payload: ProfileCardConfirmPayload) => {
     try {
@@ -857,20 +871,22 @@ const MiMundoVRSection = ({
         <>
           <button
             type="button"
-            onClick={() => setColiseoPickerOpen(true)}
+            onClick={onColiseoClick}
             className="pointer-events-auto absolute bottom-32 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/50 bg-black/70 text-amber-200 shadow-[0_0_24px_rgba(251,191,36,0.25)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-950/80 hover:text-amber-100 md:bottom-6"
-            aria-label="Coliseo Romano 360° — Cine o Cine Cam"
+            aria-label="Entrar al Coliseo Romano 360°"
             title="Coliseo Romano 360°"
           >
             <Landmark className="h-5 w-5" />
           </button>
-          <HomeSocialCinePickerDialog
-            open={coliseoPickerOpen}
-            onOpenChange={setColiseoPickerOpen}
-            title={COLOSSEO_SCENE_TITLE}
-            onPickCine={onColiseoPickCine}
-            onPickCineCam={onColiseoPickCineCam}
-          />
+          {showColiseoCinePicker && (
+            <HomeSocialCinePickerDialog
+              open={coliseoPickerOpen}
+              onOpenChange={setColiseoPickerOpen}
+              title={COLOSSEO_SCENE_TITLE}
+              onPickCine={onColiseoPickCine}
+              onPickCineCam={onColiseoPickCineCam}
+            />
+          )}
         </>
       )}
     </section>

@@ -1,3 +1,14 @@
+import { isNativeAndroid } from "@/lib/nativePlayback";
+
+/** Selector Cine / Cine Cam solo en APK (WebView nativo). En PC se abre el enlace directo. */
+export function shouldShowHomeSocialCinePicker(): boolean {
+  if (!isNativeAndroid()) return false;
+  return (
+    typeof window.Android?.openVrRedes === "function" &&
+    typeof window.Android?.openRedesCamDirect === "function"
+  );
+}
+
 /** Abre red social en modo Redes (VR). */
 export function openHomeSocialRedes(url: string): void {
   const target = url.trim();
