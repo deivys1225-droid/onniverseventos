@@ -34,7 +34,6 @@ const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
   { label: "CHAT", path: "/comunidad", icon: MessageCircle },
   /** Sección galería + tarjeta Aula (solo navegación web; no abre lobby nativo). */
   { label: "AULA VIRTUAL", path: GALERIA_AULA_SECTION_HREF, icon: Box },
-  { label: "REPRODUCTOR LOCAL", path: "/reproductor-galeria", icon: FolderOpen },
   { label: "TIENDA", path: "/tienda", icon: ShoppingBag },
   { label: "QUIENES SOMOS", path: "/quienes-somos", icon: Building2 },
 ];
