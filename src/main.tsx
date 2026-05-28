@@ -63,6 +63,8 @@ declare global {
       loadColiseoBrowserUrl?(url: string): void;
       /** Icono Coliseo → ColiceoActivity (APK). */
       openColiceo?(): void;
+      /** Oído exclusivo Coliseo desde web. */
+      openColiseoVR?(): void;
     };
   }
 }
