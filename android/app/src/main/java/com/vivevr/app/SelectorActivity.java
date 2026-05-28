@@ -55,7 +55,16 @@ public class SelectorActivity extends AppCompatActivity {
     vr.setOnClickListener(v -> openPlayer("immersive", resolvedUrl, playbackId));
     cine.setOnClickListener(v -> openPlayer("split", resolvedUrl, playbackId));
     liveCam.setOnClickListener(v -> openPlayer("mix", resolvedUrl, playbackId));
-    btnColiceo.setOnClickListener(v -> startActivity(new Intent(this, ColiceoActivity.class)));
+    btnColiceo.setOnClickListener(
+        v -> {
+          Intent coliceoIntent = new Intent(this, ColiceoActivity.class);
+          coliceoIntent.putExtra(StreamExtras.STREAM_URL, resolvedUrl);
+          coliceoIntent.putExtra(StreamExtras.PLAYBACK_URL, resolvedUrl);
+          if (playbackId != null && !playbackId.trim().isEmpty()) {
+            coliceoIntent.putExtra(StreamExtras.PLAYBACK_ID, playbackId.trim());
+          }
+          startActivity(coliceoIntent);
+        });
     cancel.setOnClickListener(v -> finish());
   }
 
