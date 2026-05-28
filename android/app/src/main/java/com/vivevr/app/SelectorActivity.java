@@ -34,14 +34,8 @@ public class SelectorActivity extends AppCompatActivity {
 
     Log.d(TAG, "SelectorActivity — streamUrl ready, scene selection (no WebView)");
 
-    if (resolvedUrl.isEmpty()) {
-      Toast.makeText(this, "Falta streamUrl o playback_id.", Toast.LENGTH_LONG).show();
-      finish();
-      return;
-    }
-
     String preferred = normalizeSceneKey(getIntent().getStringExtra(EXTRA_PREFERRED_SCENE));
-    if (!"split".equals(preferred)) {
+    if (!"split".equals(preferred) && !resolvedUrl.isEmpty()) {
       openPlayer(preferred, resolvedUrl, playbackId);
       return;
     }
@@ -52,9 +46,30 @@ public class SelectorActivity extends AppCompatActivity {
     MaterialButton btnColiceo = findViewById(R.id.btn_coliceo);
     MaterialButton cancel = findViewById(R.id.btn_selector_cancel);
 
-    vr.setOnClickListener(v -> openPlayer("immersive", resolvedUrl, playbackId));
-    cine.setOnClickListener(v -> openPlayer("split", resolvedUrl, playbackId));
-    liveCam.setOnClickListener(v -> openPlayer("mix", resolvedUrl, playbackId));
+    vr.setOnClickListener(
+        v -> {
+          if (resolvedUrl.isEmpty()) {
+            Toast.makeText(this, "Falta streamUrl o playback_id.", Toast.LENGTH_SHORT).show();
+            return;
+          }
+          openPlayer("immersive", resolvedUrl, playbackId);
+        });
+    cine.setOnClickListener(
+        v -> {
+          if (resolvedUrl.isEmpty()) {
+            Toast.makeText(this, "Falta streamUrl o playback_id.", Toast.LENGTH_SHORT).show();
+            return;
+          }
+          openPlayer("split", resolvedUrl, playbackId);
+        });
+    liveCam.setOnClickListener(
+        v -> {
+          if (resolvedUrl.isEmpty()) {
+            Toast.makeText(this, "Falta streamUrl o playback_id.", Toast.LENGTH_SHORT).show();
+            return;
+          }
+          openPlayer("mix", resolvedUrl, playbackId);
+        });
     btnColiceo.setOnClickListener(
         v -> {
           Intent coliceoIntent = new Intent(this, ColiceoActivity.class);

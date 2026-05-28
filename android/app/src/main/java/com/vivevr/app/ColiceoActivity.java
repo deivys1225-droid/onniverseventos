@@ -353,13 +353,21 @@ public class ColiceoActivity extends AppCompatActivity {
     /** Compat con páginas que invocan {@code window.Android.openSelector(...)}. */
     @JavascriptInterface
     public void openSelector() {
-      runOnUiThread(() -> openSelectorInternal("", "split"));
+      runOnUiThread(
+          () -> {
+            Intent intent = new Intent(ColiceoActivity.this, SelectorActivity.class);
+            startActivity(intent);
+          });
     }
 
     /** Compat con páginas que invocan {@code window.Android.openSelector(urlOrPlaybackId)}. */
     @JavascriptInterface
     public void openSelector(String streamIdOrUrl) {
-      runOnUiThread(() -> openSelectorInternal(streamIdOrUrl, "split"));
+      runOnUiThread(
+          () -> {
+            Intent intent = new Intent(ColiceoActivity.this, SelectorActivity.class);
+            startActivity(intent);
+          });
     }
 
     /** Alias VR histórico: abre Selector en escena split. */

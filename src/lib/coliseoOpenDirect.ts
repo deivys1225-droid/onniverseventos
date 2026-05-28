@@ -1,6 +1,7 @@
 /** Hay puente nativo Coliseo (APK). */
 export function hasColiceoNativeBridge(): boolean {
   return (
+    typeof window.Android?.openSelector === "function" ||
     typeof window.Android?.openColiceo === "function" ||
     typeof window.AndroidBridge?.openColiceo === "function"
   );
@@ -8,6 +9,10 @@ export function hasColiceoNativeBridge(): boolean {
 
 /** Abre {@link ColiceoActivity} en Android (mismo flujo que btn_coliceo en SelectorActivity). */
 export function invokeOpenColiceoDirect(): boolean {
+  if (typeof window.Android?.openSelector === "function") {
+    window.Android.openSelector();
+    return true;
+  }
   if (typeof window.Android?.openColiceo === "function") {
     window.Android.openColiceo();
     return true;
