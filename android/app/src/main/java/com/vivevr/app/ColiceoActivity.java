@@ -82,11 +82,14 @@ public class ColiceoActivity extends AppCompatActivity {
     if (intent == null) {
       return;
     }
+    String legacyUrl = intent.getStringExtra("url");
     String streamUrl = intent.getStringExtra(StreamExtras.STREAM_URL);
     String playbackUrl = intent.getStringExtra(StreamExtras.PLAYBACK_URL);
     String playbackId = intent.getStringExtra(StreamExtras.PLAYBACK_ID);
-    String urlCandidate =
-        streamUrl != null && !streamUrl.trim().isEmpty() ? streamUrl.trim() : playbackUrl;
+    String urlCandidate = legacyUrl != null && !legacyUrl.trim().isEmpty() ? legacyUrl.trim() : "";
+    if (urlCandidate.isEmpty()) {
+      urlCandidate = streamUrl != null && !streamUrl.trim().isEmpty() ? streamUrl.trim() : playbackUrl;
+    }
     String resolved = StreamUrlResolver.resolve(urlCandidate, playbackId);
     if (!resolved.isEmpty()) {
       initialColiseoUrl = resolved;

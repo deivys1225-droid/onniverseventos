@@ -581,6 +581,12 @@ public class MainActivity extends BridgeActivity {
       activity.runOnUiThread(() -> activity.openColiceoActivity());
     }
 
+    /** Compat: {@code window.AndroidBridge.openColiseoDirect(url, action)}. */
+    @JavascriptInterface
+    public void openColiseoDirect(String url, String action) {
+      activity.runOnUiThread(() -> activity.openColiceoActivity(url));
+    }
+
     /**
      * Onni — pide {@link Manifest.permission#RECORD_AUDIO} y llama
      * {@code window[callbackName](grantedBoolean)}.
@@ -735,6 +741,12 @@ public class MainActivity extends BridgeActivity {
       activity.runOnUiThread(() -> activity.openColiceoActivity());
     }
 
+    /** Compat: {@code window.Android.openColiseoDirect(url, action)}. */
+    @JavascriptInterface
+    public void openColiseoDirect(String url, String action) {
+      activity.runOnUiThread(() -> activity.openColiceoActivity(url));
+    }
+
     /** {@code window.Android.openVrRedes(url)} — iconos Redes en inicio. */
     @JavascriptInterface
     public void openVrRedes(String url) {
@@ -868,6 +880,22 @@ public class MainActivity extends BridgeActivity {
     try {
       Intent intent = new Intent(this, ColiceoActivity.class);
       intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+      startActivity(intent);
+    } catch (Exception e) {
+      Toast.makeText(
+              this,
+              "Coliseo nativo no disponible en esta compilación.",
+              Toast.LENGTH_LONG)
+          .show();
+    }
+  }
+
+  /** Bridge legado: abre Coliseo con URL directa ({@code putExtra("url", url)}). */
+  void openColiceoActivity(String url) {
+    try {
+      Intent intent = new Intent(this, ColiceoActivity.class);
+      intent.putExtra("url", url != null ? url : "");
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
       startActivity(intent);
     } catch (Exception e) {
       Toast.makeText(
