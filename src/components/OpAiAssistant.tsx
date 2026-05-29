@@ -195,15 +195,22 @@ export default function OpAiAssistant() {
     };
     const onVoiceResult = (event: Event) => {
       const custom = event as CustomEvent<unknown>;
-      const { text: transcript } = parseVoiceResult(custom.detail);
+      const { text: transcript, isFinal } = parseVoiceResult(custom.detail);
       if (!transcript) return;
-      pendingVoiceRef.current = "";
-      setText("");
-      void runCommand(transcript);
+      pendingVoiceRef.current = transcript;
+      setText(transcript);
+      if (isFinal) {
+        pendingVoiceRef.current = "";
+        setText("");
+        void runCommand(transcript);
+      }
     };
     const onVoiceEnd = () => {
       setVoiceListening(false);
+      const transcript = pendingVoiceRef.current.trim();
       pendingVoiceRef.current = "";
+      setText("");
+      if (transcript) void runCommand(transcript);
     };
     const onVoiceError = (event: Event) => {
       const custom = event as CustomEvent<unknown>;
@@ -225,7 +232,7 @@ export default function OpAiAssistant() {
     };
   }, [runCommand]);
 
-  const activarMicrofono = useCallback(() => {
+  const startVoiceCapture = useCallback(() => {
     const voiceBridge = getNativeVoiceBridge();
     if (typeof voiceBridge?.startListening !== "function") {
       setMessages((prev) => [
@@ -235,21 +242,23 @@ export default function OpAiAssistant() {
       return;
     }
     try {
-      if (voiceListening) {
-        voiceBridge.stopListening?.();
-      } else {
-        voiceBridge.startListening();
-      }
+      pendingVoiceRef.current = "";
+      setText("");
+      voiceBridge.startListening();
     } catch {
       setVoiceListening(false);
     }
-  }, [voiceListening]);
+  }, []);
 
-  const onToggleVoice = useCallback(() => {
-    pendingVoiceRef.current = "";
-    setText("");
-    activarMicrofono();
-  }, [activarMicrofono]);
+  const stopVoiceCapture = useCallback(() => {
+    const voiceBridge = getNativeVoiceBridge();
+    try {
+      voiceBridge?.stopListening?.();
+      setVoiceListening(false);
+    } catch {
+      setVoiceListening(false);
+    }
+  }, []);
 
   const onSpeakLastAnswer = useCallback(() => {
     const voiceBridge = getNativeVoiceBridge();
@@ -347,7 +356,24 @@ export default function OpAiAssistant() {
                   type="button"
                   size="icon"
                   variant={voiceListening ? "secondary" : "outline"}
-                  onClick={onToggleVoice}
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    startVoiceCapture();
+                  }}
+                  onPointerUp={(event) => {
+                    event.preventDefault();
+                    stopVoiceCapture();
+                  }}
+                  onPointerCancel={(event) => {
+                    event.preventDefault();
+                    stopVoiceCapture();
+                  }}
+                  onPointerLeave={(event) => {
+                    if (!voiceListening) return;
+                    event.preventDefault();
+                    stopVoiceCapture();
+                  }}
+                  onContextMenu={(event) => event.preventDefault()}
                   aria-label={voiceListening ? "Detener micrófono de Onni" : "Hablar con Onni"}
                 >
                   {voiceListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
