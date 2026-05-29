@@ -4,6 +4,7 @@ import OnniVersoLogo from "@/components/branding/OnniVersoLogo";
 import {
   FacebookGlyph,
   InstagramGlyph,
+  LinkedInGlyph,
   SOCIAL_LINKS,
   TikTokGlyph,
   socialFooterIconClass,
@@ -56,6 +57,15 @@ const Footer = () => {
                 aria-label="TikTok — OnniVers"
               >
                 <TikTokGlyph />
+              </a>
+              <a
+                href={SOCIAL_LINKS.linkedin}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={socialFooterIconClass}
+                aria-label="LinkedIn — Empresa Tecnológica de Colombia"
+              >
+                <LinkedInGlyph />
               </a>
               <a
                 href={MAIL_SUPPORT}

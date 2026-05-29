@@ -511,7 +511,7 @@ const SocialMenu = ({ userId, open, onClose }: SocialMenuProps) => {
       <div className="border-b border-white/10 px-3 py-3 sm:px-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <p className="font-display text-sm font-bold uppercase tracking-[0.16em] text-white">Messenger</p>
-          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={onClose} aria-label="Cerrar chat">
+          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={onClose} aria-label="Cerrar Messenger">
             <X className="h-4 w-4" />
           </Button>
         </div>

@@ -31,7 +31,7 @@ import { onOpCommand } from "@/lib/opCommandBus";
 const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
   { label: "ONNIVERSO", path: "/inicio-2", icon: Sparkles },
   { label: "CONCIERTOS LIVE", path: "/nuestras-salas", icon: Radio },
-  { label: "CHAT", path: "/comunidad", icon: MessageCircle },
+  { label: "CONTACTOS", path: "/comunidad", icon: MessageCircle },
   /** Sección galería + tarjeta Aula (solo navegación web; no abre lobby nativo). */
   { label: "AULA VIRTUAL", path: GALERIA_AULA_SECTION_HREF, icon: Box },
   { label: "TIENDA", path: "/tienda", icon: ShoppingBag },

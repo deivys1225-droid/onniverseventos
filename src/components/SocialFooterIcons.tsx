@@ -3,6 +3,7 @@ export const SOCIAL_LINKS = {
   instagram: "https://www.instagram.com/onniversovr?igsh=bW9lNjB1M256cHF5",
   facebook: "https://www.facebook.com/profile.php?id=61588834621279",
   tiktok: "https://vm.tiktok.com/ZS9Fu7eQQLv32-uIcNu/",
+  linkedin: "https://www.linkedin.com/in/emprea-tecnologica-de-colombia-26855b412",
 } as const;
 
 const iconWrap =
@@ -31,6 +32,15 @@ export const TikTokGlyph = () => (
     <path
       fill="currentColor"
       d="M12.525.02c1.31-.02 2.61-.01 3.918-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.01-1-.01-1.49 0-2.07 0-4.13 0-6.2.05-1.46.46-2.92 1.27-4.13 1.03-1.63 2.52-2.91 4.29-3.59.97-.37 2.03-.56 3.09-.56z"
+    />
+  </svg>
+);
+
+export const LinkedInGlyph = () => (
+  <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" aria-hidden xmlns="http://www.w3.org/2000/svg">
+    <path
+      fill="currentColor"
+      d="M20.447 20.452H16.89v-5.569c0-1.328-.027-3.037-1.849-3.037-1.85 0-2.133 1.445-2.133 2.939v5.667H9.352V9h3.414v1.561h.049c.477-.9 1.637-1.849 3.37-1.849 3.605 0 4.271 2.372 4.271 5.456v6.284zM5.337 7.433a2.063 2.063 0 1 1 0-4.126 2.063 2.063 0 0 1 0 4.126zM7.119 20.452H3.556V9h3.563v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"
     />
   </svg>
 );

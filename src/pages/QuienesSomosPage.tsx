@@ -19,7 +19,7 @@ const ORG_JSON_LD = {
     name: "Davis Herrera",
     jobTitle: "Fundador y CEO",
   },
-  sameAs: [SOCIAL_LINKS.instagram, SOCIAL_LINKS.facebook, SOCIAL_LINKS.tiktok],
+  sameAs: [SOCIAL_LINKS.instagram, SOCIAL_LINKS.facebook, SOCIAL_LINKS.tiktok, SOCIAL_LINKS.linkedin],
 };
 
 const QuienesSomosPage = () => {

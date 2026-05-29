@@ -13,7 +13,7 @@ import {
 import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { useNavigate } from "react-router-dom";
-import { Landmark } from "lucide-react";
+import { Landmark, Radio } from "lucide-react";
 import { COLOSSEO_PATH } from "@/data/coliseoScene";
 import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
 import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
@@ -757,6 +757,10 @@ const MiMundoVRSection = ({
     navigate("/reproductor-galeria");
   }, [navigate]);
 
+  const onEmitirLiveClick = useCallback(() => {
+    navigate("/conciertos-live/config");
+  }, [navigate]);
+
   const onProfileConfirm = async (payload: ProfileCardConfirmPayload) => {
     try {
       localStorage.setItem(PROFILE_NAME_STORAGE_KEY, payload.name);
@@ -852,6 +856,15 @@ const MiMundoVRSection = ({
           <div className="pointer-events-none absolute bottom-32 right-4 z-20 flex flex-col items-center gap-3 md:bottom-6">
             <button
               type="button"
+              onClick={onEmitirLiveClick}
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-fuchsia-300/85 bg-[radial-gradient(circle_at_30%_30%,#ff66e5_0%,#d946ef_45%,#7e22ce_100%)] text-white shadow-[0_0_32px_rgba(236,72,153,0.8),0_0_60px_rgba(217,70,239,0.45)] backdrop-blur-md transition hover:scale-105 hover:border-fuchsia-200 hover:brightness-110"
+              aria-label="Configurar Live"
+              title="Configurar Live"
+            >
+              <Radio className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
               onClick={onLocalPlayerClick}
               className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-blue-500/70 bg-[#1877f2] text-white shadow-[0_0_24px_rgba(24,119,242,0.55)] backdrop-blur-md transition hover:border-blue-300 hover:bg-[#2b82f6]"
               aria-label="Abrir reproductor local"
@@ -867,7 +880,7 @@ const MiMundoVRSection = ({
             <button
               type="button"
               onClick={onColiseoClick}
-              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/50 bg-black/70 text-amber-200 shadow-[0_0_24px_rgba(251,191,36,0.25)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-950/80 hover:text-amber-100"
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-amber-300/85 bg-[radial-gradient(circle_at_30%_30%,#fcd34d_0%,#f59e0b_45%,#92400e_100%)] text-white shadow-[0_0_30px_rgba(251,191,36,0.8),0_0_56px_rgba(245,158,11,0.42)] backdrop-blur-md transition hover:scale-105 hover:border-amber-100 hover:brightness-110"
               aria-label="Entrar al Coliseo Romano 360°"
               title="Coliseo Romano 360°"
             >

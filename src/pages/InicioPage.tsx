@@ -7,6 +7,9 @@ import { compressProfileImage } from "@/lib/compressProfileImage";
 import { upsertProfile, uploadAvatar } from "@/lib/profile";
 import { isLocalUser } from "@/lib/localAuth";
 import { toast } from "sonner";
+import { useState } from "react";
+import MiMundoTopActionsPortal from "@/components/MiMundoTopActionsPortal";
+import SocialMenu from "@/components/SocialMenu";
 
 function getProfileSaveErrorMessage(error: unknown): string {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -30,6 +33,7 @@ function getProfileSaveErrorMessage(error: unknown): string {
 const InicioPage = () => {
   const { user } = useAuth();
   const { profile, refresh } = useProfile(user?.id);
+  const [socialMenuOpen, setSocialMenuOpen] = useState(false);
 
   const displayName =
     profile?.full_name?.trim() ||
@@ -76,6 +80,13 @@ const InicioPage = () => {
         profileAvatarUrl={profile?.avatar_url}
         onProfilePersist={handleProfilePersist}
       />
+      <MiMundoTopActionsPortal
+        socialMenuOpen={socialMenuOpen}
+        onToggleSocial={() => setSocialMenuOpen((prev) => !prev)}
+      />
+      {user ? (
+        <SocialMenu userId={user.id} open={socialMenuOpen} onClose={() => setSocialMenuOpen(false)} />
+      ) : null}
     </div>
   );
 };

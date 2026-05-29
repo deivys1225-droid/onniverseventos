@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { MessageCircleMore, UsersRound } from "lucide-react";
+import { UsersRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "@/components/Navbar";
@@ -26,8 +26,6 @@ import {
 } from "@/lib/friendships";
 import { getRoomActiveStream, type ActiveStreamRow, type RoomCard } from "@/lib/salaRoomCards";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
-import MiMundoTopActionsPortal from "@/components/MiMundoTopActionsPortal";
-import SocialMenu from "@/components/SocialMenu";
 
 const ComunidadPage = () => {
   const navigate = useNavigate();
@@ -44,7 +42,6 @@ const ComunidadPage = () => {
     friendshipPairInfo.forEach((info, id) => map.set(id, info.state));
     return map;
   }, [friendshipPairInfo]);
-  const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const { requestChoice, dialog: liveStreamChoiceDialog } = useLiveStreamChoiceModal();
 
   useEffect(() => {
@@ -305,20 +302,6 @@ const ComunidadPage = () => {
               subtitle="Usuarios registrados que crean su propio espacio. Conecta, envía solicitudes de amistad y entra a sus salas en vivo."
               accent="border-violet-400/40 bg-violet-500/10 text-violet-200"
             />
-            <MiMundoTopActionsPortal
-              socialMenuOpen={socialMenuOpen}
-              onToggleSocial={() => setSocialMenuOpen((prev) => !prev)}
-            />
-            {user ? (
-              <SocialMenu userId={user.id} open={socialMenuOpen} onClose={() => setSocialMenuOpen(false)} />
-            ) : (
-              socialMenuOpen && (
-                <motion.div className="pointer-events-auto fixed top-32 right-4 z-[70] max-w-[min(92vw,280px)] rounded-xl border border-cyan-300/35 bg-card/90 px-3 py-2 text-xs text-cyan-100 backdrop-blur-xl">
-                  <MessageCircleMore className="mr-1 inline h-3.5 w-3.5" />
-                  Inicia sesión para usar Messenger.
-                </motion.div>
-              )
-            )}
             <ComunidadRoomsGrid
               communityRooms={communityRooms}
               activeStreams={activeStreams}
