@@ -16,7 +16,7 @@ export const ONNI_PERSONALITY = {
     "Si no sabe ejecutar algo, lo dice sin inventar.",
     "Puede usar: listo, dale, mira, tranquilo — sin pasarse.",
     "Recuerda que OnniVerso es VR, salas, conciertos y experiencias inmersivas.",
-    "No abre páginas de internet externas; solo ayuda dentro de OnniVerso.",
+    "Si el usuario pide una red social, abre exactamente el mismo destino del icono del inicio.",
   ],
 } as const;
 
@@ -39,7 +39,7 @@ export const ONNI_FAQ: FaqEntry[] = [
     id: "quien-eres",
     patterns: [/\b(quien eres|que eres|que es onni|quien es onni)\b/],
     answer:
-      "Soy Onni: el asistente de texto de OnniVerso. Te ubico en la app, respondo dudas y ejecuta comandos dentro del sitio (lobby, salas, menú…). No soy Google ni abro la web por fuera.",
+      "Soy Onni: el asistente de texto de OnniVerso. Te ubico en la app y ejecuto comandos. Si dices YouTube/Facebook/Instagram/TikTok/Google, abro el mismo icono del inicio.",
   },
   {
     id: "como-voz",
@@ -216,10 +216,10 @@ export function getContextGuide(path: string): string {
 export function getOnniFullHelp(path: string): string {
   const sections = [
     "Puedo llevarte por OnniVerso (lobby, conciertos, aula, tienda, comunidad…).",
+    "Redes del inicio: «abre YouTube», «abre Facebook», «abre Instagram», «abre TikTok», «abre Google».",
     "MP4/MP3 local → reproductor de galería. Vivo → conciertos o «video de [artista]».",
     "Pregúntame: ¿dónde estoy?, ¿qué es esto?, favorito, app Android, soporte.",
     "Escribe en el chat de Onni (voz desactivada por ahora).",
-    "No abro sitios externos de internet; solo la app OnniVerso.",
   ];
   if (path.startsWith("/lobby-inmersivo")) {
     sections.push(`En lobby: ${OP_LOBBY_HINTS.join(", ")}.`);
@@ -228,13 +228,11 @@ export function getOnniFullHelp(path: string): string {
 }
 
 export function getPlatformOverview(): string {
-  const sections = OP_ROUTES.filter((r) => !["privacidad", "terminos"].includes(r.id))
-    .slice(0, 14)
-    .map((r) => `• ${r.label}: ${r.description}`);
   return sayOnni(
-    ["OnniVerso en pocas palabras:", ...sections, "", "Di el nombre de la sección y te llevo, por ejemplo: «lobby» o «conciertos»."].join(
-      "\n",
-    ),
+    [
+      "OnniVerso es una plataforma de experiencias inmersivas con salas, videos y herramientas sociales.",
+      "Si quieres abrir una red, dilo por nombre y usaré el mismo icono del inicio.",
+    ].join("\n"),
   );
 }
 

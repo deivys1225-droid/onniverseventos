@@ -164,7 +164,7 @@ export const OP_ROUTES: OpRouteEntry[] = [
     path: "/mi-mundo/lobby-global",
     label: "Lobby global",
     description: "Feed de vídeos YouTube en escena inmersiva.",
-    aliases: ["lobby global", "mi mundo lobby", "feed lobby", "youtube lobby", "youtube", "abrir youtube"],
+    aliases: ["lobby global", "mi mundo lobby", "feed lobby"],
     requiresAuth: true,
   },
   {
@@ -172,7 +172,7 @@ export const OP_ROUTES: OpRouteEntry[] = [
     path: "/coliseo",
     label: "Coliseo Romano 360°",
     description: "Esfera inmersiva con panorama del Coliseo y YouTube en pantalla flotante.",
-    aliases: ["coliseo", "coliseo romano", "anfiteatro", "sala coliseo", "cine", "abrir cine"],
+    aliases: ["coliseo", "coliseo romano", "anfiteatro", "sala coliseo"],
     requiresAuth: true,
   },
   {
@@ -398,7 +398,7 @@ export const OP_LOBBY_HINTS = [
 export function getOpAssistantHelpText(): string {
   const sections = [
     "Navegación: inicio, conciertos, aula, lobby, tienda, comunidad, galería 3D, podcast, teatro…",
-    "Atajos: “llévame a YouTube”, “abre cine”, “abre cine cam”, “registro”, “entrar”.",
+    "Redes desde inicio: “abre YouTube/Facebook/Instagram/TikTok/Google” (igual que el icono).",
     "Videos en vivo: “abre un video” → Conciertos Live; “video de Karol” → sala del artista.",
     "MP4/MP3 local: “reproductor local”, “abre mp4”, “video local” → Reproductor de galería.",
     "Menú: “abre el menú”, “cierra el menú”.",

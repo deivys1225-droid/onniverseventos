@@ -8,6 +8,12 @@ import HomeSocialRedesRow from "@/components/HomeSocialRedesRow";
 import { dispatchOpCommand } from "@/lib/opCommandBus";
 import { getOnniIntroduction } from "@/data/onniBrain";
 import { getOpAssistantHint, resolveOpCommand } from "@/lib/opAssistantResolver";
+import {
+  getHomeSocialUrl,
+  loadHomeSocialRedesConfig,
+  type HomeSocialIconId,
+} from "@/lib/homeSocialRedesConfig";
+import { openHomeSocialRedes } from "@/lib/homeSocialRedesOpen";
 
 type UiMessage = { role: "user" | "assistant"; text: string };
 type VoiceDetail = string | { text?: string; transcript?: string; final?: boolean; isFinal?: boolean };
@@ -97,14 +103,20 @@ export default function OpAiAssistant() {
       if (result.navigateBack) {
         navigate(-1);
       } else if (result.navigateTo) {
-        const [path, hash] = result.navigateTo.split("#");
-        if (hash) {
-          navigate(path);
-          window.setTimeout(() => {
-            document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }, 400);
+        if (result.navigateTo.startsWith("home-social:")) {
+          const iconId = result.navigateTo.replace("home-social:", "").trim() as HomeSocialIconId;
+          const icons = loadHomeSocialRedesConfig();
+          openHomeSocialRedes(getHomeSocialUrl(icons, iconId, "redes"));
         } else {
-          navigate(result.navigateTo);
+          const [path, hash] = result.navigateTo.split("#");
+          if (hash) {
+            navigate(path);
+            window.setTimeout(() => {
+              document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 400);
+          } else {
+            navigate(result.navigateTo);
+          }
         }
       }
       if (result.command) dispatchOpCommand(result.command);

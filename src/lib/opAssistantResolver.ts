@@ -238,6 +238,45 @@ function matchBack(text: string): OpResolveResult | null {
   return null;
 }
 
+function matchHomeSocial(text: string): OpResolveResult | null {
+  const asksOpen =
+    /\b(abre|abrir|llevame|lleva|ir|entra|entrar|ve|vamos|muestrame|mostrar|quiero ver)\b/.test(text) ||
+    /\b(youtube|facebook|instagram|tiktok|tik tok|google|mercado play|mercadolibre|whatsapp|onnivers|onni vers)\b/.test(
+      text,
+    );
+  if (!asksOpen) return null;
+
+  if (/\b(youtube|you tube)\b/.test(text)) {
+    return { navigateTo: "home-social:youtube", answer: sayOnni("Abro YouTube igual que el icono del inicio.") };
+  }
+  if (/\b(facebook)\b/.test(text)) {
+    return { navigateTo: "home-social:facebook", answer: sayOnni("Abro Facebook igual que el icono del inicio.") };
+  }
+  if (/\b(instagram)\b/.test(text)) {
+    return { navigateTo: "home-social:instagram", answer: sayOnni("Abro Instagram igual que el icono del inicio.") };
+  }
+  if (/\b(tiktok|tik tok)\b/.test(text)) {
+    return { navigateTo: "home-social:tiktok", answer: sayOnni("Abro TikTok igual que el icono del inicio.") };
+  }
+  if (/\b(google)\b/.test(text)) {
+    return { navigateTo: "home-social:google", answer: sayOnni("Abro Google igual que el icono del inicio.") };
+  }
+  if (/\b(mercado play|mercadolibre)\b/.test(text)) {
+    return {
+      navigateTo: "home-social:mercadolibre",
+      answer: sayOnni("Abro Mercado Play igual que el icono del inicio."),
+    };
+  }
+  if (/\b(whatsapp)\b/.test(text)) {
+    return { navigateTo: "home-social:whatsapp", answer: sayOnni("Abro WhatsApp igual que el icono del inicio.") };
+  }
+  if (/\b(onnivers|onni vers|onniverso)\b/.test(text) && /\b(abr|abre|abrir|ir|entra|lleva|llevame)\b/.test(text)) {
+    return { navigateTo: "home-social:onnivers", answer: sayOnni("Abro OnniVers igual que el icono del inicio.") };
+  }
+
+  return null;
+}
+
 function matchHelp(text: string, currentPath: string): OpResolveResult | null {
   if (
     !/\b(ayuda|help|comandos|que puedes|que sabes|lista)\b/.test(text) &&
@@ -415,27 +454,6 @@ function matchRoute(text: string): OpResolveResult | null {
 }
 
 function matchQuickActions(text: string): OpResolveResult | null {
-  if (/\b(youtube|you tube)\b/.test(text)) {
-    return {
-      navigateTo: "/mi-mundo/lobby-global",
-      answer: sayOnni("Listo, te llevo a YouTube en el Lobby Global."),
-    };
-  }
-
-  if (/\b(cine cam|stream cam|cam live|realidad mixta)\b/.test(text)) {
-    return {
-      navigateTo: "/live-stream",
-      answer: sayOnni("Listo, te abro la ruta de Cine Cam / realidad mixta."),
-    };
-  }
-
-  if (/\b(cine)\b/.test(text) && /\b(abr|abre|abrir|lleva|llevame|ir|entra)\b/.test(text)) {
-    return {
-      navigateTo: "/coliseo",
-      answer: sayOnni("Listo, te llevo a Cine (Coliseo)."),
-    };
-  }
-
   return null;
 }
 
@@ -509,6 +527,9 @@ export function resolveOpCommand(
 
   const menu = matchMenu(text);
   if (menu) return menu;
+
+  const homeSocial = matchHomeSocial(text);
+  if (homeSocial) return homeSocial;
 
   const exitSala = matchExitEspectador(text, currentPath);
   if (exitSala) return exitSala;
