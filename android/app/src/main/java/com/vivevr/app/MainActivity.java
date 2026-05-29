@@ -7,6 +7,10 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
 import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
@@ -110,6 +114,11 @@ public class MainActivity extends BridgeActivity {
   /** Onni — permiso RECORD_AUDIO antes de SpeechRecognition en el WebView. */
   private ActivityResultLauncher<String[]> onniMicPermissionLauncher;
   private String pendingOnniMicCallback;
+  private boolean pendingOnniStartListening;
+  private SpeechRecognizer onniSpeechRecognizer;
+  private Intent onniSpeechIntent;
+  private TextToSpeech onniTts;
+  private boolean onniTtsReady;
   /** Legacy: sin uso para reproducción (flujo nativo vía {@link #openStreamSelector}). */
   private ActivityResultLauncher<Intent> selectorActivityLauncher;
   /** Maleta HLS/playback activo para botones 360 / Mixta / Inmersiva ({@link AndroidBridge}). */
@@ -368,6 +377,7 @@ public class MainActivity extends BridgeActivity {
     destroyLobbyPantalla2WebViewIfPresent();
     destroyColiseoBrowserWebViewIfPresent();
     destroySocialRedesWebViews();
+    releaseOnniVoiceEngine();
     super.onDestroy();
   }
 
@@ -601,6 +611,26 @@ public class MainActivity extends BridgeActivity {
     public void requestOnniMicrophonePermission(String callbackName) {
       activity.runOnUiThread(() -> activity.launchOnniMicrophonePermissionFlow(callbackName));
     }
+
+    @JavascriptInterface
+    public void startListening() {
+      activity.runOnUiThread(activity::startOnniListening);
+    }
+
+    @JavascriptInterface
+    public void stopListening() {
+      activity.runOnUiThread(activity::stopOnniListening);
+    }
+
+    @JavascriptInterface
+    public void speak(String text) {
+      activity.runOnUiThread(() -> activity.speakOnni(text));
+    }
+
+    @JavascriptInterface
+    public void stopSpeaking() {
+      activity.runOnUiThread(activity::stopOnniSpeaking);
+    }
   }
 
   /**
@@ -769,6 +799,26 @@ public class MainActivity extends BridgeActivity {
     @JavascriptInterface
     public void openRedesCamDirect(String url) {
       activity.runOnUiThread(() -> activity.openSocialRedesOverlay(url, true));
+    }
+
+    @JavascriptInterface
+    public void startListening() {
+      activity.runOnUiThread(activity::startOnniListening);
+    }
+
+    @JavascriptInterface
+    public void stopListening() {
+      activity.runOnUiThread(activity::stopOnniListening);
+    }
+
+    @JavascriptInterface
+    public void speak(String text) {
+      activity.runOnUiThread(() -> activity.speakOnni(text));
+    }
+
+    @JavascriptInterface
+    public void stopSpeaking() {
+      activity.runOnUiThread(activity::stopOnniSpeaking);
     }
 
     /**
@@ -1774,39 +1824,293 @@ public class MainActivity extends BridgeActivity {
     }
   }
 
+  private void ensureOnniVoiceRecognizer() {
+    if (onniSpeechRecognizer != null) {
+      return;
+    }
+    if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+      dispatchOnniVoiceError("not_available", "SpeechRecognizer no disponible en este dispositivo.");
+      return;
+    }
+    onniSpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+    onniSpeechIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+    onniSpeechIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+    onniSpeechIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-CO");
+    onniSpeechIntent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+    onniSpeechIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+    onniSpeechIntent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, false);
+
+    onniSpeechRecognizer.setRecognitionListener(
+        new RecognitionListener() {
+          @Override
+          public void onReadyForSpeech(Bundle params) {
+            dispatchOnniVoiceEvent("voice:start", null);
+          }
+
+          @Override
+          public void onBeginningOfSpeech() {}
+
+          @Override
+          public void onRmsChanged(float rmsdB) {}
+
+          @Override
+          public void onBufferReceived(byte[] buffer) {}
+
+          @Override
+          public void onEndOfSpeech() {}
+
+          @Override
+          public void onError(int error) {
+            dispatchOnniVoiceError(mapOnniSpeechError(error), "Error de reconocimiento de voz.");
+            dispatchOnniVoiceEvent("voice:end", null);
+          }
+
+          @Override
+          public void onResults(Bundle results) {
+            dispatchOnniVoiceResult(results, true);
+            dispatchOnniVoiceEvent("voice:end", null);
+          }
+
+          @Override
+          public void onPartialResults(Bundle partialResults) {
+            dispatchOnniVoiceResult(partialResults, false);
+          }
+
+          @Override
+          public void onEvent(int eventType, Bundle params) {}
+        });
+  }
+
+  private void startOnniListening() {
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+        != PackageManager.PERMISSION_GRANTED) {
+      pendingOnniStartListening = true;
+      launchOnniMicrophonePermissionFlow("");
+      return;
+    }
+    ensureOnniVoiceRecognizer();
+    if (onniSpeechRecognizer == null || onniSpeechIntent == null) {
+      return;
+    }
+    try {
+      onniSpeechRecognizer.cancel();
+      onniSpeechRecognizer.startListening(onniSpeechIntent);
+    } catch (Exception ignored) {
+      dispatchOnniVoiceError("start_failed", "No se pudo iniciar el micrófono.");
+      dispatchOnniVoiceEvent("voice:end", null);
+    }
+  }
+
+  private void stopOnniListening() {
+    if (onniSpeechRecognizer == null) {
+      return;
+    }
+    try {
+      onniSpeechRecognizer.stopListening();
+    } catch (Exception ignored) {
+      // no-op
+    }
+  }
+
+  private void ensureOnniTts() {
+    if (onniTts != null) {
+      return;
+    }
+    onniTtsReady = false;
+    onniTts = new TextToSpeech(this, status -> {
+      if (status == TextToSpeech.SUCCESS) {
+        int languageStatus = onniTts.setLanguage(new Locale("es", "CO"));
+        onniTtsReady =
+            languageStatus != TextToSpeech.LANG_MISSING_DATA
+                && languageStatus != TextToSpeech.LANG_NOT_SUPPORTED;
+      } else {
+        onniTtsReady = false;
+      }
+    });
+  }
+
+  private void speakOnni(String text) {
+    String normalized = text != null ? text.trim() : "";
+    if (normalized.isEmpty()) {
+      return;
+    }
+    ensureOnniTts();
+    if (onniTts == null || !onniTtsReady) {
+      dispatchOnniVoiceError("tts_unavailable", "TextToSpeech no disponible.");
+      return;
+    }
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        onniTts.speak(normalized, TextToSpeech.QUEUE_FLUSH, null, "onni-utterance");
+      } else {
+        //noinspection deprecation
+        onniTts.speak(normalized, TextToSpeech.QUEUE_FLUSH, null);
+      }
+    } catch (Exception ignored) {
+      dispatchOnniVoiceError("tts_failed", "No se pudo reproducir voz.");
+    }
+  }
+
+  private void stopOnniSpeaking() {
+    if (onniTts == null) {
+      return;
+    }
+    try {
+      onniTts.stop();
+    } catch (Exception ignored) {
+      // no-op
+    }
+  }
+
+  private void releaseOnniVoiceEngine() {
+    pendingOnniStartListening = false;
+    if (onniSpeechRecognizer != null) {
+      try {
+        onniSpeechRecognizer.destroy();
+      } catch (Exception ignored) {
+        // no-op
+      }
+      onniSpeechRecognizer = null;
+    }
+    if (onniTts != null) {
+      try {
+        onniTts.stop();
+        onniTts.shutdown();
+      } catch (Exception ignored) {
+        // no-op
+      }
+      onniTts = null;
+    }
+    onniTtsReady = false;
+  }
+
+  private String mapOnniSpeechError(int errorCode) {
+    switch (errorCode) {
+      case SpeechRecognizer.ERROR_AUDIO:
+        return "audio";
+      case SpeechRecognizer.ERROR_CLIENT:
+        return "client";
+      case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
+        return "permission_denied";
+      case SpeechRecognizer.ERROR_NETWORK:
+        return "network";
+      case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
+        return "network_timeout";
+      case SpeechRecognizer.ERROR_NO_MATCH:
+        return "no_match";
+      case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
+        return "busy";
+      case SpeechRecognizer.ERROR_SERVER:
+        return "server";
+      case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
+        return "speech_timeout";
+      default:
+        return "unknown";
+    }
+  }
+
+  private void dispatchOnniVoiceResult(Bundle results, boolean isFinal) {
+    if (results == null) {
+      return;
+    }
+    ArrayList<String> list = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+    if (list == null || list.isEmpty()) {
+      return;
+    }
+    String transcript = list.get(0) != null ? list.get(0).trim() : "";
+    if (transcript.isEmpty()) {
+      return;
+    }
+    JSONObject payload = new JSONObject();
+    try {
+      payload.put("text", transcript);
+      payload.put("isFinal", isFinal);
+    } catch (Exception ignored) {
+      return;
+    }
+    dispatchOnniVoiceEvent("voice:result", payload.toString());
+  }
+
+  private void dispatchOnniVoiceError(String code, String message) {
+    JSONObject payload = new JSONObject();
+    try {
+      payload.put("code", code != null ? code : "unknown");
+      payload.put("message", message != null ? message : "Error de voz");
+    } catch (Exception ignored) {
+      return;
+    }
+    dispatchOnniVoiceEvent("voice:error", payload.toString());
+  }
+
+  private void dispatchOnniVoiceEvent(String eventName, String detailJson) {
+    Bridge bridge = getBridge();
+    WebView webView = bridge != null ? bridge.getWebView() : null;
+    if (webView == null || eventName == null || eventName.isEmpty()) {
+      return;
+    }
+    String eventLiteral = JSONObject.quote(eventName);
+    String detailLiteral = detailJson != null && !detailJson.isEmpty() ? detailJson : "undefined";
+    String code =
+        "(function(){try{window.dispatchEvent(new CustomEvent("
+            + eventLiteral
+            + ",{detail:"
+            + detailLiteral
+            + "}));}catch(e){console.warn('voice event failed',e);}})();";
+    webView.evaluateJavascript(code, null);
+  }
+
   /**
    * Flujo Onni: si ya hay micrófono concedido, responde al JS de inmediato; si no, muestra el
    * diálogo del sistema (Android 6+).
    */
   private void launchOnniMicrophonePermissionFlow(String callbackName) {
-    if (callbackName == null || callbackName.isEmpty()) {
-      return;
+    if (callbackName != null && !callbackName.isEmpty()) {
+      pendingOnniMicCallback = callbackName;
     }
     if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
         == PackageManager.PERMISSION_GRANTED) {
-      dispatchOnniMicResult(callbackName, true);
+      if (callbackName != null && !callbackName.isEmpty()) {
+        dispatchOnniMicResult(callbackName, true);
+      }
+      if (pendingOnniStartListening) {
+        pendingOnniStartListening = false;
+        startOnniListening();
+      }
       return;
     }
-    pendingOnniMicCallback = callbackName;
     try {
       onniMicPermissionLauncher.launch(new String[] {Manifest.permission.RECORD_AUDIO});
     } catch (Exception ignored) {
+      String cb = pendingOnniMicCallback;
       pendingOnniMicCallback = null;
-      dispatchOnniMicResult(callbackName, false);
+      if (cb != null && !cb.isEmpty()) {
+        dispatchOnniMicResult(cb, false);
+      }
+      if (pendingOnniStartListening) {
+        pendingOnniStartListening = false;
+        dispatchOnniVoiceError("permission_denied", "Se requiere permiso de micrófono.");
+      }
     }
   }
 
   private void finishOnniMicPermission(Map<String, Boolean> result) {
     String cb = pendingOnniMicCallback;
     pendingOnniMicCallback = null;
-    if (cb == null || cb.isEmpty()) {
-      return;
-    }
     boolean granted =
         Boolean.TRUE.equals(result.get(Manifest.permission.RECORD_AUDIO))
             || ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 == PackageManager.PERMISSION_GRANTED;
-    dispatchOnniMicResult(cb, granted);
+    if (cb != null && !cb.isEmpty()) {
+      dispatchOnniMicResult(cb, granted);
+    }
+    if (pendingOnniStartListening) {
+      pendingOnniStartListening = false;
+      if (granted) {
+        startOnniListening();
+      } else {
+        dispatchOnniVoiceError("permission_denied", "Se requiere permiso de micrófono.");
+      }
+    }
   }
 
   private void dispatchOnniMicResult(String callbackName, boolean granted) {

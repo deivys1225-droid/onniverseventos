@@ -1,6 +1,6 @@
-import { FormEvent, useCallback, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Send } from "lucide-react";
+import { Mic, MicOff, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OnniAvatar from "@/components/OnniAvatar";
@@ -10,19 +10,77 @@ import { getOnniIntroduction } from "@/data/onniBrain";
 import { getOpAssistantHint, resolveOpCommand } from "@/lib/opAssistantResolver";
 
 type UiMessage = { role: "user" | "assistant"; text: string };
+type VoiceDetail = string | { text?: string; transcript?: string; final?: boolean; isFinal?: boolean };
+type VoiceErrorDetail = string | { code?: string; message?: string };
+type NativeVoiceBridge = {
+  startListening?: () => void;
+  stopListening?: () => void;
+  speak?: (text: string) => void;
+  stopSpeaking?: () => void;
+};
+
+function parseVoiceResult(detail: unknown): { text: string; isFinal: boolean } {
+  if (typeof detail === "string") {
+    return { text: detail.trim(), isFinal: true };
+  }
+  if (detail && typeof detail === "object") {
+    const payload = detail as VoiceDetail;
+    const text =
+      typeof payload.text === "string"
+        ? payload.text.trim()
+        : typeof payload.transcript === "string"
+          ? payload.transcript.trim()
+          : "";
+    const isFinal =
+      typeof payload.isFinal === "boolean"
+        ? payload.isFinal
+        : typeof payload.final === "boolean"
+          ? payload.final
+          : true;
+    return { text, isFinal };
+  }
+  return { text: "", isFinal: false };
+}
+
+function parseVoiceError(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object") {
+    const payload = detail as VoiceErrorDetail;
+    if (typeof payload.message === "string" && payload.message.trim()) return payload.message.trim();
+    if (typeof payload.code === "string" && payload.code.trim()) return `Error de voz: ${payload.code.trim()}`;
+  }
+  return "No se pudo activar la voz nativa en este momento.";
+}
+
+function getNativeVoiceBridge(): NativeVoiceBridge | null {
+  if (typeof window === "undefined") return null;
+  const android = window.Android;
+  if (android && (typeof android.startListening === "function" || typeof android.speak === "function")) {
+    return android;
+  }
+  const bridge = window.AndroidBridge as NativeVoiceBridge | undefined;
+  if (bridge && (typeof bridge.startListening === "function" || typeof bridge.speak === "function")) {
+    return bridge;
+  }
+  return null;
+}
 
 export default function OpAiAssistant() {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
+  const [voiceListening, setVoiceListening] = useState(false);
   const [messages, setMessages] = useState<UiMessage[]>([
     { role: "assistant", text: getOnniIntroduction() },
   ]);
   const sessionRef = useRef<{ lastAnswer?: string }>({});
+  const pendingVoiceRef = useRef("");
 
   const hint = useMemo(() => getOpAssistantHint(location.pathname), [location.pathname]);
   const showSocialIcons = location.pathname === "/";
+  const voiceSupported = typeof getNativeVoiceBridge()?.startListening === "function";
+  const voiceUiEnabled = true;
 
   const runCommand = useCallback(
     (raw: string) => {
@@ -51,10 +109,80 @@ export default function OpAiAssistant() {
       }
       if (result.command) dispatchOpCommand(result.command);
       setMessages((prev) => [...prev, { role: "assistant", text: result.answer }]);
+      const voiceBridge = getNativeVoiceBridge();
+      if (typeof voiceBridge?.speak === "function") {
+        try {
+          voiceBridge.stopSpeaking?.();
+          voiceBridge.speak(result.answer);
+        } catch {
+          /* ignore voice bridge failures */
+        }
+      }
       return result.answer;
     },
     [location.pathname, navigate],
   );
+
+  useEffect(() => {
+    const onVoiceStart = () => {
+      pendingVoiceRef.current = "";
+      setVoiceListening(true);
+    };
+    const onVoiceResult = (event: Event) => {
+      const custom = event as CustomEvent<unknown>;
+      const { text: transcript } = parseVoiceResult(custom.detail);
+      if (!transcript) return;
+      pendingVoiceRef.current = transcript;
+      setText(transcript);
+    };
+    const onVoiceEnd = () => {
+      setVoiceListening(false);
+      const transcript = pendingVoiceRef.current.trim();
+      pendingVoiceRef.current = "";
+      setText("");
+      if (transcript) runCommand(transcript);
+    };
+    const onVoiceError = (event: Event) => {
+      const custom = event as CustomEvent<unknown>;
+      setVoiceListening(false);
+      pendingVoiceRef.current = "";
+      const errorText = parseVoiceError(custom.detail);
+      setMessages((prev) => [...prev, { role: "assistant", text: errorText }]);
+    };
+
+    window.addEventListener("voice:start", onVoiceStart);
+    window.addEventListener("voice:result", onVoiceResult);
+    window.addEventListener("voice:end", onVoiceEnd);
+    window.addEventListener("voice:error", onVoiceError);
+    return () => {
+      window.removeEventListener("voice:start", onVoiceStart);
+      window.removeEventListener("voice:result", onVoiceResult);
+      window.removeEventListener("voice:end", onVoiceEnd);
+      window.removeEventListener("voice:error", onVoiceError);
+    };
+  }, [runCommand]);
+
+  const onToggleVoice = useCallback(() => {
+    const voiceBridge = getNativeVoiceBridge();
+    if (typeof voiceBridge?.startListening !== "function") {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "No encuentro el puente de voz nativo en esta compilación Android." },
+      ]);
+      return;
+    }
+    try {
+      if (voiceListening) {
+        voiceBridge.stopListening?.();
+      } else {
+        pendingVoiceRef.current = "";
+        setText("");
+        voiceBridge.startListening();
+      }
+    } catch {
+      setVoiceListening(false);
+    }
+  }, [voiceListening]);
 
   const onSend = (e: FormEvent) => {
     e.preventDefault();
@@ -81,7 +209,7 @@ export default function OpAiAssistant() {
             <OnniAvatar size="md" state="idle" className="mt-0.5" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-cyan-100">Onni</p>
-              <p className="text-[10px] text-muted-foreground">Asistente por texto</p>
+              <p className="text-[10px] text-muted-foreground">Asistente por voz y texto</p>
             </div>
             <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
               Cerrar
@@ -107,6 +235,17 @@ export default function OpAiAssistant() {
               onChange={(e) => setText(e.target.value)}
               placeholder="conciertos, lobby, ayuda…"
             />
+            {voiceUiEnabled && (
+              <Button
+                type="button"
+                size="icon"
+                variant={voiceListening ? "secondary" : "outline"}
+                onClick={onToggleVoice}
+                aria-label={voiceListening ? "Detener micrófono de Onni" : "Hablar con Onni"}
+              >
+                {voiceListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </Button>
+            )}
             <Button type="submit" size="icon" variant="hero" aria-label="Enviar">
               <Send className="h-4 w-4" />
             </Button>

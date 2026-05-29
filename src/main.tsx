@@ -27,6 +27,11 @@ declare global {
       openColiceo?: () => void;
       /** Onni: pide RECORD_AUDIO; llama window[callbackName](granted: boolean). */
       requestOnniMicrophonePermission?: (callbackName: string) => void;
+      /** Onni voz nativa Android (compat bridge legacy). */
+      startListening?: () => void;
+      stopListening?: () => void;
+      speak?: (text: string) => void;
+      stopSpeaking?: () => void;
     };
     /** Puente AR: registrado en MainActivity como {@code Android}. */
     Android?: {
@@ -65,6 +70,11 @@ declare global {
       openColiceo?(): void;
       /** Oído exclusivo Coliseo desde web. */
       openColiseoVR?(): void;
+      /** Onni voz nativa Android (SpeechRecognizer + TextToSpeech). */
+      startListening?(): void;
+      stopListening?(): void;
+      speak?(text: string): void;
+      stopSpeaking?(): void;
     };
   }
 }
