@@ -11,6 +11,7 @@ import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.Voice;
 import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
@@ -50,6 +51,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Gestiona captura de audio/vídeo en WebView (p. ej. Agora/WebRTC): el manifest no basta —
@@ -119,6 +121,7 @@ public class MainActivity extends BridgeActivity {
   private Intent onniSpeechIntent;
   private TextToSpeech onniTts;
   private boolean onniTtsReady;
+  private Locale onniTtsLocale = new Locale("es", "CO");
   /** Legacy: sin uso para reproducción (flujo nativo vía {@link #openStreamSelector}). */
   private ActivityResultLauncher<Intent> selectorActivityLauncher;
   /** Maleta HLS/playback activo para botones 360 / Mixta / Inmersiva ({@link AndroidBridge}). */
@@ -1919,18 +1922,97 @@ public class MainActivity extends BridgeActivity {
     onniTtsReady = false;
     onniTts = new TextToSpeech(this, status -> {
       if (status == TextToSpeech.SUCCESS) {
-        int languageStatus = onniTts.setLanguage(new Locale("es", "CO"));
+        onniTtsLocale = selectOnniBestLocale();
+        int languageStatus = onniTts.setLanguage(onniTtsLocale);
         onniTtsReady =
             languageStatus != TextToSpeech.LANG_MISSING_DATA
                 && languageStatus != TextToSpeech.LANG_NOT_SUPPORTED;
+        if (onniTtsReady) {
+          onniTts.setSpeechRate(1.08f);
+          onniTts.setPitch(1.0f);
+          selectOnniBestVoice();
+        }
       } else {
         onniTtsReady = false;
       }
     });
   }
 
+  private Locale selectOnniBestLocale() {
+    Locale[] preferred = {
+      new Locale("es", "CO"),
+      new Locale("es", "MX"),
+      new Locale("es", "US"),
+      new Locale("es", "ES"),
+      new Locale("es")
+    };
+    for (Locale candidate : preferred) {
+      int result = onniTts.setLanguage(candidate);
+      if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
+        return candidate;
+      }
+    }
+    return new Locale("es", "CO");
+  }
+
+  private void selectOnniBestVoice() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP || onniTts == null) {
+      return;
+    }
+    try {
+      Set<Voice> voices = onniTts.getVoices();
+      if (voices == null || voices.isEmpty()) {
+        return;
+      }
+      Voice best = null;
+      int bestScore = Integer.MIN_VALUE;
+      for (Voice voice : voices) {
+        if (voice == null || voice.getLocale() == null) {
+          continue;
+        }
+        Locale locale = voice.getLocale();
+        if (!"es".equalsIgnoreCase(locale.getLanguage())) {
+          continue;
+        }
+        int score = 0;
+        String country = locale.getCountry() != null ? locale.getCountry().toUpperCase(Locale.ROOT) : "";
+        if ("CO".equals(country)) score += 45;
+        else if ("MX".equals(country)) score += 35;
+        else if ("ES".equals(country)) score += 30;
+        else score += 20;
+        score += Math.max(0, voice.getQuality());
+        score -= Math.max(0, voice.getLatency() / 2);
+        if (voice.isNetworkConnectionRequired()) score -= 40;
+        if (score > bestScore) {
+          bestScore = score;
+          best = voice;
+        }
+      }
+      if (best != null) {
+        onniTts.setVoice(best);
+      }
+    } catch (Exception ignored) {
+      // Fallback: usar locale por defecto cuando no se puede elegir voz.
+    }
+  }
+
+  private String normalizeOnniSpeakText(String raw) {
+    String text = raw != null ? raw.trim() : "";
+    if (text.isEmpty()) {
+      return "";
+    }
+    text =
+        text.replace('\n', ' ')
+            .replaceAll("\\s+", " ")
+            .replaceAll("([,;:])\\s*", "$1 ")
+            .replaceAll("([.!?]){2,}", "$1")
+            .replaceAll("\\s+([,.!?;:])", "$1")
+            .trim();
+    return text;
+  }
+
   private void speakOnni(String text) {
-    String normalized = text != null ? text.trim() : "";
+    String normalized = normalizeOnniSpeakText(text);
     if (normalized.isEmpty()) {
       return;
     }
@@ -1982,6 +2064,7 @@ public class MainActivity extends BridgeActivity {
       onniTts = null;
     }
     onniTtsReady = false;
+    onniTtsLocale = new Locale("es", "CO");
   }
 
   private String mapOnniSpeechError(int errorCode) {

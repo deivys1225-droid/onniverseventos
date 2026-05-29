@@ -67,7 +67,10 @@ export const ONNI_FAQ: FaqEntry[] = [
   },
   {
     id: "que-es-onniverso",
-    patterns: [/\b(que es onniverso|que es este sitio|que es esta pagina)\b/],
+    patterns: [
+      /\b(que es onniverso|que es onnivers|que es onni vers|que es onni-verso|que es onnivver|que es onivvers|que es este sitio|que es esta pagina)\b/,
+      /\b(que es)\b.*\b(onniverso|onnivers|onni vers|onnivver|onivvers)\b/,
+    ],
     answer:
       "OnniVerso es la plataforma inmersiva de Empresa Tecnológica de Colombia: Mi Mundo, lobbies 3D, Conciertos Live, aula virtual, podcasts, teatro, tienda y comunidad. Tú entras, eliges experiencia y navegas en 360 o salas en vivo.",
   },

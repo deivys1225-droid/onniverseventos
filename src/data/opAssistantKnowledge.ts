@@ -28,6 +28,34 @@ export type OpLobbyScreen = 1 | 2 | 3;
 /** Rutas públicas y privadas registradas en App.tsx + menú navbar. */
 export const OP_ROUTES: OpRouteEntry[] = [
   {
+    id: "entrar",
+    path: "/entrar",
+    label: "Entrar",
+    description: "Pantalla de bienvenida para acceso y registro.",
+    aliases: ["entrar", "login", "iniciar sesion", "acceder", "welcome"],
+  },
+  {
+    id: "registro",
+    path: "/registro",
+    label: "Registro",
+    description: "Formulario para crear cuenta.",
+    aliases: ["registro", "registrarme", "crear cuenta", "signup", "inscribirme"],
+  },
+  {
+    id: "auth",
+    path: "/auth",
+    label: "Autenticación",
+    description: "Pantalla de autenticación alternativa.",
+    aliases: ["auth", "autenticacion", "autenticar"],
+  },
+  {
+    id: "actualizar-contrasena",
+    path: "/actualizar-contrasena",
+    label: "Actualizar contraseña",
+    description: "Pantalla para cambiar contraseña.",
+    aliases: ["actualizar contrasena", "cambiar contrasena", "reset password"],
+  },
+  {
     id: "inicio",
     path: "/",
     label: "Inicio (Mi Mundo)",
@@ -136,7 +164,7 @@ export const OP_ROUTES: OpRouteEntry[] = [
     path: "/mi-mundo/lobby-global",
     label: "Lobby global",
     description: "Feed de vídeos YouTube en escena inmersiva.",
-    aliases: ["lobby global", "mi mundo lobby", "feed lobby", "youtube lobby"],
+    aliases: ["lobby global", "mi mundo lobby", "feed lobby", "youtube lobby", "youtube", "abrir youtube"],
     requiresAuth: true,
   },
   {
@@ -144,7 +172,7 @@ export const OP_ROUTES: OpRouteEntry[] = [
     path: "/coliseo",
     label: "Coliseo Romano 360°",
     description: "Esfera inmersiva con panorama del Coliseo y YouTube en pantalla flotante.",
-    aliases: ["coliseo", "coliseo romano", "anfiteatro", "sala coliseo"],
+    aliases: ["coliseo", "coliseo romano", "anfiteatro", "sala coliseo", "cine", "abrir cine"],
     requiresAuth: true,
   },
   {
@@ -259,7 +287,7 @@ export const OP_ROUTES: OpRouteEntry[] = [
     path: "/live-stream",
     label: "Live stream (Mux)",
     description: "Reproductor de transmisión Mux.",
-    aliases: ["live stream", "mux", "transmision mux"],
+    aliases: ["live stream", "mux", "transmision mux", "cine cam", "stream cam", "cam live", "realidad mixta"],
     requiresAuth: true,
   },
   {
@@ -370,6 +398,7 @@ export const OP_LOBBY_HINTS = [
 export function getOpAssistantHelpText(): string {
   const sections = [
     "Navegación: inicio, conciertos, aula, lobby, tienda, comunidad, galería 3D, podcast, teatro…",
+    "Atajos: “llévame a YouTube”, “abre cine”, “abre cine cam”, “registro”, “entrar”.",
     "Videos en vivo: “abre un video” → Conciertos Live; “video de Karol” → sala del artista.",
     "MP4/MP3 local: “reproductor local”, “abre mp4”, “video local” → Reproductor de galería.",
     "Menú: “abre el menú”, “cierra el menú”.",

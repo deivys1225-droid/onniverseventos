@@ -170,6 +170,10 @@ function matchInfo(text: string, currentPath: string): OpResolveResult | null {
     return { answer: getPlatformOverview() };
   }
 
+  if (/\b(onniverso|onnivers|onni vers|onni-verso|onnivver|onivvers)\b/.test(text) && /\b(que es|quien es|que hace|para que sirve)\b/.test(text)) {
+    return { answer: getPlatformOverview() };
+  }
+
   if (/\b(quien esta en vivo|hay en vivo|alguien en vivo|esta transmitiendo)\b/.test(text)) {
     const live = getLiveHint();
     if (/\b(llevame|lleva|abre|ir)\b/.test(text)) {
@@ -410,6 +414,31 @@ function matchRoute(text: string): OpResolveResult | null {
   return { navigateTo: route.path, answer: sayOnni(`Te llevo a ${route.label}.`) };
 }
 
+function matchQuickActions(text: string): OpResolveResult | null {
+  if (/\b(youtube|you tube)\b/.test(text)) {
+    return {
+      navigateTo: "/mi-mundo/lobby-global",
+      answer: sayOnni("Listo, te llevo a YouTube en el Lobby Global."),
+    };
+  }
+
+  if (/\b(cine cam|stream cam|cam live|realidad mixta)\b/.test(text)) {
+    return {
+      navigateTo: "/live-stream",
+      answer: sayOnni("Listo, te abro la ruta de Cine Cam / realidad mixta."),
+    };
+  }
+
+  if (/\b(cine)\b/.test(text) && /\b(abr|abre|abrir|lleva|llevame|ir|entra)\b/.test(text)) {
+    return {
+      navigateTo: "/coliseo",
+      answer: sayOnni("Listo, te llevo a Cine (Coliseo)."),
+    };
+  }
+
+  return null;
+}
+
 function avoidEspectadorLoop(result: OpResolveResult, text: string, currentPath: string): OpResolveResult {
   if (!currentPath.startsWith("/sala/espectador/")) return result;
   if (!result.navigateTo?.startsWith("/sala/espectador/")) return result;
@@ -498,6 +527,9 @@ export function resolveOpCommand(
 
   const genericVideo = matchGenericVideoToConciertos(text);
   if (genericVideo) return avoidEspectadorLoop(genericVideo, text, currentPath);
+
+  const quick = matchQuickActions(text);
+  if (quick) return avoidEspectadorLoop(quick, text, currentPath);
 
   const streamer = matchStreamer(text);
   if (streamer) return avoidEspectadorLoop(streamer, text, currentPath);
