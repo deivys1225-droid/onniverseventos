@@ -10,6 +10,8 @@ import { getOnniIntroduction } from "@/data/onniBrain";
 import { getOpAssistantHint, resolveOpCommand } from "@/lib/opAssistantResolver";
 import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
 import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
+import { publishOnniAulaKnowledge } from "@/lib/onniAulaKnowledgeBoard";
+import { extractWikipediaTopic, fetchWikipediaSummary } from "@/lib/wikipediaSummary";
 import {
   getHomeSocialUrl,
   loadHomeSocialRedesConfig,
@@ -79,6 +81,7 @@ export default function OpAiAssistant() {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [voiceListening, setVoiceListening] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [messages, setMessages] = useState<UiMessage[]>([
     { role: "assistant", text: getOnniIntroduction() },
   ]);
@@ -91,52 +94,96 @@ export default function OpAiAssistant() {
   const voiceUiEnabled = true;
 
   const runCommand = useCallback(
-    (raw: string) => {
+    async (raw: string) => {
       const trimmed = raw.trim();
       if (!trimmed) return;
 
       setMessages((prev) => [...prev, { role: "user", text: trimmed }]);
+      setProcessing(true);
 
-      const result = resolveOpCommand(trimmed, location.pathname, {
-        lastAnswer: sessionRef.current.lastAnswer,
-      });
-      sessionRef.current.lastAnswer = result.answer;
+      const wikiTopic = extractWikipediaTopic(trimmed);
+      if (wikiTopic) {
+        try {
+          const wiki = await fetchWikipediaSummary(wikiTopic);
+          const shortAnswer = wiki
+            ? `${wiki.title}: ${wiki.shortText}`
+            : "No encontré un resultado claro en Wikipedia para eso. Prueba con otro nombre.";
+          setMessages((prev) => [...prev, { role: "assistant", text: shortAnswer }]);
+          sessionRef.current.lastAnswer = shortAnswer;
 
-      if (result.navigateBack) {
-        navigate(-1);
-      } else if (result.navigateTo) {
-        if (result.navigateTo === "/reproductor-galeria" && invokeOpenGalleryDirect()) {
-          // Mantener exactamente la misma experiencia del icono de inicio en Android.
-        } else if (result.navigateTo === "/coliseo" && invokeOpenColiceoDirect()) {
-          // Mantener exactamente la misma experiencia del icono Coliseo en Android.
-        } else if (result.navigateTo.startsWith("home-social:")) {
-          const iconId = result.navigateTo.replace("home-social:", "").trim() as HomeSocialIconId;
-          const icons = loadHomeSocialRedesConfig();
-          openHomeSocialRedes(getHomeSocialUrl(icons, iconId, "redes"));
-        } else {
-          const [path, hash] = result.navigateTo.split("#");
-          if (hash) {
-            navigate(path);
-            window.setTimeout(() => {
-              document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
-            }, 400);
+          if (wiki && location.pathname.startsWith("/aula-virtual")) {
+            publishOnniAulaKnowledge({
+              title: wiki.title,
+              shortText: wiki.shortText,
+              fullText: wiki.fullText,
+              sourceUrl: wiki.canonicalUrl,
+            });
+          }
+
+          const voiceBridge = getNativeVoiceBridge();
+          if (typeof voiceBridge?.speak === "function") {
+            try {
+              voiceBridge.stopSpeaking?.();
+              voiceBridge.speak(shortAnswer);
+            } catch {
+              /* ignore voice bridge failures */
+            }
+          }
+          return shortAnswer;
+        } catch {
+          const failAnswer = "Ahora mismo no pude consultar Wikipedia. Inténtalo de nuevo en unos segundos.";
+          setMessages((prev) => [...prev, { role: "assistant", text: failAnswer }]);
+          sessionRef.current.lastAnswer = failAnswer;
+          return failAnswer;
+        } finally {
+          setProcessing(false);
+        }
+      }
+
+      try {
+        const result = resolveOpCommand(trimmed, location.pathname, {
+          lastAnswer: sessionRef.current.lastAnswer,
+        });
+        sessionRef.current.lastAnswer = result.answer;
+
+        if (result.navigateBack) {
+          navigate(-1);
+        } else if (result.navigateTo) {
+          if (result.navigateTo === "/reproductor-galeria" && invokeOpenGalleryDirect()) {
+            // Mantener exactamente la misma experiencia del icono de inicio en Android.
+          } else if (result.navigateTo === "/coliseo" && invokeOpenColiceoDirect()) {
+            // Mantener exactamente la misma experiencia del icono Coliseo en Android.
+          } else if (result.navigateTo.startsWith("home-social:")) {
+            const iconId = result.navigateTo.replace("home-social:", "").trim() as HomeSocialIconId;
+            const icons = loadHomeSocialRedesConfig();
+            openHomeSocialRedes(getHomeSocialUrl(icons, iconId, "redes"));
           } else {
-            navigate(result.navigateTo);
+            const [path, hash] = result.navigateTo.split("#");
+            if (hash) {
+              navigate(path);
+              window.setTimeout(() => {
+                document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }, 400);
+            } else {
+              navigate(result.navigateTo);
+            }
           }
         }
-      }
-      if (result.command) dispatchOpCommand(result.command);
-      setMessages((prev) => [...prev, { role: "assistant", text: result.answer }]);
-      const voiceBridge = getNativeVoiceBridge();
-      if (typeof voiceBridge?.speak === "function") {
-        try {
-          voiceBridge.stopSpeaking?.();
-          voiceBridge.speak(result.answer);
-        } catch {
-          /* ignore voice bridge failures */
+        if (result.command) dispatchOpCommand(result.command);
+        setMessages((prev) => [...prev, { role: "assistant", text: result.answer }]);
+        const voiceBridge = getNativeVoiceBridge();
+        if (typeof voiceBridge?.speak === "function") {
+          try {
+            voiceBridge.stopSpeaking?.();
+            voiceBridge.speak(result.answer);
+          } catch {
+            /* ignore voice bridge failures */
+          }
         }
+        return result.answer;
+      } finally {
+        setProcessing(false);
       }
-      return result.answer;
     },
     [location.pathname, navigate],
   );
@@ -158,7 +205,7 @@ export default function OpAiAssistant() {
       const transcript = pendingVoiceRef.current.trim();
       pendingVoiceRef.current = "";
       setText("");
-      if (transcript) runCommand(transcript);
+      if (transcript) void runCommand(transcript);
     };
     const onVoiceError = (event: Event) => {
       const custom = event as CustomEvent<unknown>;
@@ -207,7 +254,7 @@ export default function OpAiAssistant() {
     const trimmed = text.trim();
     if (!trimmed) return;
     setText("");
-    runCommand(trimmed);
+    void runCommand(trimmed);
   };
 
   return (
@@ -251,7 +298,7 @@ export default function OpAiAssistant() {
             <Input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="conciertos, lobby, ayuda…"
+              placeholder="conciertos, lobby, ayuda o: quien fue Simón Bolívar"
             />
             {voiceUiEnabled && (
               <Button
@@ -264,7 +311,7 @@ export default function OpAiAssistant() {
                 {voiceListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </Button>
             )}
-            <Button type="submit" size="icon" variant="hero" aria-label="Enviar">
+            <Button type="submit" size="icon" variant="hero" aria-label="Enviar" disabled={processing}>
               <Send className="h-4 w-4" />
             </Button>
           </form>

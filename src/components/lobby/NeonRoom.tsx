@@ -35,6 +35,7 @@ import { AULA_VIRTUAL_MAIN_WALL_URL } from "@/lib/aulaVirtual";
 import { ROOM_THEMES, type ImmersiveRoomVariant } from "@/components/lobby/aulaVirtualTheme";
 import { onOpCommand } from "@/lib/opCommandBus";
 import { invokeAndroidOnVrClick } from "@/lib/androidLobbyReturn";
+import { useOnniAulaKnowledgeEntry } from "@/lib/onniAulaKnowledgeBoard";
 
 export type { ImmersiveRoomVariant };
 
@@ -537,6 +538,73 @@ function AulaVirtualMainWebWall({
       onFocus={() => onFocusScreen(2)}
       frameColor={frameColor}
     />
+  );
+}
+
+function AulaOnniKnowledgeFloatingScreen() {
+  const entry = useOnniAulaKnowledgeEntry();
+  const half = ROOM_SIZE / 2;
+
+  return (
+    <group position={[-4.6, WALL_HEIGHT * 0.56, -half + 0.05]} rotation={[0, 0.18, 0]}>
+      <Html
+        transform
+        position={[0, 0, 0.04]}
+        scale={0.009}
+        zIndexRange={LOBBY_SCREEN_HTML_Z_INDEX}
+        style={{ pointerEvents: "auto" }}
+      >
+        <div
+          style={{
+            width: "640px",
+            minHeight: "360px",
+            maxHeight: "430px",
+            overflowY: "auto",
+            background: "rgba(8,14,24,0.94)",
+            border: "2px solid rgba(245, 158, 11, 0.85)",
+            borderRadius: "14px",
+            color: "#f9fafb",
+            boxShadow: "0 0 28px rgba(245, 158, 11, 0.45)",
+            padding: "14px 16px",
+            fontFamily: "Inter, system-ui, sans-serif",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: "12px", letterSpacing: "0.08em", color: "#fcd34d" }}>
+            ONNI AULA — RESPUESTA AMPLIADA
+          </p>
+          {entry ? (
+            <>
+              <h3 style={{ margin: "8px 0 10px", fontSize: "20px", lineHeight: 1.2 }}>{entry.title}</h3>
+              <p style={{ margin: "0 0 12px", fontSize: "13px", color: "#cbd5e1" }}>
+                Resumen corto: {entry.shortText}
+              </p>
+              <p style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: "14px", lineHeight: 1.45 }}>{entry.fullText}</p>
+              <a
+                href={entry.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: "inline-block", marginTop: "12px", fontSize: "12px", color: "#93c5fd" }}
+              >
+                Fuente: Wikipedia
+              </a>
+            </>
+          ) : (
+            <p style={{ margin: "12px 0 0", fontSize: "14px", color: "#cbd5e1" }}>
+              Pregúntale a Onni en el chat algo como: "quién fue Nikola Tesla" o "qué es la fotosíntesis". Aquí verás la
+              respuesta completa dentro del Aula.
+            </p>
+          )}
+        </div>
+      </Html>
+      <mesh position={[0, 0, -0.01]}>
+        <planeGeometry args={[6.2, 3.6]} />
+        <meshBasicMaterial color="#05070e" toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 0, 0.01]}>
+        <planeGeometry args={[6.22, 3.62]} />
+        <meshBasicMaterial color="#f59e0b" wireframe toneMapped={false} />
+      </mesh>
+    </group>
   );
 }
 
@@ -1374,6 +1442,7 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
               <LoungeSpotlight />
             </>
           )}
+          {isAulaVirtual && <AulaOnniKnowledgeFloatingScreen />}
 
         <Suspense fallback={null}>
           {isAulaVirtual ? (
