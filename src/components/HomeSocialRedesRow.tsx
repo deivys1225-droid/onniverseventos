@@ -49,16 +49,15 @@ const GoogleGlyph = () => (
   </svg>
 );
 
-/** Mercado Libre / Mercado Play (películas). */
-const MercadoLibrePlayGlyph = () => (
+/** Pluto TV (películas y canales en vivo). */
+const PlutoTvGlyph = () => (
   <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" aria-hidden xmlns="http://www.w3.org/2000/svg">
-    <circle cx="12" cy="12" r="11" fill="#FFE600" />
-    <ellipse cx="12" cy="11.5" rx="7.2" ry="5.2" fill="#2D3277" />
-    <path
-      fill="#FFE600"
-      d="M8.2 11.4c1.6-1 3.2-1 4.8 0 .55.35.55 1.05 0 1.4-1.6 1-3.2 1-4.8 0-.55-.35-.55-1.05 0-1.4z"
-    />
-    <path fill="#fff" d="M10.2 15.1h3.6v1.1h-3.6z" opacity="0.95" />
+    <circle cx="12" cy="12" r="11" fill="#141414" />
+    <circle cx="8.2" cy="8.2" r="3.1" fill="#F9E000" />
+    <circle cx="15.8" cy="8.2" r="3.1" fill="#FF4ABF" />
+    <circle cx="8.2" cy="15.8" r="3.1" fill="#00E5FF" />
+    <circle cx="15.8" cy="15.8" r="3.1" fill="#9B4DFF" />
+    <path d="M11 9.2v5.6l4.6-2.8z" fill="#fff" opacity="0.98" />
   </svg>
 );
 
@@ -137,10 +136,10 @@ const ICON_BUTTONS: {
   },
   {
     id: "mercadolibre",
-    label: "Mercado Play",
+    label: "Pluto TV",
     className:
-      "border-[#FFE600]/80 bg-[#FFE600] text-[#2D3277] shadow-[0_0_20px_-6px_rgba(255,230,0,0.95)]",
-    Glyph: MercadoLibrePlayGlyph,
+      "border-[#F9E000]/80 bg-[#141414] text-white shadow-[0_0_20px_-6px_rgba(155,77,255,0.95)]",
+    Glyph: PlutoTvGlyph,
   },
   {
     id: "whatsapp",

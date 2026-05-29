@@ -71,6 +71,18 @@ describe("resolveOpCommand", () => {
     expect(r.answer.toLowerCase()).toContain("lobby");
   });
 
+  it("en lobby cambia video de youtube por texto", () => {
+    const r = resolveOpCommand("cambia el video a gasolina daddy yankee", "/lobby-inmersivo");
+    expect(r.command?.type).toBe("lobby.screen4.youtube.set");
+    expect((r.command as { embedUrl?: string } | undefined)?.embedUrl).toContain("youtube.com/embed");
+  });
+
+  it("fuera del lobby no habilita cambio de video youtube", () => {
+    const r = resolveOpCommand("cambia el video a gasolina daddy yankee", "/nuestras-salas");
+    expect(r.command).toBeUndefined();
+    expect(r.answer.toLowerCase()).toContain("lobby");
+  });
+
   it("ayuda incluye reproductor", () => {
     const r = resolveOpCommand("ayuda", "/");
     expect(r.answer).toMatch(/reproductor|MP4/i);

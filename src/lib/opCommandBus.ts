@@ -3,6 +3,7 @@ export type OpCommand =
   | { type: "ui.menu.close" }
   | { type: "ui.menu.toggle" }
   | { type: "lobby.focusScreen"; screen: 2 | 3 | 4 }
+  | { type: "lobby.screen4.youtube.set"; embedUrl: string; sourceLabel: string }
   | { type: "lobby.unfocusScreen" }
   | { type: "lobby.gyro.enable" }
   | { type: "lobby.gyro.disable" }

@@ -173,10 +173,35 @@ const SIDE_WALL_SCREEN4_HEIGHT = LOBBY_PANEL_HALF_HEIGHT;
 const WALL1_SALAS_WIDTH = LOBBY_PANEL_HALF_WIDTH;
 const WALL1_PANEL_HEIGHT = LOBBY_PANEL_HALF_HEIGHT;
 const LOBBY_WEB_EMBED_URL = "https://onnivers.com/nuestras-salas";
+const LOBBY_YOUTUBE_DEFAULT_EMBED = "https://www.youtube.com/embed/CCF1_jI8Prk?rel=0";
+const LOBBY_YOUTUBE_EMBED_STORAGE_KEY = "onniverso.lobby.youtube.embed";
 const SIDE_WALL_SCREEN3_WIDTH = ROOM_SIZE - 0.9;
 const SIDE_WALL_SCREEN3_HEIGHT = WALL_HEIGHT - 0.9;
 
 type HoloScreenKind = "hub" | "salas" | "webpage" | "screen4";
+
+function normalizeLobbyYoutubeEmbedUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return LOBBY_YOUTUBE_DEFAULT_EMBED;
+  if (!/^https:\/\/www\.youtube\.com\/embed\//i.test(trimmed) && !/^https:\/\/www\.youtube\.com\/embed\?/i.test(trimmed)) {
+    return LOBBY_YOUTUBE_DEFAULT_EMBED;
+  }
+  return trimmed;
+}
+
+function readStoredLobbyYoutubeEmbedUrl(): string {
+  try {
+    const raw = localStorage.getItem(LOBBY_YOUTUBE_EMBED_STORAGE_KEY);
+    if (!raw) return LOBBY_YOUTUBE_DEFAULT_EMBED;
+    const normalized = normalizeLobbyYoutubeEmbedUrl(raw);
+    if (normalized !== raw) {
+      localStorage.setItem(LOBBY_YOUTUBE_EMBED_STORAGE_KEY, normalized);
+    }
+    return normalized;
+  } catch {
+    return LOBBY_YOUTUBE_DEFAULT_EMBED;
+  }
+}
 
 const MIXED_REALITY_CAMERA_ERROR =
   "No se pudo acceder a la camara trasera. Revisa los permisos del navegador y vuelve a intentarlo.";
@@ -459,7 +484,6 @@ function SideWallScreen3({
   onFocusScreen: (label: number) => void;
   frameColor?: string;
 }) {
-  const half = ROOM_SIZE / 2;
   const y = WALL_HEIGHT / 2;
   const off = 0.03;
   const interactionMode = focusedScreen !== null;
@@ -468,8 +492,8 @@ function SideWallScreen3({
       kind="webpage"
       label={3}
       embedUrl={LOBBY_WEB_EMBED_URL}
-      position={[half - off, y, 0]}
-      rotation={[0, -Math.PI / 2, 0]}
+      position={[0, y, -ROOM_SIZE / 2 + off]}
+      rotation={[0, 0, 0]}
       width={SIDE_WALL_SCREEN3_WIDTH}
       height={SIDE_WALL_SCREEN3_HEIGHT}
       focused={focusedScreen === 3}
@@ -483,10 +507,12 @@ function SideWallScreen3({
 function SideWallScreen4({
   focusedScreen,
   onFocusScreen,
+  embedUrl,
   frameColor = "#00ffff",
 }: {
   focusedScreen: number | null;
   onFocusScreen: (label: number) => void;
+  embedUrl: string;
   frameColor?: string;
 }) {
   const half = ROOM_SIZE / 2;
@@ -495,8 +521,9 @@ function SideWallScreen4({
   const interactionMode = focusedScreen !== null;
   return (
     <HoloScreen
-      kind="screen4"
+      kind="webpage"
       label={4}
+      embedUrl={embedUrl}
       position={[-half + off, y, 0]}
       rotation={[0, Math.PI / 2, 0]}
       width={SIDE_WALL_SCREEN4_WIDTH}
@@ -1086,6 +1113,7 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
   const [locked, setLocked] = useState(false);
   const [escapeBarVisible, setEscapeBarVisible] = useState(true);
   const [focusedScreen, setFocusedScreen] = useState<number | null>(null);
+  const [lobbyYoutubeEmbedUrl, setLobbyYoutubeEmbedUrl] = useState<string>(() => readStoredLobbyYoutubeEmbedUrl());
   const [mixedRealityEnabled, setMixedRealityEnabled] = useState(false);
   const [mixedRealityLoading, setMixedRealityLoading] = useState(false);
   const [mixedRealityError, setMixedRealityError] = useState<string | null>(null);
@@ -1120,6 +1148,9 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
       }
       if (cmd.type === "lobby.unfocusScreen") {
         setFocusedScreen(null);
+      }
+      if (cmd.type === "lobby.screen4.youtube.set") {
+        setLobbyYoutubeEmbedUrl(normalizeLobbyYoutubeEmbedUrl(cmd.embedUrl));
       }
       if (cmd.type === "lobby.gyro.enable") {
         setGyroLookEnabled(true);
@@ -1213,6 +1244,14 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
   useEffect(() => {
     focusedScreenRef.current = focusedScreen;
   }, [focusedScreen]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOBBY_YOUTUBE_EMBED_STORAGE_KEY, normalizeLobbyYoutubeEmbedUrl(lobbyYoutubeEmbedUrl));
+    } catch {
+      /* ignore */
+    }
+  }, [lobbyYoutubeEmbedUrl]);
 
 
   useEffect(() => {
@@ -1543,11 +1582,6 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
             </>
           ) : (
             <>
-              <HoloScreens
-                focusedScreen={focusedScreen}
-                onFocusScreen={focusScreen}
-                frameColor={theme.screenFrameColor}
-              />
               <SideWallScreen3
                 focusedScreen={focusedScreen}
                 onFocusScreen={focusScreen}
@@ -1556,6 +1590,7 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
               <SideWallScreen4
                 focusedScreen={focusedScreen}
                 onFocusScreen={focusScreen}
+                embedUrl={lobbyYoutubeEmbedUrl}
                 frameColor={theme.screenFrameColor}
               />
             </>

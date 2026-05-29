@@ -48,6 +48,75 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function extractYouTubeVideoIdFromUrl(rawUrl: string): string | null {
+  const cleaned = rawUrl.trim().replace(/[),.;]+$/, "");
+  if (!cleaned) return null;
+
+  try {
+    const parsed = new URL(cleaned);
+    const host = parsed.hostname.toLowerCase();
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+
+    if (host.includes("youtu.be")) {
+      return pathParts[0] ?? null;
+    }
+
+    if (host.includes("youtube.com")) {
+      const byQuery = parsed.searchParams.get("v");
+      if (byQuery) return byQuery;
+
+      const embedIndex = pathParts.findIndex((part) => part === "embed" || part === "shorts" || part === "live");
+      if (embedIndex >= 0 && pathParts[embedIndex + 1]) {
+        return pathParts[embedIndex + 1];
+      }
+    }
+  } catch {
+    // Continue with regex fallback.
+  }
+
+  const regexFallback =
+    cleaned.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{6,})/i)?.[1] ??
+    null;
+  return regexFallback;
+}
+
+function buildYouTubeEmbedFromTopic(topic: string): string {
+  const q = topic.trim();
+  return `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(q)}&rel=0`;
+}
+
+function extractLobbyYoutubeTarget(textRaw: string): { embedUrl: string; sourceLabel: string } | null {
+  const url = textRaw.match(/https?:\/\/[^\s]+/i)?.[0];
+  if (url) {
+    const videoId = extractYouTubeVideoIdFromUrl(url);
+    if (videoId) {
+      return {
+        embedUrl: `https://www.youtube.com/embed/${videoId}?rel=0`,
+        sourceLabel: "enlace de YouTube",
+      };
+    }
+  }
+
+  const fromPhrase =
+    textRaw.match(
+      /\b(?:cambia(?:r)?\s+(?:el\s+)?video(?:\s+de\s+youtube)?\s+(?:a|por)?|pon(?:me)?|coloca|reproduce|reproducir)\s+(.+)$/i,
+    )?.[1] ??
+    textRaw.match(/\byoutube\s+(?:de|con|sobre)?\s*(.+)$/i)?.[1] ??
+    "";
+
+  const topic = fromPhrase
+    .replace(/\s+\b(?:en|solo en|aqui en)\b\s+(?:la|el)\s+\b(?:pantalla|lobby)\b.*$/i, "")
+    .replace(/\s+\b(?:en la pared|en la pantalla cuatro|en pantalla 4)\b.*$/i, "")
+    .trim();
+
+  if (!topic) return null;
+
+  return {
+    embedUrl: buildYouTubeEmbedFromTopic(topic),
+    sourceLabel: topic,
+  };
+}
+
 const SHORT_STREAMER_ALIASES = new Set(["mj", "karol"]);
 
 const GENERIC_STREAMER_ALIASES = new Set([
@@ -298,9 +367,32 @@ function matchMenu(text: string): OpResolveResult | null {
   return { command: { type: "ui.menu.toggle" }, answer: sayOnni("Listo, alterné el menú.") };
 }
 
-function matchLobby(text: string, onLobbyPage: boolean): OpResolveResult | null {
-  const lobbyContext = onLobbyPage || /\b(lobby|pantalla|gyro|giroscopio|giro)\b/.test(text);
+function matchLobby(text: string, textRaw: string, onLobbyPage: boolean): OpResolveResult | null {
+  const asksLobbyYoutube =
+    /\b(cambia|cambiar|pon|poner|coloca|colocar|reproduce|reproducir)\b/.test(text) &&
+    /\b(video|youtube|cancion|musica)\b/.test(text);
+  const lobbyContext = onLobbyPage || asksLobbyYoutube || /\b(lobby|pantalla|gyro|giroscopio|giro)\b/.test(text);
   if (!lobbyContext) return null;
+
+  if (asksLobbyYoutube) {
+    if (!onLobbyPage) {
+      return {
+        answer: sayOnni("Esa función de cambiar videos solo está activa dentro del lobby inmersivo."),
+      };
+    }
+
+    const target = extractLobbyYoutubeTarget(textRaw);
+    if (!target) {
+      return {
+        answer: sayOnni("Dime el nombre o el link. Ejemplo: «cambia el video a Gasolina Daddy Yankee»."),
+      };
+    }
+
+    return {
+      command: { type: "lobby.screen4.youtube.set", embedUrl: target.embedUrl, sourceLabel: target.sourceLabel },
+      answer: sayOnni(`Listo, actualicé el video del lobby a: ${target.sourceLabel}.`),
+    };
+  }
 
   if (/\b(pantalla|screen)\b/.test(text)) {
     if (/\b(dos|2|segunda)\b/.test(text)) {
@@ -534,7 +626,7 @@ export function resolveOpCommand(
   const exitSala = matchExitEspectador(text, currentPath);
   if (exitSala) return exitSala;
 
-  const lobby = matchLobby(text, currentPath.startsWith("/lobby-inmersivo"));
+  const lobby = matchLobby(text, textRaw, currentPath.startsWith("/lobby-inmersivo"));
   if (lobby) return lobby;
 
   if (isInfoQuery(text)) {
@@ -566,7 +658,7 @@ export function resolveOpCommand(
 
 export function getOpAssistantHint(currentPath: string): string {
   if (currentPath.startsWith("/lobby-inmersivo")) {
-    return 'Di: "pantalla 1", "giroscopio", "¿dónde estoy?", "lobby".';
+    return 'Di: "pantalla 3", "cambia el video a Daddy Yankee", "giroscopio".';
   }
   if (currentPath.startsWith("/sala/espectador")) {
     return 'Di: "salir a conciertos", "reproductor mp4", "¿qué es esto?".';

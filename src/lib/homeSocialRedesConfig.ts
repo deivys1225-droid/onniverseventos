@@ -12,6 +12,7 @@ export type HomeSocialIconId =
 
 const ONNIVERS_SITE_URL = "https://onnivers.com/";
 const LEGACY_ONNIVERS_LOBBY_PATH = "/lobby-inmersivo";
+const PLUTO_TV_URL = "https://pluto.tv/es/live-tv";
 
 export type HomeSocialRedesMode = "redes" | "redesCam";
 
@@ -39,6 +40,13 @@ function normalizeHomeWhatsAppUrl(url: string): string {
 function normalizeOnniversHomeUrl(url: string): string {
   const trimmed = url.trim();
   if (!trimmed || trimmed.includes(LEGACY_ONNIVERS_LOBBY_PATH)) return ONNIVERS_SITE_URL;
+  return trimmed;
+}
+
+function normalizePlutoTvUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return PLUTO_TV_URL;
+  if (trimmed.includes("play.mercadolibre.com")) return PLUTO_TV_URL;
   return trimmed;
 }
 
@@ -81,9 +89,9 @@ export const DEFAULT_HOME_SOCIAL_ICONS: HomeSocialIconConfig[] = [
   },
   {
     id: "mercadolibre",
-    label: "Mercado Play",
-    redesUrl: "https://play.mercadolibre.com.co/",
-    redesCamUrl: "https://play.mercadolibre.com.co/",
+    label: "Pluto TV",
+    redesUrl: PLUTO_TV_URL,
+    redesCamUrl: PLUTO_TV_URL,
   },
   {
     id: "whatsapp",
@@ -118,6 +126,14 @@ function mergeWithDefaults(parsed: unknown): HomeSocialIconConfig[] {
         ...def,
         redesUrl: normalizeOnniversHomeUrl(redesUrl),
         redesCamUrl: normalizeOnniversHomeUrl(redesCamUrl),
+      };
+    }
+
+    if (def.id === "mercadolibre") {
+      return {
+        ...def,
+        redesUrl: normalizePlutoTvUrl(redesUrl),
+        redesCamUrl: normalizePlutoTvUrl(redesCamUrl),
       };
     }
 
