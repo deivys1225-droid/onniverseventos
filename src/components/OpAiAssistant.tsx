@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Mic, MicOff, Send } from "lucide-react";
+import { Send, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OnniAvatar from "@/components/OnniAvatar";
@@ -197,15 +197,13 @@ export default function OpAiAssistant() {
       const custom = event as CustomEvent<unknown>;
       const { text: transcript } = parseVoiceResult(custom.detail);
       if (!transcript) return;
-      pendingVoiceRef.current = transcript;
-      setText(transcript);
+      pendingVoiceRef.current = "";
+      setText("");
+      void runCommand(transcript);
     };
     const onVoiceEnd = () => {
       setVoiceListening(false);
-      const transcript = pendingVoiceRef.current.trim();
       pendingVoiceRef.current = "";
-      setText("");
-      if (transcript) void runCommand(transcript);
     };
     const onVoiceError = (event: Event) => {
       const custom = event as CustomEvent<unknown>;
@@ -227,7 +225,7 @@ export default function OpAiAssistant() {
     };
   }, [runCommand]);
 
-  const onToggleVoice = useCallback(() => {
+  const activarMicrofono = useCallback(() => {
     const voiceBridge = getNativeVoiceBridge();
     if (typeof voiceBridge?.startListening !== "function") {
       setMessages((prev) => [
@@ -240,14 +238,18 @@ export default function OpAiAssistant() {
       if (voiceListening) {
         voiceBridge.stopListening?.();
       } else {
-        pendingVoiceRef.current = "";
-        setText("");
         voiceBridge.startListening();
       }
     } catch {
       setVoiceListening(false);
     }
   }, [voiceListening]);
+
+  const onToggleVoice = useCallback(() => {
+    pendingVoiceRef.current = "";
+    setText("");
+    activarMicrofono();
+  }, [activarMicrofono]);
 
   const onSend = (e: FormEvent) => {
     e.preventDefault();
@@ -308,7 +310,7 @@ export default function OpAiAssistant() {
                 onClick={onToggleVoice}
                 aria-label={voiceListening ? "Detener micrófono de Onni" : "Hablar con Onni"}
               >
-                {voiceListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {voiceListening ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
               </Button>
             )}
             <Button type="submit" size="icon" variant="hero" aria-label="Enviar" disabled={processing}>
