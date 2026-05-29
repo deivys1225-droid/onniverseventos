@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Send, Volume2, VolumeX } from "lucide-react";
+import { Mic, MicOff, Send, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OnniAvatar from "@/components/OnniAvatar";
@@ -251,6 +251,36 @@ export default function OpAiAssistant() {
     activarMicrofono();
   }, [activarMicrofono]);
 
+  const onSpeakLastAnswer = useCallback(() => {
+    const voiceBridge = getNativeVoiceBridge();
+    if (typeof voiceBridge?.speak !== "function") {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "No encuentro el parlante nativo en esta compilación Android." },
+      ]);
+      return;
+    }
+
+    const textToSpeak = sessionRef.current.lastAnswer?.trim();
+    if (!textToSpeak) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Aún no tengo una respuesta para leer en voz alta." },
+      ]);
+      return;
+    }
+
+    try {
+      voiceBridge.stopSpeaking?.();
+      voiceBridge.speak(textToSpeak);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "No pude activar el parlante en este momento." },
+      ]);
+    }
+  }, []);
+
   const onSend = (e: FormEvent) => {
     e.preventDefault();
     const trimmed = text.trim();
@@ -303,15 +333,26 @@ export default function OpAiAssistant() {
               placeholder="conciertos, lobby, ayuda o: quien fue Simón Bolívar"
             />
             {voiceUiEnabled && (
-              <Button
-                type="button"
-                size="icon"
-                variant={voiceListening ? "secondary" : "outline"}
-                onClick={onToggleVoice}
-                aria-label={voiceListening ? "Detener micrófono de Onni" : "Hablar con Onni"}
-              >
-                {voiceListening ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  onClick={onSpeakLastAnswer}
+                  aria-label="Escuchar la última respuesta de Onni"
+                >
+                  <Volume2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={voiceListening ? "secondary" : "outline"}
+                  onClick={onToggleVoice}
+                  aria-label={voiceListening ? "Detener micrófono de Onni" : "Hablar con Onni"}
+                >
+                  {voiceListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </Button>
+              </>
             )}
             <Button type="submit" size="icon" variant="hero" aria-label="Enviar" disabled={processing}>
               <Send className="h-4 w-4" />
