@@ -13,7 +13,7 @@ import {
 import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { useNavigate } from "react-router-dom";
-import { Landmark, Radio } from "lucide-react";
+import { GraduationCap, Landmark, Radio } from "lucide-react";
 import { COLOSSEO_PATH } from "@/data/coliseoScene";
 import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
 import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
@@ -23,6 +23,8 @@ import {
   getRoomMode,
   type MiMundoEnvironmentId,
 } from "@/data/miMundoEnvironments";
+import { AULA_VIRTUAL_LOBBY_PATH } from "@/lib/aulaVirtual";
+import { useAulaVirtualCardChoice } from "@/hooks/useAulaVirtualCardChoice";
 import {
   MAX_WEBGL_PIXEL_RATIO,
   VR_STEREO_PIXEL_RATIO,
@@ -704,6 +706,7 @@ const MiMundoVRSection = ({
   onProfilePersist,
 }: MiMundoVRSectionProps) => {
   const navigate = useNavigate();
+  const { requestAulaVirtualEntry, dialog: aulaVirtualCardDialog } = useAulaVirtualCardChoice();
   const [profileSaving, setProfileSaving] = useState(false);
   const [lobbyOpening, setLobbyOpening] = useState(false);
   const vrStereoActive = useVrModeActive();
@@ -761,6 +764,11 @@ const MiMundoVRSection = ({
     navigate("/conciertos-live/config");
   }, [navigate]);
 
+  const onAulaVirtualClick = useCallback(() => {
+    if (requestAulaVirtualEntry()) return;
+    navigate(AULA_VIRTUAL_LOBBY_PATH);
+  }, [navigate, requestAulaVirtualEntry]);
+
   const onProfileConfirm = async (payload: ProfileCardConfirmPayload) => {
     try {
       localStorage.setItem(PROFILE_NAME_STORAGE_KEY, payload.name);
@@ -781,6 +789,7 @@ const MiMundoVRSection = ({
       id="mi-mundo-vr"
       className="relative h-full w-full max-w-full overflow-x-clip overflow-y-hidden bg-black"
     >
+      {aulaVirtualCardDialog}
       <div className="absolute inset-0 z-[1] overflow-hidden">
         <div className="absolute inset-0 h-full w-full overflow-hidden">
         <Canvas
@@ -862,6 +871,15 @@ const MiMundoVRSection = ({
               title="Configurar Live"
             >
               <Radio className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={onAulaVirtualClick}
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-cyan-300/85 bg-[radial-gradient(circle_at_30%_30%,#67e8f9_0%,#06b6d4_45%,#155e75_100%)] text-white shadow-[0_0_30px_rgba(34,211,238,0.8),0_0_56px_rgba(14,116,144,0.42)] backdrop-blur-md transition hover:scale-105 hover:border-cyan-100 hover:brightness-110"
+              aria-label="Aula Virtual"
+              title="Aula Virtual"
+            >
+              <GraduationCap className="h-5 w-5" />
             </button>
             <button
               type="button"
