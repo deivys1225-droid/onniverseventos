@@ -8,6 +8,8 @@ import HomeSocialRedesRow from "@/components/HomeSocialRedesRow";
 import { dispatchOpCommand } from "@/lib/opCommandBus";
 import { getOnniIntroduction } from "@/data/onniBrain";
 import { getOpAssistantHint, resolveOpCommand } from "@/lib/opAssistantResolver";
+import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
+import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
 import {
   getHomeSocialUrl,
   loadHomeSocialRedesConfig,
@@ -103,7 +105,11 @@ export default function OpAiAssistant() {
       if (result.navigateBack) {
         navigate(-1);
       } else if (result.navigateTo) {
-        if (result.navigateTo.startsWith("home-social:")) {
+        if (result.navigateTo === "/reproductor-galeria" && invokeOpenGalleryDirect()) {
+          // Mantener exactamente la misma experiencia del icono de inicio en Android.
+        } else if (result.navigateTo === "/coliseo" && invokeOpenColiceoDirect()) {
+          // Mantener exactamente la misma experiencia del icono Coliseo en Android.
+        } else if (result.navigateTo.startsWith("home-social:")) {
           const iconId = result.navigateTo.replace("home-social:", "").trim() as HomeSocialIconId;
           const icons = loadHomeSocialRedesConfig();
           openHomeSocialRedes(getHomeSocialUrl(icons, iconId, "redes"));

@@ -72,7 +72,7 @@ const GENERIC_STREAMER_ALIASES = new Set([
 
 function isGenericVideoIntent(text: string): boolean {
   return (
-    /\b(mp4|mp3|local|reproductor|carpeta|archivos)\b/.test(text) ||
+    /\b(mp4|mp3|local|reproductor|roproductor|preproductor|carpeta|archivos)\b/.test(text) ||
     /\b(video local|videos locales)\b/.test(text) ||
     (/\b(video|videos)\b/.test(text) &&
       !/\b(de|del)\s+[a-z0-9]/i.test(text) &&
@@ -358,7 +358,7 @@ function matchLocalReproductor(text: string): OpResolveResult | null {
     /\b(local|locales|mi carpeta|carpeta|archivo|archivos|dispositivo|galeria reproductor|reproductor galeria)\b/.test(
       text,
     ) ||
-    /\b(reproductor|player)\b/.test(text);
+    /\b(reproductor|roproductor|preproductor|player)\b/.test(text);
 
   const hit = findLongestAliasMatch(text, [route]);
   if (!hit && !explicitLocal) return null;
@@ -478,7 +478,7 @@ function avoidEspectadorLoop(result: OpResolveResult, text: string, currentPath:
 }
 
 function fallback(text: string): OpResolveResult {
-  if (/\b(mp4|mp3|local|reproductor|carpeta)\b/.test(text)) {
+  if (/\b(mp4|mp3|local|reproductor|roproductor|preproductor|carpeta)\b/.test(text)) {
     const route = OP_ROUTES.find((r) => r.id === "reproductor");
     if (route) {
       return {

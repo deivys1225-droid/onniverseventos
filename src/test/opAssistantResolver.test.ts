@@ -12,6 +12,16 @@ describe("resolveOpCommand", () => {
     expect(r.navigateTo).toBe("/reproductor-galeria");
   });
 
+  it("acepta typo roproductor y va a reproductor-galeria", () => {
+    const r = resolveOpCommand("abre roproductor", "/");
+    expect(r.navigateTo).toBe("/reproductor-galeria");
+  });
+
+  it("acepta typo coliceo y navega a /coliseo", () => {
+    const r = resolveOpCommand("abre coliceo", "/");
+    expect(r.navigateTo).toBe("/coliseo");
+  });
+
   it("video de karol va a sala nova-byte", () => {
     const r = resolveOpCommand("entra al video de karol", "/");
     expect(r.navigateTo).toContain("al-universo-nova-byte");

@@ -172,7 +172,7 @@ export const OP_ROUTES: OpRouteEntry[] = [
     path: "/coliseo",
     label: "Coliseo Romano 360°",
     description: "Esfera inmersiva con panorama del Coliseo y YouTube en pantalla flotante.",
-    aliases: ["coliseo", "coliseo romano", "anfiteatro", "sala coliseo"],
+    aliases: ["coliseo", "coliceo", "coliseo romano", "coliceo romano", "anfiteatro", "sala coliseo"],
     requiresAuth: true,
   },
   {

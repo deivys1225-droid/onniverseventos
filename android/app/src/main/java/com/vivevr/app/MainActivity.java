@@ -1039,6 +1039,11 @@ public class MainActivity extends BridgeActivity {
         new WebChromeClient() {
           @Override
           public void onPermissionRequest(final PermissionRequest request) {
+            if (!redesCam) {
+              // Redes (sin cam): no conceder captura de cámara/micrófono.
+              request.deny();
+              return;
+            }
             MainActivity.this.runOnUiThread(() -> handleWebKitMediaPermission(request));
           }
         });
