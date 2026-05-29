@@ -509,7 +509,7 @@ function SideWallScreen4({
   );
 }
 
-/** Aula Virtual: una sola web a pantalla casi completa (pared del fondo). */
+/** Aula Virtual: web principal en su pared original. */
 function AulaVirtualMainWebWall({
   focusedScreen,
   onFocusScreen,
@@ -541,69 +541,187 @@ function AulaVirtualMainWebWall({
   );
 }
 
-function AulaOnniKnowledgeFloatingScreen() {
-  const entry = useOnniAulaKnowledgeEntry();
+/** Aula Virtual: chat extenso de Onni pegado a pared de pizarra. */
+function AulaVirtualOnniWallChat({
+  focusedScreen,
+  onFocusScreen,
+  frameColor = "#f59e0b",
+}: {
+  focusedScreen: number | null;
+  onFocusScreen: (label: number) => void;
+  frameColor?: string;
+}) {
+  const liveEntry = useOnniAulaKnowledgeEntry();
+  const [manualEntry, setManualEntry] = useState<typeof liveEntry>(null);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const entry = manualEntry ?? liveEntry;
   const half = ROOM_SIZE / 2;
+  const y = WALL_HEIGHT / 2;
+  const label = 5;
+  const focused = focusedScreen === label;
+  const interactionMode = focusedScreen !== null;
+  const wallWidth = 9.6;
+  const wallHeight = 5.2;
+  const panelPxWidth = 980;
+  const htmlScale = (wallWidth / panelPxWidth) * 36.225;
+
+  const onSearch = useCallback(async () => {
+    const raw = query.trim();
+    if (!raw) return;
+    const topic = extractWikipediaTopic(raw) ?? raw;
+    setLoading(true);
+    setError("");
+    try {
+      const wiki = await fetchWikipediaSummary(topic);
+      if (!wiki) {
+        setManualEntry(null);
+        setError("No encontré ese tema en Wikipedia. Prueba con otro nombre.");
+        return;
+      }
+      setManualEntry({
+        title: wiki.title,
+        shortText: wiki.shortText,
+        fullText: wiki.fullText,
+        sourceUrl: wiki.canonicalUrl,
+        askedAt: Date.now(),
+      });
+    } catch {
+      setError("No se pudo consultar Wikipedia en este momento.");
+    } finally {
+      setLoading(false);
+    }
+  }, [query]);
 
   return (
-    <group position={[-4.6, WALL_HEIGHT * 0.56, -half + 0.05]} rotation={[0, 0.18, 0]}>
+    <group position={[0, y - 0.15, half - 0.04]} rotation={[0, Math.PI, 0]}>
       <Html
         transform
-        position={[0, 0, 0.04]}
-        scale={0.009}
+        position={[0, 0, 0.03]}
+        scale={htmlScale}
         zIndexRange={LOBBY_SCREEN_HTML_Z_INDEX}
-        style={{ pointerEvents: "auto" }}
+        style={{ pointerEvents: !interactionMode || focused ? "auto" : "none" }}
       >
         <div
+          onPointerDownCapture={(event) => {
+            event.stopPropagation();
+            onFocusScreen(label);
+          }}
+          onWheelCapture={(event) => event.stopPropagation()}
           style={{
-            width: "640px",
-            minHeight: "360px",
-            maxHeight: "430px",
-            overflowY: "auto",
-            background: "rgba(8,14,24,0.94)",
-            border: "2px solid rgba(245, 158, 11, 0.85)",
+            width: `${panelPxWidth}px`,
+            minHeight: "540px",
+            maxHeight: "540px",
+            overflow: "hidden",
+            background: "rgba(6,10,18,0.93)",
+            border: "2px solid rgba(245, 158, 11, 0.9)",
             borderRadius: "14px",
-            color: "#f9fafb",
-            boxShadow: "0 0 28px rgba(245, 158, 11, 0.45)",
-            padding: "14px 16px",
+            color: "#f8fafc",
+            boxShadow: "0 0 28px rgba(245,158,11,0.42)",
+            padding: "14px",
             fontFamily: "Inter, system-ui, sans-serif",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            pointerEvents: !interactionMode || focused ? "auto" : "none",
           }}
         >
-          <p style={{ margin: 0, fontSize: "12px", letterSpacing: "0.08em", color: "#fcd34d" }}>
-            ONNI AULA — RESPUESTA AMPLIADA
-          </p>
-          {entry ? (
-            <>
-              <h3 style={{ margin: "8px 0 10px", fontSize: "20px", lineHeight: 1.2 }}>{entry.title}</h3>
-              <p style={{ margin: "0 0 12px", fontSize: "13px", color: "#cbd5e1" }}>
-                Resumen corto: {entry.shortText}
-              </p>
-              <p style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: "14px", lineHeight: 1.45 }}>{entry.fullText}</p>
-              <a
-                href={entry.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{ display: "inline-block", marginTop: "12px", fontSize: "12px", color: "#93c5fd" }}
-              >
-                Fuente: Wikipedia
-              </a>
-            </>
-          ) : (
-            <p style={{ margin: "12px 0 0", fontSize: "14px", color: "#cbd5e1" }}>
-              Pregúntale a Onni en el chat algo como: "quién fue Nikola Tesla" o "qué es la fotosíntesis". Aquí verás la
-              respuesta completa dentro del Aula.
+            <p style={{ margin: 0, fontSize: "16px", letterSpacing: "0.08em", color: "#fcd34d", fontWeight: 700 }}>
+              ONNI AULA PRO
             </p>
-          )}
+            <p style={{ margin: 0, fontSize: "18px", color: "#fde68a" }}>Búsqueda extensa de Wikipedia para la clase</p>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void onSearch();
+                  }
+                }}
+                placeholder="Ej: historia de Colombia"
+                style={{
+                  height: "40px",
+                  flex: 1,
+                  borderRadius: "8px",
+                  border: "1px solid rgba(252, 211, 77, 0.45)",
+                  background: "rgba(0,0,0,0.35)",
+                  color: "#fff",
+                  padding: "0 10px",
+                  fontSize: "18px",
+                  outline: "none",
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => void onSearch()}
+                disabled={loading}
+                style={{
+                  height: "40px",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(252, 211, 77, 0.6)",
+                  background: "rgba(245, 158, 11, 0.22)",
+                  color: "#fef3c7",
+                  padding: "0 12px",
+                  fontSize: "16px",
+                  fontWeight: 700,
+                  cursor: loading ? "wait" : "pointer",
+                  opacity: loading ? 0.75 : 1,
+                }}
+              >
+                {loading ? "Buscando..." : "Buscar"}
+              </button>
+            </div>
+            {error ? <p style={{ margin: 0, color: "#fecaca", fontSize: "15px" }}>{error}</p> : null}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                borderRadius: "10px",
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(0,0,0,0.28)",
+                padding: "12px",
+              }}
+            >
+              {entry ? (
+                <>
+                <h3 style={{ margin: 0, fontSize: "27px", lineHeight: 1.2 }}>{entry.title}</h3>
+                  <p style={{ margin: "8px 0 0", fontSize: "18px", color: "#cbd5e1" }}>Resumen corto: {entry.shortText}</p>
+                  <p style={{ margin: "10px 0 0", whiteSpace: "pre-wrap", lineHeight: 1.5, fontSize: "20px" }}>{entry.fullText}</p>
+                  <a
+                    href={entry.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ display: "inline-block", marginTop: "10px", fontSize: "18px", color: "#93c5fd" }}
+                  >
+                    Ver fuente en Wikipedia
+                  </a>
+                </>
+              ) : (
+                <p style={{ margin: 0, color: "#cbd5e1", fontSize: "19px" }}>
+                  Este es el segundo chat de Onni para respuestas largas. Escribe una búsqueda y aquí verás el resultado completo.
+                </p>
+              )}
+            </div>
         </div>
       </Html>
-      <mesh position={[0, 0, -0.01]}>
-        <planeGeometry args={[6.2, 3.6]} />
-        <meshBasicMaterial color="#05070e" toneMapped={false} />
+      <mesh position={[0, 0, -0.03]}>
+        <planeGeometry args={[wallWidth, wallHeight]} />
+        <meshBasicMaterial color="#060b14" toneMapped={false} />
       </mesh>
-      <mesh position={[0, 0, 0.01]}>
-        <planeGeometry args={[6.22, 3.62]} />
-        <meshBasicMaterial color="#f59e0b" wireframe toneMapped={false} />
-      </mesh>
+      {[
+        { p: [0, wallHeight / 2, 0.01] as [number, number, number], s: [wallWidth, 0.07] as [number, number] },
+        { p: [0, -wallHeight / 2, 0.01] as [number, number, number], s: [wallWidth, 0.07] as [number, number] },
+        { p: [-wallWidth / 2, 0, 0.01] as [number, number, number], s: [0.07, wallHeight] as [number, number] },
+        { p: [wallWidth / 2, 0, 0.01] as [number, number, number], s: [0.07, wallHeight] as [number, number] },
+      ].map((b, i) => (
+        <mesh key={i} position={b.p}>
+          <planeGeometry args={b.s} />
+          <meshBasicMaterial color={frameColor} toneMapped={false} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -1411,11 +1529,18 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
 
           <Room structureVisible={!mixedRealityActive} theme={theme} />
           {isAulaVirtual ? (
-            <AulaVirtualMainWebWall
-              focusedScreen={focusedScreen}
-              onFocusScreen={focusScreen}
-              frameColor={theme.screenFrameColor}
-            />
+            <>
+              <AulaVirtualMainWebWall
+                focusedScreen={focusedScreen}
+                onFocusScreen={focusScreen}
+                frameColor={theme.screenFrameColor}
+              />
+              <AulaVirtualOnniWallChat
+                focusedScreen={focusedScreen}
+                onFocusScreen={focusScreen}
+                frameColor={theme.screenFrameColor}
+              />
+            </>
           ) : (
             <>
               <HoloScreens
@@ -1442,7 +1567,6 @@ export default function NeonRoom({ variant = "lobby" }: NeonRoomProps) {
               <LoungeSpotlight />
             </>
           )}
-          {isAulaVirtual && <AulaOnniKnowledgeFloatingScreen />}
 
         <Suspense fallback={null}>
           {isAulaVirtual ? (

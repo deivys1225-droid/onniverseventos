@@ -177,7 +177,6 @@ export default function AulaVirtualClassroomDecor({ roomSize, wallHeight }: Aula
   return (
     <>
       <CeilingLights roomSize={roomSize} wallHeight={wallHeight} />
-      <Chalkboard position={[0, wallHeight * 0.52, half - 0.12]} rotation={[0, Math.PI, 0]} />
       <LobbyDecorEarthMoon position={[-6.25, wallHeight * 0.52, half - 0.42]} scale={1.76} />
       <LobbyDecorHeartWall
         position={[5.15, wallHeight * 0.52, half - 0.42]}
