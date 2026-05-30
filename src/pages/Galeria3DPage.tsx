@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SectionHeader from "@/components/salas/SectionHeader";
 import Galeria3DModelsGrid from "@/components/galeria3d/Galeria3DModelsGrid";
+import EducationSection from "@/components/EducationSection";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
 import { Button } from "@/components/ui/button";
 import abecedarioPreviewImg from "@/assets/aula-preview/abecedario.png";
@@ -57,11 +58,11 @@ const Galeria3DPage = () => {
           </div>
           <section id="galeria-3d" className="scroll-mt-24">
             <SectionHeader
-              badge="Aula Virtual"
+              badge="Lobby 3D"
               icon={Box}
               title="CONTENIDO"
               highlight="3D"
-              subtitle="Vista previa de lo que encontrarás dentro del Aula Virtual: abecedario, dinosaurios, Tierra, anatomía y más. Las tarjetas son solo informativas."
+              subtitle="Vista previa de contenido 3D del lobby educativo/recreativo: abecedario, dinosaurios, Tierra, anatomía y más."
               accent="border-amber-400/40 bg-amber-500/10 text-amber-100"
             />
 
@@ -96,6 +97,9 @@ const Galeria3DPage = () => {
                   >
                     Entrar al Coliseo
                   </Button>
+                  <Button asChild variant="outline" size="sm" className="mt-2 touch-manipulation">
+                    <Link to="/docente-clases">Panel docente (crear clase)</Link>
+                  </Button>
                 </div>
               </div>
             </article>
@@ -119,11 +123,11 @@ const Galeria3DPage = () => {
                     Nuevo espacio inmersivo
                   </p>
                   <h2 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                    Aula Virtual
+                    Lobby Aula 3D
                   </h2>
                   <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-                    Lobby 3D caminable: en la app elige VR estéreo nativo o la sala web. El menú
-                    «AULA VIRTUAL» solo muestra esta sección.
+                    Espacio 3D caminable para explorar y jugar. Esta tarjeta no corresponde a la
+                    clase virtual en vivo; la clase real se maneja desde Coliseo 360.
                   </p>
                   {onAndroid ? (
                     <Button
@@ -133,16 +137,20 @@ const Galeria3DPage = () => {
                       className="mt-4 touch-manipulation"
                       onClick={() => requestAulaVirtualEntry()}
                     >
-                      Entrar al Aula Virtual
+                      Entrar al Lobby Aula 3D
                     </Button>
                   ) : (
                     <Button asChild variant="heroOutline" size="sm" className="mt-4 touch-manipulation">
-                      <Link to={AULA_VIRTUAL_LOBBY_PATH}>Entrar al Aula Virtual</Link>
+                      <Link to={AULA_VIRTUAL_LOBBY_PATH}>Entrar al Lobby Aula 3D</Link>
                     </Button>
                   )}
                 </div>
               </div>
             </article>
+
+            <div className="mb-10 overflow-hidden rounded-2xl border border-primary/20 bg-card/30 backdrop-blur-sm">
+              <EducationSection />
+            </div>
 
             <Galeria3DModelsGrid />
           </section>

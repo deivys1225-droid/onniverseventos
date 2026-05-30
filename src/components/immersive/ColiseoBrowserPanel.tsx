@@ -16,9 +16,16 @@ export default function ColiseoAndroidWebViewSlot({
 }) {
   const nativeSlotRef = useRef<HTMLDivElement | null>(null);
   const useNativeWebView = false;
+  const directClassMp4 = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("mp4")?.trim() ?? "";
+  }, []);
   const coliseoPlaylist = useMemo(
-    () => Array.from(new Set(Object.values(SALA_MP4_URL_BY_ID).filter((url) => /^https?:\/\//.test(url)))),
-    [],
+    () =>
+      directClassMp4
+        ? [directClassMp4]
+        : Array.from(new Set(Object.values(SALA_MP4_URL_BY_ID).filter((url) => /^https?:\/\//.test(url)))),
+    [directClassMp4],
   );
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const coliseoFallbackMp4 = coliseoPlaylist[currentVideoIndex] ?? SALA_MP4_URL_BY_ID["vr-360"];
