@@ -8,7 +8,11 @@ import {
 } from "@/data/coliseoScene";
 
 /** Pantalla flotante vacía en la escena 3D; Android pinta el WebView encima del slot. */
-export default function ColiseoFloatingWebViewScreen() {
+export default function ColiseoFloatingWebViewScreen({
+  onScreenPointerDown,
+}: {
+  onScreenPointerDown?: () => void;
+}) {
   return (
     <group position={COLOSSEO_FLOATING_SCREEN_POSITION}>
       <Html
@@ -22,10 +26,12 @@ export default function ColiseoFloatingWebViewScreen() {
         }}
       >
         <div
-          className="overflow-hidden rounded-lg border border-white/25 bg-transparent shadow-[0_0_40px_rgba(0,0,0,0.45)] ring-1 ring-amber-400/25"
+          className="relative"
           style={{ height: `min(${COLOSSEO_FLOATING_SCREEN_SLOT_PX.heightVh}vh, ${COLOSSEO_FLOATING_SCREEN_SLOT_PX.maxHeight}px)` }}
         >
-          <ColiseoAndroidWebViewSlot />
+          <div className="h-full overflow-hidden rounded-lg border border-white/25 bg-transparent shadow-[0_0_40px_rgba(0,0,0,0.45)] ring-1 ring-amber-400/25">
+            <ColiseoAndroidWebViewSlot onScreenPointerDown={onScreenPointerDown} />
+          </div>
         </div>
       </Html>
 

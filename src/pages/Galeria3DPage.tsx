@@ -1,14 +1,17 @@
 ﻿import { useEffect } from "react";
-import { Box, GraduationCap } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Box, GraduationCap, Landmark } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SectionHeader from "@/components/salas/SectionHeader";
 import Galeria3DModelsGrid from "@/components/galeria3d/Galeria3DModelsGrid";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
 import { Button } from "@/components/ui/button";
+import abecedarioPreviewImg from "@/assets/aula-preview/abecedario.png";
 import { useAulaVirtualCardChoice } from "@/hooks/useAulaVirtualCardChoice";
+import { COLOSSEO_PATH } from "@/data/coliseoScene";
 import { isAndroidLiveStreamChoicePlatform } from "@/lib/liveStreamOpenDirect";
+import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
 import {
   AULA_VIRTUAL_LOBBY_PATH,
   GALERIA_AULA_CARD_HASH,
@@ -16,8 +19,13 @@ import {
 
 const Galeria3DPage = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { requestAulaVirtualEntry, dialog: aulaCardDialog } = useAulaVirtualCardChoice();
   const onAndroid = isAndroidLiveStreamChoicePlatform();
+  const handleColiseoOpen = () => {
+    if (invokeOpenColiceoDirect()) return;
+    navigate(COLOSSEO_PATH);
+  };
 
   useEffect(() => {
     if (location.hash !== `#${GALERIA_AULA_CARD_HASH}`) return;
@@ -57,6 +65,41 @@ const Galeria3DPage = () => {
               accent="border-amber-400/40 bg-amber-500/10 text-amber-100"
             />
 
+            <article className="mb-10 scroll-mt-28 overflow-hidden rounded-2xl border border-cyan-400/35 bg-gradient-to-br from-cyan-500/10 via-card/50 to-violet-500/10 p-5 backdrop-blur-xl sm:p-6">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
+                <div className="relative h-44 shrink-0 overflow-hidden rounded-xl border border-white/10 sm:h-48 lg:w-72">
+                  <img
+                    src={`${import.meta.env.BASE_URL}educacion-inmersiva.jpeg`}
+                    alt="Clase virtual inmersiva en OnniVers"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent" />
+                </div>
+                <div className="flex-1">
+                  <p className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-100">
+                    <Landmark className="h-3.5 w-3.5" aria-hidden />
+                    Clase Virtual 360
+                  </p>
+                  <h2 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                    Clase Virtual 360
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                    Espacio educativo inmersivo donde se reciben clases virtuales en tiempo real,
+                    dictadas por el docente para estudiantes conectados desde web o app.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="heroOutline"
+                    size="sm"
+                    className="mt-4 touch-manipulation"
+                    onClick={handleColiseoOpen}
+                  >
+                    Entrar al Coliseo
+                  </Button>
+                </div>
+              </div>
+            </article>
+
             <article
               id={GALERIA_AULA_CARD_HASH}
               className="mb-10 scroll-mt-28 overflow-hidden rounded-2xl border border-amber-400/35 bg-gradient-to-br from-amber-500/10 via-card/50 to-cyan-500/10 p-5 backdrop-blur-xl sm:p-6"
@@ -64,7 +107,7 @@ const Galeria3DPage = () => {
               <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
                 <div className="relative h-44 shrink-0 overflow-hidden rounded-xl border border-white/10 sm:h-48 lg:w-72">
                   <img
-                    src={`${import.meta.env.BASE_URL}educacion-inmersiva.jpeg`}
+                    src={abecedarioPreviewImg}
                     alt="Aula virtual inmersiva OnniVers"
                     className="h-full w-full object-cover"
                   />
