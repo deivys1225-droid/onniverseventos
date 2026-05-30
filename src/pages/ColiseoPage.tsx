@@ -59,7 +59,17 @@ const ColiseoPage = () => {
     setCameraError(null);
     setCameraReady(false);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+          },
+          audio: false,
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
       cameraStreamRef.current = stream;
       setCameraStream(stream);
       setCameraEnabled(true);

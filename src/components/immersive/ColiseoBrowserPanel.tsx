@@ -3,7 +3,6 @@ import { COLOSSEO_HOME_URL } from "@/data/coliseoScene";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import {
   COLOSSEO_NATIVE_BROWSER_SLOT_ID,
-  isColiseoNativeWebViewAvailable,
   useColiseoNativeWebViewSlot,
 } from "@/lib/coliseoNativeWebView";
 
@@ -16,7 +15,7 @@ export default function ColiseoAndroidWebViewSlot({
   onScreenPointerDown?: () => void;
 }) {
   const nativeSlotRef = useRef<HTMLDivElement | null>(null);
-  const useNativeWebView = isColiseoNativeWebViewAvailable();
+  const useNativeWebView = false;
   const coliseoPlaylist = useMemo(
     () => Array.from(new Set(Object.values(SALA_MP4_URL_BY_ID).filter((url) => /^https?:\/\//.test(url)))),
     [],
