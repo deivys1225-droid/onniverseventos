@@ -17,14 +17,14 @@ import { GraduationCap, Landmark, Radio } from "lucide-react";
 import { COLOSSEO_PATH } from "@/data/coliseoScene";
 import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
 import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
-import { LOBBY_IMMERSIVE_PATH, LOBBY_OPEN_TRANSITION_MS } from "@/lib/lobbyImmersive";
-import { invokeOpenLobbyDirect } from "@/lib/lobbyOpenDirect";
+import { LOBBY_IMMERSIVE_PATH } from "@/lib/lobbyImmersive";
 import {
   getRoomMode,
   type MiMundoEnvironmentId,
 } from "@/data/miMundoEnvironments";
 import { AULA_VIRTUAL_LOBBY_PATH } from "@/lib/aulaVirtual";
 import { useAulaVirtualCardChoice } from "@/hooks/useAulaVirtualCardChoice";
+import { useLobbyCardChoice } from "@/hooks/useLobbyCardChoice";
 import {
   MAX_WEBGL_PIXEL_RATIO,
   VR_STEREO_PIXEL_RATIO,
@@ -707,8 +707,8 @@ const MiMundoVRSection = ({
 }: MiMundoVRSectionProps) => {
   const navigate = useNavigate();
   const { requestAulaVirtualEntry, dialog: aulaVirtualCardDialog } = useAulaVirtualCardChoice();
+  const { requestLobbyEntry, dialog: lobbyCardDialog } = useLobbyCardChoice();
   const [profileSaving, setProfileSaving] = useState(false);
-  const [lobbyOpening, setLobbyOpening] = useState(false);
   const vrStereoActive = useVrModeActive();
   const environmentId = useMemo<MiMundoEnvironmentId>(() => "lobby", []);
   const storedProfileName = useMemo(
@@ -739,16 +739,10 @@ const MiMundoVRSection = ({
     [isNarrowViewport],
   );
   const handleLobbyOpen = useCallback(() => {
-    if (lobbyOpening || vrStereoActive) return;
-
-    if (invokeOpenLobbyDirect()) return;
-
-    setLobbyOpening(true);
-    window.setTimeout(() => {
-      navigate(LOBBY_IMMERSIVE_PATH);
-      setLobbyOpening(false);
-    }, LOBBY_OPEN_TRANSITION_MS);
-  }, [lobbyOpening, navigate, vrStereoActive]);
+    if (vrStereoActive) return;
+    if (requestLobbyEntry()) return;
+    navigate(LOBBY_IMMERSIVE_PATH);
+  }, [navigate, requestLobbyEntry, vrStereoActive]);
 
   const onColiseoClick = useCallback(() => {
     if (invokeOpenColiceoDirect()) return;
@@ -790,6 +784,7 @@ const MiMundoVRSection = ({
       className="relative h-full w-full max-w-full overflow-x-clip overflow-y-hidden bg-black"
     >
       {aulaVirtualCardDialog}
+      {lobbyCardDialog}
       <div className="absolute inset-0 z-[1] overflow-hidden">
         <div className="absolute inset-0 h-full w-full overflow-hidden">
         <Canvas
