@@ -3,8 +3,8 @@ import { useMemo } from "react";
 
 const PDF_SCREEN_POSITION: [number, number, number] = [-10.5, 1.35, -0.35];
 const PDF_SCREEN_ROTATION: [number, number, number] = [0, Math.PI / 2, 0];
-const PDF_SCREEN_WIDTH = "min(72vw, 540px)";
-const PDF_SCREEN_HEIGHT = "min(80vh, 640px)";
+const PDF_SCREEN_WIDTH = "min(82vw, 700px)";
+const PDF_SCREEN_HEIGHT = "min(86vh, 760px)";
 const PDF_FALLBACK_URL =
   "https://drive.google.com/file/d/1IA-S_lyyiblp9iGzDx-qAL2AwXp1lIsY/view?usp=drive_link";
 
