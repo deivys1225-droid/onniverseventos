@@ -1,6 +1,5 @@
 import { Html } from "@react-three/drei";
 import { useMemo } from "react";
-import { useLocation } from "react-router-dom";
 
 const PDF_SCREEN_POSITION: [number, number, number] = [-10.5, 1.35, -0.35];
 const PDF_SCREEN_ROTATION: [number, number, number] = [0, Math.PI / 2, 0];
@@ -32,11 +31,10 @@ export default function ColiseoFloatingPdfScreen({
 }: {
   onScreenPointerDown?: () => void;
 }) {
-  const location = useLocation();
   const pdfUrl = useMemo(() => {
     if (typeof window === "undefined") return PDF_FALLBACK_URL;
-    return new URLSearchParams(location.search).get("pdf")?.trim() || PDF_FALLBACK_URL;
-  }, [location.search]);
+    return new URLSearchParams(window.location.search).get("pdf")?.trim() || PDF_FALLBACK_URL;
+  }, []);
 
   const iframeSrc = useMemo(() => buildPdfEmbedUrl(pdfUrl), [pdfUrl]);
 
