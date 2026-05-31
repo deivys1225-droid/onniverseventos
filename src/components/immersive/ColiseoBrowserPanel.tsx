@@ -1,6 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import { COLOSSEO_HOME_URL } from "@/data/coliseoScene";
-import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import {
   COLOSSEO_NATIVE_BROWSER_SLOT_ID,
   useColiseoNativeWebViewSlot,
@@ -16,21 +15,16 @@ export default function ColiseoAndroidWebViewSlot({
 }) {
   const nativeSlotRef = useRef<HTMLDivElement | null>(null);
   const useNativeWebView = false;
-  const coliseoPlaylist = useMemo(
-    () => Array.from(new Set(Object.values(SALA_MP4_URL_BY_ID).filter((url) => /^https?:\/\//.test(url)))),
-    [],
-  );
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-  const coliseoFallbackMp4 = coliseoPlaylist[currentVideoIndex] ?? SALA_MP4_URL_BY_ID["vr-360"];
-
-  const handleNextVideo = () => {
-    if (coliseoPlaylist.length <= 1) return;
-    setCurrentVideoIndex((prev) => (prev + 1) % coliseoPlaylist.length);
-  };
+  const classMp4Url = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    const raw = new URLSearchParams(window.location.search).get("mp4")?.trim() ?? "";
+    return /^https?:\/\//i.test(raw) ? raw : "";
+  }, []);
+  const browserTargetUrl = classMp4Url || COLOSSEO_HOME_URL;
 
   useColiseoNativeWebViewSlot(nativeSlotRef, {
     enabled: useNativeWebView,
-    url: COLOSSEO_HOME_URL,
+    url: browserTargetUrl,
     reloadToken: 0,
   });
 
@@ -48,25 +42,22 @@ export default function ColiseoAndroidWebViewSlot({
       aria-hidden={useNativeWebView}
     >
       {!useNativeWebView ? (
-        <>
+        classMp4Url ? (
           <video
-            key={coliseoFallbackMp4}
-            src={coliseoFallbackMp4}
+            key={classMp4Url}
+            src={classMp4Url}
             className="h-full w-full bg-black"
             controls
             preload="metadata"
             playsInline
           />
-          {coliseoPlaylist.length > 1 && (
-            <button
-              type="button"
-              onClick={handleNextVideo}
-              className="absolute bottom-2 right-2 rounded-md border border-white/25 bg-black/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white hover:bg-black/75"
-            >
-              Siguiente video
-            </button>
-          )}
-        </>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-black/70 px-4 text-center">
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-white/75">
+              Esperando video del docente...
+            </p>
+          </div>
+        )
       ) : null}
     </div>
   );

@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Check, Copy, Plus, Save, StopCircle, UserCheck2, Users, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -39,6 +39,12 @@ type ClaseSession = {
   aula_id: string;
   status: "scheduled" | "live" | "ended";
   started_at: string;
+  state_snapshot?: {
+    titulo?: string | null;
+    mp4_url?: string | null;
+    pdf_url?: string | null;
+    glb_url?: string | null;
+  } | null;
 };
 
 type AulaMember = {
@@ -60,6 +66,7 @@ function slugify(value: string): string {
 }
 
 export default function DocenteClasesPage() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [role, setRole] = useState<string | null>(null);
@@ -146,6 +153,18 @@ export default function DocenteClasesPage() {
       }
     }
 
+    const { data: sessionsRows } = await supabase
+      .from("clase_sesiones" as any)
+      .select("id,aula_id,status,started_at,state_snapshot")
+      .in("aula_id", aulaIds)
+      .order("started_at", { ascending: false });
+    const latestSessionByAula: Record<string, ClaseSession | null> = {};
+    for (const aulaId of aulaIds) latestSessionByAula[aulaId] = null;
+    for (const row of (sessionsRows ?? []) as ClaseSession[]) {
+      if (!latestSessionByAula[row.aula_id]) latestSessionByAula[row.aula_id] = row;
+    }
+    setSessionsByAula(latestSessionByAula);
+
     const normalized: AulaCard[] = (aulasRows ?? []).map((row) => ({
       id: row.id,
       slug: row.slug,
@@ -157,32 +176,27 @@ export default function DocenteClasesPage() {
     setAulas(normalized);
     setDrafts(
       Object.fromEntries(
-        normalized.map((aula) => [
-          aula.id,
-          {
-            nombre: aula.nombre,
-            slug: aula.slug,
-            descripcion: aula.descripcion ?? "",
-            titulo: aula.template?.titulo ?? "Clase Virtual",
-            mp4_url: aula.template?.mp4_url ?? "",
-            pdf_url: aula.template?.pdf_url ?? "",
-            glb_url: aula.template?.glb_url ?? "",
-          },
-        ]),
+        normalized.map((aula) => {
+          const liveSession = latestSessionByAula[aula.id];
+          const liveSnapshot =
+            liveSession?.status === "live" && liveSession.state_snapshot
+              ? liveSession.state_snapshot
+              : null;
+          return [
+            aula.id,
+            {
+              nombre: aula.nombre,
+              slug: aula.slug,
+              descripcion: aula.descripcion ?? "",
+              titulo: liveSnapshot?.titulo ?? aula.template?.titulo ?? "Clase Virtual",
+              mp4_url: liveSnapshot?.mp4_url ?? aula.template?.mp4_url ?? "",
+              pdf_url: liveSnapshot?.pdf_url ?? aula.template?.pdf_url ?? "",
+              glb_url: liveSnapshot?.glb_url ?? aula.template?.glb_url ?? "",
+            },
+          ];
+        }),
       ),
     );
-
-    const { data: sessionsRows } = await supabase
-      .from("clase_sesiones" as any)
-      .select("id,aula_id,status,started_at")
-      .in("aula_id", aulaIds)
-      .order("started_at", { ascending: false });
-    const latestSessionByAula: Record<string, ClaseSession | null> = {};
-    for (const aulaId of aulaIds) latestSessionByAula[aulaId] = null;
-    for (const row of (sessionsRows ?? []) as ClaseSession[]) {
-      if (!latestSessionByAula[row.aula_id]) latestSessionByAula[row.aula_id] = row;
-    }
-    setSessionsByAula(latestSessionByAula);
 
     const { data: membersRows } = await supabase
       .from("aula_miembros" as any)
@@ -306,6 +320,24 @@ export default function DocenteClasesPage() {
       return;
     }
 
+    // Si la clase está en vivo, sincronizamos su snapshot para que alumno vea los cambios al instante.
+    const liveSnapshot = {
+      titulo: draft.titulo.trim() || "Clase Virtual",
+      mp4_url: draft.mp4_url.trim() || null,
+      pdf_url: draft.pdf_url.trim() || null,
+      glb_url: draft.glb_url.trim() || null,
+    };
+    const { error: liveSyncError } = await supabase
+      .from("clase_sesiones" as any)
+      .update({ state_snapshot: liveSnapshot })
+      .eq("aula_id", aulaId)
+      .eq("status", "live");
+    if (liveSyncError) {
+      toast.error("Se guardó la clase, pero no se pudo sincronizar la sesión en vivo.");
+      setSaving(false);
+      return;
+    }
+
     toast.success("Clase actualizada.");
     await loadData();
     setSaving(false);
@@ -323,12 +355,19 @@ export default function DocenteClasesPage() {
 
   const class360Url = (aulaSlug: string, draft: AulaDraft): string => {
     const params = new URLSearchParams();
-    if (aulaSlug.trim()) params.set("class", aulaSlug.trim());
+    const normalizedSlug = slugify(aulaSlug.trim() || draft.nombre);
+    if (normalizedSlug) params.set("class", normalizedSlug);
     if (draft.mp4_url.trim()) params.set("mp4", draft.mp4_url.trim());
     if (draft.pdf_url.trim()) params.set("pdf", draft.pdf_url.trim());
     if (draft.glb_url.trim()) params.set("glb", draft.glb_url.trim());
     const q = params.toString();
     return q ? `/coliseo?${q}` : "/coliseo";
+  };
+
+  const enterClassroom = async (aulaId: string, draft: AulaDraft) => {
+    if (saving) return;
+    await saveAula(aulaId);
+    navigate(class360Url(draft.slug, draft));
   };
 
   const startSession = async (aulaId: string, draft: AulaDraft) => {
@@ -337,6 +376,22 @@ export default function DocenteClasesPage() {
     const user = authData.user;
     if (!user) return;
     setSaving(true);
+
+    // Persistimos plantilla antes de iniciar para que "volver atrás" no recupere links viejos.
+    const { error: templateSyncError } = await supabase.from("clase_templates" as any).upsert({
+      aula_id: aulaId,
+      titulo: draft.titulo.trim() || "Clase Virtual",
+      mp4_url: draft.mp4_url.trim() || null,
+      pdf_url: draft.pdf_url.trim() || null,
+      glb_url: draft.glb_url.trim() || null,
+      updated_by: user.id,
+      metadata: {},
+    });
+    if (templateSyncError) {
+      toast.error("No se pudieron guardar los links antes de iniciar la clase.");
+      setSaving(false);
+      return;
+    }
 
     await supabase
       .from("clase_sesiones" as any)
@@ -479,7 +534,7 @@ export default function DocenteClasesPage() {
                   <Input
                     value={newAula.glb_url}
                     onChange={(e) => setNewAula((prev) => ({ ...prev, glb_url: e.target.value }))}
-                    placeholder="https://..."
+                    placeholder="https://... o /assets/models/archivo.glb"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -587,6 +642,7 @@ export default function DocenteClasesPage() {
                               [aula.id]: { ...prev[aula.id], glb_url: e.target.value },
                             }))
                           }
+                          placeholder="https://... o /assets/models/archivo.glb"
                         />
                       </div>
                       <div className="md:col-span-2 flex flex-wrap gap-2">
@@ -598,8 +654,13 @@ export default function DocenteClasesPage() {
                           <Copy className="mr-2 h-4 w-4" />
                           Copiar link alumno
                         </Button>
-                        <Button type="button" variant="outline" asChild>
-                          <Link to={class360Url(draft.slug, draft)}>Entrar a clase</Link>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void enterClassroom(aula.id, draft)}
+                          disabled={saving}
+                        >
+                          Entrar a clase
                         </Button>
                         {currentSession?.status === "live" ? (
                           <>

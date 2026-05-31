@@ -1,10 +1,27 @@
-import { Suspense, useMemo, useRef } from "react";
+import { Component, Suspense, type ReactNode, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
 const WALL_PANEL_WIDTH = 8;
 const WALL_PANEL_HEIGHT = 4.5;
+
+class GlbErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn("[WallSceneGlb] No se pudo cargar el modelo GLB:", error);
+  }
+
+  render() {
+    if (this.state.hasError) return this.props.fallback ?? null;
+    return this.props.children;
+  }
+}
 
 function WallSceneGlbModel({
   url,
@@ -79,16 +96,18 @@ export function WallSceneGlb({
   return (
     <group position={position} rotation={rotation}>
       <group ref={spinRef} scale={scaleMultiplier}>
-        <Suspense fallback={null}>
-          <WallSceneGlbModel
-            key={url}
-            url={url}
-            width={WALL_PANEL_WIDTH}
-            height={WALL_PANEL_HEIGHT}
-            fitDepth={fitDepth}
-            prepareModel={prepareModel}
-          />
-        </Suspense>
+        <GlbErrorBoundary key={url} fallback={null}>
+          <Suspense fallback={null}>
+            <WallSceneGlbModel
+              key={url}
+              url={url}
+              width={WALL_PANEL_WIDTH}
+              height={WALL_PANEL_HEIGHT}
+              fitDepth={fitDepth}
+              prepareModel={prepareModel}
+            />
+          </Suspense>
+        </GlbErrorBoundary>
       </group>
     </group>
   );

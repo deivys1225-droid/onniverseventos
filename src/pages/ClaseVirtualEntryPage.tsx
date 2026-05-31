@@ -28,6 +28,12 @@ type Member = {
   rol: string;
 };
 
+type SessionSnapshot = {
+  mp4_url: string | null;
+  pdf_url: string | null;
+  glb_url: string | null;
+};
+
 export default function ClaseVirtualEntryPage() {
   const { slug = "" } = useParams();
   const [loading, setLoading] = useState(true);
@@ -37,6 +43,8 @@ export default function ClaseVirtualEntryPage() {
   const [member, setMember] = useState<Member | null>(null);
   const [role, setRole] = useState<string>("particular");
   const [isClassLive, setIsClassLive] = useState(false);
+  const [liveSessionId, setLiveSessionId] = useState<string>("");
+  const [liveSnapshot, setLiveSnapshot] = useState<SessionSnapshot | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const realtimeReloadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -50,18 +58,36 @@ export default function ClaseVirtualEntryPage() {
   const canEnter = useMemo(() => hasAccess && isClassLive, [hasAccess, isClassLive]);
 
   const classUrl = useMemo(() => {
+    // Una sola fuente por estado: en vivo usa snapshot; fuera de vivo usa template.
+    const source = isClassLive ? (liveSnapshot ?? template) : template;
+    const activeMp4 = source?.mp4_url?.trim() || "";
+    const activePdf = source?.pdf_url?.trim() || "";
+    const activeGlb = source?.glb_url?.trim() || "";
     const params = new URLSearchParams();
     if (aula?.slug) params.set("class", aula.slug);
-    if (template?.mp4_url) params.set("mp4", template.mp4_url);
-    if (template?.pdf_url) params.set("pdf", template.pdf_url);
-    if (template?.glb_url) params.set("glb", template.glb_url);
+    if (liveSessionId) params.set("session", liveSessionId);
+    if (activeMp4) params.set("mp4", activeMp4);
+    if (activePdf) params.set("pdf", activePdf);
+    if (activeGlb) params.set("glb", activeGlb);
     const q = params.toString();
     return q ? `/coliseo?${q}` : "/coliseo";
-  }, [aula?.slug, template?.glb_url, template?.mp4_url, template?.pdf_url]);
+  }, [
+    aula?.slug,
+    isClassLive,
+    liveSessionId,
+    liveSnapshot?.glb_url,
+    liveSnapshot?.mp4_url,
+    liveSnapshot?.pdf_url,
+    template?.glb_url,
+    template?.mp4_url,
+    template?.pdf_url,
+  ]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setIsClassLive(false);
+    setLiveSessionId("");
+    setLiveSnapshot(null);
     const { data: authData } = await supabase.auth.getUser();
     const user = authData.user;
     if (!user) {
@@ -120,13 +146,19 @@ export default function ClaseVirtualEntryPage() {
     if (canReadSessionState) {
       const { data: liveSession } = await supabase
         .from("clase_sesiones" as any)
-        .select("id,status,started_at")
+        .select("id,status,started_at,state_snapshot")
         .eq("aula_id", aulaData.id)
         .eq("status", "live")
         .order("started_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       setIsClassLive(Boolean(liveSession));
+      setLiveSessionId((liveSession as { id?: string } | null)?.id ?? "");
+      const snapshot = (liveSession as { state_snapshot?: unknown } | null)?.state_snapshot as
+        | SessionSnapshot
+        | null
+        | undefined;
+      setLiveSnapshot(snapshot ?? null);
     }
 
     setLoading(false);
