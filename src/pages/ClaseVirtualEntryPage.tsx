@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
+import { stashColiseoClassLaunch } from "@/lib/coliseoClassLaunch";
 
 type Aula = {
   id: string;
@@ -35,6 +37,7 @@ type SessionSnapshot = {
 };
 
 export default function ClaseVirtualEntryPage() {
+  const navigate = useNavigate();
   const { slug = "" } = useParams();
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
@@ -222,6 +225,13 @@ export default function ClaseVirtualEntryPage() {
     await load();
   };
 
+  const enterClassroom = () => {
+    if (!canEnter) return;
+    stashColiseoClassLaunch(classUrl);
+    if (invokeOpenColiceoDirect()) return;
+    navigate(classUrl);
+  };
+
   return (
     <div className="relative min-h-screen w-full max-w-full overflow-x-clip overflow-y-auto bg-background">
       <Navbar />
@@ -245,9 +255,7 @@ export default function ClaseVirtualEntryPage() {
 
               <div className="mt-6 flex flex-wrap gap-2">
                 {canEnter ? (
-                  <Button asChild>
-                    <Link to={classUrl}>Entrar a clase 360</Link>
-                  </Button>
+                  <Button onClick={enterClassroom}>Entrar a clase 360</Button>
                 ) : hasAccess ? (
                   <Button disabled>Aun no inicia la clase</Button>
                 ) : member?.estado === "pending" ? (

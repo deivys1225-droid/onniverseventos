@@ -1,10 +1,12 @@
 import ColiseoImmersiveScene from "@/components/immersive/ColiseoImmersiveScene";
 import { ArrowLeft, Camera, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { consumeColiseoClassLaunch } from "@/lib/coliseoClassLaunch";
 
 const ColiseoPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [cameraBusy, setCameraBusy] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -22,6 +24,20 @@ const ColiseoPage = () => {
   }, []);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
+
+  useEffect(() => {
+    if (location.search) return;
+    const pending = consumeColiseoClassLaunch();
+    if (!pending) return;
+    try {
+      const resolved = new URL(pending, window.location.origin);
+      if (resolved.pathname !== "/coliseo") return;
+      if (!resolved.search) return;
+      navigate(`${resolved.pathname}${resolved.search}${resolved.hash}`, { replace: true });
+    } catch {
+      // Ignora handoff inválido; Coliseo sigue en modo normal.
+    }
+  }, [location.search, navigate]);
 
   useEffect(() => {
     const el = cameraBackgroundRef.current;
