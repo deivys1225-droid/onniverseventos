@@ -157,16 +157,6 @@ export default function ClaseVirtualEntryPage() {
       .channel(`classroom-entry-${aula.id}-${currentUserId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "aulas_virtuales", filter: `id=eq.${aula.id}` },
-        queueRealtimeReload,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "clase_templates", filter: `aula_id=eq.${aula.id}` },
-        queueRealtimeReload,
-      )
-      .on(
-        "postgres_changes",
         { event: "*", schema: "public", table: "clase_sesiones", filter: `aula_id=eq.${aula.id}` },
         queueRealtimeReload,
       )
