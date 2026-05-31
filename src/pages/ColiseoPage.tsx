@@ -1,12 +1,15 @@
 import ColiseoImmersiveScene from "@/components/immersive/ColiseoImmersiveScene";
+import AgoraClassVoiceBridge from "@/components/streaming/AgoraClassVoiceBridge";
 import { ArrowLeft, Camera, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { consumeColiseoClassLaunch } from "@/lib/coliseoClassLaunch";
+import { supabase } from "@/integrations/supabase/client";
 
 const ColiseoPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [voiceRole, setVoiceRole] = useState<"host" | "audience" | null>(null);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [cameraBusy, setCameraBusy] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -24,6 +27,47 @@ const ColiseoPage = () => {
   }, []);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
+
+  const classSlug = useMemo(
+    () => new URLSearchParams(location.search).get("class")?.trim() ?? "",
+    [location.search],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const resolveVoiceRole = async () => {
+      if (!classSlug) {
+        setVoiceRole(null);
+        return;
+      }
+
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData.user;
+      if (!user) {
+        if (!cancelled) setVoiceRole(null);
+        return;
+      }
+
+      const { data: aulaRow } = await supabase
+        .from("aulas_virtuales" as any)
+        .select("docente_id")
+        .eq("slug", classSlug)
+        .maybeSingle();
+
+      if (cancelled) return;
+      const docenteId = (aulaRow as { docente_id?: string } | null)?.docente_id ?? "";
+      if (!docenteId) {
+        setVoiceRole(null);
+        return;
+      }
+      setVoiceRole(docenteId === user.id ? "host" : "audience");
+    };
+
+    void resolveVoiceRole();
+    return () => {
+      cancelled = true;
+    };
+  }, [classSlug]);
 
   useEffect(() => {
     if (location.search) return;
@@ -161,6 +205,7 @@ const ColiseoPage = () => {
         }
       />
       <ColiseoImmersiveScene mixedRealityActive={Boolean(cameraEnabled && cameraStream && cameraReady)} />
+      <AgoraClassVoiceBridge classSlug={classSlug} role={voiceRole} />
     </div>
   );
 };
