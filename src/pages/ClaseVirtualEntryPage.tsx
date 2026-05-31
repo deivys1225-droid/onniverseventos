@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -36,37 +36,47 @@ export default function ClaseVirtualEntryPage() {
   const [template, setTemplate] = useState<Template | null>(null);
   const [member, setMember] = useState<Member | null>(null);
   const [role, setRole] = useState<string>("particular");
+  const [isClassLive, setIsClassLive] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const realtimeReloadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const canEnter = useMemo(() => {
+  const hasAccess = useMemo(() => {
     if (!aula) return false;
     if (role === "admin") return true;
     if (member?.estado === "approved") return true;
     return false;
   }, [aula, member?.estado, role]);
 
+  const canEnter = useMemo(() => hasAccess && isClassLive, [hasAccess, isClassLive]);
+
   const classUrl = useMemo(() => {
     const params = new URLSearchParams();
     if (template?.mp4_url) params.set("mp4", template.mp4_url);
     if (template?.pdf_url) params.set("pdf", template.pdf_url);
+    if (template?.glb_url) params.set("glb", template.glb_url);
     const q = params.toString();
     return q ? `/coliseo?${q}` : "/coliseo";
-  }, [template?.mp4_url, template?.pdf_url]);
+  }, [template?.glb_url, template?.mp4_url, template?.pdf_url]);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setIsClassLive(false);
     const { data: authData } = await supabase.auth.getUser();
     const user = authData.user;
     if (!user) {
+      setCurrentUserId("");
       setLoading(false);
       return;
     }
+    setCurrentUserId(user.id);
 
     const { data: profileData } = await supabase
       .from("profiles")
       .select("app_role")
       .eq("id", user.id)
       .maybeSingle();
-    setRole(((profileData as { app_role?: string } | null)?.app_role ?? "particular") as string);
+    const currentRole = ((profileData as { app_role?: string } | null)?.app_role ?? "particular") as string;
+    setRole(currentRole);
 
     const { data: aulaData, error: aulaError } = await supabase
       .from("aulas_virtuales" as any)
@@ -101,13 +111,75 @@ export default function ClaseVirtualEntryPage() {
       .eq("aula_id", aulaData.id)
       .eq("user_id", user.id)
       .maybeSingle();
-    setMember((memberData as Member | null) ?? null);
+    const currentMember = (memberData as Member | null) ?? null;
+    setMember(currentMember);
+
+    const canReadSessionState =
+      currentRole === "admin" || aulaData.docente_id === user.id || currentMember?.estado === "approved";
+    if (canReadSessionState) {
+      const { data: liveSession } = await supabase
+        .from("clase_sesiones" as any)
+        .select("id,status,started_at")
+        .eq("aula_id", aulaData.id)
+        .eq("status", "live")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setIsClassLive(Boolean(liveSession));
+    }
+
     setLoading(false);
   }, [slug]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const queueRealtimeReload = useCallback(() => {
+    if (realtimeReloadTimeoutRef.current) return;
+    realtimeReloadTimeoutRef.current = setTimeout(() => {
+      realtimeReloadTimeoutRef.current = null;
+      void load();
+    }, 250);
+  }, [load]);
+
+  useEffect(
+    () => () => {
+      if (realtimeReloadTimeoutRef.current) clearTimeout(realtimeReloadTimeoutRef.current);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!aula?.id || !currentUserId) return;
+    const channel = supabase
+      .channel(`classroom-entry-${aula.id}-${currentUserId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "aulas_virtuales", filter: `id=eq.${aula.id}` },
+        queueRealtimeReload,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "clase_templates", filter: `aula_id=eq.${aula.id}` },
+        queueRealtimeReload,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "clase_sesiones", filter: `aula_id=eq.${aula.id}` },
+        queueRealtimeReload,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "aula_miembros", filter: `aula_id=eq.${aula.id}` },
+        queueRealtimeReload,
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [aula?.id, currentUserId, queueRealtimeReload]);
 
   const requestAccess = async () => {
     if (!aula || requesting) return;
@@ -144,12 +216,17 @@ export default function ClaseVirtualEntryPage() {
               <p className="mt-2 text-sm text-muted-foreground">
                 {aula.descripcion?.trim() || "Clase virtual 360 con recursos compartidos por el docente."}
               </p>
+              <p className="mt-2 text-xs text-cyan-100/90">
+                Estado: {isClassLive ? "Clase en vivo" : "Esperando que el docente inicie la clase"}
+              </p>
 
               <div className="mt-6 flex flex-wrap gap-2">
                 {canEnter ? (
                   <Button asChild>
                     <Link to={classUrl}>Entrar a clase 360</Link>
                   </Button>
+                ) : hasAccess ? (
+                  <Button disabled>Aun no inicia la clase</Button>
                 ) : member?.estado === "pending" ? (
                   <Button disabled>Solicitud enviada (pendiente)</Button>
                 ) : member?.estado === "blocked" ? (

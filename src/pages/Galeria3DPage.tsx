@@ -1,4 +1,4 @@
-﻿import { useEffect } from "react";
+﻿import { FormEvent, useEffect, useState } from "react";
 import { Box, GraduationCap, Landmark } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -23,6 +23,38 @@ const Galeria3DPage = () => {
   const navigate = useNavigate();
   const { requestAulaVirtualEntry, dialog: aulaCardDialog } = useAulaVirtualCardChoice();
   const onAndroid = isAndroidLiveStreamChoicePlatform();
+  const [showStudentEntry, setShowStudentEntry] = useState(false);
+  const [classLinkInput, setClassLinkInput] = useState("");
+
+  const resolveClassSlug = (value: string): string => {
+    const raw = value.trim();
+    if (!raw) return "";
+
+    if (/^https?:\/\//i.test(raw)) {
+      try {
+        const url = new URL(raw);
+        const parts = url.pathname.split("/").filter(Boolean);
+        const claseIdx = parts.findIndex((part) => part.toLowerCase() === "clase");
+        if (claseIdx >= 0 && parts[claseIdx + 1]) return parts[claseIdx + 1];
+      } catch {
+        return "";
+      }
+    }
+
+    const cleaned = raw.replace(/^\/+/, "");
+    if (cleaned.toLowerCase().startsWith("clase/")) {
+      return cleaned.slice("clase/".length).trim();
+    }
+    return cleaned;
+  };
+
+  const handleStudentClassEntry = (event: FormEvent) => {
+    event.preventDefault();
+    const slug = resolveClassSlug(classLinkInput);
+    if (!slug) return;
+    navigate(`/clase/${encodeURIComponent(slug)}`);
+  };
+
   const handleColiseoOpen = () => {
     if (invokeOpenColiceoDirect()) return;
     navigate(COLOSSEO_PATH);
@@ -100,6 +132,29 @@ const Galeria3DPage = () => {
                   <Button asChild variant="outline" size="sm" className="mt-2 touch-manipulation">
                     <Link to="/docente-clases">Panel docente (crear clase)</Link>
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 touch-manipulation"
+                    onClick={() => setShowStudentEntry((prev) => !prev)}
+                  >
+                    Entrar a clases (alumno)
+                  </Button>
+                  {showStudentEntry ? (
+                    <form onSubmit={handleStudentClassEntry} className="mt-3 max-w-xl space-y-2">
+                      <input
+                        type="text"
+                        value={classLinkInput}
+                        onChange={(e) => setClassLinkInput(e.target.value)}
+                        placeholder="Pega aquí el link de clase o solo el slug"
+                        className="w-full rounded-md border border-white/15 bg-background/70 px-3 py-2 text-sm text-foreground outline-none ring-0 transition focus:border-cyan-300/60"
+                      />
+                      <Button type="submit" size="sm" disabled={!classLinkInput.trim()}>
+                        Ir a mi clase
+                      </Button>
+                    </form>
+                  ) : null}
                 </div>
               </div>
             </article>
