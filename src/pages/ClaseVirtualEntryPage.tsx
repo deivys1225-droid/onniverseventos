@@ -51,12 +51,13 @@ export default function ClaseVirtualEntryPage() {
 
   const classUrl = useMemo(() => {
     const params = new URLSearchParams();
+    if (aula?.slug) params.set("class", aula.slug);
     if (template?.mp4_url) params.set("mp4", template.mp4_url);
     if (template?.pdf_url) params.set("pdf", template.pdf_url);
     if (template?.glb_url) params.set("glb", template.glb_url);
     const q = params.toString();
     return q ? `/coliseo?${q}` : "/coliseo";
-  }, [template?.glb_url, template?.mp4_url, template?.pdf_url]);
+  }, [aula?.slug, template?.glb_url, template?.mp4_url, template?.pdf_url]);
 
   const load = useCallback(async () => {
     setLoading(true);

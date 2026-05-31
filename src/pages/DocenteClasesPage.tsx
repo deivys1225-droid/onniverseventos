@@ -49,6 +49,13 @@ type AulaMember = {
   estado: "approved" | "pending" | "blocked";
 };
 
+type LiveResourcePayload = {
+  titulo: string;
+  mp4_url: string | null;
+  pdf_url: string | null;
+  glb_url: string | null;
+};
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -321,12 +328,104 @@ export default function DocenteClasesPage() {
     }
   };
 
-  const class360Url = (draft: AulaDraft): string => {
+  const class360Url = (aulaSlug: string, draft: AulaDraft): string => {
     const params = new URLSearchParams();
+    if (aulaSlug.trim()) params.set("class", aulaSlug.trim());
     if (draft.mp4_url.trim()) params.set("mp4", draft.mp4_url.trim());
     if (draft.pdf_url.trim()) params.set("pdf", draft.pdf_url.trim());
+    if (draft.glb_url.trim()) params.set("glb", draft.glb_url.trim());
     const q = params.toString();
     return q ? `/coliseo?${q}` : "/coliseo";
+  };
+
+  const buildLiveResourcePayload = (draft: AulaDraft): LiveResourcePayload => ({
+    titulo: draft.titulo.trim() || "Clase Virtual",
+    mp4_url: draft.mp4_url.trim() || null,
+    pdf_url: draft.pdf_url.trim() || null,
+    glb_url: draft.glb_url.trim() || null,
+  });
+
+  const resolveLiveSessionId = async (aulaId: string): Promise<string | null> => {
+    const { data } = await supabase
+      .from("clase_sesiones" as any)
+      .select("id")
+      .eq("aula_id", aulaId)
+      .eq("status", "live")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return (data as { id?: string } | null)?.id ?? null;
+  };
+
+  const emitClassEvent = async ({
+    aulaId,
+    eventType,
+    payload,
+    liveSessionId,
+  }: {
+    aulaId: string;
+    eventType: string;
+    payload: Record<string, unknown>;
+    liveSessionId?: string | null;
+  }): Promise<boolean> => {
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData.user;
+    if (!user) return false;
+
+    const sessionId = liveSessionId ?? (await resolveLiveSessionId(aulaId));
+    if (!sessionId) return false;
+
+    const seq = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+    const { error } = await supabase.from("clase_eventos" as any).insert({
+      session_id: sessionId,
+      aula_id: aulaId,
+      sender_id: user.id,
+      event_type: eventType,
+      payload,
+      seq,
+    });
+    return !error;
+  };
+
+  const applyLiveResources = async (aulaId: string, draft: AulaDraft) => {
+    if (saving) return;
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData.user;
+    if (!user) return;
+
+    const liveSessionId = sessionsByAula[aulaId]?.status === "live" ? sessionsByAula[aulaId]?.id : null;
+    if (!liveSessionId) {
+      toast.error("Primero inicia la clase para enviar cambios en vivo.");
+      return;
+    }
+
+    const payload = buildLiveResourcePayload(draft);
+    setSaving(true);
+    const { error: templateError } = await supabase.from("clase_templates" as any).upsert({
+      aula_id: aulaId,
+      titulo: payload.titulo,
+      mp4_url: payload.mp4_url,
+      pdf_url: payload.pdf_url,
+      glb_url: payload.glb_url,
+      updated_by: user.id,
+      metadata: {},
+    });
+    if (templateError) {
+      toast.error(templateError.message);
+      setSaving(false);
+      return;
+    }
+
+    const sent = await emitClassEvent({
+      aulaId,
+      eventType: "resources_updated",
+      payload,
+      liveSessionId,
+    });
+    if (!sent) toast.error("No se pudo emitir el evento en vivo.");
+    else toast.success("Cambios enviados en vivo a los estudiantes.");
+    await loadData();
+    setSaving(false);
   };
 
   const startSession = async (aulaId: string, draft: AulaDraft) => {
@@ -342,22 +441,27 @@ export default function DocenteClasesPage() {
       .eq("aula_id", aulaId)
       .eq("status", "live");
 
-    const snapshot = {
-      titulo: draft.titulo.trim() || "Clase Virtual",
-      mp4_url: draft.mp4_url.trim() || null,
-      pdf_url: draft.pdf_url.trim() || null,
-      glb_url: draft.glb_url.trim() || null,
-    };
+    const snapshot = buildLiveResourcePayload(draft);
 
-    const { error } = await supabase.from("clase_sesiones" as any).insert({
-      aula_id: aulaId,
-      host_id: user.id,
-      status: "live",
-      state_snapshot: snapshot,
-    });
+    const { data: createdSession, error } = await supabase
+      .from("clase_sesiones" as any)
+      .insert({
+        aula_id: aulaId,
+        host_id: user.id,
+        status: "live",
+        state_snapshot: snapshot,
+      })
+      .select("id")
+      .single();
     if (error) {
       toast.error(error.message);
     } else {
+      await emitClassEvent({
+        aulaId,
+        eventType: "session_started",
+        payload: snapshot,
+        liveSessionId: (createdSession as { id?: string } | null)?.id ?? null,
+      });
       toast.success("Clase iniciada en vivo.");
       await loadData();
     }
@@ -367,6 +471,7 @@ export default function DocenteClasesPage() {
   const endSession = async (aulaId: string) => {
     if (saving) return;
     setSaving(true);
+    const liveSessionId = sessionsByAula[aulaId]?.status === "live" ? sessionsByAula[aulaId]?.id : await resolveLiveSessionId(aulaId);
     const { error } = await supabase
       .from("clase_sesiones" as any)
       .update({ status: "ended", ended_at: new Date().toISOString() })
@@ -374,6 +479,14 @@ export default function DocenteClasesPage() {
       .eq("status", "live");
     if (error) toast.error(error.message);
     else {
+      if (liveSessionId) {
+        await emitClassEvent({
+          aulaId,
+          eventType: "session_ended",
+          payload: { ended_at: new Date().toISOString() },
+          liveSessionId,
+        });
+      }
       toast.success("Clase finalizada.");
       await loadData();
     }
@@ -595,13 +708,18 @@ export default function DocenteClasesPage() {
                           Copiar link alumno
                         </Button>
                         <Button type="button" variant="outline" asChild>
-                          <Link to={class360Url(draft)}>Entrar a clase</Link>
+                          <Link to={class360Url(draft.slug, draft)}>Entrar a clase</Link>
                         </Button>
                         {currentSession?.status === "live" ? (
-                          <Button type="button" variant="destructive" onClick={() => void endSession(aula.id)} disabled={saving}>
-                            <StopCircle className="mr-2 h-4 w-4" />
-                            Finalizar clase
-                          </Button>
+                          <>
+                            <Button type="button" variant="outline" onClick={() => void applyLiveResources(aula.id, draft)} disabled={saving}>
+                              Aplicar en vivo
+                            </Button>
+                            <Button type="button" variant="destructive" onClick={() => void endSession(aula.id)} disabled={saving}>
+                              <StopCircle className="mr-2 h-4 w-4" />
+                              Finalizar clase
+                            </Button>
+                          </>
                         ) : (
                           <Button type="button" onClick={() => void startSession(aula.id, draft)} disabled={saving}>
                             <UserCheck2 className="mr-2 h-4 w-4" />

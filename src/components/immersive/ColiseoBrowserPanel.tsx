@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { COLOSSEO_HOME_URL } from "@/data/coliseoScene";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
 import {
@@ -14,12 +15,13 @@ export default function ColiseoAndroidWebViewSlot({
 }: {
   onScreenPointerDown?: () => void;
 }) {
+  const location = useLocation();
   const nativeSlotRef = useRef<HTMLDivElement | null>(null);
   const useNativeWebView = false;
   const directClassMp4 = useMemo(() => {
     if (typeof window === "undefined") return "";
-    return new URLSearchParams(window.location.search).get("mp4")?.trim() ?? "";
-  }, []);
+    return new URLSearchParams(location.search).get("mp4")?.trim() ?? "";
+  }, [location.search]);
   const coliseoPlaylist = useMemo(
     () =>
       directClassMp4
@@ -29,6 +31,10 @@ export default function ColiseoAndroidWebViewSlot({
   );
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const coliseoFallbackMp4 = coliseoPlaylist[currentVideoIndex] ?? SALA_MP4_URL_BY_ID["vr-360"];
+
+  useEffect(() => {
+    setCurrentVideoIndex(0);
+  }, [directClassMp4]);
 
   const handleNextVideo = () => {
     if (coliseoPlaylist.length <= 1) return;
