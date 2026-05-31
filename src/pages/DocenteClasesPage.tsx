@@ -253,15 +253,20 @@ export default function DocenteClasesPage() {
       return;
     }
 
-    const { error: templateError } = await supabase.from("clase_templates" as any).upsert({
-      aula_id: aulaCreated.id,
-      titulo: newAula.titulo.trim() || "Clase Virtual",
-      mp4_url: newAula.mp4_url.trim() || null,
-      pdf_url: newAula.pdf_url.trim() || null,
-      glb_url: newAula.glb_url.trim() || null,
-      updated_by: user.id,
-      metadata: {},
-    });
+    const { error: templateError } = await supabase
+      .from("clase_templates" as any)
+      .upsert(
+        {
+          aula_id: aulaCreated.id,
+          titulo: newAula.titulo.trim() || "Clase Virtual",
+          mp4_url: newAula.mp4_url.trim() || null,
+          pdf_url: newAula.pdf_url.trim() || null,
+          glb_url: newAula.glb_url.trim() || null,
+          updated_by: user.id,
+          metadata: {},
+        },
+        { onConflict: "aula_id" },
+      );
     if (templateError) {
       toast.error("La clase se creó, pero faltó guardar recursos iniciales.");
     } else {
@@ -305,15 +310,20 @@ export default function DocenteClasesPage() {
       return;
     }
 
-    const { error: templateError } = await supabase.from("clase_templates" as any).upsert({
-      aula_id: aulaId,
-      titulo: draft.titulo.trim() || "Clase Virtual",
-      mp4_url: draft.mp4_url.trim() || null,
-      pdf_url: draft.pdf_url.trim() || null,
-      glb_url: draft.glb_url.trim() || null,
-      updated_by: user.id,
-      metadata: {},
-    });
+    const { error: templateError } = await supabase
+      .from("clase_templates" as any)
+      .upsert(
+        {
+          aula_id: aulaId,
+          titulo: draft.titulo.trim() || "Clase Virtual",
+          mp4_url: draft.mp4_url.trim() || null,
+          pdf_url: draft.pdf_url.trim() || null,
+          glb_url: draft.glb_url.trim() || null,
+          updated_by: user.id,
+          metadata: {},
+        },
+        { onConflict: "aula_id" },
+      );
     if (templateError) {
       toast.error(templateError.message);
       setSaving(false);
@@ -378,15 +388,20 @@ export default function DocenteClasesPage() {
     setSaving(true);
 
     // Persistimos plantilla antes de iniciar para que "volver atrás" no recupere links viejos.
-    const { error: templateSyncError } = await supabase.from("clase_templates" as any).upsert({
-      aula_id: aulaId,
-      titulo: draft.titulo.trim() || "Clase Virtual",
-      mp4_url: draft.mp4_url.trim() || null,
-      pdf_url: draft.pdf_url.trim() || null,
-      glb_url: draft.glb_url.trim() || null,
-      updated_by: user.id,
-      metadata: {},
-    });
+    const { error: templateSyncError } = await supabase
+      .from("clase_templates" as any)
+      .upsert(
+        {
+          aula_id: aulaId,
+          titulo: draft.titulo.trim() || "Clase Virtual",
+          mp4_url: draft.mp4_url.trim() || null,
+          pdf_url: draft.pdf_url.trim() || null,
+          glb_url: draft.glb_url.trim() || null,
+          updated_by: user.id,
+          metadata: {},
+        },
+        { onConflict: "aula_id" },
+      );
     if (templateSyncError) {
       toast.error("No se pudieron guardar los links antes de iniciar la clase.");
       setSaving(false);

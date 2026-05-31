@@ -85,7 +85,7 @@ const ColiseoPage = () => {
     <div className="relative">
       <button
         type="button"
-        onClick={() => navigate("/")}
+        onClick={() => navigate("/docente-clases")}
         aria-label="Volver"
         className="fixed left-4 top-4 z-30 inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/60 bg-slate-950/95 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:border-cyan-300 hover:bg-slate-900 hover:text-white"
         style={{

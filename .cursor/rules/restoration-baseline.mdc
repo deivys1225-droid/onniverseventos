@@ -19,3 +19,23 @@ El usuario validó el proyecto **funcionando** (dev local, emisión/recepción, 
 - **No** revertir ni reintroducir UI o flujos que el usuario pidió quitar o congelar en sesiones anteriores.
 - Cambios **solo** acotados a lo que el usuario pida **de forma explícita**; si el alcance es grande, **confirmar** antes de tocar la base.
 - Complementa el candado en `streaming-frozen.mdc` (Agora, Android, salas en vivo).
+
+## Baseline estable de aulas en vivo (31 mayo 2026)
+
+El usuario validó en PC (docente + estudiante en navegadores distintos) que este flujo está funcionando:
+
+- creación/edición de clases desde `DocenteClasesPage`
+- sincronización de recursos `mp4/pdf/glb` en sesión en vivo
+- entrada de estudiante leyendo estado actualizado de la clase activa
+- escena Coliseo cargando contenido actual sin romper el canvas
+
+### Restaurar este baseline
+
+- **Etiqueta:** `restauracion-aulas-live-2026-05-31`
+- **Comando:** `git checkout restauracion-aulas-live-2026-05-31`
+
+### Candado de este baseline
+
+- **No** romper la sincronización entre plantilla y `state_snapshot` de `clase_sesiones`.
+- **No** cambiar el flujo de guardado/inicio de clase sin pedido explícito del usuario.
+- **No** reintroducir links/recursos viejos por fallback automático si hay sesión en vivo.
