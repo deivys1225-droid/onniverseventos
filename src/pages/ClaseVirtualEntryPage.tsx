@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
 import { COLOSSEO_PATH } from "@/data/coliseoScene";
+import { stashColiseoClassLaunch } from "@/lib/coliseoClassLaunch";
 
 type Aula = {
   id: string;
@@ -59,6 +60,32 @@ export default function ClaseVirtualEntryPage() {
   }, [aula, member?.estado, role]);
 
   const canEnter = useMemo(() => hasAccess && isClassLive, [hasAccess, isClassLive]);
+
+  const classUrl = useMemo(() => {
+    // En clase en vivo usamos snapshot activo; fuera de vivo tomamos template.
+    const source = isClassLive ? (liveSnapshot ?? template) : template;
+    const activeMp4 = source?.mp4_url?.trim() || "";
+    const activePdf = source?.pdf_url?.trim() || "";
+    const activeGlb = source?.glb_url?.trim() || "";
+    const params = new URLSearchParams();
+    if (aula?.slug) params.set("class", aula.slug);
+    if (liveSessionId) params.set("session", liveSessionId);
+    if (activeMp4) params.set("mp4", activeMp4);
+    if (activePdf) params.set("pdf", activePdf);
+    if (activeGlb) params.set("glb", activeGlb);
+    const q = params.toString();
+    return q ? `${COLOSSEO_PATH}?${q}` : COLOSSEO_PATH;
+  }, [
+    aula?.slug,
+    isClassLive,
+    liveSessionId,
+    liveSnapshot?.glb_url,
+    liveSnapshot?.mp4_url,
+    liveSnapshot?.pdf_url,
+    template?.glb_url,
+    template?.mp4_url,
+    template?.pdf_url,
+  ]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -201,8 +228,9 @@ export default function ClaseVirtualEntryPage() {
 
   const enterClassroom = () => {
     if (!canEnter) return;
+    stashColiseoClassLaunch(classUrl);
     if (invokeOpenColiceoDirect()) return;
-    navigate(COLOSSEO_PATH);
+    navigate(classUrl);
   };
 
   return (
