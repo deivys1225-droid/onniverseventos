@@ -1,11 +1,10 @@
 import ColiseoImmersiveScene from "@/components/immersive/ColiseoImmersiveScene";
 import AgoraClassVoiceBridge from "@/components/streaming/AgoraClassVoiceBridge";
-import { ArrowLeft, Camera, Compass, Loader2 } from "lucide-react";
+import { ArrowLeft, Camera, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { consumeColiseoClassLaunch } from "@/lib/coliseoClassLaunch";
 import { supabase } from "@/integrations/supabase/client";
-import { requestDeviceOrientationPermission } from "@/lib/deviceOrientationCamera";
 
 const ColiseoPage = () => {
   const navigate = useNavigate();
@@ -14,8 +13,6 @@ const ColiseoPage = () => {
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [cameraBusy, setCameraBusy] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [gyroEnabled, setGyroEnabled] = useState(false);
-  const [gyroError, setGyroError] = useState<string | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -144,25 +141,6 @@ const ColiseoPage = () => {
     }
   }, [cameraBusy, cameraEnabled, stopCamera]);
 
-  const toggleGyroscope = useCallback(async () => {
-    if (gyroEnabled) {
-      setGyroEnabled(false);
-      setGyroError(null);
-      return;
-    }
-    setGyroError(null);
-    const permission = await requestDeviceOrientationPermission();
-    if (permission === "granted") {
-      setGyroEnabled(true);
-      return;
-    }
-    if (permission === "unsupported") {
-      setGyroError("Giroscopio no disponible en este dispositivo.");
-      return;
-    }
-    setGyroError("Permiso de orientación denegado. Actívalo en ajustes del navegador.");
-  }, [gyroEnabled]);
-
   return (
     <div className="relative">
       <button
@@ -194,36 +172,9 @@ const ColiseoPage = () => {
       >
         {cameraBusy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <Camera className="h-5 w-5" aria-hidden />}
       </button>
-      <button
-        type="button"
-        onClick={() => void toggleGyroscope()}
-        aria-label={gyroEnabled ? "Desactivar giroscopio" : "Activar giroscopio"}
-        title={gyroEnabled ? "Giroscopio activo" : "Activar giroscopio"}
-        className={`fixed right-4 top-[calc(max(1rem,env(safe-area-inset-top))+3.35rem)] z-30 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-slate-950/95 backdrop-blur-md transition ${
-          gyroEnabled
-            ? "border-amber-400/70 text-amber-200 shadow-[0_0_24px_-6px_rgba(251,191,36,0.85)] hover:border-amber-300 hover:text-white"
-            : "border-cyan-400/60 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] hover:border-cyan-300 hover:bg-slate-900 hover:text-white"
-        }`}
-        style={{
-          right: "max(1rem, env(safe-area-inset-right))",
-        }}
-      >
-        <Compass className="h-5 w-5" aria-hidden />
-      </button>
       {cameraError && (
         <p className="pointer-events-none fixed right-4 top-16 z-30 max-w-[min(86vw,320px)] rounded-md border border-rose-400/40 bg-black/75 px-3 py-2 text-[11px] text-rose-200 backdrop-blur-sm">
           {cameraError}
-        </p>
-      )}
-      {gyroError && (
-        <p
-          className="pointer-events-none fixed right-4 z-30 max-w-[min(86vw,320px)] rounded-md border border-amber-400/40 bg-black/75 px-3 py-2 text-[11px] text-amber-100 backdrop-blur-sm"
-          style={{
-            top: "calc(max(1rem, env(safe-area-inset-top)) + 6.9rem)",
-            right: "max(1rem, env(safe-area-inset-right))",
-          }}
-        >
-          {gyroError}
         </p>
       )}
       <video
@@ -253,10 +204,7 @@ const ColiseoPage = () => {
               }
         }
       />
-      <ColiseoImmersiveScene
-        mixedRealityActive={Boolean(cameraEnabled && cameraStream && cameraReady)}
-        gyroLookEnabled={gyroEnabled}
-      />
+      <ColiseoImmersiveScene mixedRealityActive={Boolean(cameraEnabled && cameraStream && cameraReady)} />
       <AgoraClassVoiceBridge classSlug={classSlug} role={voiceRole} />
     </div>
   );

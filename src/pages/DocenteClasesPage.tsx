@@ -77,41 +77,19 @@ function slugify(value: string): string {
 }
 
 function sanitizeDraftResources(resources: ClassResourceItem[]): ClassResourceItem[] {
-  if (!Array.isArray(resources)) return [];
-  return resources
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const type: ClassResourceType =
-        item.type === "video" || item.type === "pdf" || item.type === "glb" ? item.type : "video";
-      const id = typeof item.id === "string" && item.id.trim() ? item.id.trim() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-      return {
-        id,
-        type,
-        title: typeof item.title === "string" ? item.title : "",
-        url: typeof item.url === "string" ? item.url : "",
-      } satisfies ClassResourceItem;
-    })
-    .filter((item): item is ClassResourceItem => item !== null);
-}
-
-function persistableResources(resources: ClassResourceItem[]): ClassResourceItem[] {
-  return sanitizeDraftResources(resources)
-    .map((item) => ({
-      ...item,
-      title: item.title.trim() || (item.type === "video" ? "Video" : item.type === "pdf" ? "PDF" : "Modelo GLB"),
-      url: item.url.trim(),
-    }))
-    .filter((item) => Boolean(item.url));
+  return normalizeClassResources(resources).map((item) => ({
+    ...item,
+    title: item.title.trim() || (item.type === "video" ? "Video" : item.type === "pdf" ? "PDF" : "Modelo GLB"),
+  }));
 }
 
 function syncLegacyLinksFromResources(resources: ClassResourceItem[], fallback: AulaDraft) {
   const normalized = sanitizeDraftResources(resources);
-  const savedResources = persistableResources(resources);
   return {
     resources: normalized,
-    mp4_url: pickPrimaryByType(savedResources, "video") ?? fallback.mp4_url.trim() ?? "",
-    pdf_url: pickPrimaryByType(savedResources, "pdf") ?? fallback.pdf_url.trim() ?? "",
-    glb_url: pickPrimaryByType(savedResources, "glb") ?? fallback.glb_url.trim() ?? "",
+    mp4_url: pickPrimaryByType(normalized, "video") ?? fallback.mp4_url.trim() ?? "",
+    pdf_url: pickPrimaryByType(normalized, "pdf") ?? fallback.pdf_url.trim() ?? "",
+    glb_url: pickPrimaryByType(normalized, "glb") ?? fallback.glb_url.trim() ?? "",
   };
 }
 
@@ -339,7 +317,7 @@ export default function DocenteClasesPage() {
           pdf_url: syncedNewResources.pdf_url || null,
           glb_url: syncedNewResources.glb_url || null,
           updated_by: user.id,
-          metadata: { resource_playlist: persistableResources(syncedNewResources.resources) },
+          metadata: { resource_playlist: syncedNewResources.resources },
         },
         { onConflict: "aula_id" },
       );
@@ -398,7 +376,7 @@ export default function DocenteClasesPage() {
           pdf_url: syncedDraft.pdf_url || null,
           glb_url: syncedDraft.glb_url || null,
           updated_by: user.id,
-          metadata: { resource_playlist: persistableResources(syncedDraft.resources) },
+          metadata: { resource_playlist: syncedDraft.resources },
         },
         { onConflict: "aula_id" },
       );
@@ -414,7 +392,7 @@ export default function DocenteClasesPage() {
       mp4_url: syncedDraft.mp4_url || null,
       pdf_url: syncedDraft.pdf_url || null,
       glb_url: syncedDraft.glb_url || null,
-      metadata: { resource_playlist: persistableResources(syncedDraft.resources) },
+      metadata: { resource_playlist: syncedDraft.resources },
     };
     const { error: liveSyncError } = await supabase
       .from("clase_sesiones" as any)
@@ -484,7 +462,7 @@ export default function DocenteClasesPage() {
           pdf_url: syncedDraft.pdf_url || null,
           glb_url: syncedDraft.glb_url || null,
           updated_by: user.id,
-          metadata: { resource_playlist: persistableResources(syncedDraft.resources) },
+          metadata: { resource_playlist: syncedDraft.resources },
         },
         { onConflict: "aula_id" },
       );
@@ -505,7 +483,7 @@ export default function DocenteClasesPage() {
       mp4_url: syncedDraft.mp4_url || null,
       pdf_url: syncedDraft.pdf_url || null,
       glb_url: syncedDraft.glb_url || null,
-      metadata: { resource_playlist: persistableResources(syncedDraft.resources) },
+      metadata: { resource_playlist: syncedDraft.resources },
     };
 
     const { error } = await supabase
