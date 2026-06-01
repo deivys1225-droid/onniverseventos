@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Check, Copy, Plus, Save, StopCircle, UserCheck2, Users, X } from "lucide-react";
+import { Check, Copy, Plus, Save, StopCircle, Trash2, UserCheck2, Users, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  emptyClassResource,
+  legacyResourcesFromFields,
+  normalizeClassResources,
+  pickPrimaryByType,
+  type ClassResourceItem,
+  type ClassResourceType,
+} from "@/lib/classResources";
 
 type AulaCard = {
   id: string;
@@ -21,6 +29,7 @@ type AulaCard = {
     mp4_url: string | null;
     pdf_url: string | null;
     glb_url: string | null;
+    metadata?: { resource_playlist?: unknown } | null;
   } | null;
 };
 
@@ -32,6 +41,7 @@ type AulaDraft = {
   mp4_url: string;
   pdf_url: string;
   glb_url: string;
+  resources: ClassResourceItem[];
 };
 
 type ClaseSession = {
@@ -44,6 +54,7 @@ type ClaseSession = {
     mp4_url?: string | null;
     pdf_url?: string | null;
     glb_url?: string | null;
+    metadata?: { resource_playlist?: unknown } | null;
   } | null;
 };
 
@@ -65,6 +76,23 @@ function slugify(value: string): string {
     .slice(0, 64);
 }
 
+function sanitizeDraftResources(resources: ClassResourceItem[]): ClassResourceItem[] {
+  return normalizeClassResources(resources).map((item) => ({
+    ...item,
+    title: item.title.trim() || (item.type === "video" ? "Video" : item.type === "pdf" ? "PDF" : "Modelo GLB"),
+  }));
+}
+
+function syncLegacyLinksFromResources(resources: ClassResourceItem[], fallback: AulaDraft) {
+  const normalized = sanitizeDraftResources(resources);
+  return {
+    resources: normalized,
+    mp4_url: pickPrimaryByType(normalized, "video") ?? fallback.mp4_url.trim() ?? "",
+    pdf_url: pickPrimaryByType(normalized, "pdf") ?? fallback.pdf_url.trim() ?? "",
+    glb_url: pickPrimaryByType(normalized, "glb") ?? fallback.glb_url.trim() ?? "",
+  };
+}
+
 export default function DocenteClasesPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -82,6 +110,7 @@ export default function DocenteClasesPage() {
     mp4_url: "",
     pdf_url: "",
     glb_url: "",
+    resources: [],
   });
 
   const canManage = useMemo(() => role === "docente" || role === "admin", [role]);
@@ -134,7 +163,7 @@ export default function DocenteClasesPage() {
     if (aulaIds.length > 0) {
       const { data: templates, error: templatesError } = await supabase
         .from("clase_templates" as any)
-        .select("aula_id,titulo,mp4_url,pdf_url,glb_url")
+        .select("aula_id,titulo,mp4_url,pdf_url,glb_url,metadata")
         .in("aula_id", aulaIds);
       if (templatesError) {
         toast.error("No se pudieron cargar los recursos de tus aulas.");
@@ -147,6 +176,7 @@ export default function DocenteClasesPage() {
               mp4_url: row.mp4_url,
               pdf_url: row.pdf_url,
               glb_url: row.glb_url,
+              metadata: row.metadata,
             },
           ]),
         );
@@ -184,7 +214,28 @@ export default function DocenteClasesPage() {
               : null;
           return [
             aula.id,
-            {
+            (() => {
+              const resourcesFromTemplate = normalizeClassResources(
+                aula.template?.metadata && typeof aula.template.metadata === "object"
+                  ? (aula.template.metadata as { resource_playlist?: unknown }).resource_playlist
+                  : null,
+              );
+              const resourcesFromSnapshot = normalizeClassResources(
+                liveSnapshot?.metadata && typeof liveSnapshot.metadata === "object"
+                  ? (liveSnapshot.metadata as { resource_playlist?: unknown }).resource_playlist
+                  : null,
+              );
+              const resources =
+                resourcesFromSnapshot.length > 0
+                  ? resourcesFromSnapshot
+                  : resourcesFromTemplate.length > 0
+                    ? resourcesFromTemplate
+                    : legacyResourcesFromFields({
+                        mp4_url: liveSnapshot?.mp4_url ?? aula.template?.mp4_url ?? null,
+                        pdf_url: liveSnapshot?.pdf_url ?? aula.template?.pdf_url ?? null,
+                        glb_url: liveSnapshot?.glb_url ?? aula.template?.glb_url ?? null,
+                      });
+              return {
               nombre: aula.nombre,
               slug: aula.slug,
               descripcion: aula.descripcion ?? "",
@@ -192,7 +243,9 @@ export default function DocenteClasesPage() {
               mp4_url: liveSnapshot?.mp4_url ?? aula.template?.mp4_url ?? "",
               pdf_url: liveSnapshot?.pdf_url ?? aula.template?.pdf_url ?? "",
               glb_url: liveSnapshot?.glb_url ?? aula.template?.glb_url ?? "",
-            },
+                resources,
+              };
+            })(),
           ];
         }),
       ),
@@ -253,17 +306,18 @@ export default function DocenteClasesPage() {
       return;
     }
 
+    const syncedNewResources = syncLegacyLinksFromResources(newAula.resources, newAula);
     const { error: templateError } = await supabase
       .from("clase_templates" as any)
       .upsert(
         {
           aula_id: aulaCreated.id,
           titulo: newAula.titulo.trim() || "Clase Virtual",
-          mp4_url: newAula.mp4_url.trim() || null,
-          pdf_url: newAula.pdf_url.trim() || null,
-          glb_url: newAula.glb_url.trim() || null,
+          mp4_url: syncedNewResources.mp4_url || null,
+          pdf_url: syncedNewResources.pdf_url || null,
+          glb_url: syncedNewResources.glb_url || null,
           updated_by: user.id,
-          metadata: {},
+          metadata: { resource_playlist: syncedNewResources.resources },
         },
         { onConflict: "aula_id" },
       );
@@ -281,6 +335,7 @@ export default function DocenteClasesPage() {
       mp4_url: "",
       pdf_url: "",
       glb_url: "",
+      resources: [],
     });
     await loadData();
     setSaving(false);
@@ -294,6 +349,7 @@ export default function DocenteClasesPage() {
     const { data: authData } = await supabase.auth.getUser();
     const user = authData.user;
     if (!user) return;
+    const syncedDraft = syncLegacyLinksFromResources(draft.resources, draft);
 
     setSaving(true);
     const { error: aulaError } = await supabase
@@ -316,11 +372,11 @@ export default function DocenteClasesPage() {
         {
           aula_id: aulaId,
           titulo: draft.titulo.trim() || "Clase Virtual",
-          mp4_url: draft.mp4_url.trim() || null,
-          pdf_url: draft.pdf_url.trim() || null,
-          glb_url: draft.glb_url.trim() || null,
+          mp4_url: syncedDraft.mp4_url || null,
+          pdf_url: syncedDraft.pdf_url || null,
+          glb_url: syncedDraft.glb_url || null,
           updated_by: user.id,
-          metadata: {},
+          metadata: { resource_playlist: syncedDraft.resources },
         },
         { onConflict: "aula_id" },
       );
@@ -333,9 +389,10 @@ export default function DocenteClasesPage() {
     // Si la clase está en vivo, sincronizamos su snapshot para que alumno vea los cambios al instante.
     const liveSnapshot = {
       titulo: draft.titulo.trim() || "Clase Virtual",
-      mp4_url: draft.mp4_url.trim() || null,
-      pdf_url: draft.pdf_url.trim() || null,
-      glb_url: draft.glb_url.trim() || null,
+      mp4_url: syncedDraft.mp4_url || null,
+      pdf_url: syncedDraft.pdf_url || null,
+      glb_url: syncedDraft.glb_url || null,
+      metadata: { resource_playlist: syncedDraft.resources },
     };
     const { error: liveSyncError } = await supabase
       .from("clase_sesiones" as any)
@@ -364,12 +421,18 @@ export default function DocenteClasesPage() {
   };
 
   const class360Url = (aulaSlug: string, draft: AulaDraft): string => {
+    const synced = syncLegacyLinksFromResources(draft.resources, draft);
+    const videoUrls = synced.resources
+      .filter((resource) => resource.type === "video")
+      .map((resource) => resource.url.trim())
+      .filter(Boolean);
     const params = new URLSearchParams();
     const normalizedSlug = slugify(aulaSlug.trim() || draft.nombre);
     if (normalizedSlug) params.set("class", normalizedSlug);
-    if (draft.mp4_url.trim()) params.set("mp4", draft.mp4_url.trim());
-    if (draft.pdf_url.trim()) params.set("pdf", draft.pdf_url.trim());
-    if (draft.glb_url.trim()) params.set("glb", draft.glb_url.trim());
+    if (synced.mp4_url) params.set("mp4", synced.mp4_url);
+    if (synced.pdf_url) params.set("pdf", synced.pdf_url);
+    if (synced.glb_url) params.set("glb", synced.glb_url);
+    for (const videoUrl of videoUrls) params.append("video", videoUrl);
     const q = params.toString();
     return q ? `/coliseo?${q}` : "/coliseo";
   };
@@ -385,6 +448,7 @@ export default function DocenteClasesPage() {
     const { data: authData } = await supabase.auth.getUser();
     const user = authData.user;
     if (!user) return;
+    const syncedDraft = syncLegacyLinksFromResources(draft.resources, draft);
     setSaving(true);
 
     // Persistimos plantilla antes de iniciar para que "volver atrás" no recupere links viejos.
@@ -394,11 +458,11 @@ export default function DocenteClasesPage() {
         {
           aula_id: aulaId,
           titulo: draft.titulo.trim() || "Clase Virtual",
-          mp4_url: draft.mp4_url.trim() || null,
-          pdf_url: draft.pdf_url.trim() || null,
-          glb_url: draft.glb_url.trim() || null,
+          mp4_url: syncedDraft.mp4_url || null,
+          pdf_url: syncedDraft.pdf_url || null,
+          glb_url: syncedDraft.glb_url || null,
           updated_by: user.id,
-          metadata: {},
+          metadata: { resource_playlist: syncedDraft.resources },
         },
         { onConflict: "aula_id" },
       );
@@ -416,9 +480,10 @@ export default function DocenteClasesPage() {
 
     const snapshot = {
       titulo: draft.titulo.trim() || "Clase Virtual",
-      mp4_url: draft.mp4_url.trim() || null,
-      pdf_url: draft.pdf_url.trim() || null,
-      glb_url: draft.glb_url.trim() || null,
+      mp4_url: syncedDraft.mp4_url || null,
+      pdf_url: syncedDraft.pdf_url || null,
+      glb_url: syncedDraft.glb_url || null,
+      metadata: { resource_playlist: syncedDraft.resources },
     };
 
     const { error } = await supabase
@@ -467,6 +532,81 @@ export default function DocenteClasesPage() {
       await loadData();
     }
     setSaving(false);
+  };
+
+  const addResourceToDraft = (aulaId: string, type: ClassResourceType) => {
+    setDrafts((prev) => {
+      const current = prev[aulaId];
+      if (!current) return prev;
+      const synced = syncLegacyLinksFromResources([...current.resources, emptyClassResource(type)], current);
+      return { ...prev, [aulaId]: { ...current, ...synced } };
+    });
+  };
+
+  const updateDraftResource = (
+    aulaId: string,
+    resourceId: string,
+    key: keyof Pick<ClassResourceItem, "title" | "url" | "type">,
+    value: string,
+  ) => {
+    setDrafts((prev) => {
+      const current = prev[aulaId];
+      if (!current) return prev;
+      const nextResources = current.resources.map((resource) =>
+        resource.id === resourceId
+          ? {
+              ...resource,
+              [key]: key === "type" ? (value as ClassResourceType) : value,
+            }
+          : resource,
+      );
+      const synced = syncLegacyLinksFromResources(nextResources, current);
+      return { ...prev, [aulaId]: { ...current, ...synced } };
+    });
+  };
+
+  const removeDraftResource = (aulaId: string, resourceId: string) => {
+    setDrafts((prev) => {
+      const current = prev[aulaId];
+      if (!current) return prev;
+      const nextResources = current.resources.filter((resource) => resource.id !== resourceId);
+      const synced = syncLegacyLinksFromResources(nextResources, current);
+      return { ...prev, [aulaId]: { ...current, ...synced } };
+    });
+  };
+
+  const addResourceToNewAula = (type: ClassResourceType) => {
+    setNewAula((prev) => {
+      const synced = syncLegacyLinksFromResources([...prev.resources, emptyClassResource(type)], prev);
+      return { ...prev, ...synced };
+    });
+  };
+
+  const updateNewAulaResource = (
+    resourceId: string,
+    key: keyof Pick<ClassResourceItem, "title" | "url" | "type">,
+    value: string,
+  ) => {
+    setNewAula((prev) => {
+      const nextResources = prev.resources.map((resource) =>
+        resource.id === resourceId
+          ? {
+              ...resource,
+              [key]: key === "type" ? (value as ClassResourceType) : value,
+            }
+          : resource,
+      );
+      const synced = syncLegacyLinksFromResources(nextResources, prev);
+      return { ...prev, ...synced };
+    });
+  };
+
+  const removeNewAulaResource = (resourceId: string) => {
+    setNewAula((prev) => {
+      const nextResources = prev.resources.filter((resource) => resource.id !== resourceId);
+      const synced = syncLegacyLinksFromResources(nextResources, prev);
+      return { ...prev, ...synced };
+    });
   };
 
   return (
@@ -528,29 +668,57 @@ export default function DocenteClasesPage() {
                     placeholder="Clase Virtual"
                   />
                 </div>
-                <div>
-                  <Label>Link MP4</Label>
-                  <Input
-                    value={newAula.mp4_url}
-                    onChange={(e) => setNewAula((prev) => ({ ...prev, mp4_url: e.target.value }))}
-                    placeholder="https://..."
-                  />
-                </div>
-                <div>
-                  <Label>Link PDF</Label>
-                  <Input
-                    value={newAula.pdf_url}
-                    onChange={(e) => setNewAula((prev) => ({ ...prev, pdf_url: e.target.value }))}
-                    placeholder="https://..."
-                  />
-                </div>
-                <div>
-                  <Label>Link GLB</Label>
-                  <Input
-                    value={newAula.glb_url}
-                    onChange={(e) => setNewAula((prev) => ({ ...prev, glb_url: e.target.value }))}
-                    placeholder="https://... o /assets/models/archivo.glb"
-                  />
+                <div className="md:col-span-2 space-y-2 rounded-lg border border-border/50 bg-background/40 p-3">
+                  <p className="text-sm font-medium">Recursos de la clase (playlist docente)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Puedes mezclar videos (MP4 o YouTube), PDFs y modelos GLB. Los estudiantes solo podrán visualizar y navegar.
+                  </p>
+                  {newAula.resources.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Aún no agregas recursos.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {newAula.resources.map((resource) => (
+                        <div key={resource.id} className="grid gap-2 rounded border border-border/40 p-2 md:grid-cols-[150px_1fr_1.2fr_auto]">
+                          <select
+                            className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+                            value={resource.type}
+                            onChange={(e) => updateNewAulaResource(resource.id, "type", e.target.value)}
+                          >
+                            <option value="video">Video</option>
+                            <option value="pdf">PDF</option>
+                            <option value="glb">GLB</option>
+                          </select>
+                          <Input
+                            value={resource.title}
+                            onChange={(e) => updateNewAulaResource(resource.id, "title", e.target.value)}
+                            placeholder="Título visible"
+                          />
+                          <Input
+                            value={resource.url}
+                            onChange={(e) => updateNewAulaResource(resource.id, "url", e.target.value)}
+                            placeholder="https://... (YouTube, PDF, GLB o MP4)"
+                          />
+                          <Button type="button" variant="outline" size="icon" onClick={() => removeNewAulaResource(resource.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => addResourceToNewAula("video")}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar video
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => addResourceToNewAula("pdf")}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar PDF
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => addResourceToNewAula("glb")}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar GLB
+                    </Button>
+                  </div>
                 </div>
                 <div className="md:col-span-2">
                   <Button type="submit" className="w-full md:w-auto" disabled={saving}>
@@ -623,42 +791,62 @@ export default function DocenteClasesPage() {
                           }
                         />
                       </div>
-                      <div>
-                        <Label>MP4</Label>
-                        <Input
-                          value={draft.mp4_url}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [aula.id]: { ...prev[aula.id], mp4_url: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label>PDF</Label>
-                        <Input
-                          value={draft.pdf_url}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [aula.id]: { ...prev[aula.id], pdf_url: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label>GLB</Label>
-                        <Input
-                          value={draft.glb_url}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [aula.id]: { ...prev[aula.id], glb_url: e.target.value },
-                            }))
-                          }
-                          placeholder="https://... o /assets/models/archivo.glb"
-                        />
+                      <div className="md:col-span-2 space-y-2 rounded-lg border border-border/50 bg-background/40 p-3">
+                        <p className="text-sm font-medium">Recursos de la clase</p>
+                        {draft.resources.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">Sin recursos configurados.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {draft.resources.map((resource) => (
+                              <div
+                                key={resource.id}
+                                className="grid gap-2 rounded border border-border/40 p-2 md:grid-cols-[150px_1fr_1.2fr_auto]"
+                              >
+                                <select
+                                  className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+                                  value={resource.type}
+                                  onChange={(e) => updateDraftResource(aula.id, resource.id, "type", e.target.value)}
+                                >
+                                  <option value="video">Video</option>
+                                  <option value="pdf">PDF</option>
+                                  <option value="glb">GLB</option>
+                                </select>
+                                <Input
+                                  value={resource.title}
+                                  onChange={(e) => updateDraftResource(aula.id, resource.id, "title", e.target.value)}
+                                  placeholder="Título visible"
+                                />
+                                <Input
+                                  value={resource.url}
+                                  onChange={(e) => updateDraftResource(aula.id, resource.id, "url", e.target.value)}
+                                  placeholder="https://... (YouTube, PDF, GLB o MP4)"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => removeDraftResource(aula.id, resource.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          <Button type="button" variant="outline" size="sm" onClick={() => addResourceToDraft(aula.id, "video")}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Agregar video
+                          </Button>
+                          <Button type="button" variant="outline" size="sm" onClick={() => addResourceToDraft(aula.id, "pdf")}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Agregar PDF
+                          </Button>
+                          <Button type="button" variant="outline" size="sm" onClick={() => addResourceToDraft(aula.id, "glb")}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Agregar GLB
+                          </Button>
+                        </div>
                       </div>
                       <div className="md:col-span-2 flex flex-wrap gap-2">
                         <Button type="button" onClick={() => void saveAula(aula.id)} disabled={saving}>
