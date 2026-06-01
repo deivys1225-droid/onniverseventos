@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useLocation } from "react-router-dom";
 import ColiseoFloatingWebViewScreen from "@/components/immersive/ColiseoFloatingWebViewScreen";
 import ColiseoFloatingPdfScreen from "@/components/immersive/ColiseoFloatingPdfScreen";
+import LobbyDeviceOrientationLook from "@/components/lobby/LobbyDeviceOrientationLook";
 import { WallSceneGlb } from "@/components/lobby/lobbyWallGlbScene";
 import {
   EquirectangularInterior,
@@ -129,7 +130,13 @@ function ColiseoSceneContent({
   );
 }
 
-export default function ColiseoImmersiveScene({ mixedRealityActive = false }: { mixedRealityActive?: boolean }) {
+export default function ColiseoImmersiveScene({
+  mixedRealityActive = false,
+  gyroLookEnabled = false,
+}: {
+  mixedRealityActive?: boolean;
+  gyroLookEnabled?: boolean;
+}) {
   const location = useLocation();
   const useNativeWebView = useMemo(() => isColiseoNativeWebViewAvailable(), []);
   const [pointerLocked, setPointerLocked] = useState(false);
@@ -158,7 +165,7 @@ export default function ColiseoImmersiveScene({ mixedRealityActive = false }: { 
     if (document.pointerLockElement) document.exitPointerLock();
   }, []);
 
-  const pointerLockEnabled = usesPointerLock && !useNativeWebView && !screenInteracting;
+  const pointerLockEnabled = usesPointerLock && !useNativeWebView && !screenInteracting && !gyroLookEnabled;
 
   useEffect(() => {
     const onWindowPointerDown = (event: PointerEvent) => {
@@ -196,6 +203,7 @@ export default function ColiseoImmersiveScene({ mixedRealityActive = false }: { 
             classGlbUrl={classGlbUrl}
           />
         </Suspense>
+        <LobbyDeviceOrientationLook enabled={gyroLookEnabled} />
         {pointerLockEnabled ? (
           <PointerLockControls
             onLock={() => {
@@ -209,7 +217,7 @@ export default function ColiseoImmersiveScene({ mixedRealityActive = false }: { 
             onUnlock={() => setPointerLocked(false)}
           />
         ) : (
-          <ImmersiveOrbitControls enabled={!screenInteracting} />
+          <ImmersiveOrbitControls enabled={!screenInteracting && !gyroLookEnabled} />
         )}
       </Canvas>
 
