@@ -39,3 +39,13 @@ El usuario validó en PC (docente + estudiante en navegadores distintos) que est
 - **No** romper la sincronización entre plantilla y `state_snapshot` de `clase_sesiones`.
 - **No** cambiar el flujo de guardado/inicio de clase sin pedido explícito del usuario.
 - **No** reintroducir links/recursos viejos por fallback automático si hay sesión en vivo.
+
+## Bloqueo total solicitado por el usuario (31 mayo 2026)
+
+Estado actual validado por el usuario como **funcionando excelente** en pruebas reales docente/estudiante (web y móvil).
+
+- Esta configuración queda **intocable**.
+- **No** modificar lógica, rutas, UI, puentes nativos, reproducción, sincronización ni voz de clases.
+- **No** hacer refactor, limpieza, optimización ni “mejoras” sobre este flujo.
+- Cualquier cambio futuro en este bloque requiere **autorización explícita previa del usuario en el chat actual**.
+- Si existe duda sobre alcance, el agente debe **detenerse y pedir confirmación** antes de tocar archivos relacionados.
