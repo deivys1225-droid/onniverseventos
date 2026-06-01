@@ -8,12 +8,6 @@ import { toast } from "sonner";
 import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
 import { COLOSSEO_PATH } from "@/data/coliseoScene";
 import { stashColiseoClassLaunch } from "@/lib/coliseoClassLaunch";
-import {
-  legacyResourcesFromFields,
-  normalizeClassResources,
-  pickPrimaryByType,
-  type ClassResourceItem,
-} from "@/lib/classResources";
 
 type Aula = {
   id: string;
@@ -29,7 +23,6 @@ type Template = {
   pdf_url: string | null;
   glb_url: string | null;
   titulo: string;
-  metadata?: { resource_playlist?: unknown } | null;
 };
 
 type Member = {
@@ -42,7 +35,6 @@ type SessionSnapshot = {
   mp4_url: string | null;
   pdf_url: string | null;
   glb_url: string | null;
-  metadata?: { resource_playlist?: unknown } | null;
 };
 
 export default function ClaseVirtualEntryPage() {
@@ -58,7 +50,6 @@ export default function ClaseVirtualEntryPage() {
   const [liveSessionId, setLiveSessionId] = useState<string>("");
   const [liveSnapshot, setLiveSnapshot] = useState<SessionSnapshot | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
-  const [selectedVideoIndex, setSelectedVideoIndex] = useState(0);
   const realtimeReloadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasAccess = useMemo(() => {
@@ -70,55 +61,24 @@ export default function ClaseVirtualEntryPage() {
 
   const canEnter = useMemo(() => hasAccess && isClassLive, [hasAccess, isClassLive]);
 
-  const resources = useMemo<ClassResourceItem[]>(() => {
-    const source = isClassLive ? (liveSnapshot ?? template) : template;
-    const metadataResources = normalizeClassResources(
-      source?.metadata && typeof source.metadata === "object"
-        ? (source.metadata as { resource_playlist?: unknown }).resource_playlist
-        : null,
-    );
-    if (metadataResources.length > 0) return metadataResources;
-    return legacyResourcesFromFields(source ?? {});
-  }, [isClassLive, liveSnapshot, template]);
-
-  const videoResources = useMemo(
-    () => resources.filter((resource) => resource.type === "video"),
-    [resources],
-  );
-  const activeVideoResource = useMemo(
-    () =>
-      videoResources.length > 0
-        ? videoResources[Math.max(0, Math.min(selectedVideoIndex, videoResources.length - 1))]
-        : null,
-    [selectedVideoIndex, videoResources],
-  );
-
   const classUrl = useMemo(() => {
     // En clase en vivo usamos snapshot activo; fuera de vivo tomamos template.
     const source = isClassLive ? (liveSnapshot ?? template) : template;
-    const activeMp4 = activeVideoResource?.url?.trim() || pickPrimaryByType(resources, "video") || "";
-    const activePdf = pickPrimaryByType(resources, "pdf") || source?.pdf_url?.trim() || "";
-    const activeGlb = pickPrimaryByType(resources, "glb") || source?.glb_url?.trim() || "";
+    const activeMp4 = source?.mp4_url?.trim() || "";
+    const activePdf = source?.pdf_url?.trim() || "";
+    const activeGlb = source?.glb_url?.trim() || "";
     const params = new URLSearchParams();
     if (aula?.slug) params.set("class", aula.slug);
     if (liveSessionId) params.set("session", liveSessionId);
     if (activeMp4) params.set("mp4", activeMp4);
     if (activePdf) params.set("pdf", activePdf);
     if (activeGlb) params.set("glb", activeGlb);
-    for (const videoResource of videoResources) {
-      const videoUrl = videoResource.url.trim();
-      if (videoUrl) params.append("video", videoUrl);
-    }
     const q = params.toString();
     return q ? `${COLOSSEO_PATH}?${q}` : COLOSSEO_PATH;
   }, [
     aula?.slug,
     isClassLive,
     liveSessionId,
-    resources,
-    selectedVideoIndex,
-    activeVideoResource,
-    videoResources,
     liveSnapshot?.glb_url,
     liveSnapshot?.mp4_url,
     liveSnapshot?.pdf_url,
@@ -126,14 +86,6 @@ export default function ClaseVirtualEntryPage() {
     template?.mp4_url,
     template?.pdf_url,
   ]);
-
-  useEffect(() => {
-    if (videoResources.length <= 0) {
-      setSelectedVideoIndex(0);
-      return;
-    }
-    setSelectedVideoIndex((prev) => Math.max(0, Math.min(prev, videoResources.length - 1)));
-  }, [videoResources.length]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -173,7 +125,7 @@ export default function ClaseVirtualEntryPage() {
 
     const { data: tpl } = await supabase
       .from("clase_templates" as any)
-      .select("titulo,mp4_url,pdf_url,glb_url,metadata")
+      .select("titulo,mp4_url,pdf_url,glb_url")
       .eq("aula_id", aulaData.id)
       .maybeSingle();
     setTemplate((tpl as Template | null) ?? null);
@@ -301,46 +253,6 @@ export default function ClaseVirtualEntryPage() {
               <p className="mt-2 text-xs text-cyan-100/90">
                 Estado: {isClassLive ? "Clase en vivo" : "Esperando que el docente inicie la clase"}
               </p>
-              {resources.length > 0 ? (
-                <div className="mt-4 rounded-lg border border-border/50 bg-background/40 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-cyan-100/90">
-                    Recursos visibles ({resources.length})
-                  </p>
-                  <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                    {resources.map((resource, index) => (
-                      <p key={resource.id} className={resource.id === activeVideoResource?.id ? "text-cyan-200" : ""}>
-                        {resource.type.toUpperCase()} · {resource.title}
-                      </p>
-                    ))}
-                  </div>
-                  {videoResources.length > 1 ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setSelectedVideoIndex((prev) =>
-                            prev <= 0 ? videoResources.length - 1 : prev - 1,
-                          )
-                        }
-                      >
-                        Video anterior
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setSelectedVideoIndex((prev) => (prev + 1) % videoResources.length)
-                        }
-                      >
-                        Siguiente video
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
 
               <div className="mt-6 flex flex-wrap gap-2">
                 {canEnter ? (
