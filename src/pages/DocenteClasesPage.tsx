@@ -21,6 +21,7 @@ type AulaCard = {
     mp4_url: string | null;
     pdf_url: string | null;
     glb_url: string | null;
+    metadata?: { video_urls?: unknown } | null;
   } | null;
 };
 
@@ -32,6 +33,7 @@ type AulaDraft = {
   mp4_url: string;
   pdf_url: string;
   glb_url: string;
+  video_urls: string[];
 };
 
 type ClaseSession = {
@@ -45,6 +47,7 @@ type ClaseSession = {
     pdf_url?: string | null;
     glb_url?: string | null;
     glb_v?: string | null;
+    metadata?: { video_urls?: unknown } | null;
   } | null;
 };
 
@@ -66,6 +69,17 @@ function slugify(value: string): string {
     .slice(0, 64);
 }
 
+function normalizeVideoUrls(primaryMp4: string, rawList: unknown): string[] {
+  const list = Array.isArray(rawList) ? rawList : [];
+  const fromList = list
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => /^https?:\/\//i.test(item));
+  const fromPrimary = primaryMp4.trim();
+  const merged = fromPrimary ? [fromPrimary, ...fromList] : fromList;
+  return Array.from(new Set(merged));
+}
+
 export default function DocenteClasesPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -83,6 +97,7 @@ export default function DocenteClasesPage() {
     mp4_url: "",
     pdf_url: "",
     glb_url: "",
+    video_urls: [],
   });
 
   const canManage = useMemo(() => role === "docente" || role === "admin", [role]);
@@ -135,7 +150,7 @@ export default function DocenteClasesPage() {
     if (aulaIds.length > 0) {
       const { data: templates, error: templatesError } = await supabase
         .from("clase_templates" as any)
-        .select("aula_id,titulo,mp4_url,pdf_url,glb_url")
+        .select("aula_id,titulo,mp4_url,pdf_url,glb_url,metadata")
         .in("aula_id", aulaIds);
       if (templatesError) {
         toast.error("No se pudieron cargar los recursos de tus aulas.");
@@ -148,6 +163,7 @@ export default function DocenteClasesPage() {
               mp4_url: row.mp4_url,
               pdf_url: row.pdf_url,
               glb_url: row.glb_url,
+              metadata: row.metadata,
             },
           ]),
         );
@@ -185,15 +201,23 @@ export default function DocenteClasesPage() {
               : null;
           return [
             aula.id,
-            {
+            (() => {
+              const effectiveMp4 = liveSnapshot?.mp4_url ?? aula.template?.mp4_url ?? "";
+              const effectiveVideoUrls = normalizeVideoUrls(
+                effectiveMp4,
+                liveSnapshot?.metadata?.video_urls ?? aula.template?.metadata?.video_urls ?? null,
+              );
+              return {
               nombre: aula.nombre,
               slug: aula.slug,
               descripcion: aula.descripcion ?? "",
               titulo: liveSnapshot?.titulo ?? aula.template?.titulo ?? "Clase Virtual",
-              mp4_url: liveSnapshot?.mp4_url ?? aula.template?.mp4_url ?? "",
+                mp4_url: effectiveMp4,
               pdf_url: liveSnapshot?.pdf_url ?? aula.template?.pdf_url ?? "",
               glb_url: liveSnapshot?.glb_url ?? aula.template?.glb_url ?? "",
-            },
+                video_urls: effectiveVideoUrls,
+              };
+            })(),
           ];
         }),
       ),
@@ -264,7 +288,7 @@ export default function DocenteClasesPage() {
           pdf_url: newAula.pdf_url.trim() || null,
           glb_url: newAula.glb_url.trim() || null,
           updated_by: user.id,
-          metadata: {},
+          metadata: { video_urls: normalizeVideoUrls(newAula.mp4_url, newAula.video_urls) },
         },
         { onConflict: "aula_id" },
       );
@@ -282,6 +306,7 @@ export default function DocenteClasesPage() {
       mp4_url: "",
       pdf_url: "",
       glb_url: "",
+      video_urls: [],
     });
     await loadData();
     setSaving(false);
@@ -321,7 +346,7 @@ export default function DocenteClasesPage() {
           pdf_url: draft.pdf_url.trim() || null,
           glb_url: draft.glb_url.trim() || null,
           updated_by: user.id,
-          metadata: {},
+          metadata: { video_urls: normalizeVideoUrls(draft.mp4_url, draft.video_urls) },
         },
         { onConflict: "aula_id" },
       );
@@ -339,6 +364,7 @@ export default function DocenteClasesPage() {
       pdf_url: draft.pdf_url.trim() || null,
       glb_url: draft.glb_url.trim() || null,
       glb_v: glbVersion,
+      metadata: { video_urls: normalizeVideoUrls(draft.mp4_url, draft.video_urls) },
     };
     const { error: liveSyncError } = await supabase
       .from("clase_sesiones" as any)
@@ -370,8 +396,10 @@ export default function DocenteClasesPage() {
   const class360Url = (aulaSlug: string, draft: AulaDraft): string => {
     const params = new URLSearchParams();
     const normalizedSlug = slugify(aulaSlug.trim() || draft.nombre);
+    const videoUrls = normalizeVideoUrls(draft.mp4_url, draft.video_urls);
     if (normalizedSlug) params.set("class", normalizedSlug);
     if (draft.mp4_url.trim()) params.set("mp4", draft.mp4_url.trim());
+    for (const videoUrl of videoUrls) params.append("video", videoUrl);
     if (draft.pdf_url.trim()) params.set("pdf", draft.pdf_url.trim());
     if (draft.glb_url.trim()) {
       params.set("glb", draft.glb_url.trim());
@@ -409,7 +437,7 @@ export default function DocenteClasesPage() {
           pdf_url: draft.pdf_url.trim() || null,
           glb_url: draft.glb_url.trim() || null,
           updated_by: user.id,
-          metadata: {},
+          metadata: { video_urls: normalizeVideoUrls(draft.mp4_url, draft.video_urls) },
         },
         { onConflict: "aula_id" },
       );
@@ -432,6 +460,7 @@ export default function DocenteClasesPage() {
       pdf_url: draft.pdf_url.trim() || null,
       glb_url: draft.glb_url.trim() || null,
       glb_v: glbVersion,
+      metadata: { video_urls: normalizeVideoUrls(draft.mp4_url, draft.video_urls) },
     };
 
     const { error } = await supabase
@@ -480,6 +509,48 @@ export default function DocenteClasesPage() {
       await loadData();
     }
     setSaving(false);
+  };
+
+  const addNewAulaVideo = () => {
+    setNewAula((prev) => ({ ...prev, video_urls: [...prev.video_urls, ""] }));
+  };
+
+  const updateNewAulaVideo = (index: number, value: string) => {
+    setNewAula((prev) => {
+      const next = [...prev.video_urls];
+      next[index] = value;
+      return { ...prev, video_urls: next };
+    });
+  };
+
+  const removeNewAulaVideo = (index: number) => {
+    setNewAula((prev) => ({ ...prev, video_urls: prev.video_urls.filter((_, i) => i !== index) }));
+  };
+
+  const addDraftVideo = (aulaId: string) => {
+    setDrafts((prev) => {
+      const draft = prev[aulaId];
+      if (!draft) return prev;
+      return { ...prev, [aulaId]: { ...draft, video_urls: [...draft.video_urls, ""] } };
+    });
+  };
+
+  const updateDraftVideo = (aulaId: string, index: number, value: string) => {
+    setDrafts((prev) => {
+      const draft = prev[aulaId];
+      if (!draft) return prev;
+      const next = [...draft.video_urls];
+      next[index] = value;
+      return { ...prev, [aulaId]: { ...draft, video_urls: next } };
+    });
+  };
+
+  const removeDraftVideo = (aulaId: string, index: number) => {
+    setDrafts((prev) => {
+      const draft = prev[aulaId];
+      if (!draft) return prev;
+      return { ...prev, [aulaId]: { ...draft, video_urls: draft.video_urls.filter((_, i) => i !== index) } };
+    });
   };
 
   return (
@@ -548,6 +619,33 @@ export default function DocenteClasesPage() {
                     onChange={(e) => setNewAula((prev) => ({ ...prev, mp4_url: e.target.value }))}
                     placeholder="https://..."
                   />
+                </div>
+                <div className="md:col-span-2 rounded-lg border border-border/50 bg-background/40 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <Label>Videos adicionales (solo video)</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={addNewAulaVideo}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar video
+                    </Button>
+                  </div>
+                  {newAula.video_urls.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Sin videos adicionales.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {newAula.video_urls.map((video, index) => (
+                        <div key={`new-video-${index}`} className="flex gap-2">
+                          <Input
+                            value={video}
+                            onChange={(e) => updateNewAulaVideo(index, e.target.value)}
+                            placeholder="https://... (video adicional)"
+                          />
+                          <Button type="button" variant="outline" size="sm" onClick={() => removeNewAulaVideo(index)}>
+                            Quitar
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label>Link PDF</Label>
@@ -647,6 +745,38 @@ export default function DocenteClasesPage() {
                             }))
                           }
                         />
+                      </div>
+                      <div className="md:col-span-2 rounded-lg border border-border/50 bg-background/40 p-3">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <Label>Videos adicionales</Label>
+                          <Button type="button" variant="outline" size="sm" onClick={() => addDraftVideo(aula.id)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Agregar video
+                          </Button>
+                        </div>
+                        {draft.video_urls.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">Sin videos adicionales.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {draft.video_urls.map((video, index) => (
+                              <div key={`${aula.id}-video-${index}`} className="flex gap-2">
+                                <Input
+                                  value={video}
+                                  onChange={(e) => updateDraftVideo(aula.id, index, e.target.value)}
+                                  placeholder="https://... (video adicional)"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removeDraftVideo(aula.id, index)}
+                                >
+                                  Quitar
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <Label>PDF</Label>

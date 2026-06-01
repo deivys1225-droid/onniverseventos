@@ -23,6 +23,7 @@ type Template = {
   pdf_url: string | null;
   glb_url: string | null;
   titulo: string;
+  metadata?: { video_urls?: unknown } | null;
 };
 
 type Member = {
@@ -36,7 +37,19 @@ type SessionSnapshot = {
   pdf_url: string | null;
   glb_url: string | null;
   glb_v?: string | null;
+  metadata?: { video_urls?: unknown } | null;
 };
+
+function normalizeVideoUrls(primaryMp4: string, rawList: unknown): string[] {
+  const list = Array.isArray(rawList) ? rawList : [];
+  const fromList = list
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => /^https?:\/\//i.test(item));
+  const fromPrimary = primaryMp4.trim();
+  const merged = fromPrimary ? [fromPrimary, ...fromList] : fromList;
+  return Array.from(new Set(merged));
+}
 
 export default function ClaseVirtualEntryPage() {
   const navigate = useNavigate();
@@ -66,6 +79,7 @@ export default function ClaseVirtualEntryPage() {
     // En clase en vivo usamos snapshot activo; fuera de vivo tomamos template.
     const source = isClassLive ? (liveSnapshot ?? template) : template;
     const activeMp4 = source?.mp4_url?.trim() || "";
+    const videoUrls = normalizeVideoUrls(activeMp4, source?.metadata?.video_urls ?? null);
     const activePdf = source?.pdf_url?.trim() || "";
     const activeGlb = source?.glb_url?.trim() || "";
     const activeGlbVersion =
@@ -79,6 +93,7 @@ export default function ClaseVirtualEntryPage() {
     if (aula?.slug) params.set("class", aula.slug);
     if (liveSessionId) params.set("session", liveSessionId);
     if (activeMp4) params.set("mp4", activeMp4);
+    for (const videoUrl of videoUrls) params.append("video", videoUrl);
     if (activePdf) params.set("pdf", activePdf);
     if (activeGlb) params.set("glb", activeGlb);
     if (activeGlbVersion) params.set("glb_v", activeGlbVersion);
@@ -134,7 +149,7 @@ export default function ClaseVirtualEntryPage() {
 
     const { data: tpl } = await supabase
       .from("clase_templates" as any)
-      .select("titulo,mp4_url,pdf_url,glb_url")
+      .select("titulo,mp4_url,pdf_url,glb_url,metadata")
       .eq("aula_id", aulaData.id)
       .maybeSingle();
     setTemplate((tpl as Template | null) ?? null);

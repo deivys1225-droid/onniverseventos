@@ -23,12 +23,6 @@ import {
 
 const GLB_SLOT_POSITION: [number, number, number] = [10.5, 1.95, -0.42];
 const GLB_SLOT_ROTATION: [number, number, number] = [0, Math.PI, 0];
-const BLOCKED_HEART_PATTERNS = [
-  /corazon/i,
-  /heart/i,
-  /dbhvfn/i,
-  /19elpBz-mCPcbPMxQq4hQPmmJNc-0JFKo/i,
-];
 
 function normalizeGoogleDriveGlbUrl(raw: string): string {
   try {
@@ -63,10 +57,8 @@ function resolveClassGlbUrl(search: string): string | null {
   const raw = new URLSearchParams(search).get("glb")?.trim() ?? "";
   if (!raw) return null;
   if (!/^https?:\/\//i.test(raw) && !raw.startsWith("/")) return null;
-  if (BLOCKED_HEART_PATTERNS.some((pattern) => pattern.test(raw))) return null;
   const normalized = /^https?:\/\//i.test(raw) ? normalizeGoogleDriveGlbUrl(raw) : raw;
   // Algunos hosts (p.ej. Cloudinary) sirven GLB sin terminar en ".glb".
-  if (BLOCKED_HEART_PATTERNS.some((pattern) => pattern.test(normalized))) return null;
   return appendGlbCacheBust(normalized, search);
 }
 
