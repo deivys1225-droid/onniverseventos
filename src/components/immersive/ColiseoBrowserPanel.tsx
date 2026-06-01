@@ -30,11 +30,10 @@ export default function ColiseoAndroidWebViewSlot({
   const [desiredPlayback, setDesiredPlayback] = useState<"play" | "pause" | null>(null);
   const useNativeWebView = false;
   const syncContext = useMemo(() => {
-    if (typeof window === "undefined") return { classSlug: "", sessionId: "" };
+    if (typeof window === "undefined") return { classSlug: "" };
     const searchParams = new URLSearchParams(window.location.search);
     return {
       classSlug: searchParams.get("class")?.trim().toLowerCase() ?? "",
-      sessionId: searchParams.get("session")?.trim() ?? "",
     };
   }, []);
 
@@ -94,7 +93,9 @@ export default function ColiseoAndroidWebViewSlot({
         setIsTeacher(false);
       }
 
-      const channelName = `class-video-sync-${syncContext.classSlug || "main"}-${syncContext.sessionId || "default"}`;
+      // Usamos solo classSlug para que docente y alumnos queden en el mismo canal
+      // aunque lleguen con/ sin query `session` en la URL.
+      const channelName = `class-video-sync-${syncContext.classSlug || "main"}`;
       syncChannel = supabase.channel(channelName);
       channelRef.current = syncChannel;
 
@@ -129,7 +130,7 @@ export default function ColiseoAndroidWebViewSlot({
       channelRef.current = null;
       if (syncChannel) void supabase.removeChannel(syncChannel);
     };
-  }, [syncContext.classSlug, syncContext.sessionId]);
+  }, [syncContext.classSlug]);
 
   useEffect(() => {
     if (videoIndex < classVideoUrls.length) return;
