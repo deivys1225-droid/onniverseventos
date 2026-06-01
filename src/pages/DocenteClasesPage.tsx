@@ -69,14 +69,18 @@ function slugify(value: string): string {
     .slice(0, 64);
 }
 
-function normalizeVideoUrls(primaryMp4: string, rawList: unknown): string[] {
+function normalizeAdditionalVideoUrls(rawList: unknown): string[] {
   const list = Array.isArray(rawList) ? rawList : [];
-  const fromList = list
+  return list
     .filter((item): item is string => typeof item === "string")
     .map((item) => item.trim())
     .filter((item) => /^https?:\/\//i.test(item));
-  const fromPrimary = primaryMp4.trim();
-  const merged = fromPrimary ? [fromPrimary, ...fromList] : fromList;
+}
+
+function buildVideoPlaylist(primaryMp4: string, additionalRawList: unknown): string[] {
+  const primary = primaryMp4.trim();
+  const additional = normalizeAdditionalVideoUrls(additionalRawList).filter((url) => url !== primary);
+  const merged = primary ? [primary, ...additional] : additional;
   return Array.from(new Set(merged));
 }
 
@@ -203,10 +207,9 @@ export default function DocenteClasesPage() {
             aula.id,
             (() => {
               const effectiveMp4 = liveSnapshot?.mp4_url ?? aula.template?.mp4_url ?? "";
-              const effectiveVideoUrls = normalizeVideoUrls(
-                effectiveMp4,
+              const effectiveVideoUrls = normalizeAdditionalVideoUrls(
                 liveSnapshot?.metadata?.video_urls ?? aula.template?.metadata?.video_urls ?? null,
-              );
+              ).filter((url) => url !== effectiveMp4.trim());
               return {
               nombre: aula.nombre,
               slug: aula.slug,
@@ -288,7 +291,7 @@ export default function DocenteClasesPage() {
           pdf_url: newAula.pdf_url.trim() || null,
           glb_url: newAula.glb_url.trim() || null,
           updated_by: user.id,
-          metadata: { video_urls: normalizeVideoUrls(newAula.mp4_url, newAula.video_urls) },
+          metadata: { video_urls: normalizeAdditionalVideoUrls(newAula.video_urls) },
         },
         { onConflict: "aula_id" },
       );
@@ -346,7 +349,7 @@ export default function DocenteClasesPage() {
           pdf_url: draft.pdf_url.trim() || null,
           glb_url: draft.glb_url.trim() || null,
           updated_by: user.id,
-          metadata: { video_urls: normalizeVideoUrls(draft.mp4_url, draft.video_urls) },
+          metadata: { video_urls: normalizeAdditionalVideoUrls(draft.video_urls) },
         },
         { onConflict: "aula_id" },
       );
@@ -364,7 +367,7 @@ export default function DocenteClasesPage() {
       pdf_url: draft.pdf_url.trim() || null,
       glb_url: draft.glb_url.trim() || null,
       glb_v: glbVersion,
-      metadata: { video_urls: normalizeVideoUrls(draft.mp4_url, draft.video_urls) },
+      metadata: { video_urls: normalizeAdditionalVideoUrls(draft.video_urls) },
     };
     const { error: liveSyncError } = await supabase
       .from("clase_sesiones" as any)
@@ -396,7 +399,7 @@ export default function DocenteClasesPage() {
   const class360Url = (aulaSlug: string, draft: AulaDraft): string => {
     const params = new URLSearchParams();
     const normalizedSlug = slugify(aulaSlug.trim() || draft.nombre);
-    const videoUrls = normalizeVideoUrls(draft.mp4_url, draft.video_urls);
+    const videoUrls = buildVideoPlaylist(draft.mp4_url, draft.video_urls);
     if (normalizedSlug) params.set("class", normalizedSlug);
     if (draft.mp4_url.trim()) params.set("mp4", draft.mp4_url.trim());
     for (const videoUrl of videoUrls) params.append("video", videoUrl);
@@ -437,7 +440,7 @@ export default function DocenteClasesPage() {
           pdf_url: draft.pdf_url.trim() || null,
           glb_url: draft.glb_url.trim() || null,
           updated_by: user.id,
-          metadata: { video_urls: normalizeVideoUrls(draft.mp4_url, draft.video_urls) },
+          metadata: { video_urls: normalizeAdditionalVideoUrls(draft.video_urls) },
         },
         { onConflict: "aula_id" },
       );
@@ -460,7 +463,7 @@ export default function DocenteClasesPage() {
       pdf_url: draft.pdf_url.trim() || null,
       glb_url: draft.glb_url.trim() || null,
       glb_v: glbVersion,
-      metadata: { video_urls: normalizeVideoUrls(draft.mp4_url, draft.video_urls) },
+      metadata: { video_urls: normalizeAdditionalVideoUrls(draft.video_urls) },
     };
 
     const { error } = await supabase
