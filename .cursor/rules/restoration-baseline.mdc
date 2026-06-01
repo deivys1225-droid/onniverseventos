@@ -39,3 +39,22 @@ El usuario validó en PC (docente + estudiante en navegadores distintos) que est
 - **No** romper la sincronización entre plantilla y `state_snapshot` de `clase_sesiones`.
 - **No** cambiar el flujo de guardado/inicio de clase sin pedido explícito del usuario.
 - **No** reintroducir links/recursos viejos por fallback automático si hay sesión en vivo.
+
+## Baseline estable extendido (1 junio 2026)
+
+El usuario validó y publicó en producción estos comportamientos; quedan **congelados** salvo orden explícita:
+
+- Playlist de videos persistente en `DocenteClasesPage` y `ClaseVirtualEntryPage` (sin perder items al guardar/recargar).
+- Sincronización en tiempo real docente → alumnos para `play / pausa / siguiente / anterior` en `ColiseoBrowserPanel`.
+- Panel docente de conectados en `AgoraClassVoiceBridge` (presencia realtime de participantes).
+- Flecha de regreso por rol en `ColiseoPage`:
+  - docente -> `/docente-clases`
+  - alumno -> `/clase/{slug}` (fallback `navigate(-1)`).
+- Registro con rol seleccionable en `RegisterPage` (`particular`, `estudiante`, `docente`) y persistencia de `app_role` en Auth metadata + `profiles` (`profile.ts`).
+
+### Candado de este baseline extendido
+
+- **No** cambiar canales, nombres de eventos o flujo de broadcast de sincronización de video sin aprobación explícita.
+- **No** revertir el selector de rol de registro ni su persistencia en `profiles.app_role`.
+- **No** volver a redirigir a alumnos al panel docente desde Coliseo.
+- Cualquier mejora nueva debe ser incremental y sin romper estos flujos ya validados.
