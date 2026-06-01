@@ -4,7 +4,6 @@ import {
   COLOSSEO_NATIVE_BROWSER_SLOT_ID,
   useColiseoNativeWebViewSlot,
 } from "@/lib/coliseoNativeWebView";
-import { toYoutubeEmbedUrl } from "@/lib/classResources";
 
 /**
  * Slot de la pantalla flotante: WebView nativo en Android; vacío visible en PC para revisar posición.
@@ -31,7 +30,6 @@ export default function ColiseoAndroidWebViewSlot({
   const [videoIndex, setVideoIndex] = useState(0);
   const activeVideoUrl =
     classVideoUrls.length > 0 ? classVideoUrls[Math.max(0, Math.min(videoIndex, classVideoUrls.length - 1))] : "";
-  const activeYoutubeEmbedUrl = useMemo(() => toYoutubeEmbedUrl(activeVideoUrl), [activeVideoUrl]);
   const browserTargetUrl = activeVideoUrl || COLOSSEO_HOME_URL;
 
   useColiseoNativeWebViewSlot(nativeSlotRef, {
@@ -56,27 +54,14 @@ export default function ColiseoAndroidWebViewSlot({
       {!useNativeWebView ? (
         activeVideoUrl ? (
           <div className="relative h-full w-full bg-black">
-            {activeYoutubeEmbedUrl ? (
-              <iframe
-                key={activeYoutubeEmbedUrl}
-                src={activeYoutubeEmbedUrl}
-                title="Video de clase"
-                className="h-full w-full border-0 bg-black"
-                loading="lazy"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <video
-                key={activeVideoUrl}
-                src={activeVideoUrl}
-                className="h-full w-full bg-black"
-                controls
-                preload="metadata"
-                playsInline
-              />
-            )}
+            <video
+              key={activeVideoUrl}
+              src={activeVideoUrl}
+              className="h-full w-full bg-black"
+              controls
+              preload="metadata"
+              playsInline
+            />
             {classVideoUrls.length > 1 ? (
               <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center justify-between gap-2 rounded bg-black/65 p-2 text-[11px] text-cyan-100">
                 <button
