@@ -693,7 +693,7 @@ export default function DocenteClasesPage() {
                 <div className="md:col-span-2 space-y-2 rounded-lg border border-border/50 bg-background/40 p-3">
                   <p className="text-sm font-medium">Recursos de la clase (playlist docente)</p>
                   <p className="text-xs text-muted-foreground">
-                    Puedes mezclar videos (MP4), PDFs y modelos GLB. Los estudiantes solo podrán visualizar y navegar.
+                    Puedes mezclar videos (MP4 o YouTube), PDFs y modelos GLB. Los estudiantes solo podrán visualizar y navegar.
                   </p>
                   {newAula.resources.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Aún no agregas recursos.</p>
@@ -718,7 +718,7 @@ export default function DocenteClasesPage() {
                           <Input
                             value={resource.url}
                             onChange={(e) => updateNewAulaResource(resource.id, "url", e.target.value)}
-                            placeholder="https://... (MP4, PDF o GLB)"
+                            placeholder="https://... (YouTube, PDF, GLB o MP4)"
                           />
                           <Button type="button" variant="outline" size="icon" onClick={() => removeNewAulaResource(resource.id)}>
                             <Trash2 className="h-4 w-4" />
@@ -841,7 +841,7 @@ export default function DocenteClasesPage() {
                                 <Input
                                   value={resource.url}
                                   onChange={(e) => updateDraftResource(aula.id, resource.id, "url", e.target.value)}
-                                  placeholder="https://... (MP4, PDF o GLB)"
+                                  placeholder="https://... (YouTube, PDF, GLB o MP4)"
                                 />
                                 <Button
                                   type="button"
