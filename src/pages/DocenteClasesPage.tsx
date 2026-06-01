@@ -211,7 +211,7 @@ export default function DocenteClasesPage() {
               const effectiveMp4 = liveSnapshot?.mp4_url ?? aula.template?.mp4_url ?? "";
               const metadataVideoUrls = normalizeAdditionalVideoUrls(
                 liveSnapshot?.metadata?.video_urls ?? aula.template?.metadata?.video_urls ?? null,
-              ).filter((url) => url !== effectiveMp4.trim());
+              );
               const effectiveVideoUrls =
                 metadataVideoUrls.length > 0
                   ? metadataVideoUrls
