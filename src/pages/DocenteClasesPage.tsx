@@ -77,11 +77,13 @@ function normalizeAdditionalVideoUrls(rawList: unknown): string[] {
     .filter((item) => /^https?:\/\//i.test(item));
 }
 
-function buildVideoPlaylist(primaryMp4: string, additionalRawList: unknown): string[] {
-  const primary = primaryMp4.trim();
-  const additional = normalizeAdditionalVideoUrls(additionalRawList).filter((url) => url !== primary);
-  const merged = primary ? [primary, ...additional] : additional;
-  return Array.from(new Set(merged));
+function buildVideoPlaylist(additionalRawList: unknown): string[] {
+  return Array.from(new Set(normalizeAdditionalVideoUrls(additionalRawList)));
+}
+
+function getPrimaryMp4FromVideoList(videoList: string[]): string | null {
+  const first = videoList[0]?.trim() ?? "";
+  return first || null;
 }
 
 export default function DocenteClasesPage() {
@@ -207,17 +209,23 @@ export default function DocenteClasesPage() {
             aula.id,
             (() => {
               const effectiveMp4 = liveSnapshot?.mp4_url ?? aula.template?.mp4_url ?? "";
-              const effectiveVideoUrls = normalizeAdditionalVideoUrls(
+              const metadataVideoUrls = normalizeAdditionalVideoUrls(
                 liveSnapshot?.metadata?.video_urls ?? aula.template?.metadata?.video_urls ?? null,
               ).filter((url) => url !== effectiveMp4.trim());
+              const effectiveVideoUrls =
+                metadataVideoUrls.length > 0
+                  ? metadataVideoUrls
+                  : effectiveMp4.trim()
+                    ? [effectiveMp4.trim()]
+                    : [];
               return {
-              nombre: aula.nombre,
-              slug: aula.slug,
-              descripcion: aula.descripcion ?? "",
-              titulo: liveSnapshot?.titulo ?? aula.template?.titulo ?? "Clase Virtual",
+                nombre: aula.nombre,
+                slug: aula.slug,
+                descripcion: aula.descripcion ?? "",
+                titulo: liveSnapshot?.titulo ?? aula.template?.titulo ?? "Clase Virtual",
                 mp4_url: effectiveMp4,
-              pdf_url: liveSnapshot?.pdf_url ?? aula.template?.pdf_url ?? "",
-              glb_url: liveSnapshot?.glb_url ?? aula.template?.glb_url ?? "",
+                pdf_url: liveSnapshot?.pdf_url ?? aula.template?.pdf_url ?? "",
+                glb_url: liveSnapshot?.glb_url ?? aula.template?.glb_url ?? "",
                 video_urls: effectiveVideoUrls,
               };
             })(),
@@ -287,7 +295,7 @@ export default function DocenteClasesPage() {
         {
           aula_id: aulaCreated.id,
           titulo: newAula.titulo.trim() || "Clase Virtual",
-          mp4_url: newAula.mp4_url.trim() || null,
+          mp4_url: getPrimaryMp4FromVideoList(buildVideoPlaylist(newAula.video_urls)),
           pdf_url: newAula.pdf_url.trim() || null,
           glb_url: newAula.glb_url.trim() || null,
           updated_by: user.id,
@@ -345,7 +353,7 @@ export default function DocenteClasesPage() {
         {
           aula_id: aulaId,
           titulo: draft.titulo.trim() || "Clase Virtual",
-          mp4_url: draft.mp4_url.trim() || null,
+          mp4_url: getPrimaryMp4FromVideoList(buildVideoPlaylist(draft.video_urls)),
           pdf_url: draft.pdf_url.trim() || null,
           glb_url: draft.glb_url.trim() || null,
           updated_by: user.id,
@@ -361,9 +369,10 @@ export default function DocenteClasesPage() {
 
     // Si la clase está en vivo, sincronizamos su snapshot para que alumno vea los cambios al instante.
     const glbVersion = draft.glb_url.trim() ? `${Date.now()}` : null;
+    const videoPlaylist = buildVideoPlaylist(draft.video_urls);
     const liveSnapshot = {
       titulo: draft.titulo.trim() || "Clase Virtual",
-      mp4_url: draft.mp4_url.trim() || null,
+      mp4_url: getPrimaryMp4FromVideoList(videoPlaylist),
       pdf_url: draft.pdf_url.trim() || null,
       glb_url: draft.glb_url.trim() || null,
       glb_v: glbVersion,
@@ -399,9 +408,9 @@ export default function DocenteClasesPage() {
   const class360Url = (aulaSlug: string, draft: AulaDraft): string => {
     const params = new URLSearchParams();
     const normalizedSlug = slugify(aulaSlug.trim() || draft.nombre);
-    const videoUrls = buildVideoPlaylist(draft.mp4_url, draft.video_urls);
+    const videoUrls = buildVideoPlaylist(draft.video_urls);
     if (normalizedSlug) params.set("class", normalizedSlug);
-    if (draft.mp4_url.trim()) params.set("mp4", draft.mp4_url.trim());
+    if (videoUrls.length > 0) params.set("mp4", videoUrls[0]);
     for (const videoUrl of videoUrls) params.append("video", videoUrl);
     if (draft.pdf_url.trim()) params.set("pdf", draft.pdf_url.trim());
     if (draft.glb_url.trim()) {
@@ -436,7 +445,7 @@ export default function DocenteClasesPage() {
         {
           aula_id: aulaId,
           titulo: draft.titulo.trim() || "Clase Virtual",
-          mp4_url: draft.mp4_url.trim() || null,
+          mp4_url: getPrimaryMp4FromVideoList(buildVideoPlaylist(draft.video_urls)),
           pdf_url: draft.pdf_url.trim() || null,
           glb_url: draft.glb_url.trim() || null,
           updated_by: user.id,
@@ -457,9 +466,10 @@ export default function DocenteClasesPage() {
       .eq("status", "live");
 
     const glbVersion = draft.glb_url.trim() ? `${Date.now()}` : null;
+    const videoPlaylist = buildVideoPlaylist(draft.video_urls);
     const snapshot = {
       titulo: draft.titulo.trim() || "Clase Virtual",
-      mp4_url: draft.mp4_url.trim() || null,
+      mp4_url: getPrimaryMp4FromVideoList(videoPlaylist),
       pdf_url: draft.pdf_url.trim() || null,
       glb_url: draft.glb_url.trim() || null,
       glb_v: glbVersion,
@@ -615,17 +625,9 @@ export default function DocenteClasesPage() {
                     placeholder="Clase Virtual"
                   />
                 </div>
-                <div>
-                  <Label>Link MP4</Label>
-                  <Input
-                    value={newAula.mp4_url}
-                    onChange={(e) => setNewAula((prev) => ({ ...prev, mp4_url: e.target.value }))}
-                    placeholder="https://..."
-                  />
-                </div>
                 <div className="md:col-span-2 rounded-lg border border-border/50 bg-background/40 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <Label>Videos adicionales (solo video)</Label>
+                    <Label>Videos de clase</Label>
                     <Button type="button" variant="outline" size="sm" onClick={addNewAulaVideo}>
                       <Plus className="mr-2 h-4 w-4" />
                       Agregar video
@@ -737,21 +739,9 @@ export default function DocenteClasesPage() {
                           }
                         />
                       </div>
-                      <div>
-                        <Label>MP4</Label>
-                        <Input
-                          value={draft.mp4_url}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [aula.id]: { ...prev[aula.id], mp4_url: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
                       <div className="md:col-span-2 rounded-lg border border-border/50 bg-background/40 p-3">
                         <div className="mb-2 flex items-center justify-between gap-2">
-                          <Label>Videos adicionales</Label>
+                          <Label>Videos de clase</Label>
                           <Button type="button" variant="outline" size="sm" onClick={() => addDraftVideo(aula.id)}>
                             <Plus className="mr-2 h-4 w-4" />
                             Agregar video

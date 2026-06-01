@@ -47,7 +47,8 @@ function normalizeVideoUrls(primaryMp4: string, rawList: unknown): string[] {
     .map((item) => item.trim())
     .filter((item) => /^https?:\/\//i.test(item));
   const fromPrimary = primaryMp4.trim();
-  const merged = fromPrimary ? [fromPrimary, ...fromList] : fromList;
+  // Si existe playlist de videos, no mezclar mp4 legacy.
+  const merged = fromList.length > 0 ? fromList : fromPrimary ? [fromPrimary] : [];
   return Array.from(new Set(merged));
 }
 
@@ -92,7 +93,7 @@ export default function ClaseVirtualEntryPage() {
     const params = new URLSearchParams();
     if (aula?.slug) params.set("class", aula.slug);
     if (liveSessionId) params.set("session", liveSessionId);
-    if (activeMp4) params.set("mp4", activeMp4);
+    if (videoUrls.length === 0 && activeMp4) params.set("mp4", activeMp4);
     for (const videoUrl of videoUrls) params.append("video", videoUrl);
     if (activePdf) params.set("pdf", activePdf);
     if (activeGlb) params.set("glb", activeGlb);

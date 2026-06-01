@@ -20,12 +20,17 @@ export default function ColiseoAndroidWebViewSlot({
     if (typeof window === "undefined") return [];
     const searchParams = new URLSearchParams(window.location.search);
     const legacyMp4 = searchParams.get("mp4")?.trim() ?? "";
-    const allVideoParams = searchParams
+    const allVideoParams = Array.from(
+      new Set(
+        searchParams
       .getAll("video")
       .map((item) => item.trim())
-      .filter((item) => /^https?:\/\//i.test(item));
-    const merged = legacyMp4 ? [legacyMp4, ...allVideoParams] : allVideoParams;
-    return Array.from(new Set(merged.filter((item) => /^https?:\/\//i.test(item))));
+          .filter((item) => /^https?:\/\//i.test(item)),
+      ),
+    );
+    // Regla estable: si hay playlist de videos, NO mezclar mp4 legacy.
+    if (allVideoParams.length > 0) return allVideoParams;
+    return legacyMp4 && /^https?:\/\//i.test(legacyMp4) ? [legacyMp4] : [];
   }, []);
   const [videoIndex, setVideoIndex] = useState(0);
   const activeVideoUrl =

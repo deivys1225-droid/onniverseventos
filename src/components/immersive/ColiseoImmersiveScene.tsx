@@ -1,5 +1,5 @@
 import { PointerLockControls } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useLoader } from "@react-three/fiber";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import * as THREE from "three";
@@ -24,6 +24,7 @@ import {
 
 const GLB_SLOT_POSITION: [number, number, number] = [10.5, 1.95, -0.42];
 const GLB_SLOT_ROTATION: [number, number, number] = [0, Math.PI, 0];
+const HEART_DIFFUSE_URL = "/assets/models/corazon-diffuse.png";
 
 function normalizeGoogleDriveGlbUrl(raw: string): string {
   try {
@@ -67,31 +68,27 @@ function isHeartModelUrl(url: string): boolean {
   return /corazon|heart|dbhvfn|19elpBz-mCPcbPMxQq4hQPmmJNc-0JFKo/i.test(url);
 }
 
-/**
- * Algunos GLB del corazón llegan muy oscuros por su material PBR en esta escena.
- * Les añadimos un refuerzo emisivo para preservar color sin bloquear el modelo.
- */
-function prepareVividHeartModel(root: THREE.Object3D): void {
-  root.traverse((node) => {
-    if (!(node as THREE.Mesh).isMesh) return;
-    const mesh = node as THREE.Mesh;
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const material of materials) {
-      if (!material) continue;
-      if (
-        material instanceof THREE.MeshStandardMaterial ||
-        material instanceof THREE.MeshPhysicalMaterial ||
-        material instanceof THREE.MeshPhongMaterial ||
-        material instanceof THREE.MeshLambertMaterial
-      ) {
-        material.emissive = material.color.clone();
-        if ("emissiveIntensity" in material && typeof material.emissiveIntensity === "number") {
-          material.emissiveIntensity = Math.max(material.emissiveIntensity, 0.52);
-        }
-        material.needsUpdate = true;
-      }
-    }
-  });
+function useHeartWallMaterials() {
+  const diffuseMap = useLoader(THREE.TextureLoader, HEART_DIFFUSE_URL);
+
+  useEffect(() => {
+    diffuseMap.colorSpace = THREE.SRGBColorSpace;
+    diffuseMap.flipY = false;
+  }, [diffuseMap]);
+
+  return useCallback(
+    (root: THREE.Object3D) => {
+      root.traverse((node) => {
+        if (!(node instanceof THREE.Mesh)) return;
+        node.material = new THREE.MeshStandardMaterial({
+          map: diffuseMap,
+          roughness: 0.62,
+          metalness: 0.06,
+        });
+      });
+    },
+    [diffuseMap],
+  );
 }
 
 function ColiseoSceneContent({
@@ -103,6 +100,7 @@ function ColiseoSceneContent({
   mixedRealityActive: boolean;
   classGlbUrl: string | null;
 }) {
+  const prepareHeartModel = useHeartWallMaterials();
   return (
     <>
       <Suspense fallback={null}>
@@ -141,7 +139,7 @@ function ColiseoSceneContent({
           rotation={GLB_SLOT_ROTATION}
           scaleMultiplier={1.12}
           fitDepth
-          prepareModel={isHeartModelUrl(classGlbUrl) ? prepareVividHeartModel : undefined}
+          prepareModel={isHeartModelUrl(classGlbUrl) ? prepareHeartModel : undefined}
         />
       ) : null}
       <pointLight
