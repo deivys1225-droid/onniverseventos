@@ -25,6 +25,7 @@ import {
 const GLB_SLOT_POSITION: [number, number, number] = [10.5, 1.95, -0.42];
 const GLB_SLOT_ROTATION: [number, number, number] = [0, Math.PI, 0];
 const HEART_DIFFUSE_URL = "/assets/models/corazon-diffuse.png";
+const HEART_MODEL_URL = "/assets/models/corazon.glb";
 
 function normalizeGoogleDriveGlbUrl(raw: string): string {
   try {
@@ -60,6 +61,10 @@ function resolveClassGlbUrl(search: string): string | null {
   if (!raw) return null;
   if (!/^https?:\/\//i.test(raw) && !raw.startsWith("/")) return null;
   const normalized = /^https?:\/\//i.test(raw) ? normalizeGoogleDriveGlbUrl(raw) : raw;
+  // Para corazón, forzamos el mismo GLB local del lobby para garantizar color/textura idénticos.
+  if (isHeartModelUrl(normalized) || isHeartModelUrl(raw)) {
+    return appendGlbCacheBust(HEART_MODEL_URL, search);
+  }
   // Algunos hosts (p.ej. Cloudinary) sirven GLB sin terminar en ".glb".
   return appendGlbCacheBust(normalized, search);
 }
