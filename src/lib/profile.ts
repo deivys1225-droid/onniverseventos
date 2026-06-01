@@ -19,8 +19,13 @@ export async function ensureProfileRowForUser(user: User): Promise<void> {
     "";
   const fromEmail = user.email?.split("@")[0]?.trim() ?? "";
   const fullName = fromMeta || fromEmail || "Usuario";
+  const metadataRole = typeof meta.app_role === "string" ? meta.app_role.trim().toLowerCase() : "";
+  const appRole =
+    metadataRole === "docente" || metadataRole === "estudiante" || metadataRole === "particular"
+      ? metadataRole
+      : undefined;
 
-  await upsertProfile({ userId: user.id, fullName });
+  await upsertProfile({ userId: user.id, fullName, appRole });
 }
 
 export async function uploadAvatar(userId: string, file: File): Promise<string> {
@@ -40,12 +45,14 @@ export async function upsertProfile(params: {
   userId: string;
   fullName: string;
   avatarUrl?: string | null;
+  appRole?: "particular" | "estudiante" | "docente";
 }) {
   const payload: {
     id: string;
     full_name: string;
     updated_at: string;
     avatar_url?: string | null;
+    app_role?: "particular" | "estudiante" | "docente";
   } = {
     id: params.userId,
     full_name: params.fullName,
@@ -54,8 +61,11 @@ export async function upsertProfile(params: {
   if (params.avatarUrl !== undefined) {
     payload.avatar_url = params.avatarUrl;
   }
+  if (params.appRole !== undefined) {
+    payload.app_role = params.appRole;
+  }
 
-  const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
+  const { error } = await supabase.from("profiles" as any).upsert(payload as any, { onConflict: "id" });
   if (error) throw error;
 }
 

@@ -32,6 +32,11 @@ const ColiseoPage = () => {
     () => new URLSearchParams(location.search).get("class")?.trim() ?? "",
     [location.search],
   );
+  const backTarget = useMemo(() => {
+    if (voiceRole === "host") return "/docente-clases";
+    if (classSlug) return `/clase/${classSlug}`;
+    return null;
+  }, [classSlug, voiceRole]);
 
   useEffect(() => {
     let cancelled = false;
@@ -145,7 +150,13 @@ const ColiseoPage = () => {
     <div className="relative">
       <button
         type="button"
-        onClick={() => navigate("/docente-clases")}
+        onClick={() => {
+          if (backTarget) {
+            navigate(backTarget);
+            return;
+          }
+          navigate(-1);
+        }}
         aria-label="Volver"
         className="fixed left-4 top-4 z-30 inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/60 bg-slate-950/95 text-cyan-200 shadow-[0_0_28px_-4px_rgba(34,211,238,0.95),inset_0_0_18px_-10px_rgba(34,211,238,0.55)] backdrop-blur-md transition hover:border-cyan-300 hover:bg-slate-900 hover:text-white"
         style={{
