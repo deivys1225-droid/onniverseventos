@@ -44,6 +44,7 @@ type ClaseSession = {
     mp4_url?: string | null;
     pdf_url?: string | null;
     glb_url?: string | null;
+    glb_v?: string | null;
   } | null;
 };
 
@@ -286,14 +287,14 @@ export default function DocenteClasesPage() {
     setSaving(false);
   };
 
-  const saveAula = async (aulaId: string) => {
-    if (!canManage || saving) return;
+  const saveAula = async (aulaId: string): Promise<boolean> => {
+    if (!canManage || saving) return false;
     const draft = drafts[aulaId];
-    if (!draft) return;
+    if (!draft) return false;
 
     const { data: authData } = await supabase.auth.getUser();
     const user = authData.user;
-    if (!user) return;
+    if (!user) return false;
 
     setSaving(true);
     const { error: aulaError } = await supabase
@@ -307,7 +308,7 @@ export default function DocenteClasesPage() {
     if (aulaError) {
       toast.error(aulaError.message);
       setSaving(false);
-      return;
+      return false;
     }
 
     const { error: templateError } = await supabase
@@ -327,15 +328,17 @@ export default function DocenteClasesPage() {
     if (templateError) {
       toast.error(templateError.message);
       setSaving(false);
-      return;
+      return false;
     }
 
     // Si la clase está en vivo, sincronizamos su snapshot para que alumno vea los cambios al instante.
+    const glbVersion = draft.glb_url.trim() ? `${Date.now()}` : null;
     const liveSnapshot = {
       titulo: draft.titulo.trim() || "Clase Virtual",
       mp4_url: draft.mp4_url.trim() || null,
       pdf_url: draft.pdf_url.trim() || null,
       glb_url: draft.glb_url.trim() || null,
+      glb_v: glbVersion,
     };
     const { error: liveSyncError } = await supabase
       .from("clase_sesiones" as any)
@@ -345,12 +348,13 @@ export default function DocenteClasesPage() {
     if (liveSyncError) {
       toast.error("Se guardó la clase, pero no se pudo sincronizar la sesión en vivo.");
       setSaving(false);
-      return;
+      return false;
     }
 
     toast.success("Clase actualizada.");
     await loadData();
     setSaving(false);
+    return true;
   };
 
   const copyClassLink = async (slug: string) => {
@@ -369,14 +373,21 @@ export default function DocenteClasesPage() {
     if (normalizedSlug) params.set("class", normalizedSlug);
     if (draft.mp4_url.trim()) params.set("mp4", draft.mp4_url.trim());
     if (draft.pdf_url.trim()) params.set("pdf", draft.pdf_url.trim());
-    if (draft.glb_url.trim()) params.set("glb", draft.glb_url.trim());
+    if (draft.glb_url.trim()) {
+      params.set("glb", draft.glb_url.trim());
+      params.set("glb_v", `${Date.now()}`);
+    }
     const q = params.toString();
     return q ? `/coliseo?${q}` : "/coliseo";
   };
 
   const enterClassroom = async (aulaId: string, draft: AulaDraft) => {
     if (saving) return;
-    await saveAula(aulaId);
+    const ok = await saveAula(aulaId);
+    if (!ok) {
+      toast.error("No se pudo guardar la clase. Corrige el error antes de entrar.");
+      return;
+    }
     navigate(class360Url(draft.slug, draft));
   };
 
@@ -414,11 +425,13 @@ export default function DocenteClasesPage() {
       .eq("aula_id", aulaId)
       .eq("status", "live");
 
+    const glbVersion = draft.glb_url.trim() ? `${Date.now()}` : null;
     const snapshot = {
       titulo: draft.titulo.trim() || "Clase Virtual",
       mp4_url: draft.mp4_url.trim() || null,
       pdf_url: draft.pdf_url.trim() || null,
       glb_url: draft.glb_url.trim() || null,
+      glb_v: glbVersion,
     };
 
     const { error } = await supabase

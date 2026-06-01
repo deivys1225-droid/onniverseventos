@@ -35,6 +35,7 @@ type SessionSnapshot = {
   mp4_url: string | null;
   pdf_url: string | null;
   glb_url: string | null;
+  glb_v?: string | null;
 };
 
 export default function ClaseVirtualEntryPage() {
@@ -67,12 +68,20 @@ export default function ClaseVirtualEntryPage() {
     const activeMp4 = source?.mp4_url?.trim() || "";
     const activePdf = source?.pdf_url?.trim() || "";
     const activeGlb = source?.glb_url?.trim() || "";
+    const activeGlbVersion =
+      typeof (source as { glb_v?: unknown } | null)?.glb_v === "string" &&
+      (source as { glb_v?: string | null }).glb_v?.trim()
+        ? (source as { glb_v?: string | null }).glb_v!.trim()
+        : activeGlb
+          ? `${Date.now()}`
+          : "";
     const params = new URLSearchParams();
     if (aula?.slug) params.set("class", aula.slug);
     if (liveSessionId) params.set("session", liveSessionId);
     if (activeMp4) params.set("mp4", activeMp4);
     if (activePdf) params.set("pdf", activePdf);
     if (activeGlb) params.set("glb", activeGlb);
+    if (activeGlbVersion) params.set("glb_v", activeGlbVersion);
     const q = params.toString();
     return q ? `${COLOSSEO_PATH}?${q}` : COLOSSEO_PATH;
   }, [
