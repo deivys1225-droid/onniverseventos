@@ -18,12 +18,9 @@ import PodcastHubPage from "./pages/PodcastHubPage.tsx";
 import PodcastRoomPage from "./pages/PodcastRoomPage.tsx";
 import TeatroHub from "./pages/TeatroHub.tsx";
 import SalaTeatro from "./pages/SalaTeatro.tsx";
-import LobbyGlobalPage from "./pages/LobbyGlobalPage.tsx";
 import ColiseoPage from "./pages/ColiseoPage.tsx";
 import DocenteClasesPage from "./pages/DocenteClasesPage.tsx";
 import ClaseVirtualEntryPage from "./pages/ClaseVirtualEntryPage.tsx";
-import LobbyImmersivePage from "./pages/LobbyImmersivePage.tsx";
-import AulaVirtualPage from "./pages/AulaVirtualPage.tsx";
 import EventosPage from "./pages/EventosPage.tsx";
 import RedSocialInmersivaPage from "./pages/RedSocialInmersivaPage.tsx";
 import InicioPage from "./pages/InicioPage.tsx";
@@ -117,22 +114,6 @@ const App = () => {
             <Route path="/quienes-somos" element={<QuienesSomosPage />} />
             <Route path="/contacto" element={<ContactoPage />} />
 
-            <Route
-              path="/lobby-inmersivo"
-              element={
-                <PrivateRoute>
-                  <LobbyImmersivePage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/aula-virtual"
-              element={
-                <PrivateRoute>
-                  <AulaVirtualPage />
-                </PrivateRoute>
-              }
-            />
             <Route path="/eventos" element={<EventosPage />} />
             <Route path="/red-social-inmersiva" element={<RedSocialInmersivaPage />} />
             <Route
@@ -284,14 +265,6 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <SalaTeatro />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/mi-mundo/lobby-global"
-              element={
-                <PrivateRoute>
-                  <LobbyGlobalPage />
                 </PrivateRoute>
               }
             />

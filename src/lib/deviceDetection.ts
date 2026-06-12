@@ -24,6 +24,20 @@ export function isAndroidNativeApp(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 }
 
+/**
+ * ViveVR / WebView OnniVers con puente de voz nativo (APK en celular).
+ * Incluye Capacitor y WebView que carga onnivers.com con AndroidBridge.
+ */
+export function isOnniAndroidVoice(): boolean {
+  if (typeof window === "undefined") return false;
+  if (isAndroidNativeApp()) return true;
+  const bridge = window.AndroidBridge as { startListening?: () => void } | undefined;
+  const android = window.Android as { startListening?: () => void } | undefined;
+  const hasVoiceBridge =
+    typeof bridge?.startListening === "function" || typeof android?.startListening === "function";
+  return hasVoiceBridge && isMobileUserAgent();
+}
+
 /** Botón «Descargar app» en navbar: solo PC con navegador (no APK ni móvil). */
 export function isDesktopWebBrowser(): boolean {
   if (typeof window === "undefined") return false;

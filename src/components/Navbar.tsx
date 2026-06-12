@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import OnniVersoLogo from "@/components/branding/OnniVersoLogo";
 import {
   Building2,
-  Box,
   Download,
   FolderOpen,
   LogIn,
@@ -16,24 +15,19 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { APP_APK_DOWNLOAD_URL } from "@/config/appDownload";
 import { LOCKED_NAVBAR_HEIGHT_CLASS, LOCKED_NAVBAR_MENU_OFFSET_CLASS } from "@/config/lockedHomeLayout";
 import { isDesktopWebBrowser } from "@/lib/deviceDetection";
 import { invokeOpenGalleryDirect } from "@/lib/galleryOpenDirect";
-import { GALERIA_AULA_SECTION_HREF } from "@/lib/aulaVirtual";
-import { invokeAndroidOnVrClick } from "@/lib/androidLobbyReturn";
-import { isMobileUserAgent } from "@/lib/deviceDetection";
 import { onOpCommand } from "@/lib/opCommandBus";
 
 const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
   { label: "ONNIVERSO", path: "/inicio-2", icon: Sparkles },
   { label: "CONCIERTOS LIVE", path: "/nuestras-salas", icon: Radio },
   { label: "CONTACTOS", path: "/comunidad", icon: MessageCircle },
-  /** Sección galería + tarjeta Aula (solo navegación web; no abre lobby nativo). */
-  { label: "AULA VIRTUAL", path: GALERIA_AULA_SECTION_HREF, icon: Box },
   { label: "TIENDA", path: "/tienda", icon: ShoppingBag },
   { label: "QUIENES SOMOS", path: "/quienes-somos", icon: Building2 },
 ];
@@ -41,9 +35,10 @@ const NAV_ITEMS: { label: string; path: string; icon: LucideIcon }[] = [
 const Navbar = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showAppDownload, setShowAppDownload] = useState(false);
+  /** Logo: perfil autenticado (`/`); invitados → landing. ONNIVERSO sigue en `/inicio-2`. */
+  const profileHomePath = user ? "/" : "/inicio-2";
 
   useEffect(() => {
     setShowAppDownload(isDesktopWebBrowser());
@@ -58,11 +53,6 @@ const Navbar = () => {
   }, []);
 
   const handleLogout = async () => {
-    const inLobbyImmersive = location.pathname.startsWith("/lobby-inmersivo");
-    if (inLobbyImmersive && isMobileUserAgent() && invokeAndroidOnVrClick()) {
-      setIsMenuOpen(false);
-      return;
-    }
     await signOut();
     toast.success("Sesión cerrada");
     setIsMenuOpen(false);
@@ -84,9 +74,9 @@ const Navbar = () => {
         className={`relative mx-auto flex ${LOCKED_NAVBAR_HEIGHT_CLASS} w-full max-w-full items-center justify-between gap-2 px-3 sm:px-6`}
       >
         <Link
-          to="/"
+          to={profileHomePath}
           className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/50"
-          aria-label="OnniVers — Inicio"
+          aria-label="OnniVers — Inicio del perfil"
         >
           <OnniVersoLogo className="shrink-0" iconSize={24} />
         </Link>

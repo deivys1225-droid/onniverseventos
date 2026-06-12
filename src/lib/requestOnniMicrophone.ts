@@ -7,7 +7,7 @@ function isValidCallbackName(name: string): boolean {
 /**
  * Pide permiso de micrófono para Onni.
  * - APK Android: diálogo nativo vía AndroidBridge.
- * - Navegador: getUserMedia (dispara el popup del sistema / sitio).
+ * - Navegador: getUserMedia.
  */
 export function requestOnniMicrophoneAccess(): Promise<MicPermissionStatus> {
   const nativeRequest = window.AndroidBridge?.requestOnniMicrophonePermission;

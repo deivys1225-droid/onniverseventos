@@ -1,4 +1,4 @@
-import { OP_LOBBY_HINTS, OP_ROUTES, OP_STREAMERS } from "@/data/opAssistantKnowledge";
+import { OP_ROUTES, OP_STREAMERS } from "@/data/opAssistantKnowledge";
 
 import { APP_APK_DOWNLOAD_URL } from "@/config/appDownload";
 
@@ -23,8 +23,8 @@ export const ONNI_PERSONALITY = {
 export function getOnniIntroduction(): string {
   return [
     "¡Hola! Soy Onni, tu copiloto en OnniVerso.",
-    "Te ayudo por texto con lobby, salas, conciertos, MP4 local, menú y dudas.",
-    'Escribe aquí, por ejemplo: «llévame al lobby», «¿dónde estoy?» o «ayuda».',
+    "Te ayudo por voz y texto con lobby, salas, conciertos, MP4 local, menú y dudas.",
+    'Mantén pulsado el micrófono o escribe: «llévame al lobby», «¿dónde estoy?» o «ayuda».',
   ].join("\n");
 }
 
@@ -45,7 +45,7 @@ export const ONNI_FAQ: FaqEntry[] = [
     id: "como-voz",
     patterns: [/\b(como (te )?activo|usar) (la )?voz\b/, /\bcomo hablar contigo\b/, /\bpalabra onni\b/],
     answer:
-      "Por ahora trabajo solo por texto en el chat (la voz la mejoraremos después). Escribe tu pedido: «llévame al lobby», «reproductor mp4», «abre el menú».",
+      "Mantén pulsado el micrófono o pulsa Espacio en PC. Di «Hola Onni» y tu pedido, por ejemplo: «llévame al lobby», «reproductor mp4» o «abre el menú».",
   },
   {
     id: "mux-negro",
@@ -72,7 +72,7 @@ export const ONNI_FAQ: FaqEntry[] = [
       /\b(que es)\b.*\b(onniverso|onnivers|onni vers|onnivver|onivvers)\b/,
     ],
     answer:
-      "OnniVerso es la plataforma inmersiva de Empresa Tecnológica de Colombia: Mi Mundo, lobbies 3D, Conciertos Live, aula virtual, podcasts, teatro, tienda y comunidad. Tú entras, eliges experiencia y navegas en 360 o salas en vivo.",
+      "OnniVerso es la plataforma inmersiva de Empresa Tecnológica de Colombia: Mi Mundo, lobbies 3D, Conciertos Live, podcasts, teatro, tienda y comunidad. Tú entras, eliges experiencia y navegas en 360 o salas en vivo.",
   },
   {
     id: "app-android",
@@ -108,9 +108,9 @@ type PathGuide = {
 const PATH_GUIDES: PathGuide[] = [
   {
     test: (p) => p === "/" || p.startsWith("/inicio"),
-    title: "Inicio / Mi Mundo",
-    tips: ["Aquí está tu perfil VR y acceso rápido a experiencias.", "Abre el menú (☰) para ver todas las secciones."],
-    commands: ["lobby", "conciertos", "reproductor mp4", "aula", "tienda"],
+    title: "Inicio",
+    tips: ["Pantalla principal de OnniVerso.", "Abre el menú (☰) para ver todas las secciones."],
+    commands: ["conciertos", "reproductor mp4", "tienda"],
   },
   {
     test: (p) => p.startsWith("/nuestras-salas"),
@@ -119,7 +119,7 @@ const PATH_GUIDES: PathGuide[] = [
       "Tarjetas de creadores y salas. Toca una para entrar si hay stream.",
       "Si no hay vivo, la sala puede verse vacía o con mensaje de Mux.",
     ],
-    commands: ["video de Karol", "lobby", "menú"],
+    commands: ["video de Karol", "menú"],
   },
   {
     test: (p) => p.startsWith("/sala/espectador"),
@@ -128,13 +128,7 @@ const PATH_GUIDES: PathGuide[] = [
       "Estás viendo una sala con reproductor Mux.",
       "Pantalla negra = el emisor aún no conectó la transmisión.",
     ],
-    commands: ["salir a conciertos", "reproductor mp4", "lobby", "¿dónde estoy?"],
-  },
-  {
-    test: (p) => p.startsWith("/lobby-inmersivo"),
-    title: "Lobby inmersivo",
-    tips: ["Sala 3D con pantallas en las paredes.", "Puedes enfocar pantalla 1, 2 o 3 y usar giroscopio."],
-    commands: [...OP_LOBBY_HINTS],
+    commands: ["salir a conciertos", "reproductor mp4", "¿dónde estoy?"],
   },
   {
     test: (p) => p.startsWith("/reproductor-galeria"),
@@ -143,13 +137,7 @@ const PATH_GUIDES: PathGuide[] = [
       "Elige una carpeta de tu dispositivo.",
       "Esto NO es Conciertos Live: son tus archivos locales.",
     ],
-    commands: ["conciertos", "lobby", "menú"],
-  },
-  {
-    test: (p) => p.startsWith("/aula-virtual"),
-    title: "Aula Virtual 3D",
-    tips: ["Lobby educativo caminable.", "En menú también está la tarjeta del aula en Galería 3D."],
-    commands: ["lobby", "galería", "inicio"],
+    commands: ["conciertos", "menú"],
   },
   {
     test: (p) => p.startsWith("/comunidad"),
@@ -215,15 +203,12 @@ export function getContextGuide(path: string): string {
 
 export function getOnniFullHelp(path: string): string {
   const sections = [
-    "Puedo llevarte por OnniVerso (lobby, conciertos, aula, tienda, comunidad…).",
+    "Puedo llevarte por OnniVerso (conciertos, tienda, comunidad…).",
     "Redes del inicio: «abre YouTube», «abre Facebook», «abre Instagram», «abre TikTok», «abre Google».",
     "MP4/MP3 local → reproductor de galería. Vivo → conciertos o «video de [artista]».",
     "Pregúntame: ¿dónde estoy?, ¿qué es esto?, favorito, app Android, soporte.",
     "Escribe en el chat de Onni (voz desactivada por ahora).",
   ];
-  if (path.startsWith("/lobby-inmersivo")) {
-    sections.push(`En lobby: ${OP_LOBBY_HINTS.join(", ")}.`);
-  }
   return sections.join("\n");
 }
 

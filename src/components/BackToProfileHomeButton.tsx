@@ -9,7 +9,7 @@ type BackToProfileHomeButtonProps = {
   iconOnly?: boolean;
 };
 
-/** Regresa a la pantalla de inicio con perfil y Tierra (`/`). */
+/** Regresa al perfil de inicio autenticado (`/`). */
 export default function BackToProfileHomeButton({ className, iconOnly }: BackToProfileHomeButtonProps) {
   const navigate = useNavigate();
 

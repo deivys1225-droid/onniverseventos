@@ -1,51 +1,12 @@
 import { motion } from "framer-motion";
-import { Box, Calendar, Eye, Landmark, Ticket } from "lucide-react";
-import { useCallback } from "react";
+import { Calendar, Eye, Ticket } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { COLOSSEO_PATH } from "@/data/coliseoScene";
-import { invokeOpenColiceoDirect } from "@/lib/coliseoOpenDirect";
 import { formatUsd, stableUsdInRange } from "@/lib/pricing";
 
 /** Rutas reales de la app: hub teatro, eventos Supabase por id, podcast hub, educación. */
 const FeaturedEvents = () => {
-  const navigate = useNavigate();
-  const handleColiseoOpen = useCallback(() => {
-    if (invokeOpenColiceoDirect()) return;
-    navigate(COLOSSEO_PATH);
-  }, [navigate]);
-
   const events = [
-    {
-      id: "featured-coliseo-360",
-      title: "COLISEO ROMANO 360°",
-      genre: "Esfera inmersiva · Panorama del anfiteatro · YouTube flotante",
-      date: "Siempre disponible · Sala esférica",
-      viewers: "Explora en 360°",
-      image: "/coliseo.jpg",
-      live: true,
-      isFree: true,
-      ctaLabel: "Entrar al Coliseo",
-      to: "/coliseo",
-      featuredIcon: Landmark,
-      badge360: true,
-    },
-    {
-      id: "featured-coliseo-360-bridge",
-      title: "COLISEO ROMANO 360° · Acceso directo",
-      genre: "Tarjeta espejo del ícono Coliseo · Mismo puente Android",
-      date: "Siempre disponible · Apertura por puente nativo",
-      viewers: "Mismo flujo del icono",
-      image: "/coliseo.jpg",
-      live: true,
-      isFree: true,
-      ctaLabel: "Abrir Coliseo (puente)",
-      to: "/coliseo",
-      featuredIcon: Landmark,
-      badge360: true,
-      openWithColiseoBridge: true,
-    },
     {
       id: "a1b2c3d4-0003-4000-8000-000000000003",
       title: "STAND-UP / TEATRO Royale OnniVers",
@@ -163,16 +124,6 @@ const FeaturedEvents = () => {
                       EN VIVO
                     </span>
                   )}
-                  {"badge360" in event && event.badge360 && (
-                    <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded-lg border border-amber-400/40 bg-black/55 px-2 py-1 text-[10px] font-display uppercase tracking-wider text-amber-100 backdrop-blur-md">
-                      {"featuredIcon" in event && event.featuredIcon ? (
-                        <event.featuredIcon className="h-3 w-3 text-amber-300" />
-                      ) : (
-                        <Box className="h-3 w-3 text-amber-300" />
-                      )}
-                      Esfera 360°
-                    </span>
-                  )}
                   <span
                     className={`absolute top-2 right-2 sm:top-4 sm:right-4 flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-sm font-display font-semibold rounded-full ${
                       event.isFree
@@ -207,20 +158,6 @@ const FeaturedEvents = () => {
                 </div>
               </motion.div>
             );
-
-            if ("openWithColiseoBridge" in event && event.openWithColiseoBridge) {
-              return (
-                <button
-                  key={event.id}
-                  type="button"
-                  onClick={handleColiseoOpen}
-                  className="text-left"
-                  aria-label="Abrir Coliseo con puente nativo"
-                >
-                  {card}
-                </button>
-              );
-            }
 
             return (
               <Link key={event.id} to={href}>

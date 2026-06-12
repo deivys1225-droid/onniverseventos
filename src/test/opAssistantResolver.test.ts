@@ -17,11 +17,6 @@ describe("resolveOpCommand", () => {
     expect(r.navigateTo).toBe("/reproductor-galeria");
   });
 
-  it("acepta typo coliceo y navega a /coliseo", () => {
-    const r = resolveOpCommand("abre coliceo", "/");
-    expect(r.navigateTo).toBe("/coliseo");
-  });
-
   it("video de karol va a sala nova-byte", () => {
     const r = resolveOpCommand("entra al video de karol", "/");
     expect(r.navigateTo).toContain("al-universo-nova-byte");
@@ -66,21 +61,9 @@ describe("resolveOpCommand", () => {
   });
 
   it("donde estoy no navega", () => {
-    const r = resolveOpCommand("donde estoy", "/lobby-inmersivo");
+    const r = resolveOpCommand("donde estoy", "/nuestras-salas");
     expect(r.navigateTo).toBeUndefined();
-    expect(r.answer.toLowerCase()).toContain("lobby");
-  });
-
-  it("en lobby cambia video de youtube por texto", () => {
-    const r = resolveOpCommand("cambia el video a gasolina daddy yankee", "/lobby-inmersivo");
-    expect(r.command?.type).toBe("lobby.screen4.youtube.set");
-    expect((r.command as { embedUrl?: string } | undefined)?.embedUrl).toContain("youtube.com/embed");
-  });
-
-  it("fuera del lobby no habilita cambio de video youtube", () => {
-    const r = resolveOpCommand("cambia el video a gasolina daddy yankee", "/nuestras-salas");
-    expect(r.command).toBeUndefined();
-    expect(r.answer.toLowerCase()).toContain("lobby");
+    expect(r.answer.toLowerCase()).toContain("concierto");
   });
 
   it("ayuda incluye reproductor", () => {

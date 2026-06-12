@@ -10,3 +10,8 @@ export function publicAssetUrl(relativePath: string): string {
   const prefix = base.endsWith("/") ? base : `${base}/`;
   return `${prefix}${clean}`;
 }
+
+/** GLB en public/ (codifica espacios y caracteres especiales en la ruta). */
+export function publicLocalGlbUrl(relativePath: string): string {
+  return encodeURI(publicAssetUrl(relativePath));
+}

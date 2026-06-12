@@ -19,3 +19,6 @@ additional_redirect_urls = [
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5173/entrar",
 ]
+
+[functions.onni-gemini]
+verify_jwt = false

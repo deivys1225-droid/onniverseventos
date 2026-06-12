@@ -11,7 +11,7 @@ export type HomeSocialIconId =
   | "whatsapp";
 
 const ONNIVERS_SITE_URL = "https://onnivers.com/";
-const LEGACY_ONNIVERS_LOBBY_PATH = "/lobby-inmersivo";
+const LEGACY_ONNIVERS_LOBBY_PATH = "/";
 const PLUTO_TV_URL = "https://pluto.tv/es/live-tv";
 
 export type HomeSocialRedesMode = "redes" | "redesCam";

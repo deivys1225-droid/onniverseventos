@@ -1,4 +1,4 @@
-import { OP_LOBBY_HINTS, OP_ROUTES, OP_STREAMERS, OP_TEATRO_ROOMS, type OpRouteEntry } from "@/data/opAssistantKnowledge";
+import { OP_ROUTES, OP_STREAMERS, OP_TEATRO_ROOMS, type OpRouteEntry } from "@/data/opAssistantKnowledge";
 import {
   getContextGuide,
   getFavoriteStreamerId,
@@ -46,75 +46,6 @@ function stripNavVerbs(text: string) {
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function extractYouTubeVideoIdFromUrl(rawUrl: string): string | null {
-  const cleaned = rawUrl.trim().replace(/[),.;]+$/, "");
-  if (!cleaned) return null;
-
-  try {
-    const parsed = new URL(cleaned);
-    const host = parsed.hostname.toLowerCase();
-    const pathParts = parsed.pathname.split("/").filter(Boolean);
-
-    if (host.includes("youtu.be")) {
-      return pathParts[0] ?? null;
-    }
-
-    if (host.includes("youtube.com")) {
-      const byQuery = parsed.searchParams.get("v");
-      if (byQuery) return byQuery;
-
-      const embedIndex = pathParts.findIndex((part) => part === "embed" || part === "shorts" || part === "live");
-      if (embedIndex >= 0 && pathParts[embedIndex + 1]) {
-        return pathParts[embedIndex + 1];
-      }
-    }
-  } catch {
-    // Continue with regex fallback.
-  }
-
-  const regexFallback =
-    cleaned.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{6,})/i)?.[1] ??
-    null;
-  return regexFallback;
-}
-
-function buildYouTubeEmbedFromTopic(topic: string): string {
-  const q = topic.trim();
-  return `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(q)}&rel=0`;
-}
-
-function extractLobbyYoutubeTarget(textRaw: string): { embedUrl: string; sourceLabel: string } | null {
-  const url = textRaw.match(/https?:\/\/[^\s]+/i)?.[0];
-  if (url) {
-    const videoId = extractYouTubeVideoIdFromUrl(url);
-    if (videoId) {
-      return {
-        embedUrl: `https://www.youtube.com/embed/${videoId}?rel=0`,
-        sourceLabel: "enlace de YouTube",
-      };
-    }
-  }
-
-  const fromPhrase =
-    textRaw.match(
-      /\b(?:cambia(?:r)?\s+(?:el\s+)?video(?:\s+de\s+youtube)?\s+(?:a|por)?|pon(?:me)?|coloca|reproduce|reproducir)\s+(.+)$/i,
-    )?.[1] ??
-    textRaw.match(/\byoutube\s+(?:de|con|sobre)?\s*(.+)$/i)?.[1] ??
-    "";
-
-  const topic = fromPhrase
-    .replace(/\s+\b(?:en|solo en|aqui en)\b\s+(?:la|el)\s+\b(?:pantalla|lobby)\b.*$/i, "")
-    .replace(/\s+\b(?:en la pared|en la pantalla cuatro|en pantalla 4)\b.*$/i, "")
-    .trim();
-
-  if (!topic) return null;
-
-  return {
-    embedUrl: buildYouTubeEmbedFromTopic(topic),
-    sourceLabel: topic,
-  };
 }
 
 const SHORT_STREAMER_ALIASES = new Set(["mj", "karol"]);
@@ -204,7 +135,7 @@ function matchSocial(text: string): OpResolveResult | null {
     return { answer: sayOnni("De nada. Aquí estoy si necesitas otra cosa en OnniVerso.") };
   }
   if (/\b(hola|buenas|hey|que tal)\b/.test(text) && !/\b(llevame|abre|entra)\b/.test(text)) {
-    return { answer: sayOnni("¡Hola! ¿Qué hacemos en OnniVerso? Lobby, conciertos, MP4 local… tú mandas.") };
+    return { answer: sayOnni("¡Hola! ¿Qué hacemos en OnniVerso? Conciertos, MP4 local… tú mandas.") };
   }
   if (/\b(como estas|como vas)\b/.test(text)) {
     return { answer: sayOnni("Todo bien por aquí, listo para ayudarte. ¿A dónde vamos?") };
@@ -367,64 +298,6 @@ function matchMenu(text: string): OpResolveResult | null {
   return { command: { type: "ui.menu.toggle" }, answer: sayOnni("Listo, alterné el menú.") };
 }
 
-function matchLobby(text: string, textRaw: string, onLobbyPage: boolean): OpResolveResult | null {
-  const asksLobbyYoutube =
-    /\b(cambia|cambiar|pon|poner|coloca|colocar|reproduce|reproducir)\b/.test(text) &&
-    /\b(video|youtube|cancion|musica)\b/.test(text);
-  const lobbyContext = onLobbyPage || asksLobbyYoutube || /\b(lobby|pantalla|gyro|giroscopio|giro)\b/.test(text);
-  if (!lobbyContext) return null;
-
-  if (asksLobbyYoutube) {
-    if (!onLobbyPage) {
-      return {
-        answer: sayOnni("Esa función de cambiar videos solo está activa dentro del lobby inmersivo."),
-      };
-    }
-
-    const target = extractLobbyYoutubeTarget(textRaw);
-    if (!target) {
-      return {
-        answer: sayOnni("Dime el nombre o el link. Ejemplo: «cambia el video a Gasolina Daddy Yankee»."),
-      };
-    }
-
-    return {
-      command: { type: "lobby.screen4.youtube.set", embedUrl: target.embedUrl, sourceLabel: target.sourceLabel },
-      answer: sayOnni(`Listo, actualicé el video del lobby a: ${target.sourceLabel}.`),
-    };
-  }
-
-  if (/\b(pantalla|screen)\b/.test(text)) {
-    if (/\b(dos|2|segunda)\b/.test(text)) {
-      return { command: { type: "lobby.focusScreen", screen: 2 }, answer: sayOnni("Listo, pantalla 2.") };
-    }
-    if (/\b(tres|3|tercera)\b/.test(text)) {
-      return { command: { type: "lobby.focusScreen", screen: 3 }, answer: sayOnni("Listo, pantalla 3.") };
-    }
-    if (/\b(cuatro|4|cuarta)\b/.test(text)) {
-      return { command: { type: "lobby.focusScreen", screen: 4 }, answer: sayOnni("Listo, pantalla 4.") };
-    }
-    if (/\b(salir|cerrar|quitar|atras)\b/.test(text)) {
-      return { command: { type: "lobby.unfocusScreen" }, answer: sayOnni("Listo, salí de la pantalla.") };
-    }
-  }
-
-  if (/\b(gyro|giroscopio|giro)\b/.test(text) || /\bgirame\b/.test(text)) {
-    if (/\b(activar|enciende|prende|habilita|on)\b/.test(text)) {
-      return { command: { type: "lobby.gyro.enable" }, answer: sayOnni("Giroscopio activado.") };
-    }
-    if (/\b(desactivar|apaga|deshabilita|off)\b/.test(text)) {
-      return { command: { type: "lobby.gyro.disable" }, answer: sayOnni("Giroscopio desactivado.") };
-    }
-    if (/\b(recentrar|centrar|recenter|endereza)\b/.test(text)) {
-      return { command: { type: "lobby.gyro.recenter" }, answer: sayOnni("Vista recentrada.") };
-    }
-    return { command: { type: "lobby.gyro.toggle" }, answer: sayOnni("Alterné el giroscopio.") };
-  }
-
-  return null;
-}
-
 function matchExitEspectador(text: string, currentPath: string): OpResolveResult | null {
   if (!currentPath.startsWith("/sala/espectador/")) return null;
   if (!/\b(salir|sal|volver|atras|ir a|llevame|lleva)\b/.test(text)) return null;
@@ -582,7 +455,7 @@ function fallback(text: string): OpResolveResult {
 
   return {
     answer: sayOnni(
-      'No pillé eso. Prueba: «¿dónde estoy?», «reproductor mp4», «conciertos», «lobby» o «ayuda».',
+      'No pillé eso. Prueba: «¿dónde estoy?», «reproductor mp4», «conciertos» o «ayuda».',
     ),
   };
 }
@@ -595,7 +468,7 @@ export function resolveOpCommand(
   const text = normalize(textRaw);
   if (!text) {
     return {
-      answer: sayOnni('Escribe aquí. Ejemplo: «¿dónde estoy?» o «llévame al lobby».'),
+      answer: sayOnni('Escribe aquí. Ejemplo: «¿dónde estoy?» o «conciertos».'),
     };
   }
 
@@ -626,9 +499,6 @@ export function resolveOpCommand(
   const exitSala = matchExitEspectador(text, currentPath);
   if (exitSala) return exitSala;
 
-  const lobby = matchLobby(text, textRaw, currentPath.startsWith("/lobby-inmersivo"));
-  if (lobby) return lobby;
-
   if (isInfoQuery(text)) {
     const faq = matchOnniFaq(text);
     if (faq) return { answer: faq };
@@ -657,13 +527,10 @@ export function resolveOpCommand(
 }
 
 export function getOpAssistantHint(currentPath: string): string {
-  if (currentPath.startsWith("/lobby-inmersivo")) {
-    return 'Di: "pantalla 3", "cambia el video a Daddy Yankee", "giroscopio".';
-  }
   if (currentPath.startsWith("/sala/espectador")) {
     return 'Di: "salir a conciertos", "reproductor mp4", "¿qué es esto?".';
   }
-  return 'Di: "conciertos", "¿dónde estoy?", "ayuda", "lobby".';
+  return 'Di: "conciertos", "¿dónde estoy?", "ayuda".';
 }
 
 export { getOnniIntroduction };

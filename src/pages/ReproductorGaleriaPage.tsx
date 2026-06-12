@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
 import SectionHeader from "@/components/salas/SectionHeader";
-import { LobbyScreenOneHub } from "@/components/lobby/LobbyScreenOneHub";
+import { LocalGalleryPlayer } from "@/components/LocalGalleryPlayer";
 
 const ReproductorGaleriaPage = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,7 +59,7 @@ const ReproductorGaleriaPage = () => {
             className="mx-auto w-full overflow-hidden rounded-2xl border border-cyan-300/45 shadow-[0_0_55px_-12px_rgba(34,211,238,0.85)]"
             style={{ height: "min(78dvh, 820px)" }}
           >
-            <LobbyScreenOneHub width={playerSize.width} height={playerSize.height} />
+            <LocalGalleryPlayer width={playerSize.width} height={playerSize.height} />
           </div>
         </div>
       </main>

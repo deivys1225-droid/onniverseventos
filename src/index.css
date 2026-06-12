@@ -180,6 +180,50 @@
     animation: onni-speak-bob 0.35s ease-in-out infinite;
   }
 
+  /* Onni GLB — humanoide 3D futurista */
+  .onni-glb-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    animation: onni-float 3.6s ease-in-out infinite;
+  }
+
+  .onni-glb-avatar__canvas {
+    filter: drop-shadow(0 0 12px hsl(190 95% 55% / 0.55));
+    transition: filter 0.25s ease;
+  }
+
+  .onni-glb-avatar[data-state="listening"] .onni-glb-avatar__canvas {
+    filter: drop-shadow(0 0 20px hsl(185 100% 58% / 0.95)) drop-shadow(0 0 36px hsl(185 100% 55% / 0.45));
+  }
+
+  .onni-glb-avatar[data-state="speaking"] .onni-glb-avatar__canvas {
+    filter: drop-shadow(0 0 16px hsl(195 85% 62% / 0.9));
+  }
+
+  /* Onni puntos — figuras morfológicas en canvas */
+  .onni-dots-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    animation: onni-float 3.6s ease-in-out infinite;
+  }
+
+  .onni-dots-avatar__canvas {
+    filter: drop-shadow(0 0 12px hsl(190 95% 55% / 0.55));
+    transition: filter 0.25s ease;
+  }
+
+  .onni-dots-avatar[data-state="listening"] .onni-dots-avatar__canvas {
+    filter: drop-shadow(0 0 20px hsl(185 100% 58% / 0.95)) drop-shadow(0 0 36px hsl(185 100% 55% / 0.45));
+  }
+
+  .onni-dots-avatar[data-state="speaking"] .onni-dots-avatar__canvas {
+    filter: drop-shadow(0 0 16px hsl(195 85% 62% / 0.9));
+  }
+
 }
 
 @keyframes onni-speak-bob {

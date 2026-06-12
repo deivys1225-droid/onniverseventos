@@ -46,6 +46,14 @@ interface SpeechRecognition extends EventTarget {
 }
 
 interface Window {
+  onniDesktop?: {
+    platform?: string;
+    runtime?: string;
+    runAction?: (action: {
+      type: string;
+      [key: string]: unknown;
+    }) => Promise<{ ok: boolean; message?: string }>;
+  };
   SpeechRecognition?: new () => SpeechRecognition;
   webkitSpeechRecognition?: new () => SpeechRecognition;
 }

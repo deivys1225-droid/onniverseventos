@@ -1,4 +1,3 @@
-import { GALERIA_AULA_CARD_HASH, GALERIA_AULA_SECTION_PATH } from "@/lib/aulaVirtual";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { podcastStreamers } from "@/data/podcastStreamers";
 
@@ -58,9 +57,9 @@ export const OP_ROUTES: OpRouteEntry[] = [
   {
     id: "inicio",
     path: "/",
-    label: "Inicio (Mi Mundo)",
-    description: "Pantalla principal con perfil VR tras iniciar sesión.",
-    aliases: ["inicio", "home", "principal", "mi mundo", "mimundo", "perfil vr"],
+    label: "Inicio",
+    description: "Pantalla principal tras iniciar sesión.",
+    aliases: ["inicio", "home", "principal", "lobby", "lobby inmersivo"],
     requiresAuth: true,
   },
   {
@@ -120,59 +119,10 @@ export const OP_ROUTES: OpRouteEntry[] = [
   },
   {
     id: "galeria-3d",
-    path: GALERIA_AULA_SECTION_PATH,
+    path: "/3d",
     label: "Galería 3D",
-    description: "Modelos 3D y tarjeta del Aula Virtual.",
+    description: "Modelos 3D y contenido educativo inmersivo.",
     aliases: ["galeria", "galeria 3d", "3d", "modelos 3d", "galeria tres d"],
-    requiresAuth: true,
-  },
-  {
-    id: "galeria-aula-card",
-    path: `${GALERIA_AULA_SECTION_PATH}#${GALERIA_AULA_CARD_HASH}`,
-    label: "Aula Virtual (tarjeta en galería)",
-    description: "Sección del menú que lleva a la tarjeta Aula en Galería 3D.",
-    aliases: ["aula tarjeta", "tarjeta aula", "aula en galeria", "seccion aula"],
-    requiresAuth: true,
-  },
-  {
-    id: "aula-lobby",
-    path: "/aula-virtual",
-    label: "Aula Virtual (lobby 3D)",
-    description: "Lobby caminable del aula con decoración educativa.",
-    aliases: [
-      "aula virtual",
-      "aula 3d",
-      "aula inmersiva",
-      "aula caminable",
-      "entrar al aula",
-      "aula",
-      "clase virtual",
-      "educacion inmersiva",
-    ],
-    requiresAuth: true,
-  },
-  {
-    id: "lobby-inmersivo",
-    path: "/lobby-inmersivo",
-    label: "Lobby inmersivo",
-    description: "Sala neon 3D con pantallas en las paredes.",
-    aliases: ["lobby", "lobby inmersivo", "neon room", "sala neon", "lobby 3d"],
-    requiresAuth: true,
-  },
-  {
-    id: "lobby-global",
-    path: "/mi-mundo/lobby-global",
-    label: "Lobby global",
-    description: "Feed de vídeos YouTube en escena inmersiva.",
-    aliases: ["lobby global", "mi mundo lobby", "feed lobby"],
-    requiresAuth: true,
-  },
-  {
-    id: "coliseo",
-    path: "/coliseo",
-    label: "Coliseo Romano 360°",
-    description: "Esfera inmersiva con panorama del Coliseo y YouTube en pantalla flotante.",
-    aliases: ["coliseo", "coliceo", "coliseo romano", "coliceo romano", "anfiteatro", "sala coliseo"],
     requiresAuth: true,
   },
   {
@@ -386,23 +336,14 @@ export const OP_STREAMERS: OpStreamerEntry[] = [
   },
 ];
 
-/** Comandos del lobby (sin cambiar de ruta). */
-export const OP_LOBBY_HINTS = [
-  "pantalla 1 / pantalla 2 / pantalla 3",
-  "salir de pantalla",
-  "activar o desactivar giroscopio",
-  "recentrar vista",
-] as const;
-
 /** Resumen corto para “¿qué puedes hacer?”. */
 export function getOpAssistantHelpText(): string {
   const sections = [
-    "Navegación: inicio, conciertos, aula, lobby, tienda, comunidad, galería 3D, podcast, teatro…",
+    "Navegación: inicio, conciertos, tienda, comunidad, galería 3D, podcast, teatro…",
     "Redes desde inicio: “abre YouTube/Facebook/Instagram/TikTok/Google” (igual que el icono).",
     "Videos en vivo: “abre un video” → Conciertos Live; “video de Karol” → sala del artista.",
     "MP4/MP3 local: “reproductor local”, “abre mp4”, “video local” → Reproductor de galería.",
     "Menú: “abre el menú”, “cierra el menú”.",
-    "En lobby inmersivo: “pantalla 1”, “giroscopio”, “recentrar”.",
   ];
   return sections.join("\n");
 }

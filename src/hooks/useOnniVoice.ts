@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  getOnniSpeechPitch,
   getSpeechRecognitionCtor,
   isOnniVoiceSupported,
   ONNI_STORAGE_KEYS,
   parseOnniWakePhrase,
   pickOnniSpanishVoice,
 } from "@/lib/onniVoice";
+import { isDesktopWebBrowser, isOnniAndroidVoice } from "@/lib/deviceDetection";
+import { onniMicDeniedMessage, requestOnniMicrophoneAccess } from "@/lib/requestOnniMicrophone";
 
 type UseOnniVoiceOptions = {
   enabled: boolean;
@@ -25,13 +28,42 @@ function readBool(key: string, fallback: boolean): boolean {
   }
 }
 
+function readListenEnabledDefault(): boolean {
+  if (isOnniAndroidVoice()) return false;
+  if (isDesktopWebBrowser()) {
+    const desktop = localStorage.getItem(ONNI_STORAGE_KEYS.listenDesktop);
+    // Una copia rota guardó "0" sin UI para reactivarlo; restaurar escucha en PC.
+    if (desktop === "0") {
+      try {
+        localStorage.setItem(ONNI_STORAGE_KEYS.listenDesktop, "1");
+      } catch {
+        /* ignore */
+      }
+      return true;
+    }
+    if (desktop !== null) return desktop === "1" || desktop === "true";
+    const legacy = localStorage.getItem(ONNI_STORAGE_KEYS.listen);
+    if (legacy !== null) return legacy === "1" || legacy === "true";
+    return true;
+  }
+  return readBool(ONNI_STORAGE_KEYS.listen, false);
+}
+
+function resolveListenStorageKey(): string | null {
+  if (isOnniAndroidVoice()) return null;
+  if (isDesktopWebBrowser()) return ONNI_STORAGE_KEYS.listenDesktop;
+  return ONNI_STORAGE_KEYS.listen;
+}
+
 export function useOnniVoicePrefs() {
-  const [listenEnabled, setListenEnabled] = useState(() => readBool(ONNI_STORAGE_KEYS.listen, true));
+  const [listenEnabled, setListenEnabled] = useState(readListenEnabledDefault);
   const [speakEnabled, setSpeakEnabled] = useState(() => readBool(ONNI_STORAGE_KEYS.speak, true));
 
   useEffect(() => {
+    const key = resolveListenStorageKey();
+    if (!key) return;
     try {
-      localStorage.setItem(ONNI_STORAGE_KEYS.listen, listenEnabled ? "1" : "0");
+      localStorage.setItem(key, listenEnabled ? "1" : "0");
     } catch {
       /* ignore */
     }
@@ -48,6 +80,10 @@ export function useOnniVoicePrefs() {
   return { listenEnabled, setListenEnabled, speakEnabled, setSpeakEnabled };
 }
 
+const WAKE_REPEAT_COOLDOWN_MS = 2_500;
+/** Tras TTS de Onni, no procesar wake (evita que el mic oiga a Onni y repita). */
+const SPEAK_END_BUFFER_MS = 700;
+
 export function useOnniVoice({ enabled, speakEnabled, onWake, onWakeWithoutCommand, onError }: UseOnniVoiceOptions) {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -56,6 +92,8 @@ export function useOnniVoice({ enabled, speakEnabled, onWake, onWakeWithoutComma
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const lastHandledRef = useRef("");
+  const lastHandledAtRef = useRef(0);
+  const speakPauseUntilRef = useRef(0);
   const enabledRef = useRef(enabled);
   const callbacksRef = useRef({ onWake, onWakeWithoutCommand, onError });
 
@@ -79,6 +117,14 @@ export function useOnniVoice({ enabled, speakEnabled, onWake, onWakeWithoutComma
     };
   }, [loadVoices, supported]);
 
+  useEffect(() => {
+    const onSpeakEnd = () => {
+      speakPauseUntilRef.current = Date.now() + SPEAK_END_BUFFER_MS;
+    };
+    window.addEventListener("voice:speak-end", onSpeakEnd);
+    return () => window.removeEventListener("voice:speak-end", onSpeakEnd);
+  }, []);
+
   const speak = useCallback(
     (text: string) => {
       if (!speakEnabled || !supported || !text.trim()) return;
@@ -86,7 +132,7 @@ export function useOnniVoice({ enabled, speakEnabled, onWake, onWakeWithoutComma
       const utterance = new SpeechSynthesisUtterance(text.replace(/\n+/g, ". "));
       utterance.lang = voiceRef.current?.lang ?? "es-CO";
       utterance.rate = 0.96;
-      utterance.pitch = 1.02;
+      utterance.pitch = getOnniSpeechPitch(voiceRef.current);
       utterance.volume = 1;
       if (voiceRef.current) utterance.voice = voiceRef.current;
       utterance.onstart = () => setIsSpeaking(true);
@@ -109,6 +155,8 @@ export function useOnniVoice({ enabled, speakEnabled, onWake, onWakeWithoutComma
 
   const startListening = useCallback(() => {
     if (!enabledRef.current || !supported) return;
+    if (typeof window !== "undefined" && window.speechSynthesis?.speaking) return;
+    if (Date.now() < speakPauseUntilRef.current) return;
 
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) {
@@ -128,45 +176,67 @@ export function useOnniVoice({ enabled, speakEnabled, onWake, onWakeWithoutComma
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let transcript = "";
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        if (event.results[i].isFinal) {
-          transcript += event.results[i][0].transcript;
-        }
+      for (let i = 0; i < event.results.length; i += 1) {
+        transcript += event.results[i][0]?.transcript ?? "";
       }
-      if (!transcript.trim()) return;
+      const trimmed = transcript.trim();
+      if (!trimmed) return;
 
-      setLastHeard(transcript.trim());
-      const { heard, command } = parseOnniWakePhrase(transcript);
+      const lastIdx = event.results.length - 1;
+      const isFinal = event.results[lastIdx]?.isFinal ?? false;
+      if (!isFinal) return;
+
+      if (typeof window !== "undefined" && window.speechSynthesis?.speaking) return;
+      if (Date.now() < speakPauseUntilRef.current) return;
+
+      setLastHeard(trimmed);
+      const { heard, command } = parseOnniWakePhrase(trimmed);
       if (!heard) return;
 
-      const signature = `${command}|${transcript}`;
-      if (signature === lastHandledRef.current) return;
+      const signature = `${command}|${trimmed}`;
+      const now = Date.now();
+      if (
+        signature === lastHandledRef.current &&
+        now - lastHandledAtRef.current < WAKE_REPEAT_COOLDOWN_MS
+      ) {
+        return;
+      }
       lastHandledRef.current = signature;
+      lastHandledAtRef.current = now;
+      speakPauseUntilRef.current = Date.now() + 120_000;
 
       if (!command) {
         callbacksRef.current.onWakeWithoutCommand?.();
         return;
       }
 
-      callbacksRef.current.onWake(command, transcript);
+      callbacksRef.current.onWake(command, trimmed);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error === "not-allowed") {
-        callbacksRef.current.onError?.("Activa el micrófono para que Onni te escuche.");
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        callbacksRef.current.onError?.(onniMicDeniedMessage());
         stopListening();
         return;
       }
-      if (event.error === "aborted") return;
+      if (event.error === "aborted" || event.error === "no-speech") return;
+      if (event.error === "audio-capture") {
+        callbacksRef.current.onError?.("No pude captar audio. Revisa que el micrófono esté conectado.");
+        return;
+      }
     };
 
     recognition.onend = () => {
       setIsListening(false);
       recognitionRef.current = null;
       if (!enabledRef.current) return;
+      const delay =
+        typeof window !== "undefined" && window.speechSynthesis?.speaking
+          ? 600
+          : Math.max(450, speakPauseUntilRef.current - Date.now());
       restartTimerRef.current = setTimeout(() => {
         if (enabledRef.current) startListening();
-      }, 450);
+      }, delay);
     };
 
     recognitionRef.current = recognition;
@@ -180,12 +250,31 @@ export function useOnniVoice({ enabled, speakEnabled, onWake, onWakeWithoutComma
   }, [stopListening, supported]);
 
   useEffect(() => {
-    if (enabled && supported) {
-      startListening();
-      return () => stopListening();
+    if (!enabled || !supported) {
+      stopListening();
+      return undefined;
     }
-    stopListening();
-    return undefined;
+
+    let cancelled = false;
+    void requestOnniMicrophoneAccess().then((permission) => {
+      if (cancelled) return;
+      if (permission === "denied") {
+        callbacksRef.current.onError?.(onniMicDeniedMessage());
+        stopListening();
+        return;
+      }
+      if (permission === "unsupported") {
+        callbacksRef.current.onError?.("Micrófono no disponible en este navegador.");
+        stopListening();
+        return;
+      }
+      startListening();
+    });
+
+    return () => {
+      cancelled = true;
+      stopListening();
+    };
   }, [enabled, supported, startListening, stopListening]);
 
   useEffect(() => () => stopListening(), [stopListening]);

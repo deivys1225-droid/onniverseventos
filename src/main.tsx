@@ -135,7 +135,7 @@ function AppRoot() {
           }
         }
         if (u.protocol === "onniver:" && u.hostname === "open-lobby") {
-          return "/lobby-inmersivo";
+          return "/";
         }
       } catch {
         return null;
