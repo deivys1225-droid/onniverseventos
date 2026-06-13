@@ -24,7 +24,7 @@ function sendJson(res: ServerResponse, status: number, payload: unknown) {
   res.end(JSON.stringify(payload));
 }
 
-/** En `npm run dev`, sirve POST /api/onni/chat (OpenAI, Gemini u Ollama local según .env.local). */
+/** En `npm run dev`, sirve POST /api/onni/chat (ChatGPT u Ollama local según .env.local). */
 export function onniChatDevPlugin(env: Record<string, string>): Plugin {
   return {
     name: "onni-chat-dev",

@@ -1,22 +1,17 @@
 const OPENAI_MODEL = "gpt-4o-mini";
-const GEMINI_MODEL = "gemini-2.5-flash";
 const DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434";
 const DEFAULT_OLLAMA_MODEL = "llama3.2:3b";
 
 export function buildOnniChatSystemPrompt(contextPath, provider = "openai") {
   const aiLine =
     provider === "ollama"
-      ? "Si preguntan si usas ChatGPT, Gemini u otra IA, responde: «Corro localmente con Ollama (Llama 3.2) en tu equipo»."
-      : [
-          "IMPORTANTE: NUNCA digas «uso Google Gemini», «soy Gemini» ni «impulsada por Gemini» como respuesta principal.",
-          "Si preguntan si usas ChatGPT, Gemini u otra IA, responde SIEMPRE: «Sí, uso ChatGPT (OpenAI)».",
-          "Gemini solo existe como respaldo técnico si OpenAI falla; no lo menciones salvo que pregunten explícitamente por un respaldo.",
-        ].join("\n");
+      ? "Si preguntan qué IA usas, responde: «Corro localmente con Ollama (Llama 3.2) en tu equipo»."
+      : "Si preguntan qué IA usas, responde SIEMPRE: «Sí, uso ChatGPT (OpenAI)».";
 
   return [
     provider === "ollama"
       ? "Eres Onni, la asistente de OnniVerso. Respondes con un modelo local (Ollama / Llama 3.2) en el PC del usuario."
-      : "Eres Onni, la asistente de OnniVerso. Tu motor principal es ChatGPT (OpenAI).",
+      : "Eres Onni, la asistente de OnniVerso. Tu motor es ChatGPT (OpenAI).",
     aiLine,
     "NUNCA digas que solo usas reglas fijas sin IA.",
     `El usuario está en la ruta: ${contextPath || "/"}.`,
@@ -73,34 +68,6 @@ async function askOpenAI(message, contextPath, apiKey, model = OPENAI_MODEL) {
   return { answer: cleanAnswer(text), model, provider: "openai" };
 }
 
-async function askGemini(message, contextPath, apiKey, model = GEMINI_MODEL) {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: buildOnniChatSystemPrompt(contextPath) }] },
-        contents: [{ role: "user", parts: [{ text: message }] }],
-        generationConfig: { maxOutputTokens: 512, temperature: 0.65 },
-      }),
-    },
-  );
-
-  const json = await response.json();
-  if (!response.ok) {
-    const errMsg = json?.error?.message || `Gemini error (${response.status})`;
-    throw new Error(String(errMsg));
-  }
-
-  const parts = json?.candidates?.[0]?.content?.parts;
-  const text = Array.isArray(parts)
-    ? parts.map((p) => (typeof p?.text === "string" ? p.text : "")).join("").trim()
-    : "";
-  if (!text) throw new Error("Gemini devolvió una respuesta vacía.");
-  return { answer: cleanAnswer(text), model, provider: "gemini" };
-}
-
 async function askOllama(message, contextPath, host, model = DEFAULT_OLLAMA_MODEL) {
   const baseUrl = String(host || DEFAULT_OLLAMA_HOST).replace(/\/$/, "");
   const response = await fetch(`${baseUrl}/api/chat`, {
@@ -151,40 +118,28 @@ export async function runOnniChat(body, env = {}) {
   const ollamaModel =
     env.OLLAMA_MODEL?.trim() || env.VITE_OLLAMA_MODEL?.trim() || DEFAULT_OLLAMA_MODEL;
   const openaiKey = env.OPENAI_API_KEY?.trim() || env.VITE_OPENAI_API_KEY?.trim();
-  const geminiKey = env.GEMINI_API_KEY?.trim() || env.VITE_GEMINI_API_KEY?.trim();
   const openaiModel = env.OPENAI_MODEL?.trim() || env.VITE_OPENAI_MODEL?.trim() || OPENAI_MODEL;
-  const geminiModel = env.GEMINI_MODEL?.trim() || GEMINI_MODEL;
 
   if (ollamaEnabled) {
     try {
       return { ok: true, ...(await askOllama(message, contextPath, ollamaHost, ollamaModel)) };
     } catch (ollamaError) {
-      // Si hay proveedores cloud configurados, permitimos fallback aunque ollamaOnly esté activo,
-      // para evitar que el chat quede bloqueado cuando Ollama local no está disponible.
-      if (!openaiKey && !geminiKey) throw ollamaError;
+      if (!openaiKey) throw ollamaError;
       if (ollamaOnly) {
-        console.warn("[Onni AI] Ollama-only activo, pero hay claves cloud. Usando fallback OpenAI/Gemini.");
+        console.warn("[Onni AI] Ollama-only activo, pero hay OPENAI_API_KEY. Usando ChatGPT como respaldo.");
       }
     }
   }
 
-  if (openaiKey) {
-    try {
-      return { ok: true, ...(await askOpenAI(message, contextPath, openaiKey, openaiModel)) };
-    } catch (openaiError) {
-      if (!geminiKey) throw openaiError;
-    }
+  if (!openaiKey) {
+    const error = new Error(
+      ollamaEnabled
+        ? "Ollama no respondió. ¿Está corriendo? Prueba: ollama serve"
+        : "Falta OPENAI_API_KEY (ChatGPT). Configúrala en Vercel o .env.local.",
+    );
+    error.statusCode = 500;
+    throw error;
   }
 
-  if (geminiKey) {
-    return { ok: true, ...(await askGemini(message, contextPath, geminiKey, geminiModel)) };
-  }
-
-  const error = new Error(
-    ollamaEnabled
-      ? "Ollama no respondió. ¿Está corriendo? Prueba: ollama serve"
-      : "Falta OPENAI_API_KEY (o GEMINI_API_KEY).",
-  );
-  error.statusCode = 500;
-  throw error;
+  return { ok: true, ...(await askOpenAI(message, contextPath, openaiKey, openaiModel)) };
 }

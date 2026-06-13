@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { UsersRound } from "lucide-react";
+import { MessageCircle, UsersRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "@/components/Navbar";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/friendships";
 import { getRoomActiveStream, type ActiveStreamRow, type RoomCard } from "@/lib/salaRoomCards";
 import BackToProfileHomeButton from "@/components/BackToProfileHomeButton";
+import SocialMenu from "@/components/SocialMenu";
 
 const ComunidadPage = () => {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ const ComunidadPage = () => {
   const [premiumModalRoom, setPremiumModalRoom] = useState<RoomCard | null>(null);
   const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
   const [friendshipPairInfo, setFriendshipPairInfo] = useState<Map<string, FriendshipPairInfo>>(new Map());
+  const [socialMenuOpen, setSocialMenuOpen] = useState(false);
   const friendshipStates = useMemo(() => {
     const map = new Map<string, FriendshipPairState>();
     friendshipPairInfo.forEach((info, id) => map.set(id, info.state));
@@ -272,6 +274,15 @@ const ComunidadPage = () => {
     setFriendshipPairInfo(next);
   };
 
+  const openMessenger = () => {
+    if (!user) {
+      toast.error("Inicia sesión para abrir el chat con tus contactos.");
+      navigate("/entrar");
+      return;
+    }
+    setSocialMenuOpen(true);
+  };
+
   return (
     <div className="relative min-h-screen w-full max-w-full overflow-x-clip overflow-y-auto bg-background" data-camera-page-root>
       <Navbar />
@@ -290,8 +301,17 @@ const ComunidadPage = () => {
 
       <main className="relative z-20 px-6 pt-20 pb-20">
         <div className="container mx-auto max-w-6xl">
-          <div className="mb-6">
-            <BackToProfileHomeButton />
+          <div className="mb-6 flex items-start justify-between gap-3">
+            <BackToProfileHomeButton iconOnly className="shrink-0" />
+            <button
+              type="button"
+              onClick={openMessenger}
+              aria-label="Abrir Messenger"
+              title="Messenger"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cyan-300/40 bg-card/80 text-cyan-200 shadow-[0_0_18px_-6px_rgba(34,211,238,0.65)] backdrop-blur-md transition hover:border-cyan-200/55 hover:bg-card/95 active:scale-95"
+            >
+              <MessageCircle className="h-5 w-5" aria-hidden />
+            </button>
           </div>
           <section id="comunidad" className="scroll-mt-24">
             <SectionHeader
@@ -394,6 +414,9 @@ const ComunidadPage = () => {
         )}
       </AnimatePresence>
 
+      {user ? (
+        <SocialMenu userId={user.id} open={socialMenuOpen} onClose={() => setSocialMenuOpen(false)} />
+      ) : null}
     </div>
   );
 };

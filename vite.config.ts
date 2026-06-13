@@ -32,9 +32,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const devChatEnv: Record<string, string> = {
     OPENAI_API_KEY: env.OPENAI_API_KEY || env.VITE_OPENAI_API_KEY || "",
-    GEMINI_API_KEY: env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || "",
     OPENAI_MODEL: env.OPENAI_MODEL || env.VITE_OPENAI_MODEL || "",
-    GEMINI_MODEL: env.GEMINI_MODEL || "",
     OLLAMA_ENABLED: env.OLLAMA_ENABLED || env.VITE_OLLAMA_ENABLED || "",
     OLLAMA_ONLY: env.OLLAMA_ONLY || env.VITE_OLLAMA_ONLY || "",
     OLLAMA_HOST: env.OLLAMA_HOST || env.VITE_OLLAMA_HOST || "",

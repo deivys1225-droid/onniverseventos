@@ -5,8 +5,8 @@ import { isOnniVoiceSupported, getOnniSpeechPitch, pickOnniSpanishVoice } from "
 export type OnniVoiceMode = "web" | "native" | "none";
 
 export type OnniSpeakOptions = {
-  /** Respuesta generada por Gemini — usa Azure TTS en Android. */
-  fromGemini?: boolean;
+  /** Respuesta generada por ChatGPT — usa Azure TTS en Android. */
+  fromOpenAi?: boolean;
 };
 
 const ONNI_AZURE_TTS_MIN_LINES = 3;
@@ -159,9 +159,9 @@ function countOnniAnswerLines(text: string): number {
     .filter((line) => line.trim().length > 0).length;
 }
 
-/** Android: Azure solo para Gemini o respuestas largas (>2 líneas); lo demás va nativo. */
+/** Android: Azure TTS para respuestas de ChatGPT o respuestas largas (>2 líneas); lo demás va nativo. */
 export function shouldUseAzureTtsOnAndroid(text: string, options?: OnniSpeakOptions): boolean {
-  if (options?.fromGemini) return true;
+  if (options?.fromOpenAi) return true;
   return countOnniAnswerLines(text) >= ONNI_AZURE_TTS_MIN_LINES;
 }
 

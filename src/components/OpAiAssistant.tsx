@@ -43,13 +43,13 @@ function isOnniResolverFallback(answer: string): boolean {
 
 function appendAssistantAnswer(
   setMessages: Dispatch<SetStateAction<UiMessage[]>>,
-  sessionRef: MutableRefObject<{ lastAnswer?: string; lastAnswerFromGemini?: boolean }>,
+  sessionRef: MutableRefObject<{ lastAnswer?: string; lastAnswerFromOpenAi?: boolean }>,
   answer: string,
   speak: (text: string, options?: OnniSpeakOptions) => void,
   speakOptions?: OnniSpeakOptions,
 ) {
   sessionRef.current.lastAnswer = answer;
-  sessionRef.current.lastAnswerFromGemini = speakOptions?.fromGemini ?? false;
+  sessionRef.current.lastAnswerFromOpenAi = speakOptions?.fromOpenAi ?? false;
   setMessages((prev) => [...prev, { role: "assistant", text: answer }]);
   speak(answer, speakOptions);
 }
@@ -64,7 +64,7 @@ export default function OpAiAssistant() {
   const [messages, setMessages] = useState<UiMessage[]>([
     { role: "assistant", text: getOnniIntroduction() },
   ]);
-  const sessionRef = useRef<{ lastAnswer?: string; lastAnswerFromGemini?: boolean }>({});
+  const sessionRef = useRef<{ lastAnswer?: string; lastAnswerFromOpenAi?: boolean }>({});
   const pendingVoiceRef = useRef("");
   const chromeSpaceHoldRef = useRef(false);
 
@@ -172,9 +172,9 @@ export default function OpAiAssistant() {
         });
         const finalAnswer =
           aiAnswer ??
-          "No pude conectar con la IA (ChatGPT/Gemini). Revisa internet o las claves del backend.";
+          "No pude conectar con ChatGPT. Revisa internet o configura OPENAI_API_KEY en Vercel.";
         appendAssistantAnswer(setMessages, sessionRef, finalAnswer, speakAnswer, {
-          fromGemini: Boolean(aiAnswer),
+          fromOpenAi: Boolean(aiAnswer),
         });
         return finalAnswer;
       } finally {
@@ -433,7 +433,7 @@ export default function OpAiAssistant() {
       return;
     }
     speakAnswer(textToSpeak, {
-      fromGemini: sessionRef.current.lastAnswerFromGemini ?? false,
+      fromOpenAi: sessionRef.current.lastAnswerFromOpenAi ?? false,
     });
   }, [canSpeak, speakAnswer]);
 

@@ -581,118 +581,6 @@ function rotateZ(p: Vec3, a: number): Vec3 {
   return { x: p.x * c - p.y * s, y: p.x * s + p.y * c, z: p.z };
 }
 
-const AURORA_RAY_COUNT = 18;
-const AURORA_RIBBON_COUNT = 4;
-
-/** Líneas aurora blancas desde el centro — visibles sobre y alrededor de la figura. */
-function drawAuroraRays(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  shapeRadius: number,
-  canvasRadius: number,
-  elapsed: number,
-  state: OnniAvatarState,
-) {
-  const baseAlpha =
-    state === "listening" ? 0.82 : state === "speaking" ? 0.76 : 0.62;
-  const rot = elapsed * 0.00028;
-  const pulse = 1 + Math.sin(elapsed * 0.0018) * 0.08;
-  const maxLen = canvasRadius * 0.92 * pulse;
-  const innerStart = shapeRadius * 0.12;
-
-  ctx.save();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.shadowColor = "rgba(255, 255, 255, 0.95)";
-  ctx.shadowBlur = 10;
-
-  for (let i = 0; i < AURORA_RAY_COUNT; i += 1) {
-    const phase = i * 2.173 + elapsed * 0.00085;
-    const angle =
-      rot + (i / AURORA_RAY_COUNT) * Math.PI * 2 + Math.sin(phase) * 0.16;
-    const len = maxLen * (0.78 + Math.sin(elapsed * 0.0011 + i * 1.63) * 0.2);
-    const waveAmp = maxLen * 0.055 * (0.7 + Math.sin(phase * 1.3) * 0.3);
-    const perp = angle + Math.PI / 2;
-
-    const startX = cx + Math.cos(angle) * innerStart;
-    const startY = cy + Math.sin(angle) * innerStart;
-    const endX = cx + Math.cos(angle) * len;
-    const endY = cy + Math.sin(angle) * len;
-    const midDist = innerStart + (len - innerStart) * 0.52;
-    const wave = Math.sin(elapsed * 0.0022 + i * 0.91) * waveAmp;
-    const midX = cx + Math.cos(angle) * midDist + Math.cos(perp) * wave;
-    const midY = cy + Math.sin(angle) * midDist + Math.sin(perp) * wave;
-
-    const rayAlpha = baseAlpha * (0.78 + Math.sin(elapsed * 0.0016 + i * 0.55) * 0.22);
-    const grad = ctx.createLinearGradient(startX, startY, endX, endY);
-    grad.addColorStop(0, `rgba(255, 255, 255, ${rayAlpha * 0.35})`);
-    grad.addColorStop(0.18, `rgba(255, 255, 255, ${rayAlpha * 0.95})`);
-    grad.addColorStop(0.55, `rgba(255, 255, 255, ${rayAlpha * 0.55})`);
-    grad.addColorStop(1, "rgba(255, 255, 255, 0)");
-
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.quadraticCurveTo(midX, midY, endX, endY);
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = i % 3 === 0 ? 1.6 : 1.05;
-    ctx.globalAlpha = 0.92;
-    ctx.globalCompositeOperation = "screen";
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.quadraticCurveTo(midX, midY, endX, endY);
-    ctx.globalAlpha = 0.38;
-    ctx.lineWidth = (i % 3 === 0 ? 1.6 : 1.05) + 2.5;
-    ctx.shadowBlur = 18;
-    ctx.strokeStyle = `rgba(255, 255, 255, ${rayAlpha * 0.5})`;
-    ctx.stroke();
-    ctx.shadowBlur = 10;
-  }
-
-  ctx.globalCompositeOperation = "source-over";
-  ctx.globalAlpha = 1;
-  ctx.shadowBlur = 8;
-
-  for (let r = 0; r < AURORA_RIBBON_COUNT; r += 1) {
-    const ribbonPhase = elapsed * 0.0005 + r * 2.07;
-    const ribbonAlpha = baseAlpha * 0.72;
-    const segments = 32;
-
-    ctx.beginPath();
-    for (let s = 0; s <= segments; s += 1) {
-      const t = s / segments;
-      const radius = innerStart + (maxLen - innerStart) * (0.15 + t * 0.85);
-      const a =
-        ribbonPhase +
-        t * (1.85 + r * 0.42) +
-        Math.sin(t * 7 + ribbonPhase * 2) * 0.28;
-      const drift = Math.sin(t * 9 + elapsed * 0.0014 + r) * maxLen * 0.06;
-      const x = cx + Math.cos(a) * radius + Math.cos(a + Math.PI / 2) * drift;
-      const y = cy + Math.sin(a) * radius + Math.sin(a + Math.PI / 2) * drift;
-      if (s === 0) ctx.moveTo(cx + Math.cos(a) * innerStart, cy + Math.sin(a) * innerStart);
-      else ctx.lineTo(x, y);
-    }
-
-    const tailAngle = ribbonPhase + 1.85 + r * 0.42;
-    const tailX = cx + Math.cos(tailAngle) * maxLen * 0.88;
-    const tailY = cy + Math.sin(tailAngle) * maxLen * 0.88;
-    const ribbonGrad = ctx.createLinearGradient(cx, cy, tailX, tailY);
-    ribbonGrad.addColorStop(0, `rgba(255, 255, 255, ${ribbonAlpha * 0.4})`);
-    ribbonGrad.addColorStop(0.35, `rgba(255, 255, 255, ${ribbonAlpha * 0.85})`);
-    ribbonGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
-
-    ctx.strokeStyle = ribbonGrad;
-    ctx.lineWidth = 1.15;
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.88;
-    ctx.stroke();
-  }
-
-  ctx.restore();
-}
-
 /** Morph: Esfera → … → Galaxia → יהוה (paleo) → Esfera… */
 export default function OnniAvatarDots({
   size = "md",
@@ -822,16 +710,6 @@ export default function OnniAvatarDots({
         ctx.arc(px, py, radius, 0, Math.PI * 2);
         ctx.fill();
       }
-
-      drawAuroraRays(
-        ctx,
-        cx,
-        cy,
-        scale * pulse,
-        Math.min(w, h) / 2 - inset * 0.35,
-        elapsed,
-        stateRef.current,
-      );
 
       const coreR = Math.max(2, 2.1 * pulse * (stateRef.current === "listening" ? 1.15 : 1));
       ctx.beginPath();
