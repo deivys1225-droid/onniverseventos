@@ -9,8 +9,7 @@ export const SALA_MP4_URL_BY_ID: Record<string, string> = {
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777748643/Silvestre_hxjmdi.mp4",
   "westcol":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777751404/AS%C3%8D_QUED%C3%93_MI_G_WAGON_REFORMADA_LUJOSA_EN_MEDELL%C3%8DN___WESTCOL_gucqxx.mp4",
-  alofoke:
-    "https://res.cloudinary.com/dfsabdxup/video/upload/v1777751455/MICHAEL_FLORES_X_ALOFOKE_MUSIC_X_JEY_ONE_X_YOVANI_VASQUEZ_-_PODCATERA_qotzfz.mp4",
+  alofoke: "https://www.youtube.com/watch?v=0fYv-4zMvkU",
   "anuel-aa":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777751466/Anuel_en_vivo_que_nos_pas%C3%B3_mujrd0.mp4",
   "santa-fe-klan":

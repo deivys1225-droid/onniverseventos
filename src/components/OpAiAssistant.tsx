@@ -166,13 +166,14 @@ export default function OpAiAssistant() {
           return result.answer;
         }
 
-        const aiAnswer = await askOnniGemini({
+        const { answer: aiAnswer, error: aiError } = await askOnniGemini({
           message: trimmed,
           contextPath: location.pathname,
         });
         const finalAnswer =
           aiAnswer ??
-          "No pude conectar con ChatGPT. Revisa internet o configura OPENAI_API_KEY en Vercel.";
+          aiError ??
+          "No pude conectar con Gemini. Revisa internet o configura GEMINI_API_KEY en Vercel (Production).";
         appendAssistantAnswer(setMessages, sessionRef, finalAnswer, speakAnswer, {
           fromOpenAi: Boolean(aiAnswer),
         });

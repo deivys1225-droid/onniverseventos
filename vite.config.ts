@@ -31,6 +31,8 @@ function paypalSdkHeadPlugin(mode: string, env: Record<string, string>): Plugin 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const devChatEnv: Record<string, string> = {
+    GEMINI_API_KEY: env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || "",
+    GEMINI_MODEL: env.GEMINI_MODEL || env.VITE_GEMINI_MODEL || "",
     OPENAI_API_KEY: env.OPENAI_API_KEY || env.VITE_OPENAI_API_KEY || "",
     OPENAI_MODEL: env.OPENAI_MODEL || env.VITE_OPENAI_MODEL || "",
     OLLAMA_ENABLED: env.OLLAMA_ENABLED || env.VITE_OLLAMA_ENABLED || "",

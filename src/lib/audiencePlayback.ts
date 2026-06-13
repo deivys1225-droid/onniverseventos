@@ -8,9 +8,37 @@ export { muxPlaybackIdFromHlsUrl, sanitizeMuxPlaybackId };
 export function isStreamPlaybackUrl(value: string | null | undefined): boolean {
   const t = (value ?? "").trim();
   if (!t) return false;
+  if (t.startsWith("youtube:")) return true;
   if (/^https?:\/\//i.test(t)) return true;
   if (/^rtmps?:\/\//i.test(t)) return true;
   return false;
+}
+
+/** Extrae el id de video de una URL de YouTube o del prefijo `youtube:ID`. */
+export function youtubeVideoIdFromUrl(value: string | null | undefined): string | null {
+  const t = (value ?? "").trim();
+  if (!t) return null;
+  if (t.startsWith("youtube:")) {
+    const id = t.slice("youtube:".length).trim();
+    return id || null;
+  }
+  try {
+    const url = new URL(t);
+    if (url.hostname.includes("youtu.be")) {
+      return url.pathname.replace(/^\//, "").split("/")[0] || null;
+    }
+    if (url.hostname.includes("youtube.com")) {
+      return (
+        url.searchParams.get("v") ||
+        url.pathname.match(/\/embed\/([^/?]+)/)?.[1] ||
+        url.pathname.match(/\/shorts\/([^/?]+)/)?.[1] ||
+        null
+      );
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 export type ActiveStreamPlaybackSource = {

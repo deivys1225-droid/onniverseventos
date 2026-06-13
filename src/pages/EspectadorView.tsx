@@ -13,12 +13,14 @@ import {
   muxPlaybackIdToHlsUrl,
   resolveLiveTransmissionUrl,
   resolvePlaybackIdFromActiveStreamRow,
+  youtubeVideoIdFromUrl,
 } from "@/lib/audiencePlayback";
 import { muxPlaybackIdFromHlsUrl, sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import type { ActiveStreamRow } from "@/lib/salaRoomCards";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import YouTubePlayer from "@/components/YouTubePlayer";
 
 /** `al-universo-{id}` → id de podcast si existe en el directorio (escena inmersiva). */
 function podcastIdFromChannel(channelName: string): string | null {
@@ -50,6 +52,7 @@ const EspectadorView = () => {
   const channelName = useMemo(() => (channel?.trim() ? decodeURIComponent(channel) : buildAgoraChannel("main")), [channel]);
   const roomTitle = (searchParams.get("title") ?? "Sala en vivo").trim();
   const fallbackMp4 = (searchParams.get("mp4") ?? "").trim();
+  const vodYoutubeId = useMemo(() => youtubeVideoIdFromUrl(fallbackMp4), [fallbackMp4]);
   const streamPlaybackUrl = (searchParams.get("stream") ?? "").trim();
   const playbackIdParam = (searchParams.get("playbackId") ?? searchParams.get("playback_id") ?? "").trim();
   const sessionStreamUrl = useMemo(() => {
@@ -241,13 +244,17 @@ const EspectadorView = () => {
           <div className="rounded-2xl border border-cyan-300/35 bg-card/35 p-2 shadow-[0_0_50px_-18px_rgba(34,211,238,0.9)] backdrop-blur-xl md:p-3">
             <div ref={playerRootRef} className="w-full">
               {useVodMode ? (
-                <video
-                  src={fallbackMp4}
-                  autoPlay
-                  controls
-                  playsInline
-                  className="aspect-video w-full overflow-hidden rounded-xl border border-cyan-300/45 bg-black shadow-[0_0_48px_-10px_rgba(34,211,238,0.95)]"
-                />
+                vodYoutubeId ? (
+                  <YouTubePlayer videoId={vodYoutubeId} title={roomTitle} />
+                ) : (
+                  <video
+                    src={fallbackMp4}
+                    autoPlay
+                    controls
+                    playsInline
+                    className="aspect-video w-full overflow-hidden rounded-xl border border-cyan-300/45 bg-black shadow-[0_0_48px_-10px_rgba(34,211,238,0.95)]"
+                  />
+                )
               ) : loadingPlayback ? (
                 <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-cyan-300/45 bg-black text-sm text-muted-foreground">
                   Cargando transmisión Mux…
@@ -274,7 +281,7 @@ const EspectadorView = () => {
             </div>
             <div className="mt-3 flex items-center justify-between gap-2">
               <p className="text-xs text-cyan-100">
-                {roomTitle} · {useVodMode ? "MP4" : "Mux en vivo"} · {channelName}
+                {roomTitle} · {useVodMode ? (vodYoutubeId ? "YouTube" : "MP4") : "Mux en vivo"} · {channelName}
               </p>
               <Button type="button" variant="outline" onClick={() => navigate("/nuestras-salas")}>
                 Salir de la Sala

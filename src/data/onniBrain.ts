@@ -85,9 +85,9 @@ export const ONNI_FAQ: FaqEntry[] = [
     answer: `Para soporte humano: página Contacto en la app o escribe a ${ONNI_SUPPORT_EMAIL}. Yo te guío con lo básico; lo complejo lo ve el equipo.`,
   },
   {
-    id: "chatgpt-ia",
+    id: "gemini-ia",
     patterns: [/\b(gemini|chatgpt|openai|ia externa)\b/],
-    answer: "Sí, uso ChatGPT (OpenAI) para responder cuando no basta con las reglas de OnniVerso.",
+    answer: "Sí, uso Google Gemini para responder cuando no basta con las reglas de OnniVerso.",
   },
   {
     id: "favorito",

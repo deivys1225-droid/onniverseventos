@@ -1,8 +1,8 @@
 /**
  * POST /api/onni/chat
  * Body: { message: string, contextPath?: string }
- * Orden: OpenAI (ChatGPT). Opcional Ollama en local.
- * Secrets en Vercel: OPENAI_API_KEY
+ * Orden: Google Gemini. Respaldo OpenAI opcional. Ollama en local.
+ * Secrets en Vercel: GEMINI_API_KEY
  */
 
 import { runOnniChat } from "./chatCore.js";

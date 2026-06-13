@@ -187,7 +187,7 @@ export const podcastStreamers: StreamerProfile[] = [
   },
   {
     id: "alofoke",
-    name: "Alofoke",
+    name: "Luister La Voz",
     avatar: "/alofoke-avatar.png",
     immersiveSalaName: "República Dominicana",
     panoramaImage:
