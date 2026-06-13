@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="YouTube">
+  <defs>
+    <linearGradient id="yt-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0f0f" />
+      <stop offset="100%" stop-color="#272727" />
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#yt-bg)" />
+  <g transform="translate(320 180)">
+    <path
+      fill="#FF0000"
+      d="M88-31.5c-1.2-4.5-4.7-8-9.2-9.2C72.5-42.5 48-42.5 48-42.5s-24.5 0-30.8 1.8c-4.5 1.2-8 4.7-9.2 9.2C6.5-25.2 6 0 6 0s-.5 25.2 1.8 31.5c1.2 4.5 4.7 8 9.2 9.2 6.3 1.8 30.8 1.8 30.8 1.8s24.5 0 30.8-1.8c4.5-1.2 8-4.7 9.2-9.2C89.5 25.2 90 0 90 0s-.5-25.2-1.8-31.5z"
+      transform="translate(-48 0) scale(2.2)"
+    />
+    <path fill="#FFFFFF" d="M38-11v22l19-11z" transform="translate(-48 0) scale(2.2)" />
+  </g>
+</svg>

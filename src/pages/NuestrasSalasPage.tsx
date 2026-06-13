@@ -23,6 +23,7 @@ import { buildAgoraChannel } from "@/lib/agoraRooms";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { SALA_MP4_URL_BY_ID } from "@/data/salaVideoUrls";
+import { resolveSalaVodPlaybackUrl, isSalaYoutubeVod } from "@/lib/audiencePlayback";
 import { useSalaChoiceModal } from "@/hooks/useSalaChoiceModal";
 import { useLiveStreamChoiceModal } from "@/hooks/useLiveStreamChoiceModal";
 import {
@@ -127,6 +128,18 @@ const NuestrasSalasPage = () => {
       mp4Url: SALA_MP4_URL_BY_ID[streamer.id],
     }));
     return [...userConciertoRooms, ...shuffleArray([
+      {
+        id: "youtube-home",
+        name: "YouTube",
+        image: "/youtube-sala-card.svg",
+        subtitle: "Videos",
+        description: "Portal principal de YouTube",
+        status: "En Vivo",
+        channel: buildAgoraChannel("youtube-home"),
+        isPremium: false,
+        priceUsd: 0,
+        mp4Url: SALA_MP4_URL_BY_ID["youtube-home"],
+      },
       ...streamerRooms,
       {
         id: "hablando-huevadas",
@@ -209,7 +222,9 @@ const NuestrasSalasPage = () => {
       const params = new URLSearchParams();
       const resolvedStreamUrl = [playbackUrlCandidate, streamUrlCandidate].find((value) => isStreamPlaybackUrl(value)) ?? "";
 
-      if (room.mp4Url) params.set("mp4", room.mp4Url);
+      if (room.mp4Url) {
+        params.set("mp4", resolveSalaVodPlaybackUrl(room.mp4Url) ?? room.mp4Url);
+      }
       params.set("title", resolvedTitle);
       params.set("mode", room.mp4Url && !activeStream?.is_live ? "vod" : "live");
       if (resolvedToken) params.set("token", resolvedToken);

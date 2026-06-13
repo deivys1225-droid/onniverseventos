@@ -13,7 +13,8 @@ import {
   muxPlaybackIdToHlsUrl,
   resolveLiveTransmissionUrl,
   resolvePlaybackIdFromActiveStreamRow,
-  youtubeVideoIdFromUrl,
+  resolveSalaVodPlaybackUrl,
+  isSalaYoutubeVod,
 } from "@/lib/audiencePlayback";
 import { muxPlaybackIdFromHlsUrl, sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
@@ -52,7 +53,8 @@ const EspectadorView = () => {
   const channelName = useMemo(() => (channel?.trim() ? decodeURIComponent(channel) : buildAgoraChannel("main")), [channel]);
   const roomTitle = (searchParams.get("title") ?? "Sala en vivo").trim();
   const fallbackMp4 = (searchParams.get("mp4") ?? "").trim();
-  const vodYoutubeId = useMemo(() => youtubeVideoIdFromUrl(fallbackMp4), [fallbackMp4]);
+  const vodPlaybackUrl = useMemo(() => resolveSalaVodPlaybackUrl(fallbackMp4), [fallbackMp4]);
+  const vodIsYoutube = useMemo(() => isSalaYoutubeVod(fallbackMp4), [fallbackMp4]);
   const streamPlaybackUrl = (searchParams.get("stream") ?? "").trim();
   const playbackIdParam = (searchParams.get("playbackId") ?? searchParams.get("playback_id") ?? "").trim();
   const sessionStreamUrl = useMemo(() => {
@@ -244,8 +246,8 @@ const EspectadorView = () => {
           <div className="rounded-2xl border border-cyan-300/35 bg-card/35 p-2 shadow-[0_0_50px_-18px_rgba(34,211,238,0.9)] backdrop-blur-xl md:p-3">
             <div ref={playerRootRef} className="w-full">
               {useVodMode ? (
-                vodYoutubeId ? (
-                  <YouTubePlayer videoId={vodYoutubeId} title={roomTitle} />
+                vodIsYoutube && vodPlaybackUrl ? (
+                  <YouTubePlayer embedUrl={vodPlaybackUrl} title={roomTitle} variant="cinema" />
                 ) : (
                   <video
                     src={fallbackMp4}
@@ -281,7 +283,7 @@ const EspectadorView = () => {
             </div>
             <div className="mt-3 flex items-center justify-between gap-2">
               <p className="text-xs text-cyan-100">
-                {roomTitle} · {useVodMode ? (vodYoutubeId ? "YouTube" : "MP4") : "Mux en vivo"} · {channelName}
+                {roomTitle} · {useVodMode ? (vodIsYoutube ? "YouTube" : "MP4") : "Mux en vivo"} · {channelName}
               </p>
               <Button type="button" variant="outline" onClick={() => navigate("/nuestras-salas")}>
                 Salir de la Sala

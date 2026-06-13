@@ -1,4 +1,5 @@
 import { muxPlaybackIdFromHlsUrl, sanitizeMuxPlaybackId } from "@/lib/muxPlaybackId";
+import { coliseoBrowserFrameSrc } from "@/data/coliseoScene";
 
 export { muxPlaybackIdFromHlsUrl, sanitizeMuxPlaybackId };
 
@@ -39,6 +40,63 @@ export function youtubeVideoIdFromUrl(value: string | null | undefined): string 
     return null;
   }
   return null;
+}
+
+/** URL de insertar (embed) limpia: sin página de YouTube, comentarios ni sugerencias laterales. */
+export function youtubeEmbedUrlFromUrl(
+  value: string | null | undefined,
+  origin?: string,
+): string | null {
+  const videoId = youtubeVideoIdFromUrl(value);
+  if (!videoId) return null;
+
+  const params = new URLSearchParams({
+    autoplay: "1",
+    rel: "0",
+    modestbranding: "1",
+    playsinline: "1",
+    iv_load_policy: "3",
+    fs: "1",
+    controls: "1",
+    cc_load_policy: "0",
+  });
+  const resolvedOrigin = origin ?? (typeof window !== "undefined" ? window.location.origin : "");
+  if (resolvedOrigin) params.set("origin", resolvedOrigin);
+
+  return `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
+}
+
+export function isYoutubePlaybackUrl(value: string | null | undefined): boolean {
+  return youtubeVideoIdFromUrl(value) !== null;
+}
+
+/** Página principal de YouTube (sin id de video). */
+export function isYoutubeHomeUrl(value: string | null | undefined): boolean {
+  const t = (value ?? "").trim();
+  if (!t) return false;
+  try {
+    const url = new URL(t);
+    const host = url.hostname.replace(/^www\./i, "");
+    if (host !== "youtube.com" && host !== "m.youtube.com") return false;
+    const path = url.pathname.replace(/\/$/, "") || "/";
+    return path === "/" && !url.searchParams.get("v");
+  } catch {
+    return false;
+  }
+}
+
+/** MP4, embed de video o shell limpio para la home de YouTube. */
+export function resolveSalaVodPlaybackUrl(value: string | null | undefined): string | null {
+  const t = (value ?? "").trim();
+  if (!t) return null;
+  if (isYoutubeHomeUrl(t)) return coliseoBrowserFrameSrc(t);
+  const embed = youtubeEmbedUrlFromUrl(t);
+  if (embed) return embed;
+  return t;
+}
+
+export function isSalaYoutubeVod(value: string | null | undefined): boolean {
+  return isYoutubeHomeUrl(value) || isYoutubePlaybackUrl(value);
 }
 
 export type ActiveStreamPlaybackSource = {

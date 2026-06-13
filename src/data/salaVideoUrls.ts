@@ -1,5 +1,5 @@
 /**
- * MP4 de Cloudinary por id de sala (perfil podcast o ruta teatro).
+ * MP4 de Cloudinary o embed de YouTube (`youtube.com/embed/ID`) por id de sala.
  * Único origen para Nuestras Salas y deep links de reproducción.
  */
 export const SALA_MP4_URL_BY_ID: Record<string, string> = {
@@ -9,7 +9,8 @@ export const SALA_MP4_URL_BY_ID: Record<string, string> = {
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777748643/Silvestre_hxjmdi.mp4",
   "westcol":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777751404/AS%C3%8D_QUED%C3%93_MI_G_WAGON_REFORMADA_LUJOSA_EN_MEDELL%C3%8DN___WESTCOL_gucqxx.mp4",
-  alofoke: "https://www.youtube.com/watch?v=0fYv-4zMvkU",
+  alofoke: "https://www.youtube.com/embed/0fYv-4zMvkU",
+  "youtube-home": "https://www.youtube.com/",
   "anuel-aa":
     "https://res.cloudinary.com/dfsabdxup/video/upload/v1777751466/Anuel_en_vivo_que_nos_pas%C3%B3_mujrd0.mp4",
   "santa-fe-klan":
