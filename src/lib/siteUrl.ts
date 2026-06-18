@@ -1,14 +1,16 @@
 import {
   PRODUCTION_SITE_URL,
   isLocalDevHost,
-  isProductionWebHost,
+  isSharedSupabaseWebHost,
 } from "@/config/productionSite";
 
 /**
- * URL canónica del sitio para enlaces de Supabase Auth (confirmación de correo, recuperación).
- * Debe coincidir con Auth → URL Configuration en el dashboard (Site URL + Redirect URLs).
+ * URL del sitio donde está el usuario (para OAuth redirectTo, emails, etc.).
+ * En navegador usa el origen actual (onnivers.com u onnivers.online).
+ * En build SSR/Vercel usa VITE_SITE_URL (p. ej. https://onnivers.online).
  *
- * Producción: define `VITE_SITE_URL=https://onnivers.online` en el entorno de build (Vercel).
+ * Supabase Site URL en el dashboard sigue siendo https://onnivers.com;
+ * onnivers.online solo necesita estar en Redirect URLs.
  */
 function normalizeUrl(raw: string): string {
   const t = raw.trim().replace(/\/+$/, "");
@@ -20,7 +22,7 @@ function normalizeUrl(raw: string): string {
 function siteUrlFromBrowser(): string | null {
   if (typeof window === "undefined") return null;
   const host = window.location.hostname.toLowerCase();
-  if (isProductionWebHost(host) || isLocalDevHost(host)) {
+  if (isSharedSupabaseWebHost(host) || isLocalDevHost(host)) {
     return window.location.origin;
   }
   return null;

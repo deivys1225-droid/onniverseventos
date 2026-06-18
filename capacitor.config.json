@@ -5,6 +5,8 @@
   "server": {
     "androidScheme": "https",
     "allowNavigation": [
+      "onnivers.com",
+      "www.onnivers.com",
       "onnivers.online",
       "www.onnivers.online",
       "supabase.co",

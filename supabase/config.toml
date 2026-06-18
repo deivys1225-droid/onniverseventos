@@ -3,16 +3,26 @@ project_id = "rwyhakcsvdbsavignogh"
 
 [auth]
 enabled = true
-# URL principal del sitio (emails, OAuth redirect). Dominio activo: onnivers.online
-site_url = "https://onnivers.online"
-# URLs exactas permitidas tras login OAuth / magic link (debe coincidir con getOAuthRedirectUrl)
+# Site URL = plataforma original (NO cambiar en dashboard si compartís la misma BD).
+site_url = "https://onnivers.com"
+# Redirect URLs: original + onnivers.online (misma base de datos, dos frontends).
 additional_redirect_urls = [
+  "https://onnivers.com",
+  "https://onnivers.com/",
+  "https://onnivers.com/entrar",
+  "https://onnivers.com/actualizar-contrasena",
+  "https://www.onnivers.com",
+  "https://www.onnivers.com/",
+  "https://www.onnivers.com/entrar",
+  "https://www.onnivers.com/actualizar-contrasena",
   "https://onnivers.online",
   "https://onnivers.online/",
   "https://onnivers.online/entrar",
+  "https://onnivers.online/actualizar-contrasena",
   "https://www.onnivers.online",
   "https://www.onnivers.online/",
   "https://www.onnivers.online/entrar",
+  "https://www.onnivers.online/actualizar-contrasena",
   "http://localhost:5173",
   "http://localhost:5173/",
   "http://localhost:5173/entrar",

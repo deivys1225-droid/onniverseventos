@@ -1,4 +1,4 @@
-import { isProductionWebHost } from "@/config/productionSite";
+import { isProductionWebHost, isSharedSupabaseWebHost } from "@/config/productionSite";
 import { supabase } from "@/integrations/supabase/client";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import type { RoomCard } from "@/lib/salaRoomCards";
@@ -73,11 +73,11 @@ export function isConciertoLiveTestMode(): boolean {
   if (import.meta.env.VITE_CONCIERTO_LIVE_DEV_ACCESS === "true") return true;
   if (import.meta.env.DEV) return true;
   const site = (import.meta.env.VITE_SITE_URL ?? "").toLowerCase();
-  if (site.includes("onnivers.online")) return true;
+  if (site.includes("onnivers.online") || site.includes("onnivers.com")) return true;
   if (typeof window !== "undefined") {
     const host = window.location.hostname.toLowerCase();
     if (host === "localhost" || host === "127.0.0.1") return true;
-    if (isProductionWebHost(host)) return true;
+    if (isProductionWebHost(host) || isSharedSupabaseWebHost(host)) return true;
   }
   return false;
 }

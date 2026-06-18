@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { App as CapacitorApp } from "@capacitor/app";
-import { isAllowedWebDeepLinkHost } from "@/config/productionSite";
+import { isProductionWebHost, isSharedSupabaseWebHost } from "@/config/productionSite";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -120,7 +120,7 @@ function AppRoot() {
           if (!inner) return null;
           try {
             const innerUrl = new URL(inner);
-            if (innerUrl.protocol === "https:" && isAllowedWebDeepLinkHost(innerUrl.hostname)) {
+            if (innerUrl.protocol === "https:" && isSharedSupabaseWebHost(innerUrl.hostname)) {
               return `${innerUrl.pathname}${innerUrl.search}${innerUrl.hash}`;
             }
           } catch {

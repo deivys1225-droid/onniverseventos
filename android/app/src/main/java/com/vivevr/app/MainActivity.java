@@ -1481,6 +1481,8 @@ public class MainActivity extends BridgeActivity {
     if (!"https".equals(scheme)) return false;
     if ("aluniverso.com".equals(host)
         || "www.aluniverso.com".equals(host)
+        || "onnivers.com".equals(host)
+        || "www.onnivers.com".equals(host)
         || "onnivers.online".equals(host)
         || "www.onnivers.online".equals(host)) {
       return path.startsWith("/sala/espectador/");
