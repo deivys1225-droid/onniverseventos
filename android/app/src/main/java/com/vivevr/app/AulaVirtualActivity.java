@@ -19,7 +19,7 @@ import com.google.android.material.button.MaterialButton;
  */
 public class AulaVirtualActivity extends AppCompatActivity {
 
-  public static final String AULA_VIRTUAL_URL = "https://onnivers.com/aula-virtual";
+  public static final String AULA_VIRTUAL_URL = "https://onnivers.online/aula-virtual";
 
   private StereoContainer stereoContainer;
   private WebView webView;

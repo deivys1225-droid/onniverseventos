@@ -10,7 +10,7 @@ export type HomeSocialIconId =
   | "mercadolibre"
   | "whatsapp";
 
-const ONNIVERS_SITE_URL = "https://onnivers.com/";
+const ONNIVERS_SITE_URL = "https://onnivers.online/";
 const LEGACY_ONNIVERS_LOBBY_PATH = "/";
 const PLUTO_TV_URL = "https://pluto.tv/es/live-tv";
 

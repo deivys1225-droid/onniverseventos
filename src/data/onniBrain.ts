@@ -4,7 +4,7 @@ import { APP_APK_DOWNLOAD_URL } from "@/config/appDownload";
 
 export const ONNI_APK_URL = APP_APK_DOWNLOAD_URL;
 
-export const ONNI_SUPPORT_EMAIL = "gerencia@onniverso.com";
+export const ONNI_SUPPORT_EMAIL = "gerencia@onnivers.online";
 
 export const ONNI_FAVORITE_STORAGE_KEY = "onniverso.onni.favoriteStreamerId";
 

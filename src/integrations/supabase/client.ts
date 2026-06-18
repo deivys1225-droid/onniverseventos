@@ -4,7 +4,7 @@ import type { Database } from "./types";
 /**
  * URL y clave publishable del proyecto (públicas en el navegador).
  * Sobrescribe con `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` en `.env`.
- * Para enlaces de correo (confirmación / recuperación), define también `VITE_SITE_URL` (p. ej. https://onniverso.com).
+ * Para enlaces de correo (confirmación / recuperación), define también `VITE_SITE_URL` (p. ej. https://onnivers.online).
  */
 const PROJECT_DEFAULT_URL = "https://rwyhakcsvdbsavignogh.supabase.co";
 const PROJECT_DEFAULT_PUBLISHABLE_KEY =

@@ -65,7 +65,7 @@ export default defineConfig(({ mode }) => {
         ws: true,
       },
       "/api/azure": {
-        target: "https://onnivers.com",
+        target: "https://onnivers.online",
         changeOrigin: true,
       },
     },

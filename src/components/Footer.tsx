@@ -14,7 +14,7 @@ const legalLinkClass =
   "font-medium text-primary underline-offset-4 transition-colors hover:text-primary hover:underline";
 
 const MAIL_SUPPORT =
-  "mailto:gerencia@onniverso.com?subject=Soporte%20T%C3%A9cnico%20OnniVers";
+  "mailto:gerencia@onnivers.online?subject=Soporte%20T%C3%A9cnico%20OnniVers";
 
 const Footer = () => {
   return (
@@ -70,7 +70,7 @@ const Footer = () => {
               <a
                 href={MAIL_SUPPORT}
                 className={socialFooterIconClass}
-                aria-label="Soporte técnico — escribir a gerencia@onniverso.com"
+                aria-label="Soporte técnico — escribir a gerencia@onnivers.online"
                 title="Soporte Técnico"
               >
                 <Headphones className="h-[18px] w-[18px] shrink-0" aria-hidden />

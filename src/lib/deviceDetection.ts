@@ -26,7 +26,7 @@ export function isAndroidNativeApp(): boolean {
 
 /**
  * ViveVR / WebView OnniVers con puente de voz nativo (APK en celular).
- * Incluye Capacitor y WebView que carga onnivers.com con AndroidBridge.
+ * Incluye Capacitor y WebView que carga onnivers.online con AndroidBridge.
  */
 export function isOnniAndroidVoice(): boolean {
   if (typeof window === "undefined") return false;

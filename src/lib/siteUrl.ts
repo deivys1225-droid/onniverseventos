@@ -1,15 +1,18 @@
+import {
+  PRODUCTION_SITE_URL,
+  isLocalDevHost,
+  isProductionWebHost,
+} from "@/config/productionSite";
+
 /**
  * URL canónica del sitio para enlaces de Supabase Auth (confirmación de correo, recuperación).
  * Debe coincidir con Auth → URL Configuration en el dashboard (Site URL + Redirect URLs).
  *
- * Producción: define `VITE_SITE_URL=https://onnivers.com` en el entorno de build (Vercel).
- * En desarrollo local, si no hay env, se usa `window.location.origin`.
+ * Producción: define `VITE_SITE_URL=https://onnivers.online` en el entorno de build (Vercel).
  */
-const PRODUCTION_SITE = "https://onnivers.com";
-
 function normalizeUrl(raw: string): string {
   const t = raw.trim().replace(/\/+$/, "");
-  if (!t) return PRODUCTION_SITE;
+  if (!t) return PRODUCTION_SITE_URL;
   if (/^https?:\/\//i.test(t)) return t;
   return `https://${t.replace(/^\/+/, "")}`;
 }
@@ -17,12 +20,7 @@ function normalizeUrl(raw: string): string {
 function siteUrlFromBrowser(): string | null {
   if (typeof window === "undefined") return null;
   const host = window.location.hostname.toLowerCase();
-  if (
-    host === "onnivers.com" ||
-    host === "www.onnivers.com" ||
-    host === "localhost" ||
-    host === "127.0.0.1"
-  ) {
+  if (isProductionWebHost(host) || isLocalDevHost(host)) {
     return window.location.origin;
   }
   return null;
@@ -36,5 +34,5 @@ export function getSiteUrl(): string {
   if (fromEnv?.trim()) {
     return normalizeUrl(fromEnv);
   }
-  return PRODUCTION_SITE;
+  return PRODUCTION_SITE_URL;
 }

@@ -65,7 +65,7 @@ public class MainActivity extends BridgeActivity {
    * Capacitor sirve la app desde {@code https://localhost/} (assets/public/) para que
    * la app abra sin internet.
    */
-  private static final String INITIAL_WEB_URL = "https://onnivers.com";
+  private static final String INITIAL_WEB_URL = "https://onnivers.online";
   /**
    * Lobby inmersivo local — apunta a la copia empaquetada en assets/public/. Capacitor
    * con androidScheme="https" sirve la app desde localhost; el path lo maneja React
@@ -432,7 +432,7 @@ public class MainActivity extends BridgeActivity {
     settings.setMediaPlaybackRequiresUserGesture(false);
     // OFFLINE-FIRST: NO forzar carga de la URL remota al boot. super.load() arriba ya cargó
     // el index.html local desde assets/public/ vía Capacitor. La línea anterior
-    // (webView.loadUrl("https://onnivers.com")) hacía que la app dependiera de internet en
+    // (webView.loadUrl("https://onnivers.online")) hacía que la app dependiera de internet en
     // cada arranque y mostrara ERR_INTERNET_DISCONNECTED sin red.
 
     webView.addJavascriptInterface(new AudienceSceneBridge(this, bridge), "AndroidScene");
@@ -1481,8 +1481,8 @@ public class MainActivity extends BridgeActivity {
     if (!"https".equals(scheme)) return false;
     if ("aluniverso.com".equals(host)
         || "www.aluniverso.com".equals(host)
-        || "onnivers.com".equals(host)
-        || "www.onnivers.com".equals(host)) {
+        || "onnivers.online".equals(host)
+        || "www.onnivers.online".equals(host)) {
       return path.startsWith("/sala/espectador/");
     }
     return path.endsWith(".mp4");

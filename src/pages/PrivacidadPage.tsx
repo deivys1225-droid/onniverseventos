@@ -76,7 +76,7 @@ const PrivacidadPage = () => {
         <p>
           Puede ejercer derechos de consulta, rectificación, actualización o supresión cuando corresponda, y enviar
           solicitudes o reclamos a{" "}
-          <a href="mailto:gerencia@onniverso.com">gerencia@onniverso.com</a> o{" "}
+          <a href="mailto:gerencia@onnivers.online">gerencia@onnivers.online</a> o{" "}
           <a href="mailto:empresatecnologicadecolombia@gmail.com">empresatecnologicadecolombia@gmail.com</a>. Teléfonos y
           WhatsApp: <strong className="tabular-nums">01 8000 210 21054</strong>,{" "}
           <strong className="tabular-nums">(601) 570 7476</strong>, WhatsApp{" "}

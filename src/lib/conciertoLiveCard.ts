@@ -1,3 +1,4 @@
+import { isProductionWebHost } from "@/config/productionSite";
 import { supabase } from "@/integrations/supabase/client";
 import { buildAgoraChannel } from "@/lib/agoraRooms";
 import type { RoomCard } from "@/lib/salaRoomCards";
@@ -64,7 +65,7 @@ export const CONCIERTO_EMIT_DRAFT_SESSION_KEY = "onniverso.conciertos-live.emit-
 export type ConciertoEmitDraft = ConciertoLiveCardConfig & { userId: string };
 
 /**
- * Modo prueba (emitir/publicar sin pago). En el navegador también detecta onnivers.com
+ * Modo prueba (emitir/publicar sin pago). En el navegador también detecta onnivers.online
  * aunque el build no traiga VITE_SITE_URL correcto.
  */
 export function isConciertoLiveTestMode(): boolean {
@@ -72,11 +73,11 @@ export function isConciertoLiveTestMode(): boolean {
   if (import.meta.env.VITE_CONCIERTO_LIVE_DEV_ACCESS === "true") return true;
   if (import.meta.env.DEV) return true;
   const site = (import.meta.env.VITE_SITE_URL ?? "").toLowerCase();
-  if (site.includes("onnivers.com")) return true;
+  if (site.includes("onnivers.online")) return true;
   if (typeof window !== "undefined") {
     const host = window.location.hostname.toLowerCase();
     if (host === "localhost" || host === "127.0.0.1") return true;
-    if (host === "onnivers.com" || host.endsWith(".onnivers.com")) return true;
+    if (isProductionWebHost(host)) return true;
   }
   return false;
 }

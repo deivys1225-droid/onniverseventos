@@ -291,7 +291,7 @@ const ConciertosLiveConfigPage = () => {
 
           {isConciertoLiveTestMode() && (
             <p className="mb-4 rounded-lg border border-emerald-400/35 bg-emerald-500/10 px-4 py-2 text-center text-xs text-emerald-100">
-              Modo prueba activo: premium, publicar y emitir live habilitados en onnivers.com.
+              Modo prueba activo: premium, publicar y emitir live habilitados en onnivers.online.
             </p>
           )}
 

@@ -10,10 +10,10 @@ const ORG_JSON_LD = {
   "@type": "Organization",
   name: "OnniVers",
   legalName: "Empresa Tecnológica de Colombia S.A.S.",
-  url: "https://onniverso.com",
+  url: "https://onnivers.online",
   taxID: "901.083.478-0",
   foundingDate: "2017",
-  email: "gerencia@onniverso.com",
+  email: "gerencia@onnivers.online",
   founder: {
     "@type": "Person",
     name: "Davis Herrera",
@@ -90,8 +90,8 @@ const QuienesSomosPage = () => {
         <h2>Contacto corporativo</h2>
         <p>
           Correo gerencia:{" "}
-          <a href="mailto:gerencia@onniverso.com" className="text-primary underline-offset-2 hover:underline">
-            gerencia@onniverso.com
+          <a href="mailto:gerencia@onnivers.online" className="text-primary underline-offset-2 hover:underline">
+            gerencia@onnivers.online
           </a>
           <br />
           Correo alternativo:{" "}

@@ -65,8 +65,8 @@ const ContactoPage = () => {
         <ul className="space-y-3 text-sm">
           <li className="flex items-start gap-3">
             <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-            <a href="mailto:gerencia@onniverso.com" className="break-all text-primary underline-offset-2 hover:underline">
-              gerencia@onniverso.com
+            <a href="mailto:gerencia@onnivers.online" className="break-all text-primary underline-offset-2 hover:underline">
+              gerencia@onnivers.online
             </a>
           </li>
           <li className="flex items-start gap-3">

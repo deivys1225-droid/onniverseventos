@@ -6,8 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>OnniVers · Tu Realidad Evolucionada</title>
   <meta name="description" content="OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.">
-  <!-- Offline-first: solo recursos locales en el boot. Los meta tags de SEO (canonical, og:url, og:image, twitter:image, JSON-LD)
-       se inyectan en runtime SOLO para el host web (Vercel/onniverso.com), no para el WebView de Capacitor. -->
+  <!-- SEO base en <head> para crawlers sin JS. El script inferior refina canonical/JSON-LD por host. -->
   <link rel="icon" type="image/png" sizes="32x32" href="/imagenes/favicon.png?v=20260527">
   <link rel="shortcut icon" href="/imagenes/favicon.png?v=20260527">
   <link rel="apple-touch-icon" href="/imagenes/favicon.png?v=20260527">
@@ -19,6 +18,9 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="OnniVers · Tu Realidad Evolucionada">
   <meta name="twitter:description" content="OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <link rel="canonical" href="https://onnivers.online/">
+  <meta property="og:url" content="https://onnivers.online/">
 </head>
 
 <body>
@@ -63,24 +65,42 @@
     (function injectSeoForWebHost(){
       try {
         var host = (window.location && window.location.hostname || "").toLowerCase();
-        if (host !== "onniverso.com" && host !== "www.onniverso.com") return;
-        var canonical = document.createElement("link");
-        canonical.rel = "canonical";
-        canonical.href = "https://onniverso.com/";
-        document.head.appendChild(canonical);
-        var ogUrl = document.createElement("meta");
-        ogUrl.setAttribute("property", "og:url");
-        ogUrl.content = "https://onniverso.com/";
-        document.head.appendChild(ogUrl);
-        var robots = document.createElement("meta");
-        robots.name = "robots";
-        robots.content = "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
-        document.head.appendChild(robots);
+        var isProductionWeb =
+          host === "onnivers.online" || host === "www.onnivers.online";
+        if (!isProductionWeb) return;
+        var siteOrigin = "https://onnivers.online";
+        var canonical = document.querySelector('link[rel="canonical"]');
+        if (canonical) canonical.setAttribute("href", siteOrigin + "/");
+        else {
+          var link = document.createElement("link");
+          link.rel = "canonical";
+          link.href = siteOrigin + "/";
+          document.head.appendChild(link);
+        }
+        var ogUrl = document.querySelector('meta[property="og:url"]');
+        if (ogUrl) ogUrl.setAttribute("content", siteOrigin + "/");
+        else {
+          var meta = document.createElement("meta");
+          meta.setAttribute("property", "og:url");
+          meta.content = siteOrigin + "/";
+          document.head.appendChild(meta);
+        }
+        var robots = document.querySelector('meta[name="robots"]');
+        if (robots) {
+          robots.setAttribute("content", "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1");
+        } else {
+          var robotsMeta = document.createElement("meta");
+          robotsMeta.name = "robots";
+          robotsMeta.content = "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
+          document.head.appendChild(robotsMeta);
+        }
+        if (document.getElementById("schema-org-website")) return;
         var ld = document.createElement("script");
         ld.type = "application/ld+json";
-        ld.textContent = '{"@context":"https://schema.org","@type":"WebSite","name":"OnniVers","url":"https://onniverso.com/","description":"OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.","inLanguage":"es"}';
+        ld.id = "schema-org-website";
+        ld.textContent = '{"@context":"https://schema.org","@type":"WebSite","name":"OnniVers","url":"' + siteOrigin + '/","description":"OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.","inLanguage":"es"}';
         document.head.appendChild(ld);
-      } catch (_) { /* offline / restricted host: no SEO injection */ }
+      } catch (_) { /* offline / restricted host */ }
     })();
   </script>
 </body>

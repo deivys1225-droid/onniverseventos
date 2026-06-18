@@ -27,7 +27,7 @@ import org.json.JSONObject;
  */
 public class ColiceoActivity extends AppCompatActivity {
 
-  public static final String COLOSSEO_PAGE_URL = "https://onnivers.com/coliseo";
+  public static final String COLOSSEO_PAGE_URL = "https://onnivers.online/coliseo";
 
   private static final String COLOSSEO_BROWSER_DEFAULT_URL = "https://www.youtube.com/";
   private static final String COLOSSEO_BROWSER_DESKTOP_UA =

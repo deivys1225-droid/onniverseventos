@@ -15,7 +15,7 @@ new_inner = """{kind === "hub" ? (
               src={embedUrl ?? LOBBY_WEB_EMBED_URL}
               width={embedWidth}
               height={embedHeight}
-              title="onnivers.com — Nuestras salas"
+              title="onnivers.online — Nuestras salas"
               allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
               style={{
@@ -126,12 +126,12 @@ if old_holo not in text:
     raise SystemExit("HoloScreens not found")
 text = text.replace(old_holo, new_holo, 1)
 
-start = text.index("/** Iframe fijo a onnivers.com")
+start = text.index("/** Iframe fijo a onnivers.online")
 end = text.index("// ---------- Modern lounge set", start)
 text = text[:start] + text[end:]
 
 for s in [
-    'const CENTER_SCREEN_EMBED_URL = "https://onnivers.com/nuestras-salas";\n',
+    'const CENTER_SCREEN_EMBED_URL = "https://onnivers.online/nuestras-salas";\n',
     "/** Tamaño grande del panel Nuestras Salas (antes flotaba en el centro). */\n",
     "const NUESTRAS_SALAS_EMBED_WIDTH = 1024;\n",
     "const NUESTRAS_SALAS_EMBED_HEIGHT = 576;\n",

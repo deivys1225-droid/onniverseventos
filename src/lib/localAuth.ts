@@ -2,7 +2,7 @@ import type { User } from "@supabase/supabase-js";
 
 /**
  * Sesión local "offline-first": permite entrar a la app (Tierra, Lobby, Mi Mundo) sin
- * pasar por Supabase / onniverso.com. Útil cuando:
+ * pasar por Supabase / onnivers.online. Útil cuando:
  *   - El usuario quiere usar la app sin conexión y nunca creó cuenta.
  *   - El dispositivo está offline en el primer arranque tras instalar el APK.
  *

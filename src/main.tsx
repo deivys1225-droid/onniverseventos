@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { App as CapacitorApp } from "@capacitor/app";
+import { isAllowedWebDeepLinkHost } from "@/config/productionSite";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -110,14 +111,6 @@ function AppRoot() {
   }, []);
 
   useEffect(() => {
-    const isAllowedWebHost = (host: string): boolean => {
-      const normalizedHost = host.trim().toLowerCase();
-      if (!normalizedHost) return false;
-      if (normalizedHost === "onniverso.com" || normalizedHost === "www.onniverso.com") return true;
-      if (normalizedHost === "localhost" || normalizedHost === "127.0.0.1") return true;
-      return false;
-    };
-
     const normalizeDeepLinkPath = (incomingUrl: string): string | null => {
       try {
         const u = new URL(incomingUrl);
@@ -127,7 +120,7 @@ function AppRoot() {
           if (!inner) return null;
           try {
             const innerUrl = new URL(inner);
-            if (innerUrl.protocol === "https:" && isAllowedWebHost(innerUrl.hostname)) {
+            if (innerUrl.protocol === "https:" && isAllowedWebDeepLinkHost(innerUrl.hostname)) {
               return `${innerUrl.pathname}${innerUrl.search}${innerUrl.hash}`;
             }
           } catch {

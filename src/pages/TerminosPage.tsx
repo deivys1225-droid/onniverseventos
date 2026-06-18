@@ -81,7 +81,7 @@ const TerminosPage = () => {
       <section>
         <h2>8. Contacto</h2>
         <p>
-          <a href="mailto:gerencia@onniverso.com">gerencia@onniverso.com</a> ·{" "}
+          <a href="mailto:gerencia@onnivers.online">gerencia@onnivers.online</a> ·{" "}
           <a href="mailto:empresatecnologicadecolombia@gmail.com">empresatecnologicadecolombia@gmail.com</a>
           <br />
           Línea nacional <strong className="tabular-nums">01 8000 210 21054</strong> · Fijo{" "}
