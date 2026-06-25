@@ -19,8 +19,19 @@
   <meta name="twitter:title" content="OnniVers · Tu Realidad Evolucionada">
   <meta name="twitter:description" content="OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada. Empresa Tecnológica de Colombia S.A.S.">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <link rel="canonical" href="https://onnivers.online/">
+  <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
   <meta property="og:url" content="https://onnivers.online/">
+  <meta property="og:image" content="https://onnivers.online/eventos-inmersivos.jpeg">
+  <meta property="og:image:alt" content="OnniVers — eventos inmersivos y realidad evolucionada">
+  <meta name="twitter:image" content="https://onnivers.online/eventos-inmersivos.jpeg">
+  <script type="application/ld+json" id="schema-org-website-static">
+  {"@context":"https://schema.org","@type":"WebSite","name":"OnniVers","alternateName":"OnniVerso","url":"https://onnivers.online/","description":"OnniVers: realidad inmersiva, eventos VR y transmisiones en vivo en 360°. Plataforma líder en educación inmersiva, tiendas digitales y conciertos en realidad aumentada.","inLanguage":"es","publisher":{"@type":"Organization","name":"Empresa Tecnológica de Colombia S.A.S.","url":"https://onnivers.online/"}}
+  </script>
+  <script type="application/ld+json" id="schema-org-org-static">
+  {"@context":"https://schema.org","@type":"Organization","name":"OnniVers","url":"https://onnivers.online/","logo":"https://onnivers.online/imagenes/favicon.png","email":"gerencia@onnivers.online","sameAs":[]}
+  </script>
 </head>
 
 <body>
@@ -94,6 +105,7 @@
           robotsMeta.content = "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
           document.head.appendChild(robotsMeta);
         }
+        if (document.getElementById("schema-org-website-static")) return;
         if (document.getElementById("schema-org-website")) return;
         var ld = document.createElement("script");
         ld.type = "application/ld+json";

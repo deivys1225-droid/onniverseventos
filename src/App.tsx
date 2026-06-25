@@ -10,7 +10,6 @@ import { isPayPalConfigured, paypalScriptOptions } from "@/config/payments";
 import GuestRoute from "@/components/auth/GuestRoute";
 import PrivateRoute from "@/components/auth/PrivateRoute";
 import OpAiAssistant from "@/components/OpAiAssistant";
-import Index from "./pages/Index.tsx";
 import EventPage from "./pages/EventPage.tsx";
 import AuthPage from "./pages/AuthPage.tsx";
 import TiendaPage from "./pages/TiendaPage.tsx";
@@ -23,7 +22,8 @@ import DocenteClasesPage from "./pages/DocenteClasesPage.tsx";
 import ClaseVirtualEntryPage from "./pages/ClaseVirtualEntryPage.tsx";
 import EventosPage from "./pages/EventosPage.tsx";
 import RedSocialInmersivaPage from "./pages/RedSocialInmersivaPage.tsx";
-import InicioPage from "./pages/InicioPage.tsx";
+import HomeRoute from "@/components/auth/HomeRoute";
+import Index from "./pages/Index.tsx";
 import NuestrasSalasPage from "./pages/NuestrasSalasPage.tsx";
 import ConciertosLiveConfigPage from "./pages/ConciertosLiveConfigPage.tsx";
 import ConciertosLiveEmitirPage from "./pages/ConciertosLiveEmitirPage.tsx";
@@ -80,14 +80,7 @@ const App = () => {
           <Suspense fallback={<PageLoader />}>
           <OpAiAssistant />
           <Routes>
-            <Route
-              path="/"
-              element={
-                <PrivateRoute>
-                  <InicioPage />
-                </PrivateRoute>
-              }
-            />
+            <Route path="/" element={<HomeRoute />} />
             <Route path="/inicio" element={<Navigate to="/" replace />} />
             <Route path="/inicio-2" element={<Index />} />
             <Route

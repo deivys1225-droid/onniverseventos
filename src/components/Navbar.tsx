@@ -37,7 +37,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showAppDownload, setShowAppDownload] = useState(false);
-  /** Logo: perfil autenticado (`/`); invitados → landing. ONNIVERSO sigue en `/inicio-2`. */
+  /** Logo → inicio app (`/`); menú ONNIVERSO → landing pública (`/inicio-2`). */
   const profileHomePath = user ? "/" : "/inicio-2";
 
   useEffect(() => {
